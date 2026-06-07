@@ -48,6 +48,12 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Pytest
         run: pytest --cov=scieqlint --cov-report=term-missing
+      - name: Coverage gates
+        run: |
+          coverage report --fail-under=85
+          coverage report --include='src/scieqlint/check/references.py' --fail-under=95
+          coverage report --include='src/scieqlint/report/json.py' --fail-under=95
+          coverage report --include='src/scieqlint/report/github.py' --fail-under=95
 
   package:
     name: package
