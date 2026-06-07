@@ -26,9 +26,7 @@ def test_missing_reference_is_warning() -> None:
 
 
 def test_duplicate_label_is_error() -> None:
-    scan = _scan(
-        "$$\nE = m c^2\n$$ {#energy}\n\n" "$$\nF = m a\n$$ {#energy}\n"
-    )
+    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n")
     diagnostics = check_references(scan.labels, scan.references)
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF001"]
     assert diagnostics[0].severity is Severity.ERROR

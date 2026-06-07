@@ -151,9 +151,7 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
-        source = (
-            ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
-        )
+        source = ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
         target_start = match.start("body") + body.rfind(target)
         yield EquationReference(
             target=_normalize_label(target),
