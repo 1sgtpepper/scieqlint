@@ -121,9 +121,7 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
             span=_span(document, label_start, label_end),
             block_id=block.block_id,
             source=(
-                LabelSource.MYST_DOLLAR_LABEL
-                if match.group(2)
-                else LabelSource.MARKDOWN_ANCHOR
+                LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
             ),
         )
 
@@ -153,7 +151,9 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
-        source = ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
+        source = (
+            ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
+        )
         target_start = match.start("body") + body.rfind(target)
         yield EquationReference(
             target=_normalize_label(target),
@@ -173,7 +173,11 @@ def _normalize_label(value: str) -> str:
     return value[1:] if value.startswith("#") else value
 
 
-def _block_id(document: SourceDocument, span: SourceSpan, container: MathContainer) -> str:
+def _block_id(
+    document: SourceDocument,
+    span: SourceSpan,
+    container: MathContainer,
+) -> str:
     return f"{document.display_path}:{span.line}:{span.col}:{container.value}"
 
 
