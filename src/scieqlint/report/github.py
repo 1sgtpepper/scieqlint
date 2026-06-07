@@ -34,9 +34,7 @@ def _render_diagnostic(diagnostic: Diagnostic) -> str:
                 ("endColumn", str(span.end_col)),
             ]
         )
-    properties_text = ",".join(
-        f"{name}={_escape_property(value)}" for name, value in properties
-    )
+    properties_text = ",".join(f"{name}={_escape_property(value)}" for name, value in properties)
     message = diagnostic.detail if diagnostic.detail else diagnostic.message
     return f"::{command} {properties_text}::{_escape_data(message)}"
 
