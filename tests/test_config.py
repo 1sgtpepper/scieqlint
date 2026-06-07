@@ -14,8 +14,7 @@ def test_load_config_records_explicit_path(tmp_path) -> None:
 def test_load_config_finds_default_file_in_current_directory(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
-        "[scanner]\nmath_fences = false\n\n"
-        "[checks.references]\nmissing_label_strict = true\n",
+        "[scanner]\nmath_fences = false\n\n[checks.references]\nmissing_label_strict = true\n",
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -31,8 +30,7 @@ def test_load_config_finds_default_file_in_current_directory(tmp_path, monkeypat
 def test_load_config_accepts_check_toggles(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
-        "[checks.algebra]\nenabled = false\n\n"
-        "[checks.references]\nenabled = false\n",
+        "[checks.algebra]\nenabled = false\n\n[checks.references]\nenabled = false\n",
         encoding="utf-8",
     )
 

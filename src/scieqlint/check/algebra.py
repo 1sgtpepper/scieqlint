@@ -174,7 +174,9 @@ def _mul(left: Polynomial, right: Polynomial) -> Polynomial:
     for left_monomial, left_coefficient in left.items():
         for right_monomial, right_coefficient in right.items():
             monomial = _merge_monomials(left_monomial, right_monomial)
-            result[monomial] = result.get(monomial, Fraction(0)) + left_coefficient * right_coefficient
+            result[monomial] = (
+                result.get(monomial, Fraction(0)) + left_coefficient * right_coefficient
+            )
     return _clean(result)
 
 

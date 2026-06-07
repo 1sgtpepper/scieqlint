@@ -49,9 +49,6 @@ class CheckResult:
 
     def exit_code(self) -> int:
         """Return 1 only when an unsuppressed error diagnostic exists."""
-        if any(
-            d.severity is Severity.ERROR and not d.suppressed
-            for d in self.diagnostics
-        ):
+        if any(d.severity is Severity.ERROR and not d.suppressed for d in self.diagnostics):
             return 1
         return 0

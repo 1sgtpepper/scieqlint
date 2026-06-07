@@ -36,7 +36,10 @@ missing_label_strict = false
 """
 
 
-@click.group(name="scieqlint", context_settings={"help_option_names": ["-h", "--help"]})
+@click.group(
+    name="scieqlint",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.version_option(__version__, prog_name="scieqlint")
 def main() -> None:
     """Deterministic linter for supported scientific-document equations."""
@@ -71,7 +74,12 @@ def check(
 
 
 @main.command()
-@click.option("--path", "config_path", type=click.Path(path_type=Path), default=Path("scieqlint.toml"))
+@click.option(
+    "--path",
+    "config_path",
+    type=click.Path(path_type=Path),
+    default=Path("scieqlint.toml"),
+)
 def init(config_path: Path) -> None:
     """Write a default config file."""
     if config_path.exists():

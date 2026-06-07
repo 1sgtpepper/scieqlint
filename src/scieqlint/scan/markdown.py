@@ -120,9 +120,11 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
             label=_normalize_label(raw),
             span=_span(document, label_start, label_end),
             block_id=block.block_id,
-            source=LabelSource.MYST_DOLLAR_LABEL
-            if match.group(2)
-            else LabelSource.MARKDOWN_ANCHOR,
+            source=(
+                LabelSource.MYST_DOLLAR_LABEL
+                if match.group(2)
+                else LabelSource.MARKDOWN_ANCHOR
+            ),
         )
 
 

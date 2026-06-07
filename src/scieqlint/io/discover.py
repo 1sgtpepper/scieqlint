@@ -14,11 +14,17 @@ def discover_files(paths: Iterable[Path | str]) -> tuple[Path, ...]:
     found: set[Path] = set()
     for raw in paths:
         text = str(raw)
-        matches = [Path(p) for p in glob.glob(text, recursive=True)] if any(ch in text for ch in "*?[") else [Path(raw)]
+        matches = (
+            [Path(p) for p in glob.glob(text, recursive=True)]
+            if any(ch in text for ch in "*?[")
+            else [Path(raw)]
+        )
         for path in matches:
             if path.is_dir():
                 found.update(
-                    p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
+                    p
+                    for p in path.rglob("*")
+                    if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
                 )
             elif path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES:
                 found.add(path)

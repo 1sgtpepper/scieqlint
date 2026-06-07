@@ -1,8 +1,9 @@
 # SciEqLint
 
-SciEqLint catches exact scalar algebra mistakes and broken equation references in a documented subset of scientific documents.
+SciEqLint catches exact scalar algebra mistakes and broken equation references in a
+documented subset of scientific documents.
 
-The first public win is deliberately small: run it on Markdown/MyST docs before review and catch mistakes like this:
+Run it on Markdown/MyST docs before review to catch mistakes like this:
 
 ```tex
 (a+b)^2 = a^2 + b^2
@@ -27,10 +28,6 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-## Status
-
-This repository contains the v11.1 engineering spec, docs, schemas, examples, tests, and a working v0.1.0 implementation for the first narrow use case: Markdown/MyST display math and equation references.
-
 ## Install for local development
 
 ```bash
@@ -52,13 +49,15 @@ python -m scieqlint --help
 
 ## Project promise
 
-SciEqLint is deterministic. Given the same files, config, and version, it must emit the same diagnostics in the same order. Supported math is checked exactly. Unsupported math is reported as unknown or skipped. The checker must not guess.
+SciEqLint is deterministic. Given the same files, config, and version, it must emit
+the same diagnostics in the same order. Supported math is checked exactly.
+Unsupported math is reported as unknown or skipped. The checker must not guess.
 
-## What ships first
+## Supported files
 
-v0.1.0 only targets `.md` and `.markdown` documents. It supports a narrow Markdown/MyST display-math subset, labels and references, minimal scalar algebra, text output, deterministic JSON output, and JSON Schema validation.
-
-Not in v0.1.0: dimensions, LaTeX files, notebooks, SARIF, GitHub annotations, graph export, symbols, macro expansion, broad CAS behavior, or theorem proving.
+SciEqLint checks `.md` and `.markdown` documents. It supports Markdown/MyST display
+math, labels and references, simple scalar algebra, text output, deterministic JSON
+output, and JSON Schema validation.
 
 ## For contributors
 
@@ -70,7 +69,7 @@ Start with these files:
 - `ROADMAP.md` for release order and cut rules.
 - `docs/contributing/` for deeper guidance.
 
-Small, boring, exact PRs are the goal. A narrow PR with tests and docs is better than a broad PR that looks impressive but changes multiple layers at once.
+Keep PRs small and test the behavior they change.
 
 ## License
 
