@@ -16,7 +16,7 @@ V010_BENCHMARKS = {
 
 
 def test_v010_accuracy_benchmark_fixtures_are_checked() -> None:
-    assert V010_BENCHMARKS <= {path.name for path in BENCHMARK_DIR.glob("*.yml")}
+    assert {path.name for path in BENCHMARK_DIR.glob("*.yml")} >= V010_BENCHMARKS
 
     for path in sorted(BENCHMARK_DIR.glob("*.yml")):
         for case in _load_cases(path):
