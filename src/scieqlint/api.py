@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from scieqlint.app import check_documents as _check_documents
 from scieqlint.app import check_paths as _check_paths

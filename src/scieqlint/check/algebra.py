@@ -27,7 +27,7 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
         try:
             left = _Parser(left_raw).parse()
             right = _Parser(right_raw).parse()
-        except UnsupportedExpression:
+        except UnsupportedExpressionError:
             continue
 
         if _symbols(left) != _symbols(right):
@@ -50,7 +50,7 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
     return tuple(diagnostics)
 
 
-class UnsupportedExpression(ValueError):
+class UnsupportedExpressionError(ValueError):
     pass
 
 
@@ -64,16 +64,16 @@ class _Parser:
         cleaned = text.replace("{", "(").replace("}", ")")
         tokens = TOKEN_RE.findall(cleaned)
         if "".join(tokens).replace(" ", "") != re.sub(r"\s+", "", cleaned):
-            raise UnsupportedExpression(text)
+            raise UnsupportedExpressionError(text)
         self.tokens = tuple(Token(token) for token in tokens)
         self.index = 0
 
     def parse(self) -> Polynomial:
         if not self.tokens:
-            raise UnsupportedExpression("empty expression")
+            raise UnsupportedExpressionError("empty expression")
         expression = self._expr()
         if self._peek() is not None:
-            raise UnsupportedExpression("trailing tokens")
+            raise UnsupportedExpressionError("trailing tokens")
         return _clean(expression)
 
     def _expr(self) -> Polynomial:
@@ -106,7 +106,7 @@ class _Parser:
             self._take()
             exponent_token = self._take()
             if not exponent_token.value.isdigit():
-                raise UnsupportedExpression("non-integer exponent")
+                raise UnsupportedExpressionError("non-integer exponent")
             value = _pow(value, int(exponent_token.value))
         return value
 
@@ -120,16 +120,16 @@ class _Parser:
         if value == "(":
             expression = self._expr()
             if self._peek_value() != ")":
-                raise UnsupportedExpression("missing closing parenthesis")
+                raise UnsupportedExpressionError("missing closing parenthesis")
             self._take()
             return expression
         if value.startswith("\\"):
-            raise UnsupportedExpression("unsupported TeX command")
+            raise UnsupportedExpressionError("unsupported TeX command")
         if re.fullmatch(r"\d+(?:/\d+)?", value):
             return {(): Fraction(value)}
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
             return {((value, 1),): Fraction(1)}
-        raise UnsupportedExpression(value)
+        raise UnsupportedExpressionError(value)
 
     def _peek(self) -> Token | None:
         return self.tokens[self.index] if self.index < len(self.tokens) else None
@@ -141,7 +141,7 @@ class _Parser:
     def _take(self) -> Token:
         token = self._peek()
         if token is None:
-            raise UnsupportedExpression("unexpected end of expression")
+            raise UnsupportedExpressionError("unexpected end of expression")
         self.index += 1
         return token
 
@@ -182,16 +182,16 @@ def _mul(left: Polynomial, right: Polynomial) -> Polynomial:
 
 def _div(left: Polynomial, right: Polynomial) -> Polynomial:
     if set(right) != {()}:
-        raise UnsupportedExpression("division by non-constant expression")
+        raise UnsupportedExpressionError("division by non-constant expression")
     denominator = right[()]
     if denominator == 0:
-        raise UnsupportedExpression("division by zero")
+        raise UnsupportedExpressionError("division by zero")
     return {monomial: coefficient / denominator for monomial, coefficient in left.items()}
 
 
 def _pow(value: Polynomial, exponent: int) -> Polynomial:
     if exponent < 0:
-        raise UnsupportedExpression("negative exponent")
+        raise UnsupportedExpressionError("negative exponent")
     result: Polynomial = {(): Fraction(1)}
     for _ in range(exponent):
         result = _mul(result, value)

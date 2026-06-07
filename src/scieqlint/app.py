@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
-from typing import Sequence
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra

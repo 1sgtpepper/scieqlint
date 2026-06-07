@@ -12,5 +12,5 @@ COMMANDS = [
 ]
 
 for command in COMMANDS:
-    print("+", " ".join(command))
+    sys.stdout.write(f"+ {' '.join(command)}\n")
     subprocess.run(command, check=True)

@@ -31,7 +31,7 @@ class Expr: ...
 
 @dataclass(frozen=True, slots=True)
 class EquationGroup:
-    equations: tuple["Equation", ...]
+    equations: tuple[Equation, ...]
     span: SourceSpan
 
 

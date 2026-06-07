@@ -9,7 +9,7 @@ from typing import TextIO
 import click
 
 from scieqlint import __version__
-from scieqlint.api import check_paths, load_config
+from scieqlint.api import check_paths
 from scieqlint.diag.catalog import explain_code
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.text import TextReporter

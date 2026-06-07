@@ -22,7 +22,7 @@ class LineIndex:
     line_starts: tuple[int, ...]
 
     @classmethod
-    def from_text(cls, text: str) -> "LineIndex":
+    def from_text(cls, text: str) -> LineIndex:
         starts = [0]
         for idx, char in enumerate(text):
             if char == "\n":
@@ -46,7 +46,7 @@ class SourceDocument:
     display_path: str
 
     @classmethod
-    def from_text(cls, path: PurePosixPath, text: str, kind: DocumentKind) -> "SourceDocument":
+    def from_text(cls, path: PurePosixPath, text: str, kind: DocumentKind) -> SourceDocument:
         normalized = text.replace("\r\n", "\n").replace("\r", "\n")
         return cls(
             path=path,
