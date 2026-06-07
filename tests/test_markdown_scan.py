@@ -42,7 +42,7 @@ def test_inline_math_scans_only_when_enabled() -> None:
 def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "Code span `$not = math$`.\n\n" "```python\n" 'also = "$not_math$"\n' "```\n",
+        'Code span `$not = math$`.\n\n```python\nalso = "$not_math$"\n```\n',
         DocumentKind.MARKDOWN,
     )
     config = Config(scanner=ScannerConfig(inline_math=True))
