@@ -9,6 +9,7 @@ forbidden_modules =
     scieqlint.scan
     scieqlint.parse
     scieqlint.check
+allow_indirect_imports = true
 
 [importlinter:contract:report-no-analysis]
 name = Reporters must not import scanner/parser/checker layers

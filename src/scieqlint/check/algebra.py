@@ -233,7 +233,7 @@ def _sort_key(item: tuple[Monomial, Fraction]) -> tuple[int, str]:
 
 
 def _format_term(coefficient: Fraction, monomial: Monomial) -> str:
-    factors = []
+    factors: list[str] = []
     for name, power in monomial:
         factors.append(name if power == 1 else f"{name}^{power}")
     coefficient_text = _format_fraction(coefficient)

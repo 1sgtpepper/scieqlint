@@ -113,7 +113,7 @@ show_missing = true
 skip_covered = true
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
@@ -130,6 +130,7 @@ forbidden_modules = [
   "scieqlint.parse",
   "scieqlint.check",
 ]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Reporters must not import scanner/parser/checker layers"

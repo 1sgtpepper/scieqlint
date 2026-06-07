@@ -6,11 +6,13 @@ import json
 
 from scieqlint.diag.model import CheckResult, Severity
 
+JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
+
 
 class JsonReporter:
     def render(self, result: CheckResult) -> str:
         counts = {Severity.ERROR: 0, Severity.WARNING: 0, Severity.INFO: 0}
-        diagnostics_json = []
+        diagnostics_json: list[JsonValue] = []
         for diagnostic in result.diagnostics:
             counts[diagnostic.severity] += 1
             span = diagnostic.span
@@ -32,7 +34,7 @@ class JsonReporter:
                     "suppressed": diagnostic.suppressed,
                 }
             )
-        payload = {
+        payload: dict[str, JsonValue] = {
             "schema_version": "0.1",
             "tool": "scieqlint",
             "version": result.version,

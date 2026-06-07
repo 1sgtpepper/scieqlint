@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 from scieqlint.config.model import (
     AlgebraConfig,
@@ -61,7 +61,7 @@ def _table(data: dict[str, Any], key: str) -> dict[str, Any]:
     value = data.get(key, {})
     if not isinstance(value, dict):
         raise ValueError(f"[{key}] must be a table")
-    return value
+    return cast(dict[str, Any], value)
 
 
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
