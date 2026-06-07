@@ -22,7 +22,7 @@ Recommended reading order for implementers: product contract, time-boxed release
 
 Recommended reading order for new contributors: README first screen, contributor quickstart, issue labels, first ten issues, narrow PR rules, tests/golden outputs, and limitations page.
 
-Complete pack note: this ZIP is a repository-ready specification and scaffold. The specification defines the full release ladder through v1.0.0; the included Python package scaffold is intentionally only a v0.0.1 executable skeleton so contributors can begin from a clean, honest baseline. Real v0.1.0 analysis behavior must be implemented behind fixtures, docs, and acceptance gates before being claimed as shipped.
+Complete pack note: this repository tracks the full release ladder through v1.0.0. The current implementation now covers the narrow v0.0.1-v0.1.1 wedge behind fixtures, docs, CI, and acceptance gates; later roadmap items remain explicitly scoped below.
 
 ---
 
