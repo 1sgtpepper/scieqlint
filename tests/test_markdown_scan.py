@@ -44,7 +44,7 @@ def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
         PurePosixPath("paper.md"),
         "Code span `$not = math$`.\n\n"
         "```python\n"
-        'also = "$not_math$"\n'
+        "also = \"$not_math$\"\n"
         "```\n",
         DocumentKind.MARKDOWN,
     )
