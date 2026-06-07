@@ -72,7 +72,7 @@ class MarkdownScanner:
 
 
 def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for start, body_start, body_end, _end in _display_ranges(document):
+    for _start, body_start, body_end, _end in _display_ranges(document):
         body = document.text[body_start:body_end]
         text = body.strip()
         span_start = body_start + len(body) - len(body.lstrip())
