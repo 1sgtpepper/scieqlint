@@ -75,7 +75,12 @@ def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
 
 
 def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
-    value = data.get(key, [])
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+    value: object = data.get(key, [])
+    if not isinstance(value, list):
         raise ValueError(f"{key} must be a list of strings")
-    return tuple(value)
+    items: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(f"{key} must be a list of strings")
+        items.append(item)
+    return tuple(items)
