@@ -10,6 +10,7 @@ from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
     Config,
+    IgnoreConfig,
     ReferencesConfig,
     ScannerConfig,
 )
@@ -28,6 +29,7 @@ def load_config(path: Path | str | None = None) -> Config:
     data = tomllib.loads(config_path.read_text(encoding="utf-8"))
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
+    ignore_data = _table(data, "ignore")
     algebra_data = _table(checks_data, "algebra")
     references_data = _table(checks_data, "references")
     return Config(
@@ -46,6 +48,7 @@ def load_config(path: Path | str | None = None) -> Config:
                 missing_label_strict=_bool(references_data, "missing_label_strict", False),
             ),
         ),
+        ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
     )
 
 
@@ -69,3 +72,15 @@ def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{key} must be true or false")
     return value
+
+
+def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
+    value: object = data.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be a list of strings")
+    items: list[str] = []
+    for item in cast(list[object], value):
+        if not isinstance(item, str):
+            raise ValueError(f"{key} must be a list of strings")
+        items.append(item)
+    return tuple(items)

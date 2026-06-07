@@ -14,6 +14,7 @@ from scieqlint.io.source import SourceDocument
 class MathContainer(Enum):
     MARKDOWN_DISPLAY = "markdown_display"
     MARKDOWN_FENCE = "markdown_fence"
+    MARKDOWN_INLINE = "markdown_inline"
 
 
 class LabelSource(Enum):

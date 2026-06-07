@@ -36,3 +36,18 @@ def test_math_fence_scanning_can_be_disabled() -> None:
     )
     assert result.blocks == ()
     assert result.labels == ()
+
+
+def test_unterminated_math_fence_emits_scan_warning() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```{math}\na = a\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+    assert result.diagnostics[0].span.line == 1
+    assert result.diagnostics[0].rule == "scanner"

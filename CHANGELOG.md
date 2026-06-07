@@ -18,6 +18,7 @@ Release notes must use these sections:
 
 - Complete v11.1 specification and OSS contributor scaffold.
 - v0.1.0 Markdown/MyST analyzer for simple scalar algebra and equation references.
+- v0.1.1 GitHub annotation output and pre-commit metadata.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed

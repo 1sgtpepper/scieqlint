@@ -19,6 +19,11 @@ class AlgebraConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ParserConfig:
+    strict_unknowns: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class ReferencesConfig:
     enabled: bool = True
     missing_label_strict: bool = False
@@ -31,9 +36,16 @@ class ChecksConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class IgnoreConfig:
+    files: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
     path: PurePosixPath | None = None
     scanner: ScannerConfig = field(default_factory=ScannerConfig)
+    parser: ParserConfig = field(default_factory=ParserConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)
+    ignore: IgnoreConfig = field(default_factory=IgnoreConfig)

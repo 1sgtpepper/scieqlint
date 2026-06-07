@@ -37,4 +37,17 @@ color = "auto"
 # PARSE020 = "ignore"
 
 [ignore]
-files = ["build/**", "dist/**", ".venv/**"]
+files = [
+  "build/**",
+  "dist/**",
+  ".venv/**",
+  "GOOD_FIRST_ISSUES.md",
+  "README.md",
+  "SPEC.md",
+  "docs/diagnostics.md",
+  "docs/index.md",
+  "docs/limitations.md",
+  "examples/bad/**",
+  "src/scieqlint/examples/bad/**",
+  "tests/fixtures/**",
+]

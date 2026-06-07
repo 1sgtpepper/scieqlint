@@ -35,6 +35,13 @@ enabled = true
 missing = "warn"
 duplicate_labels = "error"
 missing_label_strict = false
+
+[ignore]
+files = []
 ```
+
+`ignore.files` accepts POSIX-style glob patterns matched against repository-relative paths
+when possible. Use it for generated docs, copied fixtures, or intentional bad examples
+that should not affect `scieqlint check .`.
 
 Invalid config exits 2 and should report all detected errors where practical.

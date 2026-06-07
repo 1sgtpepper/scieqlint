@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from fractions import Fraction
+from math import isqrt
 
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic
@@ -14,6 +15,7 @@ Monomial = tuple[tuple[str, int], ...]
 Polynomial = dict[Monomial, Fraction]
 
 TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]")
+TEX_MULTIPLY = {"\\cdot", "\\times"}
 
 
 def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
@@ -27,7 +29,8 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
         try:
             left = _Parser(left_raw).parse()
             right = _Parser(right_raw).parse()
-        except UnsupportedExpressionError:
+        except UnsupportedExpressionError as exc:
+            diagnostics.append(_unsupported_diagnostic(block, text, exc.code))
             continue
 
         if _symbols(left) != _symbols(right):
@@ -51,7 +54,9 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
 
 
 class UnsupportedExpressionError(ValueError):
-    pass
+    def __init__(self, message: str, *, code: str = "PARSE020") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +93,7 @@ class _Parser:
         value = self._power()
         while True:
             peek = self._peek_value()
-            if peek == "*":
+            if peek == "*" or peek in TEX_MULTIPLY:
                 self._take()
                 value = _mul(value, self._power())
             elif peek == "/":
@@ -104,10 +109,7 @@ class _Parser:
         value = self._atom()
         if self._peek_value() == "^":
             self._take()
-            exponent_token = self._take()
-            if not exponent_token.value.isdigit():
-                raise UnsupportedExpressionError("non-integer exponent")
-            value = _pow(value, int(exponent_token.value))
+            value = _pow(value, self._signed_integer())
         return value
 
     def _atom(self) -> Polynomial:
@@ -123,13 +125,53 @@ class _Parser:
                 raise UnsupportedExpressionError("missing closing parenthesis")
             self._take()
             return expression
+        if value == "\\frac":
+            return _div(self._group(), self._group())
+        if value == "\\sqrt":
+            return _sqrt(self._group())
+        if value in TEX_MULTIPLY:
+            raise UnsupportedExpressionError("unexpected multiplication operator")
         if value.startswith("\\"):
-            raise UnsupportedExpressionError("unsupported TeX command")
+            raise UnsupportedExpressionError(
+                "unsupported TeX command",
+                code="PARSE021" if value in UNSUPPORTED_FUNCTIONS else "PARSE020",
+            )
         if re.fullmatch(r"\d+(?:/\d+)?", value):
             return {(): Fraction(value)}
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
             return {((value, 1),): Fraction(1)}
         raise UnsupportedExpressionError(value)
+
+    def _signed_integer(self) -> int:
+        sign = 1
+        if self._peek_value() in {"(", "{"}:
+            opening = self._take().value
+            sign = self._sign()
+            number = self._take()
+            closing = ")" if opening == "(" else "}"
+            if self._peek_value() != closing:
+                raise UnsupportedExpressionError("missing exponent close")
+            self._take()
+        else:
+            sign = self._sign()
+            number = self._take()
+        if not number.value.isdigit():
+            raise UnsupportedExpressionError("non-integer exponent")
+        return sign * int(number.value)
+
+    def _group(self) -> Polynomial:
+        if self._peek_value() != "(":
+            raise UnsupportedExpressionError("missing TeX group")
+        return self._atom()
+
+    def _sign(self) -> int:
+        if self._peek_value() == "+":
+            self._take()
+            return 1
+        if self._peek_value() == "-":
+            self._take()
+            return -1
+        return 1
 
     def _peek(self) -> Token | None:
         return self.tokens[self.index] if self.index < len(self.tokens) else None
@@ -147,11 +189,29 @@ class _Parser:
 
 
 def _is_atom_start(token: str) -> bool:
-    return token.startswith("\\") or token.isdigit() or token[0].isalpha()
+    return token not in TEX_MULTIPLY and (
+        token.startswith("\\") or token.isdigit() or token[0].isalpha()
+    )
+
+
+UNSUPPORTED_FUNCTIONS = {"\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp"}
 
 
 def _strip_labels(text: str) -> str:
-    return re.sub(r"^[ \t]*:label:[^\n]*\n?", "", text, flags=re.MULTILINE).strip()
+    stripped = re.sub(r"^[ \t]*:label:[^\n]*\n?", "", text, flags=re.MULTILINE)
+    return re.sub(r"\\label\{[^{}]+}", "", stripped).strip()
+
+
+def _unsupported_diagnostic(block: MathBlock, equation: str, code: str) -> Diagnostic:
+    info = CATALOG[code]
+    return Diagnostic(
+        code=info.code,
+        severity=info.severity,
+        message=info.message,
+        span=block.span,
+        equation=equation,
+        rule="parser",
+    )
 
 
 def _add(left: Polynomial, right: Polynomial) -> Polynomial:
@@ -181,21 +241,78 @@ def _mul(left: Polynomial, right: Polynomial) -> Polynomial:
 
 
 def _div(left: Polynomial, right: Polynomial) -> Polynomial:
-    if set(right) != {()}:
+    if len(right) != 1:
         raise UnsupportedExpressionError("division by non-constant expression")
-    denominator = right[()]
+    monomial, denominator = next(iter(right.items()))
     if denominator == 0:
         raise UnsupportedExpressionError("division by zero")
-    return {monomial: coefficient / denominator for monomial, coefficient in left.items()}
+    divisor = tuple((name, -power) for name, power in monomial)
+    return {
+        _merge_monomials(left_monomial, divisor): coefficient / denominator
+        for left_monomial, coefficient in left.items()
+    }
 
 
 def _pow(value: Polynomial, exponent: int) -> Polynomial:
-    if exponent < 0:
-        raise UnsupportedExpressionError("negative exponent")
     result: Polynomial = {(): Fraction(1)}
-    for _ in range(exponent):
-        result = _mul(result, value)
+    base = value if exponent >= 0 else _div({(): Fraction(1)}, value)
+    for _ in range(abs(exponent)):
+        result = _mul(result, base)
     return result
+
+
+def _sqrt(value: Polynomial) -> Polynomial:
+    square_root = _square_root(value)
+    if square_root is not None:
+        return square_root
+    raise UnsupportedExpressionError("sqrt of non-square expression")
+
+
+def _square_root(value: Polynomial) -> Polynomial | None:
+    if len(value) != 1:
+        return _binomial_square_root(value)
+    monomial, coefficient = next(iter(value.items()))
+    root = _integer_sqrt(coefficient)
+    if root is None:
+        return None
+    factors: list[tuple[str, int]] = []
+    for name, power in monomial:
+        if power % 2:
+            return None
+        factors.append((name, power // 2))
+    return {tuple(factors): root}
+
+
+def _binomial_square_root(value: Polynomial) -> Polynomial | None:
+    if len(value) != 3:
+        return None
+    for monomial, coefficient in value.items():
+        if coefficient <= 0:
+            continue
+        first = _square_root({monomial: coefficient})
+        if first is None:
+            continue
+        remaining = _sub(value, _pow(first, 2))
+        for other_monomial, other_coefficient in remaining.items():
+            if other_coefficient <= 0:
+                continue
+            second = _square_root({other_monomial: other_coefficient})
+            if second is None:
+                continue
+            for root in (_add(first, second), _sub(first, second)):
+                if _clean(_sub(_pow(root, 2), value)) == {}:
+                    return root
+    return None
+
+
+def _integer_sqrt(value: Fraction) -> Fraction | None:
+    if value < 0:
+        return None
+    numerator = isqrt(value.numerator)
+    denominator = isqrt(value.denominator)
+    if numerator * numerator == value.numerator and denominator * denominator == value.denominator:
+        return Fraction(numerator, denominator)
+    return None
 
 
 def _merge_monomials(left: Monomial, right: Monomial) -> Monomial:

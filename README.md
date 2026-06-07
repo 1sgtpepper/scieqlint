@@ -33,7 +33,9 @@ REF002 equation reference target not found: missing
 ```bash
 python -m pip install -e '.[dev]'
 scieqlint --help
+scieqlint check .
 scieqlint check README.md
+scieqlint check examples/bad/famous_bad.md --format github
 scieqlint demo
 ```
 
@@ -57,7 +59,15 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 
 SciEqLint checks `.md` and `.markdown` documents. It supports Markdown/MyST display
 math, labels and references, simple scalar algebra, text output, deterministic JSON
-output, and JSON Schema validation.
+output, and JSON Schema validation. See `docs/limitations.md` for the supported subset
+and explicit non-goals.
+
+## Pull request annotations
+
+```yaml
+- name: Check equations
+  run: scieqlint check "docs/**/*.md" --format github
+```
 
 ## For contributors
 

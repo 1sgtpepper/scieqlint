@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import json
+from importlib import resources
+from pathlib import Path
+
+from jsonschema.validators import Draft202012Validator
+from referencing import Registry, Resource
+
+from scieqlint.api import check_paths
+from scieqlint.report.github import GitHubReporter
+from scieqlint.report.json import JsonReporter
+from scieqlint.report.text import TextReporter
+
+FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
+
+
+def test_text_golden_output_matches_famous_bad_fixture() -> None:
+    result = check_paths([FIXTURE])
+
+    assert TextReporter().render(result) == Path("tests/golden/text/famous_bad.txt").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
+    rendered = JsonReporter().render(check_paths([FIXTURE]))
+    schema = _schema("scieqlint-result-0.1.schema.json")
+    diagnostic_schema = _schema("scieqlint-diagnostic-0.1.schema.json")
+    registry = Registry().with_resources(
+        [
+            (schema["$id"], Resource.from_contents(schema)),
+            (diagnostic_schema["$id"], Resource.from_contents(diagnostic_schema)),
+        ]
+    )
+
+    Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
+    assert rendered == Path("tests/golden/json/famous_bad.json").read_text(encoding="utf-8")
+
+
+def test_github_golden_output_matches_famous_bad_fixture() -> None:
+    result = check_paths([FIXTURE])
+
+    assert GitHubReporter().render(result) == Path("tests/golden/github/famous_bad.txt").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_github_acceptance_example_emits_annotation_location_and_title() -> None:
+    result = check_paths([Path("examples/bad/famous_bad.md")])
+
+    assert GitHubReporter().render(result) == (
+        "::error title=ALG001 algebraic identity does not hold,"
+        "file=examples/bad/famous_bad.md,line=4,col=1,endLine=4,endColumn=19"
+        "::left - right = 2*a*b\n"
+    )
+
+
+def _schema(name: str) -> dict[str, object]:
+    return json.loads(
+        resources.files("scieqlint.schemas").joinpath(name).read_text(encoding="utf-8")
+    )
