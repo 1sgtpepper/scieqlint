@@ -1,0 +1,1 @@
+::error title=ALG001 algebraic identity does not hold,file=tests/fixtures/bad/famous_bad.md,line=4,col=1,endLine=4,endColumn=19::left - right = 2*a*b
