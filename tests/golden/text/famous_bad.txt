@@ -1,0 +1,2 @@
+tests/fixtures/bad/famous_bad.md:4:1: error ALG001 algebraic identity does not hold
+  detail: left - right = 2*a*b
