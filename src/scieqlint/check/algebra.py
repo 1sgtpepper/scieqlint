@@ -27,7 +27,8 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
         try:
             left = _Parser(left_raw).parse()
             right = _Parser(right_raw).parse()
-        except UnsupportedExpressionError:
+        except UnsupportedExpressionError as exc:
+            diagnostics.append(_unsupported_diagnostic(block, text, exc.code))
             continue
 
         if _symbols(left) != _symbols(right):
@@ -51,7 +52,9 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
 
 
 class UnsupportedExpressionError(ValueError):
-    pass
+    def __init__(self, message: str, *, code: str = "PARSE020") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,7 +127,10 @@ class _Parser:
             self._take()
             return expression
         if value.startswith("\\"):
-            raise UnsupportedExpressionError("unsupported TeX command")
+            raise UnsupportedExpressionError(
+                "unsupported TeX command",
+                code="PARSE021" if value in UNSUPPORTED_FUNCTIONS else "PARSE020",
+            )
         if re.fullmatch(r"\d+(?:/\d+)?", value):
             return {(): Fraction(value)}
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
@@ -150,8 +156,24 @@ def _is_atom_start(token: str) -> bool:
     return token.startswith("\\") or token.isdigit() or token[0].isalpha()
 
 
+UNSUPPORTED_FUNCTIONS = {"\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp"}
+
+
 def _strip_labels(text: str) -> str:
-    return re.sub(r"^[ \t]*:label:[^\n]*\n?", "", text, flags=re.MULTILINE).strip()
+    stripped = re.sub(r"^[ \t]*:label:[^\n]*\n?", "", text, flags=re.MULTILINE)
+    return re.sub(r"\\label\{[^{}]+}", "", stripped).strip()
+
+
+def _unsupported_diagnostic(block: MathBlock, equation: str, code: str) -> Diagnostic:
+    info = CATALOG[code]
+    return Diagnostic(
+        code=info.code,
+        severity=info.severity,
+        message=info.message,
+        span=block.span,
+        equation=equation,
+        rule="parser",
+    )
 
 
 def _add(left: Polynomial, right: Polynomial) -> Polynomial:

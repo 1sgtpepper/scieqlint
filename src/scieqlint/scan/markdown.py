@@ -19,6 +19,12 @@ from scieqlint.scan.base import (
 )
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
+INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+CODE_FENCE_RE = re.compile(
+    r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
 FENCE_RE = re.compile(
     r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
     re.MULTILINE | re.DOTALL,
@@ -49,6 +55,9 @@ class MarkdownScanner:
                 blocks.append(block)
                 labels.extend(_tex_labels(document, block))
                 labels.extend(_myst_directive_labels(document, block))
+
+        if config.scanner.inline_math:
+            blocks.extend(_inline_blocks(document, blocks))
 
         references = tuple(_references(document))
         return ScanResult(
@@ -86,6 +95,30 @@ def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_FENCE),
             container=MathContainer.MARKDOWN_FENCE,
+        )
+
+
+def _inline_blocks(
+    document: SourceDocument,
+    existing_blocks: list[MathBlock],
+) -> Iterable[MathBlock]:
+    occupied = (
+        *((block.span.start, block.span.end) for block in existing_blocks),
+        *((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text)),
+        *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
+    )
+    for match in INLINE_RE.finditer(document.text):
+        body_start = match.start("body")
+        body_end = match.end("body")
+        if any(start <= body_start < end for start, end in occupied):
+            continue
+        body = match.group("body")
+        span = _span(document, body_start, body_end)
+        yield MathBlock(
+            text=body.strip(),
+            span=span,
+            block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
+            container=MathContainer.MARKDOWN_INLINE,
         )
 
 

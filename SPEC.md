@@ -2785,4 +2785,4 @@ The v11.1 path wins by making the first public release undeniable: install it, r
 
 The companion ZIP includes `PACK_MANIFEST.md`, which lists every repository scaffold file. The pack is intentionally split into specification, governance, docs, CI, package scaffold, tests, schemas, examples, and release checklists.
 
-The included code is a v0.0.1 skeleton. It exists so contributors can install, run, and test the project before implementing v0.1.0 behavior. It MUST NOT be described as supporting real equation checks until the v0.1.0 acceptance criteria pass.
+The included code is a narrow v0.1.0 Markdown/MyST implementation. It exists so contributors can install, run, test, and extend real equation and reference checks while preserving the v0.1.0 scope boundaries.

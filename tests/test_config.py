@@ -38,3 +38,12 @@ def test_load_config_accepts_check_toggles(tmp_path) -> None:
 
     assert config.checks.algebra.enabled is False
     assert config.checks.references.enabled is False
+
+
+def test_load_config_accepts_ignore_files(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[ignore]\nfiles = ["examples/bad/**"]\n', encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.ignore.files == ("examples/bad/**",)

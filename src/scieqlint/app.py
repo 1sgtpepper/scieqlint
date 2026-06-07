@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import fnmatch
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
 from scieqlint.check.references import check_references
 from scieqlint.config.load import load_config
-from scieqlint.config.model import Config
+from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.catalog import CATALOG
-from scieqlint.diag.model import CheckResult, Diagnostic, SourceSpan
+from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.io.discover import discover_files
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
@@ -22,10 +24,19 @@ def check_paths(
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
+    no_algebra: bool = False,
+    inline_math: bool = False,
+    strict_unknowns: bool = False,
+    absolute_paths: bool = False,
 ) -> CheckResult:
     """Load supported files and check them."""
-    config = load_config(config_path)
-    discovered = discover_files(paths or [Path(".")])
+    config = _apply_overrides(
+        load_config(config_path),
+        no_algebra=no_algebra,
+        inline_math=inline_math,
+        strict_unknowns=strict_unknowns,
+    )
+    discovered = _discover_files(paths or [Path(".")], config.ignore.files)
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
 
@@ -39,14 +50,14 @@ def check_paths(
                     code=info.code,
                     severity=info.severity,
                     message=f"{info.message}: {path}",
-                    span=_file_start_span(path),
+                    span=_file_start_span(path, absolute_paths=absolute_paths),
                     detail=str(exc),
                 )
             )
             continue
         documents.append(
             SourceDocument.from_text(
-                _display_path(path),
+                _display_path(path, absolute_paths=absolute_paths),
                 text,
                 DocumentKind.MARKDOWN,
             )
@@ -80,10 +91,19 @@ def check_documents(
         labels.extend(scan.labels)
         references.extend(scan.references)
         diagnostics.extend(scan.diagnostics)
-        if config.checks.algebra.enabled:
-            for block in scan.blocks:
-                diagnostics.extend(check_algebra(block))
+        for block in scan.blocks:
+            block_diagnostics = check_algebra(block)
+            if config.checks.algebra.enabled:
+                diagnostics.extend(block_diagnostics)
+            else:
+                diagnostics.extend(
+                    diagnostic
+                    for diagnostic in block_diagnostics
+                    if diagnostic.code.startswith("PARSE")
+                )
 
+    if config.parser.strict_unknowns:
+        diagnostics = [_strict_unknown(diagnostic) for diagnostic in diagnostics]
     if config.checks.references.enabled:
         diagnostics.extend(
             check_references(
@@ -102,15 +122,78 @@ def check_documents(
     )
 
 
-def _display_path(path: Path) -> PurePosixPath:
+def _apply_overrides(
+    config: Config,
+    *,
+    no_algebra: bool,
+    inline_math: bool,
+    strict_unknowns: bool,
+) -> Config:
+    scanner = (
+        replace(config.scanner, inline_math=True)
+        if inline_math and not config.scanner.inline_math
+        else config.scanner
+    )
+    algebra = AlgebraConfig(enabled=False) if no_algebra else config.checks.algebra
+    checks = replace(config.checks, algebra=algebra)
+    parser = (
+        ParserConfig(strict_unknowns=True)
+        if strict_unknowns and not config.parser.strict_unknowns
+        else config.parser
+    )
+    return replace(config, scanner=scanner, checks=checks, parser=parser)
+
+
+def _discover_files(
+    paths: Sequence[Path | str],
+    ignore_patterns: tuple[str, ...],
+) -> tuple[Path, ...]:
+    explicit_files: list[Path] = []
+    discovered_inputs: list[Path | str] = []
+    for raw in paths:
+        path = Path(raw)
+        text = str(raw)
+        if not any(ch in text for ch in "*?[") and path.is_file():
+            explicit_files.append(path)
+        else:
+            discovered_inputs.append(raw)
+
+    discovered = _filter_ignored(discover_files(discovered_inputs), ignore_patterns)
+    return tuple(sorted({*explicit_files, *discovered}, key=lambda path: path.as_posix()))
+
+
+def _filter_ignored(paths: Sequence[Path], patterns: tuple[str, ...]) -> tuple[Path, ...]:
+    if not patterns:
+        return tuple(paths)
+    return tuple(path for path in paths if not _is_ignored(path, patterns))
+
+
+def _is_ignored(path: Path, patterns: tuple[str, ...]) -> bool:
+    rel = _display_path(path, absolute_paths=False).as_posix()
+    absolute = path.resolve().as_posix()
+    return any(
+        fnmatch.fnmatchcase(rel, pattern) or fnmatch.fnmatchcase(absolute, pattern)
+        for pattern in patterns
+    )
+
+
+def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:
+    if diagnostic.code not in {"PARSE020", "PARSE021", "PARSE022"}:
+        return diagnostic
+    return replace(diagnostic, severity=Severity.ERROR)
+
+
+def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
+    if absolute_paths:
+        return PurePosixPath(path.resolve().as_posix())
     try:
         return PurePosixPath(path.resolve().relative_to(Path.cwd().resolve()).as_posix())
     except ValueError:
         return PurePosixPath(path.as_posix())
 
 
-def _file_start_span(path: Path) -> SourceSpan:
-    display_path = _display_path(path)
+def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
+    display_path = _display_path(path, absolute_paths=absolute_paths)
     return SourceSpan(
         path=display_path,
         start=0,

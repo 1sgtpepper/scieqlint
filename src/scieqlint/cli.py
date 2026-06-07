@@ -33,6 +33,9 @@ enabled = true
 missing = "warn"
 duplicate_labels = "error"
 missing_label_strict = false
+
+[ignore]
+files = []
 """
 
 
@@ -50,17 +53,32 @@ def main() -> None:
 @click.option("--config", "config_path", type=click.Path(path_type=Path), default=None)
 @click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
 @click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option("--no-algebra", is_flag=True, help="Disable algebra checks.")
+@click.option("--inline-math", is_flag=True, help="Scan inline math.")
 @click.option("--quiet", is_flag=True, help="Suppress empty-success text output.")
+@click.option("--strict-unknowns", is_flag=True, help="Report unsupported math as errors.")
+@click.option("--absolute-paths", is_flag=True, help="Render absolute diagnostic paths.")
 def check(
     paths: tuple[Path, ...],
     config_path: Path | None,
     output_format: str,
     output_path: Path | None,
+    no_algebra: bool,
+    inline_math: bool,
     quiet: bool,
+    strict_unknowns: bool,
+    absolute_paths: bool,
 ) -> None:
     """Check supported files."""
     try:
-        result = check_paths(paths, config_path=config_path)
+        result = check_paths(
+            paths,
+            config_path=config_path,
+            no_algebra=no_algebra,
+            inline_math=inline_math,
+            strict_unknowns=strict_unknowns,
+            absolute_paths=absolute_paths,
+        )
         if output_format == "json":
             rendered = JsonReporter().render(result)
         else:
