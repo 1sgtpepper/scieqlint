@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity
 
-
 _COMMANDS = {
     Severity.ERROR: "error",
     Severity.WARNING: "warning",
