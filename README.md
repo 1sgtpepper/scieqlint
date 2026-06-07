@@ -35,6 +35,7 @@ python -m pip install -e '.[dev]'
 scieqlint --help
 scieqlint check .
 scieqlint check README.md
+scieqlint check examples/bad/famous_bad.md --format github
 scieqlint demo
 ```
 
@@ -60,6 +61,13 @@ SciEqLint checks `.md` and `.markdown` documents. It supports Markdown/MyST disp
 math, labels and references, simple scalar algebra, text output, deterministic JSON
 output, and JSON Schema validation. See `docs/limitations.md` for the supported subset
 and explicit non-goals.
+
+## Pull request annotations
+
+```yaml
+- name: Check equations
+  run: scieqlint check "docs/**/*.md" --format github
+```
 
 ## For contributors
 

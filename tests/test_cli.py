@@ -16,6 +16,7 @@ def test_check_help_lists_v010_flags() -> None:
     assert result.exit_code == 0
     for option in ["--no-algebra", "--inline-math", "--strict-unknowns", "--absolute-paths"]:
         assert option in result.output
+    assert "github" in result.output
 
 
 def test_demo() -> None:
@@ -40,6 +41,15 @@ def test_json_output_for_clean_file(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
     assert result.exit_code == 0
     assert '"schema_version": "0.1"' in result.output
+
+
+def test_github_output_for_bad_equation(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "github"])
+    assert result.exit_code == 1
+    assert result.output.startswith("::error title=ALG001 algebraic identity does not hold")
+    assert f"file={doc.as_posix()},line=2,col=1" in result.output
 
 
 def test_check_reports_bad_equation(tmp_path) -> None:
