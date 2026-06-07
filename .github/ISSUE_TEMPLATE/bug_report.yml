@@ -1,0 +1,41 @@
+name: Bug report
+description: Report reproducible incorrect behavior.
+title: "bug: "
+labels: ["needs reproduction"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting a bug. Please keep the example small."
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Paste the smallest document/config/command that reproduces the issue.
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: SciEqLint version or commit
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.11.9"
+    validations:
+      required: false

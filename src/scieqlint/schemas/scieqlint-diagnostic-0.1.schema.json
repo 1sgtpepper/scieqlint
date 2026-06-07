@@ -1,0 +1,108 @@
+{
+  "$id": "https://scieqlint.dev/schemas/scieqlint-diagnostic-0.1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cell": {
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "cell_line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "code": {
+      "pattern": "^[A-Z]+[0-9]{3}$",
+      "type": "string"
+    },
+    "col": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "detail": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "end_col": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "end_line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "equation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ]
+    },
+    "suppressed": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "severity",
+    "message",
+    "path",
+    "line",
+    "col",
+    "end_line",
+    "end_col",
+    "cell",
+    "cell_line",
+    "equation",
+    "detail",
+    "hint",
+    "suppressed"
+  ],
+  "title": "SciEqLint Diagnostic 0.1",
+  "type": "object"
+}

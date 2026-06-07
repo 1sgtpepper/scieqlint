@@ -1,0 +1,9 @@
+cases:
+  - id: polynomial-good-square
+    input: "(a+b)^2 = a^2 + 2*a*b + b^2"
+    expected_codes: []
+    expected_pass: true
+  - id: famous-bad-square
+    input: "(a+b)^2 = a^2 + b^2"
+    expected_codes: ["ALG001"]
+    expected_pass: false

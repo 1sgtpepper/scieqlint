@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        args: ["--fix"]
+  - repo: local
+    hooks:
+      - id: scieqlint-local
+        name: SciEqLint local smoke
+        entry: scieqlint check
+        language: system
+        files: '\.(md|markdown)$'
+        pass_filenames: true

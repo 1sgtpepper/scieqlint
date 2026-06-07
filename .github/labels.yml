@@ -1,0 +1,81 @@
+- name: good first issue
+  color: "7057ff"
+  description: Small, scoped, and suitable for a first contribution.
+- name: good second issue
+  color: "5319e7"
+  description: Slightly deeper task after one successful PR.
+- name: help wanted
+  color: "008672"
+  description: Maintainers would welcome outside help.
+- name: mentor available
+  color: "0e8a16"
+  description: A maintainer can provide extra guidance.
+- name: blocked
+  color: "b60205"
+  description: Cannot proceed until another decision or change lands.
+- name: needs reproduction
+  color: "d93f0b"
+  description: Needs a smaller reproducible example.
+- name: area:cli
+  color: "1d76db"
+  description: CLI and command behavior.
+- name: area:config
+  color: "1d76db"
+  description: Configuration loading and validation.
+- name: area:scanner
+  color: "1d76db"
+  description: Source scanning and source spans.
+- name: area:parser
+  color: "1d76db"
+  description: Grammar, AST, and unsupported syntax behavior.
+- name: area:algebra
+  color: "1d76db"
+  description: Exact scalar algebra checker.
+- name: area:references
+  color: "1d76db"
+  description: Labels, references, duplicate/missing checks.
+- name: area:dimensions
+  color: "1d76db"
+  description: Dimension engine and config.
+- name: area:reporters
+  color: "1d76db"
+  description: Text, JSON, GitHub, SARIF reporting.
+- name: area:docs
+  color: "1d76db"
+  description: User and contributor documentation.
+- name: area:ci
+  color: "1d76db"
+  description: CI, packaging, release workflows.
+- name: area:security
+  color: "b60205"
+  description: Runtime security and dependency safety.
+- name: release:v0.0.1
+  color: "c5def5"
+  description: Installable skeleton release.
+- name: release:v0.1.0
+  color: "c5def5"
+  description: Markdown/MyST zero-config MVP.
+- name: release:v0.1.1
+  color: "c5def5"
+  description: GitHub annotations and pre-commit.
+- name: release:v0.1.2
+  color: "c5def5"
+  description: Dimension MVP.
+- name: release:v0.1.3
+  color: "c5def5"
+  description: LaTeX source MVP.
+- name: release:v0.1.4
+  color: "c5def5"
+  description: Notebook Markdown-cell MVP.
+- name: release:v0.1.5
+  color: "c5def5"
+  description: SARIF and thin Action wrapper.
+- name: scope:required
+  color: "fbca04"
+  description: Required for the target release to be meaningful.
+- name: scope:cuttable
+  color: "fef2c0"
+  description: May be deferred if deadline pressure appears.
+- name: scope:forbidden
+  color: "000000"
+  description: Belongs to a later release and should not enter this branch.

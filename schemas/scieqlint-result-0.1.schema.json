@@ -1,0 +1,64 @@
+{
+  "$id": "https://scieqlint.dev/schemas/scieqlint-result-0.1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "diagnostics": {
+      "items": {
+        "$ref": "scieqlint-diagnostic-0.1.schema.json"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "errors": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "files_checked": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "info": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "math_blocks_checked": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "warnings": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "files_checked",
+        "math_blocks_checked",
+        "errors",
+        "warnings",
+        "info"
+      ],
+      "type": "object"
+    },
+    "tool": {
+      "const": "scieqlint"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "tool",
+    "version",
+    "summary",
+    "diagnostics"
+  ],
+  "title": "SciEqLint Result 0.1",
+  "type": "object"
+}

@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build distribution
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check dist/*
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Clean wheel smoke
+        run: |
+          python -m venv /tmp/scieqlint-release-smoke
+          /tmp/scieqlint-release-smoke/bin/python -m pip install dist/*.whl
+          /tmp/scieqlint-release-smoke/bin/scieqlint --help
+          /tmp/scieqlint-release-smoke/bin/scieqlint demo
+
+# Publishing to PyPI should be added only after maintainers configure trusted publishing.

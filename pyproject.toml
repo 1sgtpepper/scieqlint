@@ -1,0 +1,142 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scieqlint"
+version = "0.1.0"
+description = "Deterministic linter for exact scalar equations and equation references in scientific documents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "SciEqLint contributors" }]
+keywords = ["scientific-writing", "markdown", "myst", "equations", "lint", "ci"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+  "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "coverage[toml]>=7.6",
+  "hatchling>=1.25",
+  "import-linter>=2.0",
+  "jsonschema>=4.23",
+  "pyright>=1.1.390",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "twine>=5.1",
+]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+]
+v010 = [
+  "markdown-it-py>=3.0",
+  "mdit-py-plugins>=0.4",
+  "pathspec>=0.12",
+  "lark>=1.2",
+  "sympy>=1.13",
+]
+notebook = [
+  "nbformat>=5.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/Kuhai9801/scieqlint"
+Repository = "https://github.com/Kuhai9801/scieqlint"
+Issues = "https://github.com/Kuhai9801/scieqlint/issues"
+Documentation = "https://Kuhai9801.github.io/scieqlint"
+
+[project.scripts]
+scieqlint = "scieqlint.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scieqlint"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"README.md" = "scieqlint/package/README.md"
+"SPEC.md" = "scieqlint/package/SPEC.md"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/scieqlint",
+  "tests",
+  "docs",
+  "examples",
+  "benchmarks",
+  "schemas",
+  "README.md",
+  "SPEC.md",
+  "LICENSE",
+  "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "DTZ", "ISC", "PIE", "PT", "RET", "SIM", "T20"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["scieqlint"]
+
+[tool.coverage.report]
+fail_under = 0
+show_missing = true
+skip_covered = true
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+
+[tool.importlinter]
+root_package = "scieqlint"
+
+[[tool.importlinter.contracts]]
+name = "CLI must not import internal analysis layers directly"
+type = "forbidden"
+source_modules = ["scieqlint.cli"]
+forbidden_modules = [
+  "scieqlint.scan",
+  "scieqlint.parse",
+  "scieqlint.check",
+]
+
+[[tool.importlinter.contracts]]
+name = "Reporters must not import scanner/parser/checker layers"
+type = "forbidden"
+source_modules = ["scieqlint.report"]
+forbidden_modules = [
+  "scieqlint.scan",
+  "scieqlint.parse",
+  "scieqlint.check",
+]

@@ -1,0 +1,25 @@
+name: SciEqLint
+description: Run SciEqLint through the published CLI.
+author: SciEqLint contributors
+inputs:
+  paths:
+    description: Space-separated paths or globs to check.
+    required: false
+    default: "."
+  version:
+    description: SciEqLint version to install.
+    required: false
+    default: "0.1.0"
+  format:
+    description: Output format.
+    required: false
+    default: "text"
+runs:
+  using: composite
+  steps:
+    - name: Install SciEqLint
+      shell: bash
+      run: python -m pip install "scieqlint==${{ inputs.version }}"
+    - name: Run SciEqLint
+      shell: bash
+      run: scieqlint check ${{ inputs.paths }} --format ${{ inputs.format }}

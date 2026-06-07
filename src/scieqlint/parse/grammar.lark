@@ -1,0 +1,8 @@
+// Reference grammar file for the supported v0.1.0 subset.
+// The current analyzer uses the small exact checker in scieqlint.check.algebra.
+?start: equation_group
+?equation_group: equation
+?equation: expr "=" expr
+?expr: SYMBOL
+SYMBOL: /[a-zA-Z][a-zA-Z0-9_]*/
+%ignore " "

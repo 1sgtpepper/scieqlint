@@ -1,0 +1,23 @@
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "17 4 * * 2"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      # Enable after maintainers choose an OpenSSF Scorecard action version and security posture.
+      - run: echo "Enable Scorecard intentionally after repository setup."

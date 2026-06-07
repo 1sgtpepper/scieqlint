@@ -1,0 +1,171 @@
+# Pack Manifest
+
+This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
+tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
+
+## Important distinction
+
+- `SPEC.md` defines the full release ladder through v1.0.0.
+- `src/scieqlint/` implements the v0.1.0 Markdown/MyST analyzer slice.
+- Later release features still need fixtures, docs, golden outputs, and release
+  acceptance gates before they are claimed.
+
+## Validation Performed
+
+- Python compile smoke passed.
+- Pytest passed for the v0.1.0 analyzer slice.
+- Ruff and Pyright are configured in CI; run them where the full dev environment is
+  available.
+
+## Contents
+
+- `PACK_MANIFEST.md`
+- `.editorconfig`
+- `.github/CODEOWNERS`
+- `.github/FUNDING.yml`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/config.yml`
+- `.github/ISSUE_TEMPLATE/docs_issue.yml`
+- `.github/ISSUE_TEMPLATE/feature_request.yml`
+- `.github/ISSUE_TEMPLATE/starter_task.yml`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/dependabot.yml`
+- `.github/labels.yml`
+- `.github/workflows/ci.yml`
+- `.github/workflows/codeql.yml`
+- `.github/workflows/docs.yml`
+- `.github/workflows/release.yml`
+- `.github/workflows/sarif-upload-example.yml`
+- `.github/workflows/scorecard.yml`
+- `.gitignore`
+- `.importlinter`
+- `.pre-commit-config.yaml`
+- `.pre-commit-hooks.yaml`
+- `CHANGELOG.md`
+- `CITATION.cff`
+- `CODE_OF_CONDUCT.md`
+- `CONTRIBUTING.md`
+- `GOOD_FIRST_ISSUES.md`
+- `GOVERNANCE.md`
+- `IMPLEMENTATION_STATUS.md`
+- `LICENSE`
+- `MAINTAINERS.md`
+- `README.md`
+- `RELEASE_CHECKLIST.md`
+- `ROADMAP.md`
+- `SECURITY.md`
+- `SPEC.md`
+- `SUPPORT.md`
+- `action.yml`
+- `benchmarks/accuracy/algebra.yml`
+- `benchmarks/accuracy/dimensions.yml`
+- `benchmarks/accuracy/parse_unknown.yml`
+- `benchmarks/accuracy/references.yml`
+- `docs/api.md`
+- `docs/architecture.md`
+- `docs/configuration.md`
+- `docs/contributing/architecture-map.md`
+- `docs/contributing/dev-setup.md`
+- `docs/contributing/diagnostics.md`
+- `docs/contributing/golden-files.md`
+- `docs/contributing/index.md`
+- `docs/contributing/issue-guide.md`
+- `docs/contributing/release-scope.md`
+- `docs/contributing/review-guide.md`
+- `docs/contributing/testing.md`
+- `docs/diagnostics.md`
+- `docs/index.md`
+- `docs/integrations/github-annotations.md`
+- `docs/integrations/pre-commit.md`
+- `docs/integrations/sarif.md`
+- `docs/limitations.md`
+- `docs/quickstart.md`
+- `docs/release-ladder.md`
+- `docs/releases/v0.0.1-checklist.md`
+- `docs/releases/v0.1.0-checklist.md`
+- `docs/releases/v0.1.1-checklist.md`
+- `docs/releases/v0.1.2-checklist.md`
+- `docs/releases/v0.1.3-checklist.md`
+- `docs/releases/v0.1.4-checklist.md`
+- `docs/releases/v0.1.5-checklist.md`
+- `docs/security.md`
+- `examples/bad/famous_bad.md`
+- `examples/bad/myst_bad.md`
+- `examples/bad/references_bad.md`
+- `examples/good/algebra_good.md`
+- `examples/good/myst_good.md`
+- `examples/good/references_good.md`
+- `mkdocs.yml`
+- `pyproject.toml`
+- `schemas/scieqlint-diagnostic-0.1.schema.json`
+- `schemas/scieqlint-result-0.1.schema.json`
+- `scieqlint.toml`
+- `scripts/check_pack.py`
+- `src/scieqlint/__init__.py`
+- `src/scieqlint/__main__.py`
+- `src/scieqlint/api.py`
+- `src/scieqlint/app.py`
+- `src/scieqlint/check/__init__.py`
+- `src/scieqlint/check/algebra.py`
+- `src/scieqlint/check/references.py`
+- `src/scieqlint/cli.py`
+- `src/scieqlint/config/__init__.py`
+- `src/scieqlint/config/load.py`
+- `src/scieqlint/config/model.py`
+- `src/scieqlint/config/validate.py`
+- `src/scieqlint/diag/__init__.py`
+- `src/scieqlint/diag/catalog.py`
+- `src/scieqlint/diag/model.py`
+- `src/scieqlint/examples/__init__.py`
+- `src/scieqlint/examples/bad/__init__.py`
+- `src/scieqlint/examples/bad/famous_bad.md`
+- `src/scieqlint/examples/good/__init__.py`
+- `src/scieqlint/examples/good/algebra_good.md`
+- `src/scieqlint/io/__init__.py`
+- `src/scieqlint/io/discover.py`
+- `src/scieqlint/io/limits.py`
+- `src/scieqlint/io/resources.py`
+- `src/scieqlint/io/source.py`
+- `src/scieqlint/parse/__init__.py`
+- `src/scieqlint/parse/ast.py`
+- `src/scieqlint/parse/grammar.lark`
+- `src/scieqlint/parse/normalize.py`
+- `src/scieqlint/parse/parser.py`
+- `src/scieqlint/parse/print.py`
+- `src/scieqlint/parse/transform.py`
+- `src/scieqlint/py.typed`
+- `src/scieqlint/report/__init__.py`
+- `src/scieqlint/report/base.py`
+- `src/scieqlint/report/json.py`
+- `src/scieqlint/report/text.py`
+- `src/scieqlint/scan/__init__.py`
+- `src/scieqlint/scan/base.py`
+- `src/scieqlint/scan/markdown.py`
+- `src/scieqlint/schemas/__init__.py`
+- `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
+- `src/scieqlint/schemas/scieqlint-result-0.1.schema.json`
+- `tests/fixtures/bad/.gitkeep`
+- `tests/fixtures/bad/famous_bad.md`
+- `tests/fixtures/bad/myst_bad.md`
+- `tests/fixtures/bad/references_bad.md`
+- `tests/fixtures/good/.gitkeep`
+- `tests/fixtures/good/algebra_good.md`
+- `tests/fixtures/good/myst_good.md`
+- `tests/fixtures/good/references_good.md`
+- `tests/golden/json/.gitkeep`
+- `tests/golden/text/.gitkeep`
+- `tests/test_algebra.py`
+- `tests/test_api.py`
+- `tests/test_ast_print.py`
+- `tests/test_cli.py`
+- `tests/test_config.py`
+- `tests/test_diagnostic_catalog.py`
+- `tests/test_json_schema.py`
+- `tests/test_markdown_scan.py`
+- `tests/test_myst_scan.py`
+- `tests/test_package_resources.py`
+- `tests/test_parser.py`
+- `tests/test_references.py`
+- `tests/test_report_json.py`
+- `tests/test_report_text.py`
+- `tests/test_source.py`
