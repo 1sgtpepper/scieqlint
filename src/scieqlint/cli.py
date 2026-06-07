@@ -11,6 +11,7 @@ import click
 from scieqlint import __version__
 from scieqlint.api import check_paths
 from scieqlint.diag.catalog import explain_code
+from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.text import TextReporter
 
@@ -51,7 +52,12 @@ def main() -> None:
 @main.command()
 @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
 @click.option("--config", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--format", "output_format", type=click.Choice(["text", "json"]), default="text")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json", "github"]),
+    default="text",
+)
 @click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
 @click.option("--no-algebra", is_flag=True, help="Disable algebra checks.")
 @click.option("--inline-math", is_flag=True, help="Scan inline math.")
@@ -81,6 +87,8 @@ def check(
         )
         if output_format == "json":
             rendered = JsonReporter().render(result)
+        elif output_format == "github":
+            rendered = GitHubReporter().render(result)
         else:
             rendered = TextReporter(quiet=quiet).render(result)
         _write_output(rendered, output_path, sys.stdout)

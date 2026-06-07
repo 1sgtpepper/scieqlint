@@ -32,7 +32,13 @@ scieqlint check . --format text
 scieqlint check . --format json
 ```
 
-Later releases add GitHub annotations and SARIF.
+v0.1.1 adds GitHub annotations:
+
+```bash
+scieqlint check . --format github
+```
+
+Later releases add SARIF.
 
 ## Demo
 
