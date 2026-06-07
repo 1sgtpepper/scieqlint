@@ -79,7 +79,7 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         raise ValueError(f"{key} must be a list of strings")
     items: list[str] = []
-    for item in value:
+    for item in cast(list[object], value):
         if not isinstance(item, str):
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
