@@ -9,6 +9,7 @@ def test_catalog_has_core_codes() -> None:
         "REF002",
         "PARSE021",
         "CFG001",
+        "INP002",
         "CFG010",
         "DIM001",
         "DIM002",

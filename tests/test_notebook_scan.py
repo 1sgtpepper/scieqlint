@@ -49,6 +49,99 @@ def test_invalid_notebook_json_emits_input_diagnostic() -> None:
     assert result.diagnostics[0].span.path == PurePosixPath("broken.ipynb")
 
 
+def test_notebook_root_schema_issue_is_deterministic() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("broken.ipynb"),
+        json.dumps([]),
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP002"]
+    assert result.diagnostics[0].detail == "notebook root must be a JSON object"
+    assert result.exit_code() == 0
+
+
+def test_notebook_schema_issue_scans_readable_cells_best_effort() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("notes.ipynb"),
+        json.dumps(
+            {
+                "cells": [_markdown_cell("$$\n(a+b)^2 = a^2 + b^2\n$$\n")],
+                "metadata": {},
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP002", "INP002", "ALG001"]
+    assert [diagnostic.detail for diagnostic in result.diagnostics[:2]] == [
+        "notebook nbformat must be an integer",
+        "notebook nbformat_minor must be an integer",
+    ]
+    assert result.math_blocks_checked == 1
+
+
+def test_notebook_schema_issue_rejects_boolean_version_fields() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("notes.ipynb"),
+        json.dumps(
+            {
+                "cells": [],
+                "metadata": {},
+                "nbformat": True,
+                "nbformat_minor": False,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.detail for diagnostic in result.diagnostics] == [
+        "notebook nbformat must be an integer",
+        "notebook nbformat_minor must be an integer",
+    ]
+
+
+def test_notebook_schema_issue_reports_missing_minor_version() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("notes.ipynb"),
+        json.dumps(
+            {
+                "cells": [],
+                "metadata": {},
+                "nbformat": 4,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP002"]
+    assert result.diagnostics[0].detail == "notebook nbformat_minor must be an integer"
+
+
+def test_malformed_markdown_cell_source_emits_schema_warning() -> None:
+    document = _notebook(
+        [
+            _markdown_cell(["$$\nE = m c^2\n$$\n"]),
+            _markdown_cell([1]),
+        ]
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP002"]
+    assert result.diagnostics[0].span is not None
+    assert result.diagnostics[0].span.cell == 1
+    assert result.math_blocks_checked == 1
+
+
 def test_notebook_markdown_scan_diagnostics_preserve_cell_metadata() -> None:
     document = _notebook([_markdown_cell("$$\nunterminated\n")])
 

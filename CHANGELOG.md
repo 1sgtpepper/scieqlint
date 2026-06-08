@@ -23,6 +23,8 @@ Release notes must use these sections:
   equality, addition, subtraction, multiplication, division, and integer-power expressions.
 - v0.1.3 LaTeX source scanning for supported display, equation, and align containers,
   plus LaTeX labels/references, locked by accuracy benchmarks.
+- v0.1.4 deterministic notebook schema warnings through `INP002` when readable
+  notebook cells can still be scanned best-effort.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
