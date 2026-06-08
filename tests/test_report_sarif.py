@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+import pytest
+
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.report.sarif import SarifReporter
 
@@ -86,6 +88,24 @@ def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
     ]
 
 
+def test_sarif_result_limit_guard_fails_deterministically() -> None:
+    result = CheckResult(
+        diagnostics=(_diagnostic("ALG001"), _diagnostic("REF002")),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    with pytest.raises(ValueError, match="SARIF result limit exceeded: 2 > 1"):
+        SarifReporter(max_results=1).render(result)
+
+
+def test_sarif_result_limit_rejects_negative_values() -> None:
+    with pytest.raises(ValueError, match="max_results must be non-negative"):
+        SarifReporter(max_results=-1)
+
+
 def _result() -> CheckResult:
     return CheckResult(
         diagnostics=(
@@ -110,4 +130,21 @@ def _result() -> CheckResult:
         math_blocks_checked=1,
         config_path=None,
         version="0.1.0",
+    )
+
+
+def _diagnostic(code: str) -> Diagnostic:
+    return Diagnostic(
+        code=code,
+        severity=Severity.WARNING,
+        message=f"{code} message",
+        span=SourceSpan(
+            path=PurePosixPath("paper.md"),
+            start=0,
+            end=1,
+            line=1,
+            col=1,
+            end_line=1,
+            end_col=1,
+        ),
     )

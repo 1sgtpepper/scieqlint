@@ -16,10 +16,20 @@ _LEVELS = {
     Severity.WARNING: "warning",
     Severity.INFO: "note",
 }
+DEFAULT_MAX_RESULTS = 5000
 
 
 class SarifReporter:
+    def __init__(self, *, max_results: int = DEFAULT_MAX_RESULTS) -> None:
+        if max_results < 0:
+            raise ValueError("max_results must be non-negative")
+        self.max_results = max_results
+
     def render(self, result: CheckResult) -> str:
+        if len(result.diagnostics) > self.max_results:
+            raise ValueError(
+                f"SARIF result limit exceeded: {len(result.diagnostics)} > {self.max_results}"
+            )
         payload: dict[str, JsonValue] = {
             "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
             "version": "2.1.0",
