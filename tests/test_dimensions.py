@@ -62,9 +62,7 @@ def test_configured_dimensions_support_division_fraction_and_square_root(tmp_pat
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE020"]
     assert [
-        diagnostic.code
-        for diagnostic in result.diagnostics
-        if diagnostic.rule == "dimensions"
+        diagnostic.code for diagnostic in result.diagnostics if diagnostic.rule == "dimensions"
     ] == []
 
 
