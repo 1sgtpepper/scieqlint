@@ -23,9 +23,7 @@ class NotebookScanner:
         try:
             notebook_data: object = json.loads(document.text)
         except json.JSONDecodeError as exc:
-            return ScanResult(
-                blocks=(), diagnostics=(_input_diagnostic(document, exc),)
-            )
+            return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
         if not isinstance(notebook_data, Mapping):
             return ScanResult(blocks=())
 
@@ -49,18 +47,14 @@ class NotebookScanner:
             source = _cell_source(cell.get("source"))
             if source is None:
                 continue
-            scan = self._markdown.scan(
-                _cell_document(document, cell_index, source), config
-            )
+            scan = self._markdown.scan(_cell_document(document, cell_index, source), config)
             blocks.extend(_with_cell_block(block, cell_index) for block in scan.blocks)
             labels.extend(_with_cell_label(label, cell_index) for label in scan.labels)
             references.extend(
-                _with_cell_reference(reference, cell_index)
-                for reference in scan.references
+                _with_cell_reference(reference, cell_index) for reference in scan.references
             )
             diagnostics.extend(
-                _with_cell_diagnostic(diagnostic, cell_index)
-                for diagnostic in scan.diagnostics
+                _with_cell_diagnostic(diagnostic, cell_index) for diagnostic in scan.diagnostics
             )
 
         return ScanResult(
@@ -81,12 +75,8 @@ def _cell_source(source: object) -> str | None:
     return None
 
 
-def _cell_document(
-    document: SourceDocument, cell_index: int, source: str
-) -> SourceDocument:
-    cell_document = SourceDocument.from_text(
-        document.path, source, DocumentKind.MARKDOWN
-    )
+def _cell_document(document: SourceDocument, cell_index: int, source: str) -> SourceDocument:
+    cell_document = SourceDocument.from_text(document.path, source, DocumentKind.MARKDOWN)
     return replace(
         cell_document,
         display_path=f"{document.display_path}#cell-{cell_index}",
@@ -101,9 +91,7 @@ def _with_cell_label(label: EquationLabel, cell_index: int) -> EquationLabel:
     return replace(label, span=_with_cell_span(label.span, cell_index))
 
 
-def _with_cell_reference(
-    reference: EquationReference, cell_index: int
-) -> EquationReference:
+def _with_cell_reference(reference: EquationReference, cell_index: int) -> EquationReference:
     return replace(reference, span=_with_cell_span(reference.span, cell_index))
 
 
@@ -117,9 +105,7 @@ def _with_cell_span(span: SourceSpan, cell_index: int) -> SourceSpan:
     return replace(span, cell=cell_index, cell_line=span.line)
 
 
-def _input_diagnostic(
-    document: SourceDocument, exc: json.JSONDecodeError
-) -> Diagnostic:
+def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Diagnostic:
     info = CATALOG["INP001"]
     return Diagnostic(
         code=info.code,

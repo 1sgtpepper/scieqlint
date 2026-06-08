@@ -40,9 +40,7 @@ def test_notebook_code_cells_are_ignored() -> None:
 
 
 def test_invalid_notebook_json_emits_input_diagnostic() -> None:
-    document = SourceDocument.from_text(
-        PurePosixPath("broken.ipynb"), "{", DocumentKind.NOTEBOOK
-    )
+    document = SourceDocument.from_text(PurePosixPath("broken.ipynb"), "{", DocumentKind.NOTEBOOK)
 
     result = check_documents([document], config=Config())
 
@@ -76,9 +74,7 @@ def test_notebook_diagnostics_sort_by_cell_before_cell_line() -> None:
         "SCAN001",
         "SCAN001",
     ]
-    assert [
-        diagnostic.span.cell for diagnostic in result.diagnostics if diagnostic.span
-    ] == [
+    assert [diagnostic.span.cell for diagnostic in result.diagnostics if diagnostic.span] == [
         0,
         1,
     ]
@@ -121,9 +117,7 @@ def _notebook(cells: list[dict[str, object]]) -> SourceDocument:
             "nbformat_minor": 5,
         }
     )
-    return SourceDocument.from_text(
-        PurePosixPath("notes.ipynb"), text, DocumentKind.NOTEBOOK
-    )
+    return SourceDocument.from_text(PurePosixPath("notes.ipynb"), text, DocumentKind.NOTEBOOK)
 
 
 def _markdown_cell(source: str | list[str]) -> dict[str, object]:
