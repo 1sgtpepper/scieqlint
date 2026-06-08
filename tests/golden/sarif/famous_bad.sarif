@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/famous_bad.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 20,
+                  "endLine": 4,
+                  "startColumn": 1,
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "algebraic identity does not hold: left - right = 2*a*b"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "194b6de6dab6a2e9e3611b71a8e7550f8d89f130a7bc1cd8582f7db070779246"
+          },
+          "ruleId": "ALG001"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "Adjacent equality sides are proven unequal within the supported scalar algebra subset."
+              },
+              "id": "ALG001",
+              "name": "ALG001",
+              "shortDescription": {
+                "text": "algebraic identity does not hold"
+              }
+            }
+          ],
+          "semanticVersion": "0.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

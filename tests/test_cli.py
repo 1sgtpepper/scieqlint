@@ -45,6 +45,17 @@ def test_json_output_for_clean_file(tmp_path) -> None:
     assert '"schema_version": "0.1"' in result.output
 
 
+def test_sarif_output_for_bad_equation(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "sarif"])
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["version"] == "2.1.0"
+    assert payload["runs"][0]["results"][0]["ruleId"] == "ALG001"
+
+
 def test_github_output_for_bad_equation(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
