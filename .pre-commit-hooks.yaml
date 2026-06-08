@@ -3,5 +3,5 @@
   description: Check equations and equation references in supported scientific documents.
   entry: scieqlint check
   language: python
-  files: '\.(md|markdown)$'
+  files: '\.(md|markdown|tex|ipynb)$'
   require_serial: true

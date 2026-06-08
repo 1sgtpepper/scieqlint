@@ -10,4 +10,4 @@ repos:
       - id: scieqlint
 ```
 
-The v0.1.1 hook targets only `.md` and `.markdown`. Later releases expand to `.tex` and `.ipynb`.
+The hook targets `.md`, `.markdown`, `.tex`, and `.ipynb` files.

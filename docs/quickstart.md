@@ -18,10 +18,12 @@ python -m pip install -e '.[dev]'
 scieqlint check .
 ```
 
-v0.1.0 checks Markdown/MyST files only:
+SciEqLint checks supported scientific document sources:
 
 - `.md`
 - `.markdown`
+- `.tex`
+- `.ipynb`
 
 ## Output formats
 

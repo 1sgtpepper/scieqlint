@@ -1,0 +1,18 @@
+cases:
+  - id: notebook-markdown-bad-equation
+    release: v0.1.4
+    input: {"cells": [{"cell_type": "markdown", "metadata": {}, "source": "$$\n(a+b)^2 = a^2 + b^2\n$$\n"}], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}
+    expected_codes: ["ALG001"]
+    expected_pass: false
+
+  - id: notebook-code-cell-ignored
+    release: v0.1.4
+    input: {"cells": [{"cell_type": "code", "metadata": {}, "execution_count": 1, "outputs": [], "source": "$$\n(a+b)^2 = a^2 + b^2\n$$\n"}], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}
+    expected_codes: []
+    expected_pass: true
+
+  - id: notebook-schema-best-effort
+    release: v0.1.4
+    input: {"cells": [{"cell_type": "markdown", "metadata": {}, "source": "$$\nE = m c^2\n$$\n"}], "metadata": {}}
+    expected_codes: ["INP002", "INP002"]
+    expected_pass: true
