@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from click.testing import CliRunner
 
 from scieqlint.cli import main
@@ -70,6 +72,33 @@ def test_check_discovers_latex_source_files(tmp_path) -> None:
     assert result.exit_code == 1
     assert "ALG001" in result.output
     assert "paper.tex" in result.output
+
+
+def test_check_discovers_notebook_source_files(tmp_path) -> None:
+    doc = tmp_path / "notes.ipynb"
+    doc.write_text(
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": "$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+                    }
+                ],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "ALG001" in result.output
+    assert "notes.ipynb" in result.output
 
 
 def test_no_algebra_suppresses_algebra_diagnostics(tmp_path) -> None:
