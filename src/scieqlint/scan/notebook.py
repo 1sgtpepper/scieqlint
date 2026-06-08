@@ -23,7 +23,9 @@ class NotebookScanner:
         try:
             notebook_data: object = json.loads(document.text)
         except json.JSONDecodeError as exc:
-            return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
+            return ScanResult(
+                blocks=(), diagnostics=(_input_diagnostic(document, exc),)
+            )
         if not isinstance(notebook_data, Mapping):
             return ScanResult(blocks=())
 
@@ -115,7 +117,9 @@ def _with_cell_span(span: SourceSpan, cell_index: int) -> SourceSpan:
     return replace(span, cell=cell_index, cell_line=span.line)
 
 
-def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Diagnostic:
+def _input_diagnostic(
+    document: SourceDocument, exc: json.JSONDecodeError
+) -> Diagnostic:
     info = CATALOG["INP001"]
     return Diagnostic(
         code=info.code,

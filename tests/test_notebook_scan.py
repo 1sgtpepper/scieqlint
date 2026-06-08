@@ -72,8 +72,13 @@ def test_notebook_diagnostics_sort_by_cell_before_cell_line() -> None:
 
     result = check_documents([document], config=Config())
 
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001", "SCAN001"]
-    assert [diagnostic.span.cell for diagnostic in result.diagnostics if diagnostic.span] == [
+    assert [diagnostic.code for diagnostic in result.diagnostics] == [
+        "SCAN001",
+        "SCAN001",
+    ]
+    assert [
+        diagnostic.span.cell for diagnostic in result.diagnostics if diagnostic.span
+    ] == [
         0,
         1,
     ]
