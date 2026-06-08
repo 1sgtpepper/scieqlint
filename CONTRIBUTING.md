@@ -49,6 +49,16 @@ One PR should not combine scanner, parser, checker, reporter/schema, config, doc
 
 Do not mark a PR ready for review until required CI checks pass.
 
+## Good PR shape
+
+A good PR:
+
+- fixes one issue,
+- changes one layer,
+- includes the smallest useful test,
+- updates docs when behavior changes,
+- avoids unrelated formatting.
+
 ## Issue workflow
 
 Before opening or taking an issue:

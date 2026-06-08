@@ -2,10 +2,12 @@
 
 Good issues include:
 
-- why the task matters,
-- release target,
-- scope classification,
-- a short suggested path,
-- reviewer expectations.
+- duplicate search,
+- security check,
+- current `main` check,
+- newest release check,
+- exact command, input, and output,
+- current and expected behavior,
+- one focused request.
 
-Bad issues say only “improve parser” or “add LaTeX support.” Good issues identify one small, testable slice.
+Issues without reproduction, duplicate search, or current-version checks may be closed.
