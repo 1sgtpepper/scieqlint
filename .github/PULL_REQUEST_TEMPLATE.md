@@ -47,6 +47,10 @@ Choose one unless this is a mechanical change proven by tests:
 - [ ] Limitations updated
 - [ ] Changelog updated
 
+## Dependency checklist
+
+- [ ] I checked `docs/contributing/pr-dependency-checks.md` and updated every dependent artifact.
+
 ## Local checks
 
 Paste relevant commands and results:

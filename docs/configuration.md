@@ -10,8 +10,12 @@ Search order:
 
 1. explicit `--config` path,
 2. current working directory,
-3. parent directories until repo root,
+3. parent directories until no more parents remain,
 4. built-in defaults.
+
+SciEqLint does not currently stop discovery at a VCS root. Run from the intended
+project directory, or pass `--config`, when parent directories may also contain a
+`scieqlint.toml`.
 
 ## Defaults
 
@@ -27,13 +31,9 @@ math_fences = true
 
 [checks.algebra]
 enabled = true
-unknown = "info"
-denominator_warnings = true
 
 [checks.references]
 enabled = true
-missing = "warn"
-duplicate_labels = "error"
 missing_label_strict = false
 
 [checks.dimension]
@@ -49,9 +49,10 @@ unknown_variables = "warn"
 files = []
 ```
 
-`ignore.files` accepts POSIX-style glob patterns matched against repository-relative paths
-when possible. Use it for generated docs, copied fixtures, or intentional bad examples
-that should not affect `scieqlint check .`.
+`ignore.files` accepts POSIX-style glob patterns. Discovered files are matched
+against both their path relative to the current working directory, when possible,
+and their resolved absolute path. Explicitly passed files are still checked even
+when they match an ignore pattern.
 
 ## Dimension config
 
@@ -81,3 +82,12 @@ emit `DIM001`, supported addition or subtraction with incompatible dimensions em
 `DIM002`, and unknown symbols emit `DIM010` unless `unknown_variables = "ignore"`.
 
 Invalid config fails before document analysis and reports a deterministic error.
+
+## Reserved config surface
+
+The repository-level `scieqlint.toml` may include specification placeholders such
+as `[project]`, `[parser]`, `[limits]`, `[report]`, `[severity]`, or per-code
+severity keys. The v0.1.5 loader does not apply those placeholders. Current
+severity-affecting behavior is limited to CLI/config toggles such as
+`--strict-unknowns`, `[checks.references].missing_label_strict`, and
+`[checks.dimension].unknown_variables`.

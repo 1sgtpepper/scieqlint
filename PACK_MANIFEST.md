@@ -1,33 +1,32 @@
 # Pack Manifest
 
 This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
-tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
+tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 
 ## Important distinction
 
 - `SPEC.md` defines the full release ladder through v1.0.0.
-- `src/scieqlint/` implements the v0.1.0 Markdown/MyST analyzer slice.
+- `src/scieqlint/` implements the v0.1.5 analyzer slice.
 - Later release features still need fixtures, docs, golden outputs, and release
   acceptance gates before they are claimed.
 
 ## Validation Performed
 
 - Python compile smoke passed.
-- Pytest passed for the v0.1.0 analyzer slice.
+- Pytest passed for the v0.1.5 analyzer slice.
 - Ruff and Pyright are configured in CI; run them where the full dev environment is
   available.
 
 ## Contents
 
-- `PACK_MANIFEST.md`
 - `.editorconfig`
 - `.github/CODEOWNERS`
 - `.github/FUNDING.yml`
 - `.github/ISSUE_TEMPLATE/0_bug.md`
-- `.github/ISSUE_TEMPLATE/config.yml`
 - `.github/ISSUE_TEMPLATE/1_feature.md`
 - `.github/ISSUE_TEMPLATE/2_task.md`
 - `.github/ISSUE_TEMPLATE/3_documentation.md`
+- `.github/ISSUE_TEMPLATE/config.yml`
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/dependabot.yml`
 - `.github/labels.yml`
@@ -41,8 +40,10 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `.importlinter`
 - `.pre-commit-config.yaml`
 - `.pre-commit-hooks.yaml`
+- `AGENTS.md`
 - `CHANGELOG.md`
 - `CITATION.cff`
+- `CLAUDE.md`
 - `CODE_OF_CONDUCT.md`
 - `CONTRIBUTING.md`
 - `GOOD_FIRST_ISSUES.md`
@@ -50,6 +51,7 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `IMPLEMENTATION_STATUS.md`
 - `LICENSE`
 - `MAINTAINERS.md`
+- `PACK_MANIFEST.md`
 - `README.md`
 - `RELEASE_CHECKLIST.md`
 - `ROADMAP.md`
@@ -59,6 +61,8 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `action.yml`
 - `benchmarks/accuracy/algebra.yml`
 - `benchmarks/accuracy/dimensions.yml`
+- `benchmarks/accuracy/latex.yml`
+- `benchmarks/accuracy/notebook.yml`
 - `benchmarks/accuracy/parse_unknown.yml`
 - `benchmarks/accuracy/references.yml`
 - `docs/api.md`
@@ -70,6 +74,7 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `docs/contributing/golden-files.md`
 - `docs/contributing/index.md`
 - `docs/contributing/issue-guide.md`
+- `docs/contributing/pr-dependency-checks.md`
 - `docs/contributing/release-scope.md`
 - `docs/contributing/review-guide.md`
 - `docs/contributing/testing.md`
@@ -88,6 +93,7 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `docs/releases/v0.1.3-checklist.md`
 - `docs/releases/v0.1.4-checklist.md`
 - `docs/releases/v0.1.5-checklist.md`
+- `docs/releases/v0.1.5-tag-checklist.md`
 - `docs/security.md`
 - `examples/bad/famous_bad.md`
 - `examples/bad/myst_bad.md`
@@ -107,6 +113,7 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `src/scieqlint/app.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
+- `src/scieqlint/check/dimensions.py`
 - `src/scieqlint/check/references.py`
 - `src/scieqlint/cli.py`
 - `src/scieqlint/config/__init__.py`
@@ -136,11 +143,15 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `src/scieqlint/py.typed`
 - `src/scieqlint/report/__init__.py`
 - `src/scieqlint/report/base.py`
+- `src/scieqlint/report/github.py`
 - `src/scieqlint/report/json.py`
+- `src/scieqlint/report/sarif.py`
 - `src/scieqlint/report/text.py`
 - `src/scieqlint/scan/__init__.py`
 - `src/scieqlint/scan/base.py`
+- `src/scieqlint/scan/latex.py`
 - `src/scieqlint/scan/markdown.py`
+- `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
 - `src/scieqlint/schemas/scieqlint-result-0.1.schema.json`
@@ -152,20 +163,38 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
+- `tests/golden/github/famous_bad.txt`
 - `tests/golden/json/.gitkeep`
+- `tests/golden/json/famous_bad.json`
+- `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/text/.gitkeep`
+- `tests/golden/text/famous_bad.txt`
+- `tests/test_accuracy_benchmarks.py`
+- `tests/test_action_metadata.py`
+- `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
 - `tests/test_api.py`
 - `tests/test_ast_print.py`
 - `tests/test_cli.py`
 - `tests/test_config.py`
 - `tests/test_diagnostic_catalog.py`
+- `tests/test_dimensions.py`
+- `tests/test_golden_outputs.py`
 - `tests/test_json_schema.py`
+- `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
+- `tests/test_notebook_scan.py`
+- `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
 - `tests/test_parser.py`
+- `tests/test_pr_template.py`
+- `tests/test_pre_commit_metadata.py`
 - `tests/test_references.py`
+- `tests/test_release_metadata.py`
+- `tests/test_report_github.py`
 - `tests/test_report_json.py`
+- `tests/test_report_sarif.py`
 - `tests/test_report_text.py`
+- `tests/test_sarif_workflow.py`
 - `tests/test_source.py`

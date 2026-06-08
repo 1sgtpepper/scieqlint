@@ -43,7 +43,9 @@ Every PR must state:
 - the single layer it changes,
 - whether user-visible behavior changes,
 - whether golden output changes,
-- whether docs were updated.
+- whether docs were updated,
+- which dependent artifacts from `docs/contributing/pr-dependency-checks.md`
+  were checked and updated.
 
 One PR should not combine scanner, parser, checker, reporter/schema, config, docs, and CI changes unless the change is mechanical and tests prove the coupling.
 
