@@ -13,6 +13,7 @@
 - [ ] Behavior/schema/golden impact checked.
 - [ ] Tests/docs updated.
 - [ ] Local checks run.
+- [ ] CI is green before ready for review.
 
 ## Release target
 

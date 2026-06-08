@@ -10,3 +10,5 @@ Review order:
 Blocking comments should identify violated contracts or missing release checks. Non-blocking comments should be labeled as suggestions.
 
 Do not widen a contributor's PR. Open follow-up issues instead.
+
+Do not mark a PR ready for review until required CI checks pass.

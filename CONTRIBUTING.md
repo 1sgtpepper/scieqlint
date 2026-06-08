@@ -47,6 +47,8 @@ Every PR must state:
 
 One PR should not combine scanner, parser, checker, reporter/schema, config, docs, and CI changes unless the change is mechanical and tests prove the coupling.
 
+Do not mark a PR ready for review until required CI checks pass.
+
 ## Issue workflow
 
 Before opening or taking an issue:
@@ -87,6 +89,7 @@ Maintainers review in this order:
 4. Style: only after the first three are satisfied.
 
 Reviewers should not widen a contributor's PR. Prefer opening a follow-up issue.
+PRs with failing or pending required CI should stay draft.
 
 ## Diagnostics and behavior changes
 
