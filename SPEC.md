@@ -22,7 +22,7 @@ Recommended reading order for implementers: product contract, time-boxed release
 
 Recommended reading order for new contributors: README first screen, contributor quickstart, issue labels, first ten issues, narrow PR rules, tests/golden outputs, and limitations page.
 
-Complete pack note: this repository tracks the full release ladder through v1.0.0. The current implementation now covers the narrow v0.0.1-v0.1.1 wedge behind fixtures, docs, CI, and acceptance gates; later roadmap items remain explicitly scoped below.
+Complete pack note: this repository tracks the full release ladder through v1.0.0. The current implementation covers the v0.1.5 analyzer slice behind fixtures, docs, CI, and acceptance gates; later roadmap items remain explicitly scoped below.
 
 ---
 
@@ -1855,12 +1855,15 @@ Search order:
 
 1. Explicit `--config` path.
 2. Current working directory.
-3. Parent directories until repo root.
+3. Parent directories until no more parents remain.
 4. Built-in defaults.
 
 Config loading MUST be deterministic.
 
-### v0.1.0 config schema
+The v0.1.5 loader does not detect VCS roots. Users that need a specific project
+boundary SHOULD pass `--config`.
+
+### Planned config schema
 
 ```toml
 [project]
@@ -1904,6 +1907,13 @@ color = "auto"
 [ignore]
 files = ["build/**", "dist/**", ".venv/**"]
 ```
+
+The v0.1.5 loader applies only the implemented subset of this schema:
+`[scanner].markdown`, `[scanner].inline_math`, `[scanner].math_fences`,
+`[checks.algebra].enabled`, `[checks.references].enabled`,
+`[checks.references].missing_label_strict`, `[checks.dimension].mode`,
+`[checks.dimension].unknown_variables`, `[vars]`, and `[ignore].files`.
+Other tables and keys are reserved specification surface.
 
 v0.1.2 adds:
 

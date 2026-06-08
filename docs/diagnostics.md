@@ -1,43 +1,43 @@
 # Diagnostics
 
-Diagnostic codes are user-facing API once introduced.
+Diagnostic codes are user-facing API once introduced. The catalog may reserve
+codes before every code is emitted by the current analyzer.
 
-## v0.1.0 catalog
+## Currently emitted
 
 | Code | Default | Meaning |
 |---|---|---|
 | `ALG001` | error | Algebraic identity does not hold |
-| `ALG010` | warning | Identity assumes nonzero denominator |
-| `ALG020` | info | Algebra check skipped |
-| `ALG030` | warning | Algebra check exceeded configured limit |
-| `PARSE001` | warning | Could not parse supported-looking math |
 | `PARSE020` | info | Unsupported syntax; check skipped |
 | `PARSE021` | info | Unsupported function; check skipped |
-| `PARSE022` | info | Unsupported operator; check skipped |
 | `SCAN001` | warning | Unterminated math container |
-| `SCAN002` | info | Inline math skipped by config |
 | `INP001` | error | File could not be read or decoded |
-| `INP003` | warning | File exceeded configured limit |
-| `CFG001` | error | Invalid config file |
+| `INP002` | warning | Notebook schema issue; scanned best-effort |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |
-
-## v0.1.2 catalog
-
-| Code | Default | Meaning |
-|---|---|---|
-| `CFG010` | error | Invalid dimension expression |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
 
-## v0.1.4 catalog
+## Reserved in catalog
+
+These codes are present in `src/scieqlint/diag/catalog.py` for stable
+documentation and reporter metadata, but the v0.1.5 analyzer does not currently
+emit them from normal checks:
 
 | Code | Default | Meaning |
 |---|---|---|
-| `INP002` | warning | Notebook schema issue; scanned best-effort |
+| `ALG010` | warning | Identity assumes nonzero denominator |
+| `ALG020` | info | Algebra check skipped |
+| `ALG030` | warning | Algebra check exceeded configured limit |
+| `PARSE001` | warning | Could not parse supported-looking math |
+| `PARSE022` | info | Unsupported operator; check skipped |
+| `SCAN002` | info | Inline math skipped by config |
+| `INP003` | warning | File exceeded configured limit |
+| `CFG001` | error | Invalid config file |
+| `CFG010` | error | Invalid dimension expression |
 
 ## Example: ALG001
 
@@ -68,12 +68,10 @@ Output:
 REF002 equation reference target not found: missing
 ```
 
-## Severity overrides
+## Severity controls
 
-```toml
-[severity]
-DIM010 = "info"
-PARSE020 = "ignore"
-```
-
-Valid values are `error`, `warning`, `info`, and `ignore`.
+The v0.1.5 loader does not implement `[severity]` overrides. Current
+severity-affecting controls are exposed through documented CLI/config switches:
+`--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
+mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when
+dimension checks are active.
