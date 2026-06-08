@@ -39,6 +39,41 @@ def test_configured_equation_dimension_match_with_power_passes(tmp_path) -> None
     assert result.diagnostics == ()
 
 
+def test_dimension_check_ignores_expression_without_equality(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF\n$$\n", config)
+
+    assert result.diagnostics == ()
+
+
+def test_configured_dimensions_support_tex_multiply_and_implicit_products(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = m \\cdot a = m \\times a = m a\n$$\n", config)
+
+    assert result.diagnostics == ()
+
+
+def test_configured_dimensions_support_division_fraction_and_square_root(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nc = x/t = \\frac{x}{t} = \\sqrt{E/m}\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE020"]
+    assert [
+        diagnostic.code for diagnostic in result.diagnostics if diagnostic.rule == "dimensions"
+    ] == []
+
+
+def test_configured_dimensions_support_signed_exponents(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\na = x*t^(-2) = x*t^-2 = x*t^(+1)*t^-3\n$$\n", config)
+
+    assert result.diagnostics == ()
+
+
 def test_configured_addition_dimension_mismatch_reports_dim002(tmp_path) -> None:
     config = _mechanics_config(tmp_path)
 
@@ -59,6 +94,30 @@ def test_unknown_symbol_warns_only_when_policy_warns(tmp_path) -> None:
     assert ignore_result.diagnostics == ()
 
 
+def test_malformed_dimension_expression_reports_skipped_check(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = m @ a\n$$\n", config)
+
+    assert "DIM020" in [diagnostic.code for diagnostic in result.diagnostics]
+
+
+def test_unbalanced_dimension_group_reports_skipped_check(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = (m*a\n$$\n", config)
+
+    assert "DIM020" in [diagnostic.code for diagnostic in result.diagnostics]
+
+
+def test_odd_square_root_dimension_reports_skipped_check(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nx = \\sqrt{x}\n$$\n", config)
+
+    assert "DIM020" in [diagnostic.code for diagnostic in result.diagnostics]
+
+
 def _check(text: str, config: Config):
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -73,6 +132,9 @@ def _mechanics_config(tmp_path, *, unknown_variables: str = "warn") -> Config:
     config_path.write_text(
         "\n".join(
             [
+                "[checks.algebra]",
+                "enabled = false",
+                "",
                 "[checks.dimension]",
                 'mode = "on"',
                 f'unknown_variables = "{unknown_variables}"',

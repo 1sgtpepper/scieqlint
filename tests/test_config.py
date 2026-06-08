@@ -14,6 +14,20 @@ def test_load_config_records_explicit_path(tmp_path) -> None:
     assert config.path.as_posix().endswith("scieqlint.toml")
 
 
+def test_load_config_uses_defaults_when_no_default_file_exists(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config = load_config()
+
+    assert config.path is None
+    assert config.scanner.markdown is True
+
+
+def test_load_config_rejects_missing_explicit_file(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError, match="config not found"):
+        load_config(tmp_path / "missing.toml")
+
+
 def test_load_config_finds_default_file_in_current_directory(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
@@ -50,6 +64,30 @@ def test_load_config_accepts_ignore_files(tmp_path) -> None:
     config = load_config(config_path)
 
     assert config.ignore.files == ("examples/bad/**",)
+
+
+def test_load_config_rejects_non_table_sections(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('scanner = "enabled"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"\[scanner\] must be a table"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_bool_scanner_settings(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[scanner]\nmarkdown = "yes"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="markdown must be true or false"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_string_ignore_files(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text("[ignore]\nfiles = [1]\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="files must be a list of strings"):
+        load_config(config_path)
 
 
 def test_load_config_accepts_dimension_settings_and_vars(tmp_path) -> None:
@@ -91,11 +129,59 @@ def test_load_config_rejects_invalid_dimension_expression(tmp_path) -> None:
         load_config(config_path)
 
 
+def test_load_config_rejects_empty_dimension_expression(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[vars]\nempty = ""\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="dimension expression must not be empty"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_missing_dimension_power(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[vars]\nbad = "M^"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"dimension power is missing: M\^"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_integer_dimension_power(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[vars]\nbad = "M^x"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"dimension power must be an integer: M\^x"):
+        load_config(config_path)
+
+
 def test_load_config_rejects_invalid_dimension_mode(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[checks.dimension]\nmode = "always"\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="mode must be auto, on, or off"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_string_dimension_mode(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text("[checks.dimension]\nmode = true\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="mode must be auto, on, or off"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_invalid_unknown_variable_policy(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[checks.dimension]\nunknown_variables = "error"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unknown_variables must be warn or ignore"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_string_var_dimension(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text("[vars]\nm = 1\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"\[vars\].m must be a dimension string"):
         load_config(config_path)
 
 

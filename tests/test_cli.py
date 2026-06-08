@@ -37,12 +37,39 @@ def test_check_clean_file_reports_empty_success(tmp_path) -> None:
     assert "files checked: 1" in result.output
 
 
+def test_check_quiet_suppresses_empty_success_text(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    doc.write_text("# Example\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--quiet"])
+
+    assert result.exit_code == 0
+    assert result.output == ""
+
+
 def test_json_output_for_clean_file(tmp_path) -> None:
     doc = tmp_path / "README.md"
     doc.write_text("# Example\n", encoding="utf-8")
     result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
     assert result.exit_code == 0
     assert '"schema_version": "0.1"' in result.output
+
+
+def test_check_writes_output_file(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# Example\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["diagnostics"] == []
+    assert payload["summary"]["errors"] == 0
 
 
 def test_sarif_output_for_bad_equation(tmp_path) -> None:
@@ -128,6 +155,17 @@ def test_no_algebra_preserves_unsupported_math_diagnostics(tmp_path) -> None:
     assert "info PARSE021" in result.output
 
 
+def test_check_reports_config_load_errors_as_click_errors(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "missing.toml"
+    doc.write_text("# Example\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 1
+    assert "Error: config not found" in result.output
+
+
 def test_inline_math_is_opt_in(tmp_path) -> None:
     doc = tmp_path / "inline.md"
     doc.write_text("Bad inline math: $(a+b)^2 = a^2 + b^2$.\n", encoding="utf-8")
@@ -201,3 +239,37 @@ def test_missing_reference_warning_does_not_fail(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc)])
     assert result.exit_code == 0
     assert "warning REF002" in result.output
+
+
+def test_init_writes_default_config(tmp_path) -> None:
+    config = tmp_path / "scieqlint.toml"
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config)])
+
+    assert result.exit_code == 0
+    assert "wrote" in result.output
+    assert "[checks.dimension]" in config.read_text(encoding="utf-8")
+
+
+def test_init_refuses_to_overwrite_existing_config(tmp_path) -> None:
+    config = tmp_path / "scieqlint.toml"
+    config.write_text("[scanner]\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config)])
+
+    assert result.exit_code == 1
+    assert "config already exists" in result.output
+
+
+def test_explain_reports_known_diagnostic() -> None:
+    result = CliRunner().invoke(main, ["explain", "alg001"])
+
+    assert result.exit_code == 0
+    assert "ALG001" in result.output
+
+
+def test_explain_rejects_unknown_diagnostic() -> None:
+    result = CliRunner().invoke(main, ["explain", "NOPE999"])
+
+    assert result.exit_code == 1
+    assert "unknown diagnostic code" in result.output
