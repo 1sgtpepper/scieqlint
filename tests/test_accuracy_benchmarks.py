@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path, PurePosixPath
+from typing import cast
 
 from scieqlint.api import check_documents
+from scieqlint.config.load import load_config
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
 
@@ -29,6 +31,19 @@ def test_v010_accuracy_benchmark_fixtures_are_checked() -> None:
             assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_v012_dimension_accuracy_benchmark_fixtures_are_checked(tmp_path) -> None:
+    path = BENCHMARK_DIR / "dimensions.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "v0.1.2"]
+    assert cases
+
+    for case in cases:
+        result = _check_dimension_case(tmp_path, case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 def _check_case(path: Path, case: dict[str, object]):
     text = str(case["input"])
     if path.stem in {"algebra", "parse_unknown"}:
@@ -39,6 +54,33 @@ def _check_case(path: Path, case: dict[str, object]):
         DocumentKind.MARKDOWN,
     )
     return check_documents([document], config=Config())
+
+
+def _check_dimension_case(tmp_path: Path, case: dict[str, object]):
+    text = f"$$\n{case['input']}\n$$\n"
+    document = SourceDocument.from_text(
+        PurePosixPath(f"benchmarks/accuracy/{case['id']}.md"),
+        text,
+        DocumentKind.MARKDOWN,
+    )
+    return check_documents([document], config=_dimension_config(tmp_path, case))
+
+
+def _dimension_config(tmp_path: Path, case: dict[str, object]) -> Config:
+    vars_data = cast(dict[str, str], case.get("vars", {}))
+    unknown_variables = str(case.get("unknown_variables", "warn"))
+    config_path = tmp_path / f"{case['id']}.toml"
+    lines = [
+        "[checks.dimension]",
+        'mode = "auto"',
+        f'unknown_variables = "{unknown_variables}"',
+    ]
+    if vars_data:
+        lines.append("")
+        lines.append("[vars]")
+        lines.extend(f'{name} = "{dimension}"' for name, dimension in sorted(vars_data.items()))
+    config_path.write_text("\n".join(lines), encoding="utf-8")
+    return load_config(config_path)
 
 
 def _load_cases(path: Path) -> list[dict[str, object]]:
@@ -63,6 +105,6 @@ def _load_cases(path: Path) -> list[dict[str, object]]:
 def _parse_value(raw_value: str) -> object:
     if raw_value in {"true", "false"}:
         return raw_value == "true"
-    if raw_value.startswith(('"', "[")):
+    if raw_value.startswith(('"', "[", "{")):
         return ast.literal_eval(raw_value)
     return raw_value

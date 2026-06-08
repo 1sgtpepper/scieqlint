@@ -45,4 +45,7 @@ Release notes must use these sections:
 
 ### Known limitations
 
-- The analyzer is intentionally small: Markdown/MyST only, simple scalar polynomial algebra only, and supported equation references only.
+- The analyzer is intentionally small: Markdown/MyST only, simple scalar polynomial algebra,
+  supported equation references, and configured dimension checks only.
+- v0.1.2 dimensions require explicit `[vars]` config. Presets, aliases, unit databases,
+  and dimension CLI override flags are deferred.
