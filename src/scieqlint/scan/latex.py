@@ -23,9 +23,15 @@ class LatexScanner:
         diagnostics: list[Diagnostic] = []
 
         blocks.extend(
-            _delimited_blocks(document, ignored, r"\[", r"\]", MathContainer.LATEX_DISPLAY)
+            _delimited_blocks(
+                document, ignored, r"\[", r"\]", MathContainer.LATEX_DISPLAY
+            )
         )
-        blocks.extend(_delimited_blocks(document, ignored, "$$", "$$", MathContainer.LATEX_DISPLAY))
+        blocks.extend(
+            _delimited_blocks(
+                document, ignored, "$$", "$$", MathContainer.LATEX_DISPLAY
+            )
+        )
         env_blocks, env_diagnostics = _environment_blocks(document, ignored)
         blocks.extend(env_blocks)
         diagnostics.extend(env_diagnostics)
@@ -50,7 +56,9 @@ def _delimited_blocks(
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored) or _is_escaped_opening(document.text, start, opening):
+        if _in_ranges(start, ignored) or _is_escaped_opening(
+            document.text, start, opening
+        ):
             cursor = start + len(opening)
             continue
         body_start = start + len(opening)
@@ -93,9 +101,13 @@ def _environment_blocks(
     return blocks, diagnostics
 
 
-def _align_blocks(document: SourceDocument, start: int, end: int) -> Iterable[MathBlock]:
+def _align_blocks(
+    document: SourceDocument, start: int, end: int
+) -> Iterable[MathBlock]:
     for row_start, row_end in _align_rows(document.text, start, end):
-        text = _clean_math_text(document.text[row_start:row_end]).replace("&", "").strip()
+        text = (
+            _clean_math_text(document.text[row_start:row_end]).replace("&", "").strip()
+        )
         if not text:
             continue
         span = _span(document, row_start, row_end)
@@ -178,7 +190,9 @@ def _unterminated_delimiters(
         if (
             _in_ranges(start, ignored)
             or _is_escaped_opening(document.text, start, opening)
-            or any(range_start <= start < range_end for range_start, range_end in closed)
+            or any(
+                range_start <= start < range_end for range_start, range_end in closed
+            )
         ):
             cursor = start + len(opening)
             continue
@@ -198,7 +212,9 @@ def _delimiter_ranges(
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored) or _is_escaped_opening(document.text, start, opening):
+        if _in_ranges(start, ignored) or _is_escaped_opening(
+            document.text, start, opening
+        ):
             cursor = start + len(opening)
             continue
         body_start = start + len(opening)
@@ -227,7 +243,9 @@ def _find_close(
 
 
 def _ignored_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    ranges = [(match.start(), match.end()) for match in VERBATIM_RE.finditer(document.text)]
+    ranges = [
+        (match.start(), match.end()) for match in VERBATIM_RE.finditer(document.text)
+    ]
     for line_start, line_end in _line_ranges(document.text):
         comment_start = _comment_start(document.text[line_start:line_end])
         if comment_start is not None:
