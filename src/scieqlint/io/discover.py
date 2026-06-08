@@ -6,7 +6,7 @@ import glob
 from collections.abc import Iterable
 from pathlib import Path
 
-SUPPORTED_SUFFIXES = {".md", ".markdown", ".tex"}
+SUPPORTED_SUFFIXES = {".ipynb", ".md", ".markdown", ".tex"}
 
 
 def discover_files(paths: Iterable[Path | str]) -> tuple[Path, ...]:

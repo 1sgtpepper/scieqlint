@@ -20,6 +20,7 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
+from scieqlint.scan.notebook import NotebookScanner
 
 
 def check_paths(
@@ -83,17 +84,19 @@ def check_documents(
     """Check already-loaded documents."""
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
+    notebook_scanner = NotebookScanner()
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
-        scan = (
-            latex_scanner.scan(document, config)
-            if document.kind is DocumentKind.LATEX
-            else scanner.scan(document, config)
-        )
+        if document.kind is DocumentKind.LATEX:
+            scan = latex_scanner.scan(document, config)
+        elif document.kind is DocumentKind.NOTEBOOK:
+            scan = notebook_scanner.scan(document, config)
+        else:
+            scan = scanner.scan(document, config)
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
         references.extend(scan.references)
@@ -201,7 +204,13 @@ def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
 
 
 def _document_kind(path: Path) -> DocumentKind:
-    return DocumentKind.LATEX if path.suffix.lower() == ".tex" else DocumentKind.MARKDOWN
+    match path.suffix.lower():
+        case ".tex":
+            return DocumentKind.LATEX
+        case ".ipynb":
+            return DocumentKind.NOTEBOOK
+        case _:
+            return DocumentKind.MARKDOWN
 
 
 def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
@@ -217,8 +226,16 @@ def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
     )
 
 
-def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, str]:
+def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, str]:
     span = diagnostic.span
     if span is None:
-        return ("", 0, 0, diagnostic.code)
-    return (span.path.as_posix(), span.line, span.col, diagnostic.code)
+        return ("", -1, 0, 0, diagnostic.code, diagnostic.message)
+    cell = -1 if span.cell is None else span.cell
+    return (
+        span.path.as_posix(),
+        cell,
+        span.line,
+        span.col,
+        diagnostic.code,
+        diagnostic.message,
+    )
