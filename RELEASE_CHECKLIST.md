@@ -24,6 +24,8 @@ Every release must include:
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
 6. Package smoke: build wheel, install in a clean venv, run CLI smoke.
 7. Release candidate: tag rc or create pre-release branch.
-8. Final tag: publish only after release checks pass.
+8. Trusted publishing: configure the PyPI publisher for `.github/workflows/release.yml`
+   and environment `pypi`.
+9. Final tag: publish only after release checks pass.
 
 A feature is not shipped until docs and fixtures demonstrate it.
