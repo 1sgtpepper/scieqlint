@@ -1,5 +1,13 @@
 # SciEqLint
 
+[![PyPI](https://img.shields.io/pypi/v/scieqlint.svg)](https://pypi.org/project/scieqlint/)
+[![Python versions](https://img.shields.io/pypi/pyversions/scieqlint.svg)](https://pypi.org/project/scieqlint/)
+[![CI](https://github.com/Kuhai9801/scieqlint/actions/workflows/ci.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/ci.yml)
+[![Docs](https://github.com/Kuhai9801/scieqlint/actions/workflows/docs.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/docs.yml)
+[![CodeQL](https://github.com/Kuhai9801/scieqlint/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kuhai9801/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/Kuhai9801/scieqlint)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 SciEqLint catches exact scalar algebra mistakes and broken equation references in a
 documented subset of scientific documents.
 
@@ -29,8 +37,6 @@ REF002 equation reference target not found: missing
 ```
 
 ## Install
-
-After v0.1.5 is published:
 
 ```bash
 python -m pip install scieqlint
