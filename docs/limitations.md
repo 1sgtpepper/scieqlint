@@ -10,7 +10,7 @@ SciEqLint checks a supported subset. It is not a theorem prover, a full CAS, a L
 |---|---|
 | `.md` | supported |
 | `.markdown` | supported |
-| `.tex` | v0.1.3 |
+| `.tex` | supported for v0.1.3 LaTeX containers |
 | `.ipynb` | v0.1.4 |
 
 ## v0.1.0 supported math forms
@@ -52,6 +52,18 @@ E = mc^2
 | user TeX macros | unsupported |
 
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
+
+## v0.1.3 LaTeX source subset
+
+SciEqLint scans supported LaTeX display containers in `.tex` files:
+
+- `\[ ... \]`
+- `$$ ... $$`
+- `equation` and `equation*`
+- `align` and `align*`
+
+For `align`, rows are split on unescaped `\\` and alignment markers are removed before
+equation checks run. LaTeX macro expansion and full environment parsing are out of scope.
 
 ## Why unknown is good
 
