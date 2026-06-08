@@ -40,6 +40,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `.importlinter`
 - `.pre-commit-config.yaml`
 - `.pre-commit-hooks.yaml`
+- `AGENTS.md`
 - `CHANGELOG.md`
 - `CITATION.cff`
 - `CODE_OF_CONDUCT.md`
@@ -169,6 +170,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/golden/text/famous_bad.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
+- `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
 - `tests/test_api.py`
 - `tests/test_ast_print.py`
