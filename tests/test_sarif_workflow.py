@@ -7,7 +7,7 @@ WORKFLOW = Path(".github/workflows/sarif-upload-example.yml")
 
 
 def test_sarif_upload_example_has_required_security_events_permission() -> None:
-    permissions = _top_level_mapping("permissions")
+    permissions = _job_mapping("scieqlint-sarif", "permissions")
 
     assert permissions == {
         "contents": "read",
@@ -58,6 +58,12 @@ def _job_step(job_name: str, step_name: str) -> dict[str, str | dict[str, str]]:
     if step.get("name") == step_name:
         return step
     raise AssertionError(f"missing workflow step: {step_name}")
+
+
+def _job_mapping(job_name: str, section_name: str) -> dict[str, str]:
+    job_lines = _section_lines(f"  {job_name}:", indent=2)
+    section_lines = _section_lines(f"    {section_name}:", indent=4, source=job_lines)
+    return _parse_mapping(section_lines, indent=6)
 
 
 def _section_lines(
