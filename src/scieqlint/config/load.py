@@ -141,7 +141,7 @@ def _unknown_variable_policy(
 def _vars_config(data: dict[str, Any]) -> tuple[VarDimension, ...]:
     entries: list[VarDimension] = []
     for name, expression in sorted(data.items()):
-        if not isinstance(name, str) or not name:
+        if not name:
             raise ValueError("[vars] keys must be non-empty strings")
         if not isinstance(expression, str):
             raise ValueError(f"[vars].{name} must be a dimension string")
