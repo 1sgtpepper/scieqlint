@@ -43,6 +43,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `AGENTS.md`
 - `CHANGELOG.md`
 - `CITATION.cff`
+- `CLAUDE.md`
 - `CODE_OF_CONDUCT.md`
 - `CONTRIBUTING.md`
 - `GOOD_FIRST_ISSUES.md`
