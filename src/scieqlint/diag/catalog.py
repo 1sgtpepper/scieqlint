@@ -94,6 +94,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.0",
         "The file could not be read as configured.",
     ),
+    "INP002": DiagnosticInfo(
+        "INP002",
+        Severity.WARNING,
+        "notebook schema issue",
+        "v0.1.4",
+        "A notebook shape is invalid or incomplete, but readable cells may still be scanned.",
+    ),
     "INP003": DiagnosticInfo(
         "INP003",
         Severity.WARNING,

@@ -33,6 +33,12 @@ Diagnostic codes are user-facing API once introduced.
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
 
+## v0.1.4 catalog
+
+| Code | Default | Meaning |
+|---|---|---|
+| `INP002` | warning | Notebook schema issue; scanned best-effort |
+
 ## Example: ALG001
 
 Input:
