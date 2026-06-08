@@ -44,6 +44,19 @@ def test_v012_dimension_accuracy_benchmark_fixtures_are_checked(tmp_path) -> Non
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_v013_latex_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "latex.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "v0.1.3"]
+    assert cases
+
+    for case in cases:
+        result = _check_latex_case(case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 def _check_case(path: Path, case: dict[str, object]):
     text = str(case["input"])
     if path.stem in {"algebra", "parse_unknown"}:
@@ -64,6 +77,26 @@ def _check_dimension_case(tmp_path: Path, case: dict[str, object]):
         DocumentKind.MARKDOWN,
     )
     return check_documents([document], config=_dimension_config(tmp_path, case))
+
+
+def _check_latex_case(case: dict[str, object]):
+    documents = [
+        SourceDocument.from_text(
+            PurePosixPath(f"benchmarks/accuracy/{case['id']}.tex"),
+            str(case["input"]),
+            DocumentKind.LATEX,
+        )
+    ]
+    markdown_input = case.get("markdown_input")
+    if markdown_input is not None:
+        documents.append(
+            SourceDocument.from_text(
+                PurePosixPath(f"benchmarks/accuracy/{case['id']}.md"),
+                str(markdown_input),
+                DocumentKind.MARKDOWN,
+            )
+        )
+    return check_documents(documents, config=Config())
 
 
 def _dimension_config(tmp_path: Path, case: dict[str, object]) -> Config:
