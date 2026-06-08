@@ -60,7 +60,10 @@ def test_check_writes_output_file(tmp_path) -> None:
     output = tmp_path / "result.json"
     doc.write_text("# Example\n", encoding="utf-8")
 
-    result = CliRunner().invoke(main, ["check", str(doc), "--format", "json", "--output", str(output)])
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
 
     assert result.exit_code == 0
     assert result.output == ""
