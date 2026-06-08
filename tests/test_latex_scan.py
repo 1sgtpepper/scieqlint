@@ -89,10 +89,7 @@ def test_latex_labels_and_references_are_extracted() -> None:
 def test_latex_labels_in_comments_are_ignored() -> None:
     result = LatexScanner().scan(
         _document(
-            "\\begin{equation}\n"
-            "E = m c^2 % \\label{commented}\n"
-            "\\label{real}\n"
-            "\\end{equation}\n"
+            "\\begin{equation}\nE = m c^2 % \\label{commented}\n\\label{real}\n\\end{equation}\n"
         ),
         Config(),
     )
