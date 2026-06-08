@@ -40,7 +40,11 @@ v0.1.1 adds GitHub annotations:
 scieqlint check . --format github
 ```
 
-Later releases add SARIF.
+v0.1.5 adds SARIF:
+
+```bash
+scieqlint check . --format sarif --output scieqlint.sarif
+```
 
 ## Demo
 

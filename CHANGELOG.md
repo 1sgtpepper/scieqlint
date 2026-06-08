@@ -27,6 +27,9 @@ Release notes must use these sections:
   preserved, and deterministic schema warnings through `INP002` when readable
   notebook cells can still be scanned best-effort; pre-commit metadata now targets
   `.ipynb` alongside Markdown and LaTeX files.
+- v0.1.5 SARIF 2.1.0 output with deterministic partial fingerprints, a
+  result-count guard, GitHub upload documentation, and a thin composite Action
+  wrapper that installs SciEqLint and runs the CLI.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
@@ -61,3 +64,6 @@ Release notes must use these sections:
   deferred.
 - v0.1.4 notebook support never executes notebooks, ignores code cells, and defers
   code-cell analysis and full Jupyter schema validation.
+- v0.1.5 SARIF support is reporter and upload integration scope only. It does not
+  add CodeQL queries, a separate analyzer, new scanner behavior, or new math
+  support.

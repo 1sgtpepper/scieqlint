@@ -28,3 +28,24 @@ steps:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
+
+Thin Action wrapper example:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+steps:
+  - uses: actions/checkout@v6
+  - uses: Kuhai9801/scieqlint@v0.1.5
+    with:
+      args: check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
+  - uses: github/codeql-action/upload-sarif@v4
+    with:
+      sarif_file: scieqlint.sarif
+      category: scieqlint-docs
+```
+
+The wrapper is intentionally thin: it sets up Python, installs SciEqLint, and runs
+the CLI arguments from `args`. SARIF upload stays in `github/codeql-action/upload-sarif`.
