@@ -21,6 +21,7 @@ Release notes must use these sections:
 - v0.1.1 GitHub annotation output and pre-commit metadata.
 - v0.1.2 dimension config surface and configured dimension diagnostics for supported
   equality, addition, subtraction, multiplication, division, and integer-power expressions.
+- v0.1.3 LaTeX source scanning for supported display, equation, and align containers.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
@@ -45,7 +46,10 @@ Release notes must use these sections:
 
 ### Known limitations
 
-- The analyzer is intentionally small: Markdown/MyST only, simple scalar polynomial algebra,
-  supported equation references, and configured dimension checks only.
+- The analyzer is intentionally small: Markdown/MyST plus supported LaTeX containers,
+  simple scalar polynomial algebra, supported equation references, and configured dimension
+  checks only.
 - v0.1.2 dimensions require explicit `[vars]` config. Presets, aliases, unit databases,
   and dimension CLI override flags are deferred.
+- v0.1.3 LaTeX support is a container scanner only. Macro expansion, full LaTeX parsing,
+  and broad environment support are deferred.

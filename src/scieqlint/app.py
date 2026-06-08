@@ -18,6 +18,7 @@ from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.io.discover import discover_files
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
+from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 
 
@@ -60,7 +61,7 @@ def check_paths(
             SourceDocument.from_text(
                 _display_path(path, absolute_paths=absolute_paths),
                 text,
-                DocumentKind.MARKDOWN,
+                _document_kind(path),
             )
         )
 
@@ -81,13 +82,18 @@ def check_documents(
 ) -> CheckResult:
     """Check already-loaded documents."""
     scanner = MarkdownScanner()
+    latex_scanner = LatexScanner()
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
-        scan = scanner.scan(document, config)
+        scan = (
+            latex_scanner.scan(document, config)
+            if document.kind is DocumentKind.LATEX
+            else scanner.scan(document, config)
+        )
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
         references.extend(scan.references)
@@ -192,6 +198,10 @@ def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
         return PurePosixPath(path.resolve().relative_to(Path.cwd().resolve()).as_posix())
     except ValueError:
         return PurePosixPath(path.as_posix())
+
+
+def _document_kind(path: Path) -> DocumentKind:
+    return DocumentKind.LATEX if path.suffix.lower() == ".tex" else DocumentKind.MARKDOWN
 
 
 def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:

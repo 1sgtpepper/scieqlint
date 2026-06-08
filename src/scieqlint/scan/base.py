@@ -15,6 +15,9 @@ class MathContainer(Enum):
     MARKDOWN_DISPLAY = "markdown_display"
     MARKDOWN_FENCE = "markdown_fence"
     MARKDOWN_INLINE = "markdown_inline"
+    LATEX_DISPLAY = "latex_display"
+    LATEX_EQUATION = "latex_equation"
+    LATEX_ALIGN = "latex_align"
 
 
 class LabelSource(Enum):

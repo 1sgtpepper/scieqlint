@@ -61,6 +61,17 @@ def test_check_reports_bad_equation(tmp_path) -> None:
     assert "left - right = 2*a*b" in result.output
 
 
+def test_check_discovers_latex_source_files(tmp_path) -> None:
+    doc = tmp_path / "paper.tex"
+    doc.write_text("\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "ALG001" in result.output
+    assert "paper.tex" in result.output
+
+
 def test_no_algebra_suppresses_algebra_diagnostics(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
