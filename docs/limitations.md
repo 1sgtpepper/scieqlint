@@ -4,7 +4,7 @@ Limitations are part of SciEqLint's trust model.
 
 SciEqLint checks a supported subset. It is not a theorem prover, a full CAS, a LaTeX compiler, a Sphinx/Jupyter Book build validator, or a notebook execution system.
 
-## v0.1.0 supported source files
+## Current supported source files as of v0.1.5
 
 | Format | Status |
 |---|---|
@@ -13,7 +13,7 @@ SciEqLint checks a supported subset. It is not a theorem prover, a full CAS, a L
 | `.tex` | supported for v0.1.3 LaTeX containers |
 | `.ipynb` | supported for v0.1.4 Markdown cells |
 
-## v0.1.0 supported math forms
+## Core supported math forms
 
 ```md
 $$
@@ -34,7 +34,7 @@ E = mc^2
 ```
 ````
 
-## v0.1.0 grammar subset
+## Core grammar subset
 
 | Construct | Status |
 |---|---|
@@ -52,6 +52,13 @@ E = mc^2
 | user TeX macros | unsupported |
 
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
+
+## Current integration outputs as of v0.1.5
+
+- text
+- json
+- github
+- sarif
 
 ## v0.1.3 LaTeX source subset
 
