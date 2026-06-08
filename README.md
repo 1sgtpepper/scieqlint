@@ -3,6 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/scieqlint.svg)](https://pypi.org/project/scieqlint/)
 [![Python versions](https://img.shields.io/pypi/pyversions/scieqlint.svg)](https://pypi.org/project/scieqlint/)
 [![CI](https://github.com/Kuhai9801/scieqlint/actions/workflows/ci.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/ci.yml)
+[![Codecov](https://codecov.io/github/Kuhai9801/scieqlint/graph/badge.svg)](https://app.codecov.io/github/Kuhai9801/scieqlint)
 [![Docs](https://github.com/Kuhai9801/scieqlint/actions/workflows/docs.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/docs.yml)
 [![CodeQL](https://github.com/Kuhai9801/scieqlint/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kuhai9801/scieqlint/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kuhai9801/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/Kuhai9801/scieqlint)
