@@ -9,15 +9,12 @@ def test_pr_template_links_dependency_checklist() -> None:
     assert "## Dependency checklist" in template
     assert "docs/contributing/pr-dependency-checks.md" in template
     assert "<!--" not in _dependency_section(template)
-    for heading in [
-        "CLI/API/config",
-        "Scanner/parser/checker behavior",
-        "Diagnostics/severity",
-        "Reporter/schema/output",
-        "Packaging/CI/integrations",
-        "Docs/governance only",
-    ]:
-        assert heading in template
+    assert (
+        "I checked `docs/contributing/pr-dependency-checks.md` and updated every dependent artifact"
+        in template
+    )
+    assert "intentionally skipped" not in template
+    assert "| Change area |" not in template
 
 
 def test_pr_dependency_guide_is_in_docs_nav() -> None:

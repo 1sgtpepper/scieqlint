@@ -8,7 +8,7 @@ behavior or contract change update the artifacts that depend on it.
 1. Pick the changed layer from the PR template.
 2. Check the matching row below.
 3. Update every dependent artifact that applies.
-4. If an artifact does not apply, say why in the PR.
+4. Keep the PR draft until every dependent artifact is current.
 
 ## Dependency map
 
@@ -30,8 +30,8 @@ behavior or contract change update the artifacts that depend on it.
 ## Changelog rule
 
 Update `CHANGELOG.md` when a change is user-visible, release-facing, or changes a
-published contract. Pure contributor-documentation changes may skip the changelog
-when the PR states `docs-only`.
+published contract. For contributor-documentation changes, check the changelog and
+record docs-only scope in the PR.
 
 ## Negative checks
 

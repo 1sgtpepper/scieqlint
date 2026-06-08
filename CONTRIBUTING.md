@@ -45,7 +45,7 @@ Every PR must state:
 - whether golden output changes,
 - whether docs were updated,
 - which dependent artifacts from `docs/contributing/pr-dependency-checks.md`
-  were checked or intentionally skipped.
+  were checked and updated.
 
 One PR should not combine scanner, parser, checker, reporter/schema, config, docs, and CI changes unless the change is mechanical and tests prove the coupling.
 
