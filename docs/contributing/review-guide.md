@@ -11,4 +11,8 @@ Blocking comments should identify violated contracts or missing release checks. 
 
 Do not widen a contributor's PR. Open follow-up issues instead.
 
+Use the PR dependency checklist before style review. A behavior change is not
+ready when dependent diagnostics, limitations, schemas, golden files,
+integration docs, release notes, or changelog entries are missing.
+
 Do not mark a PR ready for review until required CI checks pass.

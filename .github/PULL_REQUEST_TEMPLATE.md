@@ -47,6 +47,21 @@ Choose one unless this is a mechanical change proven by tests:
 - [ ] Limitations updated
 - [ ] Changelog updated
 
+## Dependency checklist
+
+Use `docs/contributing/pr-dependency-checks.md` to decide which dependent
+artifacts must be updated. Mark each row that applies, or `N/A` with a short
+reason.
+
+| Change area | Dependent artifacts checked |
+|---|---|
+| CLI/API/config | N/A or list: help text, docs/configuration.md, docs/api.md, README quickstart, tests |
+| Scanner/parser/checker behavior | N/A or list: fixtures, accuracy benchmarks, limitations, diagnostics, tests |
+| Diagnostics/severity | N/A or list: catalog, docs/diagnostics.md, schemas/reporters/goldens, changelog |
+| Reporter/schema/output | N/A or list: schemas, golden files, integration docs, examples, package data |
+| Packaging/CI/integrations | N/A or list: action/pre-commit metadata, workflows, release docs/checklists, PACK_MANIFEST.md |
+| Docs/governance only | N/A or list: linked pages, mkdocs nav, PACK_MANIFEST.md, stale examples, no behavior claims |
+
 ## Local checks
 
 Paste relevant commands and results:

@@ -11,3 +11,7 @@ Start with:
 5. this docs section
 
 A good SciEqLint PR changes one layer, includes tests, and preserves deterministic output.
+
+Before opening a PR, use the [PR dependency checks](pr-dependency-checks.md) to
+confirm that docs, changelog, schemas, fixtures, golden files, and integration
+metadata moved with the changed behavior.

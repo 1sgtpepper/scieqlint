@@ -2541,10 +2541,13 @@ The docs site SHOULD include a `Contributing` section with these pages by v0.1.0
 docs/contributing/index.md
 docs/contributing/dev-setup.md
 docs/contributing/architecture-map.md
+docs/contributing/pr-dependency-checks.md
 docs/contributing/testing.md
 docs/contributing/golden-files.md
 docs/contributing/diagnostics.md
 docs/contributing/release-scope.md
+docs/contributing/review-guide.md
+docs/contributing/issue-guide.md
 ```
 
 The architecture map MUST be short and task-oriented. It SHOULD answer:
@@ -2789,4 +2792,6 @@ The v11.1 path wins by making the first public release undeniable: install it, r
 
 The companion ZIP includes `PACK_MANIFEST.md`, which lists every repository scaffold file. The pack is intentionally split into specification, governance, docs, CI, package scaffold, tests, schemas, examples, and release checklists.
 
-The included code is a narrow v0.1.0 Markdown/MyST implementation. It exists so contributors can install, run, test, and extend real equation and reference checks while preserving the v0.1.0 scope boundaries.
+The included code is a v0.1.5 analyzer slice. It exists so contributors can install,
+run, test, and extend real equation and reference checks while preserving the
+documented release boundaries.

@@ -28,6 +28,7 @@ nav:
       - Overview: contributing/index.md
       - Development setup: contributing/dev-setup.md
       - Architecture map: contributing/architecture-map.md
+      - PR dependency checks: contributing/pr-dependency-checks.md
       - Testing: contributing/testing.md
       - Golden files: contributing/golden-files.md
       - Diagnostics: contributing/diagnostics.md
