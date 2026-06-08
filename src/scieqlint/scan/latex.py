@@ -138,7 +138,7 @@ def _math_block(
 
 
 def _clean_math_text(text: str) -> str:
-    cleaned_lines = []
+    cleaned_lines: list[str] = []
     for line in text.splitlines():
         cleaned = _strip_comment(line).strip()
         if cleaned:
