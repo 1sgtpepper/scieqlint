@@ -23,8 +23,10 @@ Release notes must use these sections:
   equality, addition, subtraction, multiplication, division, and integer-power expressions.
 - v0.1.3 LaTeX source scanning for supported display, equation, and align containers,
   plus LaTeX labels/references, locked by accuracy benchmarks.
-- v0.1.4 deterministic notebook schema warnings through `INP002` when readable
-  notebook cells can still be scanned best-effort.
+- v0.1.4 notebook Markdown-cell scanning with code cells ignored, cell metadata
+  preserved, and deterministic schema warnings through `INP002` when readable
+  notebook cells can still be scanned best-effort; pre-commit metadata now targets
+  `.ipynb` alongside Markdown and LaTeX files.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
@@ -57,3 +59,5 @@ Release notes must use these sections:
 - v0.1.3 LaTeX support is limited to supported containers, `\label`, `\ref`, and
   `\eqref`. Macro expansion, full LaTeX parsing, and broad environment support are
   deferred.
+- v0.1.4 notebook support never executes notebooks, ignores code cells, and defers
+  code-cell analysis and full Jupyter schema validation.

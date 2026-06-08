@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path, PurePosixPath
 from typing import cast
 
@@ -57,6 +58,19 @@ def test_v013_latex_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_v014_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "notebook.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "v0.1.4"]
+    assert cases
+
+    for case in cases:
+        result = _check_notebook_case(case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 def _check_case(path: Path, case: dict[str, object]):
     text = str(case["input"])
     if path.stem in {"algebra", "parse_unknown"}:
@@ -97,6 +111,15 @@ def _check_latex_case(case: dict[str, object]):
             )
         )
     return check_documents(documents, config=Config())
+
+
+def _check_notebook_case(case: dict[str, object]):
+    document = SourceDocument.from_text(
+        PurePosixPath(f"benchmarks/accuracy/{case['id']}.ipynb"),
+        json.dumps(cast(dict[str, object], case["input"])),
+        DocumentKind.NOTEBOOK,
+    )
+    return check_documents([document], config=Config())
 
 
 def _dimension_config(tmp_path: Path, case: dict[str, object]) -> Config:

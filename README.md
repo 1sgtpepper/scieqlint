@@ -57,9 +57,10 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 
 ## Supported files
 
-SciEqLint checks `.md` and `.markdown` documents. It supports Markdown/MyST display
-math, labels and references, simple scalar algebra, text output, deterministic JSON
-output, and JSON Schema validation. See `docs/limitations.md` for the supported subset.
+SciEqLint checks `.md`, `.markdown`, `.tex`, and `.ipynb` documents. It supports
+Markdown/MyST display math, supported LaTeX containers, notebook Markdown cells,
+labels and references, simple scalar algebra, text output, deterministic JSON output,
+and JSON Schema validation. See `docs/limitations.md` for the supported subset.
 
 ## Pull request annotations
 

@@ -11,7 +11,7 @@ SciEqLint checks a supported subset. It is not a theorem prover, a full CAS, a L
 | `.md` | supported |
 | `.markdown` | supported |
 | `.tex` | supported for v0.1.3 LaTeX containers |
-| `.ipynb` | v0.1.4 |
+| `.ipynb` | supported for v0.1.4 Markdown cells |
 
 ## v0.1.0 supported math forms
 
@@ -77,4 +77,7 @@ Dimensions are quiet without config. v0.1.2 adds configured dimension checking; 
 
 ## Notebooks
 
-Notebooks are never executed. v0.1.4 scans Markdown cells only.
+Notebooks are never executed. v0.1.4 scans Markdown cells only, preserves notebook
+cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
+or `INP002` input diagnostics for malformed notebook inputs. Code-cell variable
+analysis, notebook execution, and full Jupyter schema validation are deferred.
