@@ -9,10 +9,20 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
-from scieqlint.scan.base import MathBlock, MathContainer, ScanResult
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    LabelSource,
+    MathBlock,
+    MathContainer,
+    ReferenceSource,
+    ScanResult,
+)
 
 ENV_RE = re.compile(r"\\begin\{(?P<name>equation\*?|align\*?)\}")
 VERBATIM_RE = re.compile(r"\\begin\{verbatim\}.*?\\end\{verbatim\}", re.DOTALL)
+LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
+REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}]+)\}")
 
 
 class LatexScanner:
@@ -20,6 +30,7 @@ class LatexScanner:
         _ = config
         ignored = _ignored_ranges(document)
         blocks: list[MathBlock] = []
+        labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
 
         blocks.extend(
@@ -31,9 +42,13 @@ class LatexScanner:
         diagnostics.extend(env_diagnostics)
         diagnostics.extend(_unterminated_delimiters(document, ignored, r"\[", r"\]"))
         diagnostics.extend(_unterminated_delimiters(document, ignored, "$$", "$$"))
+        labels.extend(_labels(document, blocks, ignored))
+        references = tuple(_references(document, ignored))
 
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
+            labels=tuple(sorted(labels, key=lambda label: label.span.start)),
+            references=references,
             diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
         )
 
@@ -151,6 +166,47 @@ def _strip_comment(line: str) -> str:
         if char == "%" and not _is_escaped(line, index):
             return line[:index]
     return line
+
+
+def _labels(
+    document: SourceDocument,
+    blocks: list[MathBlock],
+    ignored: tuple[tuple[int, int], ...],
+) -> Iterable[EquationLabel]:
+    for block in blocks:
+        source_text = document.text[block.span.start : block.span.end]
+        for match in LABEL_RE.finditer(source_text):
+            label_start = block.span.start + match.start("label")
+            label_end = block.span.start + match.end("label")
+            if _in_ranges(match.start() + block.span.start, ignored):
+                continue
+            yield EquationLabel(
+                label=_normalize_label(match.group("label")),
+                span=_span(document, label_start, label_end),
+                block_id=block.block_id,
+                source=LabelSource.LATEX_LABEL,
+            )
+
+
+def _references(
+    document: SourceDocument,
+    ignored: tuple[tuple[int, int], ...],
+) -> Iterable[EquationReference]:
+    for match in REFERENCE_RE.finditer(document.text):
+        if _in_ranges(match.start(), ignored):
+            continue
+        target = _normalize_label(match.group("target"))
+        source = (
+            ReferenceSource.LATEX_EQREF
+            if match.group("kind") == "eqref"
+            else ReferenceSource.LATEX_REF
+        )
+        yield EquationReference(
+            target=target,
+            span=_span(document, match.start("target"), match.end("target")),
+            raw=match.group(0),
+            source=source,
+        )
 
 
 def _unterminated_delimiters(
@@ -282,6 +338,11 @@ def _is_escaped(text: str, index: int) -> bool:
 
 def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
     return any(start <= position < end for start, end in ranges)
+
+
+def _normalize_label(value: str) -> str:
+    value = value.strip()
+    return value[1:] if value.startswith("#") else value
 
 
 def _diagnostic_key(diagnostic: Diagnostic) -> int:

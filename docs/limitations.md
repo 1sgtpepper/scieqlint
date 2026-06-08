@@ -63,7 +63,9 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 - `align` and `align*`
 
 For `align`, rows are split on unescaped `\\` and alignment markers are removed before
-equation checks run. LaTeX macro expansion and full environment parsing are out of scope.
+equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
+for reference checks. LaTeX macro expansion and full environment parsing are out of
+scope.
 
 ## Why unknown is good
 
