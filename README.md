@@ -69,6 +69,24 @@ and JSON Schema validation. See `docs/limitations.md` for the supported subset.
   run: scieqlint check "docs/**/*.md" --format github
 ```
 
+## Code scanning
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+steps:
+  - uses: actions/checkout@v6
+  - uses: Kuhai9801/scieqlint@v0.1.5
+    with:
+      args: check "docs/**/*.md" --format sarif --output scieqlint.sarif
+  - uses: github/codeql-action/upload-sarif@v4
+    with:
+      sarif_file: scieqlint.sarif
+      category: scieqlint-docs
+```
+
 ## For contributors
 
 Start with these files:
