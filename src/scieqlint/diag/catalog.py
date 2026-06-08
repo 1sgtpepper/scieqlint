@@ -108,6 +108,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.0",
         "The config file is invalid.",
     ),
+    "CFG010": DiagnosticInfo(
+        "CFG010",
+        Severity.ERROR,
+        "invalid dimension expression",
+        "v0.1.2",
+        "A configured dimension expression is invalid.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

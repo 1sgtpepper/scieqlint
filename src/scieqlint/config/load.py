@@ -10,10 +10,25 @@ from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
     Config,
+    DimensionConfig,
+    DimensionMode,
+    DimVector,
     IgnoreConfig,
     ReferencesConfig,
     ScannerConfig,
+    UnknownVariablePolicy,
+    VarDimension,
 )
+
+_BASE_DIMENSIONS = {
+    "M": 0,
+    "L": 1,
+    "T": 2,
+    "I": 3,
+    "Theta": 4,
+    "N": 5,
+    "J": 6,
+}
 
 
 def load_config(path: Path | str | None = None) -> Config:
@@ -30,8 +45,10 @@ def load_config(path: Path | str | None = None) -> Config:
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
+    vars_data = _table(data, "vars")
     algebra_data = _table(checks_data, "algebra")
     references_data = _table(checks_data, "references")
+    dimension_data = _table(checks_data, "dimension")
     return Config(
         path=PurePosixPath(config_path.as_posix()),
         scanner=ScannerConfig(
@@ -47,7 +64,16 @@ def load_config(path: Path | str | None = None) -> Config:
                 enabled=_bool(references_data, "enabled", True),
                 missing_label_strict=_bool(references_data, "missing_label_strict", False),
             ),
+            dimension=DimensionConfig(
+                mode=_dimension_mode(dimension_data, "mode", "auto"),
+                unknown_variables=_unknown_variable_policy(
+                    dimension_data,
+                    "unknown_variables",
+                    "warn",
+                ),
+            ),
         ),
+        vars=_vars_config(vars_data),
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
     )
 
@@ -84,3 +110,71 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
     return tuple(items)
+
+
+def _dimension_mode(
+    data: dict[str, Any],
+    key: str,
+    default: DimensionMode,
+) -> DimensionMode:
+    value = data.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be auto, on, or off")
+    if value not in {"auto", "on", "off"}:
+        raise ValueError(f"{key} must be auto, on, or off")
+    return cast(DimensionMode, value)
+
+
+def _unknown_variable_policy(
+    data: dict[str, Any],
+    key: str,
+    default: UnknownVariablePolicy,
+) -> UnknownVariablePolicy:
+    value = data.get(key, default)
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be warn or ignore")
+    if value not in {"warn", "ignore"}:
+        raise ValueError(f"{key} must be warn or ignore")
+    return cast(UnknownVariablePolicy, value)
+
+
+def _vars_config(data: dict[str, Any]) -> tuple[VarDimension, ...]:
+    entries: list[VarDimension] = []
+    for name, expression in sorted(data.items()):
+        if not isinstance(name, str) or not name:
+            raise ValueError("[vars] keys must be non-empty strings")
+        if not isinstance(expression, str):
+            raise ValueError(f"[vars].{name} must be a dimension string")
+        entries.append(VarDimension(name=name, dimension=_parse_dimension(expression)))
+    return tuple(entries)
+
+
+def _parse_dimension(expression: str) -> DimVector:
+    text = expression.strip()
+    exponents = [0, 0, 0, 0, 0, 0, 0]
+    if text == "1":
+        return _dim_vector(exponents)
+    if not text:
+        raise ValueError("dimension expression must not be empty")
+    for factor in text.split():
+        base, power = _parse_dimension_factor(factor)
+        exponents[_BASE_DIMENSIONS[base]] += power
+    return _dim_vector(exponents)
+
+
+def _parse_dimension_factor(factor: str) -> tuple[str, int]:
+    base, separator, raw_power = factor.partition("^")
+    if base not in _BASE_DIMENSIONS:
+        raise ValueError(f"unknown base dimension: {base}")
+    if not separator:
+        return base, 1
+    if not raw_power:
+        raise ValueError(f"dimension power is missing: {factor}")
+    try:
+        return base, int(raw_power)
+    except ValueError as exc:
+        raise ValueError(f"dimension power must be an integer: {factor}") from exc
+
+
+def _dim_vector(exponents: list[int]) -> DimVector:
+    return DimVector(cast(tuple[int, int, int, int, int, int, int], tuple(exponents)))

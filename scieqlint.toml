@@ -21,6 +21,15 @@ missing = "warn"
 duplicate_labels = "error"
 missing_label_strict = false
 
+[checks.dimension]
+mode = "auto"
+unknown_variables = "warn"
+
+[vars]
+# m = "M"
+# v = "L T^-1"
+# theta = "1"
+
 [limits]
 max_file_bytes = 1048576
 max_math_blocks_per_file = 2000
