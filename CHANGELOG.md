@@ -14,6 +14,10 @@ Release notes must use these sections:
 
 ## Unreleased
 
+- Nothing yet.
+
+## v0.1.5 - 2026-06-08
+
 ### Added
 
 - Complete v11.1 specification and OSS contributor scaffold.
@@ -50,7 +54,7 @@ Release notes must use these sections:
 
 ### Migration notes
 
-- No released package exists yet.
+- Initial package release target.
 
 ### Known limitations
 

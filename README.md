@@ -28,7 +28,16 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-## Install for local development
+## Install
+
+After v0.1.5 is published:
+
+```bash
+python -m pip install scieqlint
+scieqlint check .
+```
+
+For local development:
 
 ```bash
 python -m pip install -e '.[dev]'
@@ -60,7 +69,9 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 SciEqLint checks `.md`, `.markdown`, `.tex`, and `.ipynb` documents. It supports
 Markdown/MyST display math, supported LaTeX containers, notebook Markdown cells,
 labels and references, simple scalar algebra, text output, deterministic JSON output,
-and JSON Schema validation. See `docs/limitations.md` for the supported subset.
+SARIF, and JSON Schema validation. See `docs/limitations.md` for the supported subset.
+
+Current release target: v0.1.5.
 
 ## Pull request annotations
 
