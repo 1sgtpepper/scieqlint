@@ -28,6 +28,10 @@ Diagnostic codes are user-facing API once introduced.
 | Code | Default | Meaning |
 |---|---|---|
 | `CFG010` | error | Invalid dimension expression |
+| `DIM001` | error | Equation sides have different dimensions |
+| `DIM002` | error | Addition or subtraction combines incompatible dimensions |
+| `DIM010` | warning | Unknown variable dimension |
+| `DIM020` | info | Dimension check skipped |
 
 ## Example: ALG001
 

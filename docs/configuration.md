@@ -76,4 +76,8 @@ diagnostics. Dimension expressions use the SI base dimensions `M`, `L`, `T`, `I`
 `Theta`, `N`, and `J`; whitespace separates factors, `L^2` sets an integer power,
 and `1` means dimensionless.
 
+When dimension checking is active, supported equality sides with different dimensions
+emit `DIM001`, supported addition or subtraction with incompatible dimensions emits
+`DIM002`, and unknown symbols emit `DIM010` unless `unknown_variables = "ignore"`.
+
 Invalid config fails before document analysis and reports a deterministic error.
