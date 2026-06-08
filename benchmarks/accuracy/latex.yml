@@ -1,0 +1,31 @@
+cases:
+  - id: latex-equation-bad
+    release: v0.1.3
+    input: "\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n"
+    expected_codes: ["ALG001"]
+    expected_pass: false
+
+  - id: latex-align-good
+    release: v0.1.3
+    input: "\\begin{align}\nE &= m c^2 \\\\[3pt]\nF &= m a\n\\end{align}\n"
+    expected_codes: []
+    expected_pass: true
+
+  - id: latex-missing-reference
+    release: v0.1.3
+    input: "See \\eqref{missing}.\n"
+    expected_codes: ["REF002"]
+    expected_pass: true
+
+  - id: latex-cross-format-reference
+    release: v0.1.3
+    input: "See \\eqref{energy}.\n"
+    markdown_input: "$$\nE = m c^2\n$$ {#energy}\n"
+    expected_codes: []
+    expected_pass: true
+
+  - id: latex-unterminated-equation
+    release: v0.1.3
+    input: "\\begin{equation}\na = a\n"
+    expected_codes: ["SCAN001"]
+    expected_pass: true

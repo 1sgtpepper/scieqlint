@@ -22,7 +22,7 @@ Release notes must use these sections:
 - v0.1.2 dimension config surface and configured dimension diagnostics for supported
   equality, addition, subtraction, multiplication, division, and integer-power expressions.
 - v0.1.3 LaTeX source scanning for supported display, equation, and align containers,
-  plus LaTeX labels/references.
+  plus LaTeX labels/references, locked by accuracy benchmarks.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
