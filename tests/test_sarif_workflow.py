@@ -19,7 +19,8 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     upload_step = _job_step("scieqlint-sarif", "Upload SARIF")
 
     assert run_step["run"] == (
-        'scieqlint check "docs/**/*.md" "docs/**/*.ipynb" '
+        "scieqlint check \"docs/**/*.md\" "
+        "\"docs/**/*.ipynb\" "
         "--format sarif --output scieqlint.sarif"
     )
     assert upload_step["uses"] == "github/codeql-action/upload-sarif@v4"
