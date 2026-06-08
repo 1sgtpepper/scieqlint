@@ -5,9 +5,7 @@ Good issues include:
 - why the task matters,
 - release target,
 - scope classification,
-- likely files,
-- acceptance criteria,
-- non-goals,
+- a short suggested path,
 - reviewer expectations.
 
 Bad issues say only “improve parser” or “add LaTeX support.” Good issues identify one small, testable slice.

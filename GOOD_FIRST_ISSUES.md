@@ -1,171 +1,220 @@
 # Good First Issues
 
-These are seed issues for opening the repository. Each one is intentionally small, reviewable, and scoped to one layer.
+These are seed issues for opening the repository. Each issue is intended to stay
+small and reviewable.
 
 ## 1. CLI smoke tests for v0.0.1
 
-Release: v0.0.1. Area: CLI. Scope: required.
+## Summary
 
-Why it matters: every contributor needs a reliable command surface before real checks exist.
+Add smoke coverage for the first CLI commands.
 
-Likely files: `src/scieqlint/cli.py`, `tests/test_cli.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.0.1
+Area: CLI
+```
 
-- `scieqlint --help` exits 0.
-- `scieqlint demo` exits 0.
-- `python -m scieqlint --help` exits 0.
-- Tests use `click.testing.CliRunner`.
+## Change
 
-Non-goals: real scanning, parser work, JSON schema changes.
+Cover `scieqlint --help`, `scieqlint demo`, and `python -m scieqlint --help`.
+
+## Test Notes
+
+Use the repository's CLI test style.
 
 ## 2. LineIndex tests
 
-Release: v0.1.0. Area: IO. Scope: required.
+## Summary
 
-Why it matters: stable source locations are the foundation for local output, JSON, GitHub annotations, and SARIF.
+Add source-location tests for one-based line and column mapping.
 
-Likely files: `src/scieqlint/io/source.py`, `tests/test_source.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: IO
+```
 
-- offsets map to one-based line and column,
-- mixed short lines are covered,
-- final-line/no-final-newline cases are covered,
-- implementation is deterministic.
+## Change
 
-Non-goals: scanner extraction and notebook cell mapping.
+Cover mixed short lines and a final line without a trailing newline.
+
+## Test Notes
+
+Keep the expected locations explicit.
 
 ## 3. Diagnostic catalog table
 
-Release: v0.1.0. Area: diagnostics/docs. Scope: required.
+## Summary
 
-Why it matters: diagnostic codes are user-facing API.
+Keep diagnostic catalog entries and documentation aligned.
 
-Likely files: `src/scieqlint/diag/catalog.py`, `docs/diagnostics.md`, `tests/test_diagnostic_catalog.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: diagnostics/docs
+```
 
-- all v0.1.0 codes exist,
-- each code has severity, message, explanation, and release,
-- docs list every code,
-- tests fail if docs/catalog drift.
+## Change
 
-Non-goals: adding new diagnostics.
+Add or update coverage that catches catalog/docs drift.
+
+## Test Notes
+
+Use independent expected diagnostic metadata.
 
 ## 4. Markdown display math fixture extraction
 
-Release: v0.1.0. Area: scanner. Scope: required.
+## Summary
 
-Why it matters: the first product wedge depends on reliable Markdown display math extraction.
+Cover Markdown display math block extraction.
 
-Likely files: `src/scieqlint/scan/markdown.py`, `tests/test_markdown_scan.py`, `tests/fixtures/good/algebra_good.md`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: scanner
+```
 
-- `$$ ... $$` blocks are extracted,
-- line/column spans are stable,
-- scanner does not parse expressions,
-- unterminated containers warn instead of crashing.
+## Change
 
-Non-goals: MyST directives, inline math, algebra.
+Cover `$$ ... $$` blocks, stable line/column spans, and unterminated containers
+that warn instead of crashing.
+
+## Test Notes
+
+Use small Markdown fixtures.
 
 ## 5. MyST directive label extraction
 
-Release: v0.1.0. Area: scanner. Scope: required.
+## Summary
 
-Why it matters: MyST/Jupyter Book users get zero-config reference checks.
+Cover MyST math labels and references.
 
-Likely files: `src/scieqlint/scan/markdown.py`, `tests/test_myst_scan.py`, `tests/fixtures/good/myst_good.md`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: scanner
+```
 
-- `````{math}` with `:label:` extracts a label,
-- `{eq}` and simple `{numref}` roles extract references,
-- raw reference text is preserved,
-- source spans are deterministic.
+## Change
 
-Non-goals: full Sphinx/MyST build behavior.
+Cover math directive labels, `{eq}` references, simple `{numref}` references, raw
+reference text, and deterministic source spans.
+
+## Test Notes
+
+Use focused MyST examples.
 
 ## 6. Parser unsupported-function regression tests
 
-Release: v0.1.0. Area: parser. Scope: required.
+## Summary
 
-Why it matters: unsupported math must be reported as unknown, not guessed.
+Add regression coverage for unsupported functions.
 
-Likely files: `src/scieqlint/parse/parser.py`, `tests/test_parser.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: parser
+```
 
-- `\sin(x)`, `\cos(x)`, `\log(x)`, and `\exp(x)` emit `PARSE021`,
-- no exception is raised,
-- no algebra diagnostic is emitted for unsupported functions.
+## Change
 
-Non-goals: supporting trig/log/exp.
+Show unsupported functions such as `\sin(x)`, `\cos(x)`, `\log(x)`, and `\exp(x)`
+produce the expected parser diagnostic without raising an exception.
+
+## Test Notes
+
+Check that unsupported functions do not emit algebra diagnostics.
 
 ## 7. Algebra famous-bad fixture
 
-Release: v0.1.0. Area: checker. Scope: required.
+## Summary
 
-Why it matters: the README demo must be real and locked.
+Lock the README algebra demo with a fixture.
 
-Likely files: `src/scieqlint/check/algebra.py`, `tests/fixtures/bad/famous_bad.md`, `tests/golden/text/famous_bad.txt`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: checker
+```
 
-- `(a+b)^2 = a^2 + b^2` emits `ALG001`,
-- detail includes `left - right = 2*a*b`,
-- output is stable across operating systems.
+## Change
 
-Non-goals: broad simplification, trig identities, dimensions.
+Add the `(a+b)^2 = a^2 + b^2` fixture and stable text output showing the algebra
+diagnostic detail.
+
+## Test Notes
+
+Keep golden output stable across operating systems.
 
 ## 8. JSON schema validation test
 
-Release: v0.1.0. Area: reporter/schema. Scope: required.
+## Summary
 
-Why it matters: JSON is the first automation contract.
+Validate deterministic JSON output against the checked-in schema.
 
-Likely files: `src/scieqlint/report/json.py`, `src/scieqlint/schemas/*.json`, `tests/test_json_schema.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: reporter/schema
+```
 
-- golden JSON validates against checked-in schema,
-- all nullable keys are present,
-- no timestamps are emitted,
-- paths are relative by default.
+## Change
 
-Non-goals: SARIF, GitHub annotations.
+Validate golden JSON against the schema and keep deterministic output fields stable.
+
+## Test Notes
+
+Use a checked-in golden file.
 
 ## 9. Limitations page first pass
 
-Release: v0.1.0. Area: docs. Scope: required.
+## Summary
 
-Why it matters: limitations are a trust asset.
+Document the supported SciEqLint subset.
 
-Likely files: `docs/limitations.md`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.1.0
+Area: docs
+```
 
-- supported grammar table exists,
-- supported label/reference forms are listed,
-- unsupported examples are shown,
-- “unknown” is explained,
-- docs do not imply broad math verification.
+## Change
 
-Non-goals: marketing copy.
+Document supported grammar, supported label/reference forms, unsupported examples,
+and how unknown math is reported.
+
+## Test Notes
+
+Keep examples consistent with the implemented parser behavior.
 
 ## 10. Package-resource smoke test
 
-Release: v0.0.1/v0.1.0. Area: packaging. Scope: required.
+## Summary
 
-Why it matters: installed wheels must include grammar, schemas, examples, and `py.typed`.
+Cover package resources in an installed wheel.
 
-Likely files: `pyproject.toml`, `src/scieqlint/io/resources.py`, `tests/test_package_resources.py`.
+## Affected Area
 
-Acceptance:
+```text
+Release: v0.0.1/v0.1.0
+Area: packaging
+```
 
-- package resources load through `importlib.resources`,
-- wheel build includes schemas and grammar,
-- clean install smoke test can run `scieqlint --help`.
+## Change
 
-Non-goals: parser implementation.
+Cover package resource loading, wheel contents for schemas and grammar, and a clean
+install smoke check for `scieqlint --help`.
+
+## Test Notes
+
+Use repository-native packaging checks.

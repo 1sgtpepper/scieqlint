@@ -10,4 +10,4 @@ Start with:
 4. `CONTRIBUTING.md`
 5. this docs section
 
-A good SciEqLint PR changes one layer, includes tests, names non-goals, and preserves deterministic output.
+A good SciEqLint PR changes one layer, includes tests, and preserves deterministic output.

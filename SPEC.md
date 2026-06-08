@@ -163,7 +163,7 @@ Dates below assume implementation starts Monday, 2026-06-08. If implementation s
 
 Each release has three possible outcomes at the deadline:
 
-1. Ship if acceptance criteria pass.
+1. Ship if release checks pass.
 2. Cut unfinished optional scope and ship.
 3. Do not ship if correctness/security/package trust is broken.
 
@@ -173,7 +173,7 @@ A release MUST NOT absorb the next release’s features to “make the release f
 
 A release is done only when all of the following are true:
 
-- the acceptance checklist for that release passes,
+- the release checklist for that release passes,
 - user-facing docs show the shipped behavior and its limits,
 - contributor-facing docs show how to run, test, and safely change the shipped behavior,
 - golden fixtures lock expected output,
@@ -228,7 +228,7 @@ Ships:
 - `py.typed` included.
 - `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, and `MAINTAINERS.md` exist.
 - GitHub issue templates and PR template exist.
-- `GOOD_FIRST_ISSUES.md` lists at least ten starter issues with acceptance criteria.
+- `GOOD_FIRST_ISSUES.md` lists at least ten starter issues.
 
 Acceptance:
 
@@ -2165,14 +2165,14 @@ uv run scieqlint check "examples/good/**/*.md" --format text
 
 Every release follows this sequence:
 
-1. Scope lock: update acceptance checklist.
+1. Scope lock: update release checklist.
 2. Data contracts: update models, diagnostics, and schemas first.
 3. Core implementation: scanner/parser/checker/reporter changes in separate PRs.
 4. Golden fixtures: add good/bad examples and exact output expectations.
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
 6. Package smoke: build wheel, install in a clean venv, run CLI smoke.
 7. Release candidate: tag rc or create a pre-release branch.
-8. Final tag: publish only after acceptance criteria pass.
+8. Final tag: publish only after release checks pass.
 
 A feature is not shipped until docs and fixtures demonstrate it. This rule applies even to small reporter, config, and scanner changes.
 
@@ -2181,7 +2181,7 @@ A feature is not shipped until docs and fixtures demonstrate it. This rule appli
 Every release MUST include:
 
 - release scope statement,
-- acceptance checklist status,
+- release checklist status,
 - changelog entry,
 - version bump,
 - docs update,
@@ -2191,8 +2191,7 @@ Every release MUST include:
 - golden test update when output changes,
 - wheel install smoke test,
 - package-data verification,
-- release notes with migration notes,
-- explicit note that deferred features remain out of scope.
+- release notes with migration notes.
 
 Release notes MUST use:
 
@@ -2324,7 +2323,7 @@ The contributor promise:
 
 - a new contributor can understand the first useful product win in less than five minutes,
 - a new contributor can run the full local quality loop with one documented command group,
-- a new contributor can find a starter issue that names files, tests, acceptance criteria, and out-of-scope boundaries,
+- a new contributor can find a starter issue with a clear summary, affected area, change, and test notes,
 - a reviewer can reject scope creep by linking to this spec instead of debating taste,
 - a contributor never has to infer whether a change belongs to scanner, parser, checker, reporter, config, docs, or packaging,
 - a contributor never has to guess whether a feature belongs in the current release.
@@ -2336,13 +2335,13 @@ By v0.0.1 the repository MUST include these top-level files:
 | `README.md` | product pitch, install, first demo, limitations link | v0.0.1 |
 | `CONTRIBUTING.md` | local setup, test commands, PR expectations, issue labels | v0.0.1 |
 | `ROADMAP.md` | release ladder rewritten for contributors | v0.0.1 |
-| `GOOD_FIRST_ISSUES.md` | ten starter issues with acceptance criteria | v0.0.1 |
+| `GOOD_FIRST_ISSUES.md` | ten starter issues | v0.0.1 |
 | `CODE_OF_CONDUCT.md` | behavior rules for safe collaboration | v0.0.1 |
 | `SECURITY.md` | responsible disclosure and security boundaries | v0.0.1 |
 | `SUPPORT.md` | where to ask questions and what is out of support | v0.0.1 |
 | `MAINTAINERS.md` | review expectations and decision process | v0.0.1 |
 | `.github/PULL_REQUEST_TEMPLATE.md` | contributor checklist | v0.0.1 |
-| `.github/ISSUE_TEMPLATE/*.yml` | structured bug, feature, docs, and starter-task issues | v0.0.1 |
+| `.github/ISSUE_TEMPLATE/*.md` | bug, feature, docs, and task issue templates | v0.0.1 |
 
 The first screen of `CONTRIBUTING.md` MUST include:
 
@@ -2362,40 +2361,35 @@ If `uv` is not installed, the file SHOULD link or point to the supported fallbac
 
 Every starter or help-wanted issue MUST include:
 
-- why this matters to users,
+- summary,
 - release target,
 - scope label: `required`, `cuttable`, or `forbidden-for-now`,
-- likely files to edit,
-- likely tests to add or update,
-- exact acceptance criteria,
-- examples or fixture names when applicable,
-- explicit non-goals,
-- reviewer note explaining what kind of feedback to expect.
+- affected area,
+- requested change,
+- test notes when applicable,
+- reviewer note when useful.
 
 Good issue template:
 
 ```md
-## Why this matters
+## Summary
 
-## Release target
+## Affected Area
 
-## Scope
-Required / cuttable / forbidden-for-now.
+```text
+Release:
+Area:
+Scope:
+```
 
-## Likely files
+## Change
 
-## Tests
-
-## Acceptance criteria
-
-## Out of scope
-
-## Reviewer note
+## Test Notes
 ```
 
 A `good first issue` MUST be solvable without making product policy decisions. It SHOULD be less than roughly 150 lines of code or docs, excluding fixtures and golden outputs. It MUST NOT require changing public JSON schema, grammar semantics, algebra behavior, release policy, or security rules unless the issue is explicitly marked `good second issue` instead.
 
-A `good second issue` MAY touch code behavior but MUST still have narrow acceptance criteria and a named reviewer area.
+A `good second issue` MAY touch code behavior but MUST still stay narrow and name a reviewer area.
 
 #### Label taxonomy
 
@@ -2601,9 +2595,9 @@ Any grammar expansion requires:
 
 ---
 
-## 21. Acceptance criteria by release
+## 21. Release checks by release
 
-### v0.0.1 acceptance
+### v0.0.1 checks
 
 - Wheel builds.
 - Wheel installs in clean venv.
@@ -2615,7 +2609,7 @@ Any grammar expansion requires:
 - Contributor quickstart can be followed on a clean machine.
 - At least ten starter issues are written using the required issue contract.
 
-### v0.1.0 acceptance
+### v0.1.0 checks
 
 Product:
 

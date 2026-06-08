@@ -23,11 +23,11 @@ tests, schemas, CI templates, and the first working v0.1.0 analyzer slice.
 - `.editorconfig`
 - `.github/CODEOWNERS`
 - `.github/FUNDING.yml`
-- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/0_bug.md`
 - `.github/ISSUE_TEMPLATE/config.yml`
-- `.github/ISSUE_TEMPLATE/docs_issue.yml`
-- `.github/ISSUE_TEMPLATE/feature_request.yml`
-- `.github/ISSUE_TEMPLATE/starter_task.yml`
+- `.github/ISSUE_TEMPLATE/1_feature.md`
+- `.github/ISSUE_TEMPLATE/2_task.md`
+- `.github/ISSUE_TEMPLATE/3_documentation.md`
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/dependabot.yml`
 - `.github/labels.yml`

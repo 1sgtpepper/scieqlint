@@ -2,6 +2,18 @@
 
 <!-- What changed, in one or two sentences? -->
 
+## Linked issue
+
+<!-- Example: Fixes #123, Part of #123, or docs-only. -->
+
+## PR Checklist
+
+- [ ] Linked issue checked.
+- [ ] One layer or one mechanical change.
+- [ ] Behavior/schema/golden impact checked.
+- [ ] Tests/docs updated.
+- [ ] Local checks run.
+
 ## Release target
 
 <!-- Example: v0.0.1, v0.1.0, docs-only, unreleased governance. -->
@@ -33,10 +45,6 @@ Choose one unless this is a mechanical change proven by tests:
 - [ ] Docs updated
 - [ ] Limitations updated
 - [ ] Changelog updated
-
-## Explicit non-goals
-
-<!-- What did you intentionally not change? -->
 
 ## Local checks
 

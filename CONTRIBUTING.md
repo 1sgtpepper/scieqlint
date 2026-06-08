@@ -43,10 +43,39 @@ Every PR must state:
 - the single layer it changes,
 - whether user-visible behavior changes,
 - whether golden output changes,
-- whether docs were updated,
-- what is explicitly out of scope.
+- whether docs were updated.
 
 One PR should not combine scanner, parser, checker, reporter/schema, config, docs, and CI changes unless the change is mechanical and tests prove the coupling.
+
+## Issue workflow
+
+Before opening or taking an issue:
+
+1. Search open and closed issues for the same report or task.
+2. Reproduce bugs on the current `main` branch.
+3. Reproduce bugs on the newest published release.
+4. Record the exact SciEqLint version or commit, Python version, operating system, command, input, and output.
+5. Keep the reproduction small enough for another contributor to run directly.
+6. State actual behavior and expected behavior separately.
+7. Link source references, docs pages, fixtures, or diagnostics when they are already known.
+8. Keep feature and task issues narrow enough to review in one pass.
+
+Do not open a public issue for a security vulnerability. Use `SECURITY.md`.
+
+If a bug no longer reproduces on `main`, say that in the issue and include the
+older version where it was observed. If it reproduces on `main` but not the
+newest release, mark it as unreleased behavior.
+
+Use this quick checklist before submitting:
+
+- [ ] Duplicate search done.
+- [ ] Security path checked.
+- [ ] Current `main` checked for bugs.
+- [ ] Newest release checked for bugs.
+- [ ] Exact version, command, input, and output included.
+- [ ] Actual and expected behavior are separate.
+- [ ] Source references included.
+- [ ] Issue is narrow enough for one focused PR.
 
 ## Review norms
 
