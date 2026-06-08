@@ -4,6 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
+from typing import Literal
+
+DimensionMode = Literal["auto", "on", "off"]
+UnknownVariablePolicy = Literal["warn", "ignore"]
+
+
+@dataclass(frozen=True, slots=True)
+class DimVector:
+    exponents: tuple[int, int, int, int, int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class VarDimension:
+    name: str
+    dimension: DimVector
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,9 +45,23 @@ class ReferencesConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DimensionConfig:
+    mode: DimensionMode = "auto"
+    unknown_variables: UnknownVariablePolicy = "warn"
+
+    def is_active(self, *, has_vars: bool) -> bool:
+        if self.mode == "off":
+            return False
+        if self.mode == "on":
+            return True
+        return has_vars
+
+
+@dataclass(frozen=True, slots=True)
 class ChecksConfig:
     algebra: AlgebraConfig = field(default_factory=AlgebraConfig)
     references: ReferencesConfig = field(default_factory=ReferencesConfig)
+    dimension: DimensionConfig = field(default_factory=DimensionConfig)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,4 +77,5 @@ class Config:
     scanner: ScannerConfig = field(default_factory=ScannerConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)
+    vars: tuple[VarDimension, ...] = ()
     ignore: IgnoreConfig = field(default_factory=IgnoreConfig)

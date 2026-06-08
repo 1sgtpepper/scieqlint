@@ -19,6 +19,8 @@ Release notes must use these sections:
 - Complete v11.1 specification and OSS contributor scaffold.
 - v0.1.0 Markdown/MyST analyzer for simple scalar algebra and equation references.
 - v0.1.1 GitHub annotation output and pre-commit metadata.
+- v0.1.2 dimension config surface with `[checks.dimension]`, `[vars]`, and `CFG010`
+  catalog coverage.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed

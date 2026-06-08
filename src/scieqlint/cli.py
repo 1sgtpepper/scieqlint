@@ -35,6 +35,15 @@ missing = "warn"
 duplicate_labels = "error"
 missing_label_strict = false
 
+[checks.dimension]
+mode = "auto"
+unknown_variables = "warn"
+
+[vars]
+# m = "M"
+# v = "L T^-1"
+# theta = "1"
+
 [ignore]
 files = []
 """

@@ -23,6 +23,12 @@ Diagnostic codes are user-facing API once introduced.
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |
 
+## v0.1.2 catalog
+
+| Code | Default | Meaning |
+|---|---|---|
+| `CFG010` | error | Invalid dimension expression |
+
 ## Example: ALG001
 
 Input:
