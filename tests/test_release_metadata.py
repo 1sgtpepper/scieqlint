@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import tomllib
 from pathlib import Path
 
@@ -21,7 +22,10 @@ def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     assert "if: startsWith(github.ref, 'refs/tags/v')" in workflow
     assert "environment: pypi" in workflow
     assert "id-token: write" in workflow
-    assert "uses: pypa/gh-action-pypi-publish@release/v1" in workflow
+    assert re.search(
+        r"uses: pypa/gh-action-pypi-publish@[0-9a-f]{40}",
+        workflow,
+    )
     assert "username:" not in workflow
     assert "password:" not in workflow
 

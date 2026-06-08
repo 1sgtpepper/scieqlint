@@ -8,7 +8,9 @@ Security fixes are provided for the latest released minor version during v0.x. T
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a vulnerability. Email the maintainers listed in `MAINTAINERS.md`, or use GitHub private vulnerability reporting once enabled.
+Do not open a public issue for a vulnerability. Use
+[GitHub private vulnerability reporting](https://github.com/Kuhai9801/scieqlint/security/advisories/new)
+or contact the maintainers listed in `MAINTAINERS.md`.
 
 Please include:
 

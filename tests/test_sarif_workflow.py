@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 WORKFLOW = Path(".github/workflows/sarif-upload-example.yml")
@@ -24,7 +25,10 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
         f"{quote}docs/**/*.ipynb{quote} "
         "--format sarif --output scieqlint.sarif"
     )
-    assert upload_step["uses"] == "github/codeql-action/upload-sarif@v4"
+    assert re.fullmatch(
+        r"github/codeql-action/upload-sarif@[0-9a-f]{40}",
+        upload_step["uses"],
+    )
     assert upload_step["with"] == {
         "sarif_file": "scieqlint.sarif",
         "category": "scieqlint-docs",
