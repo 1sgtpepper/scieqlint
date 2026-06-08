@@ -10,6 +10,7 @@ from referencing import Registry, Resource
 from scieqlint.api import check_paths
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
+from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
@@ -42,6 +43,14 @@ def test_github_golden_output_matches_famous_bad_fixture() -> None:
     result = check_paths([FIXTURE])
 
     assert GitHubReporter().render(result) == Path("tests/golden/github/famous_bad.txt").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_sarif_golden_output_matches_famous_bad_fixture() -> None:
+    result = check_paths([FIXTURE])
+
+    assert SarifReporter().render(result) == Path("tests/golden/sarif/famous_bad.sarif").read_text(
         encoding="utf-8"
     )
 

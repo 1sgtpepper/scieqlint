@@ -13,6 +13,7 @@ from scieqlint.api import check_paths
 from scieqlint.diag.catalog import explain_code
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
+from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
 DEFAULT_CONFIG = """[project]
@@ -64,7 +65,7 @@ def main() -> None:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["text", "json", "github"]),
+    type=click.Choice(["text", "json", "github", "sarif"]),
     default="text",
 )
 @click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
@@ -98,6 +99,8 @@ def check(
             rendered = JsonReporter().render(result)
         elif output_format == "github":
             rendered = GitHubReporter().render(result)
+        elif output_format == "sarif":
+            rendered = SarifReporter().render(result)
         else:
             rendered = TextReporter(quiet=quiet).render(result)
         _write_output(rendered, output_path, sys.stdout)
