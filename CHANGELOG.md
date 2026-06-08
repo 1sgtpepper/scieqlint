@@ -21,7 +21,8 @@ Release notes must use these sections:
 - v0.1.1 GitHub annotation output and pre-commit metadata.
 - v0.1.2 dimension config surface and configured dimension diagnostics for supported
   equality, addition, subtraction, multiplication, division, and integer-power expressions.
-- v0.1.3 LaTeX source scanning for supported display, equation, and align containers.
+- v0.1.3 LaTeX source scanning for supported display, equation, and align containers,
+  plus LaTeX labels/references.
 - CI, docs, issue templates, labels, schemas, examples, and release checklists.
 
 ### Changed
@@ -51,5 +52,6 @@ Release notes must use these sections:
   checks only.
 - v0.1.2 dimensions require explicit `[vars]` config. Presets, aliases, unit databases,
   and dimension CLI override flags are deferred.
-- v0.1.3 LaTeX support is a container scanner only. Macro expansion, full LaTeX parsing,
-  and broad environment support are deferred.
+- v0.1.3 LaTeX support is limited to supported containers, `\label`, `\ref`, and
+  `\eqref`. Macro expansion, full LaTeX parsing, and broad environment support are
+  deferred.

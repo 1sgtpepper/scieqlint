@@ -25,12 +25,15 @@ class LabelSource(Enum):
     MYST_DOLLAR_LABEL = "myst_dollar_label"
     MYST_DIRECTIVE_LABEL = "myst_directive_label"
     TEX_LABEL_IN_MARKDOWN_MATH = "tex_label_in_markdown_math"
+    LATEX_LABEL = "latex_label"
 
 
 class ReferenceSource(Enum):
     MARKDOWN_ANCHOR = "markdown_anchor"
     MYST_EQ_ROLE = "myst_eq_role"
     MYST_NUMREF_ROLE = "myst_numref_role"
+    LATEX_REF = "latex_ref"
+    LATEX_EQREF = "latex_eqref"
 
 
 @dataclass(frozen=True, slots=True)

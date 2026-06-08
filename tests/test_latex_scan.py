@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import MathContainer
+from scieqlint.scan.base import LabelSource, MathContainer, ReferenceSource
 from scieqlint.scan.latex import LatexScanner
 
 
@@ -63,6 +63,38 @@ def test_latex_scanner_ignores_comments_and_verbatim() -> None:
 
     assert [block.text for block in result.blocks] == ["a = a"]
     assert result.diagnostics == ()
+
+
+def test_latex_labels_and_references_are_extracted() -> None:
+    document = _document(
+        "\\begin{equation}\n"
+        "  \\label{eq:energy}\n"
+        "E = m c^2\n"
+        "\\end{equation}\n"
+        "See \\eqref{eq:energy} and \\ref{eq:force}.\n"
+    )
+    result = LatexScanner().scan(document, Config())
+
+    assert len(result.labels) == 1
+    assert result.labels[0].label == "eq:energy"
+    assert result.labels[0].source is LabelSource.LATEX_LABEL
+    label_span = result.labels[0].span
+    assert document.text[label_span.start : label_span.end] == "eq:energy"
+    assert [(ref.target, ref.source) for ref in result.references] == [
+        ("eq:energy", ReferenceSource.LATEX_EQREF),
+        ("eq:force", ReferenceSource.LATEX_REF),
+    ]
+
+
+def test_latex_labels_in_comments_are_ignored() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "\\begin{equation}\nE = m c^2 % \\label{commented}\n\\label{real}\n\\end{equation}\n"
+        ),
+        Config(),
+    )
+
+    assert [label.label for label in result.labels] == ["real"]
 
 
 def test_latex_unterminated_equation_warns() -> None:
