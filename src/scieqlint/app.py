@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
+from scieqlint.check.dimensions import check_dimensions
 from scieqlint.check.references import check_references
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
@@ -101,6 +102,7 @@ def check_documents(
                     for diagnostic in block_diagnostics
                     if diagnostic.code.startswith("PARSE")
                 )
+            diagnostics.extend(check_dimensions(block, config))
 
     if config.parser.strict_unknowns:
         diagnostics = [_strict_unknown(diagnostic) for diagnostic in diagnostics]
