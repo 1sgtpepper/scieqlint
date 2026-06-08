@@ -73,14 +73,11 @@ def test_latex_labels_and_references_are_extracted() -> None:
         "\\end{equation}\n"
         "See \\eqref{eq:energy} and \\ref{eq:force}.\n"
     )
-    result = LatexScanner().scan(
-        document,
-        Config(),
-    )
+    result = LatexScanner().scan(document, Config())
 
-    assert [(label.label, label.source) for label in result.labels] == [
-        ("eq:energy", LabelSource.LATEX_LABEL)
-    ]
+    assert len(result.labels) == 1
+    assert result.labels[0].label == "eq:energy"
+    assert result.labels[0].source is LabelSource.LATEX_LABEL
     label_span = result.labels[0].span
     assert document.text[label_span.start : label_span.end] == "eq:energy"
     assert [(ref.target, ref.source) for ref in result.references] == [
