@@ -17,11 +17,11 @@ def test_sarif_upload_example_has_required_security_events_permission() -> None:
 def test_sarif_upload_example_uses_cli_and_category() -> None:
     run_step = _job_step("scieqlint-sarif", "Run SciEqLint SARIF")
     upload_step = _job_step("scieqlint-sarif", "Upload SARIF")
-    quoted_markdown = "\"docs/**/*.md\""
-    quoted_notebook = "\"docs/**/*.ipynb\""
+    quote = chr(34)
 
     assert run_step["run"] == (
-        f"scieqlint check {quoted_markdown} {quoted_notebook} "
+        f"scieqlint check {quote}docs/**/*.md{quote} "
+        f"{quote}docs/**/*.ipynb{quote} "
         "--format sarif --output scieqlint.sarif"
     )
     assert upload_step["uses"] == "github/codeql-action/upload-sarif@v4"
