@@ -60,10 +60,10 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: tests
           name: scieqlint
-          use_oidc: true
           fail_ci_if_error: false
 
   package:
