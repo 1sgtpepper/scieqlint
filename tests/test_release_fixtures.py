@@ -14,9 +14,7 @@ def test_release_fixture_covers_mechanics_preset() -> None:
     result = _check_fixture(path, config=load_config(preset="mechanics"))
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["DIM001"]
-    assert result.diagnostics[0].detail == (
-        "left dimension M L^2 T^-2; right dimension M L T^-1"
-    )
+    assert result.diagnostics[0].detail == ("left dimension M L^2 T^-2; right dimension M L T^-1")
 
 
 def test_release_fixture_covers_alias_dimension_normalization(tmp_path) -> None:
