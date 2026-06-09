@@ -30,6 +30,8 @@ Release notes must use these sections:
 - Opt-in undefined-symbol diagnostics from explicit symbol directives.
 - Project file ordering for deterministic cross-file checks.
 - Diagnostic baselines for known findings in repeated CI runs.
+- v1.0.0 contract readiness documentation for CLI, JSON, SARIF, config, graph,
+  diagnostics, release checks, and public API surfaces.
 
 ### Changed
 
