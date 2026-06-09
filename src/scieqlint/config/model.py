@@ -64,10 +64,16 @@ class DimensionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class SymbolsConfig:
+    enabled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class ChecksConfig:
     algebra: AlgebraConfig = field(default_factory=AlgebraConfig)
     references: ReferencesConfig = field(default_factory=ReferencesConfig)
     dimension: DimensionConfig = field(default_factory=DimensionConfig)
+    symbols: SymbolsConfig = field(default_factory=SymbolsConfig)
 
 
 @dataclass(frozen=True, slots=True)

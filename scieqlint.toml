@@ -25,6 +25,9 @@ missing_label_strict = false
 mode = "auto"
 unknown_variables = "warn"
 
+[checks.symbols]
+enabled = false
+
 [vars]
 # m = "M"
 # v = "L T^-1"

@@ -40,6 +40,9 @@ missing_label_strict = false
 mode = "auto"
 unknown_variables = "warn"
 
+[checks.symbols]
+enabled = false
+
 [vars]
 # m = "M"
 # v = "L T^-1"
@@ -96,6 +99,17 @@ emit `DIM001`, supported addition or subtraction with incompatible dimensions em
 Aliases normalize explicit surface forms before dimension lookup. Alias keys must
 name configured `[vars]` entries, and an alias may not collide with another
 configured variable or alias.
+
+## Symbol config
+
+```toml
+[checks.symbols]
+enabled = true
+```
+
+When enabled, symbol checks use only explicit `scieqlint-symbol` comments as
+definitions and emit `SYM001` for supported math symbols used before definition.
+SciEqLint does not infer definitions from prose.
 
 Invalid config fails before document analysis and reports a deterministic error.
 

@@ -18,6 +18,7 @@ from scieqlint.config.model import (
     ReferencesConfig,
     ScannerConfig,
     SymbolAlias,
+    SymbolsConfig,
     UnknownVariablePolicy,
     VarDimension,
 )
@@ -52,6 +53,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     algebra_data = _table(checks_data, "algebra")
     references_data = _table(checks_data, "references")
     dimension_data = _table(checks_data, "dimension")
+    symbols_data = _table(checks_data, "symbols")
     vars_config = _vars_config(vars_data)
     return Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
@@ -75,6 +77,9 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
                     "unknown_variables",
                     "warn",
                 ),
+            ),
+            symbols=SymbolsConfig(
+                enabled=_bool(symbols_data, "enabled", False),
             ),
         ),
         vars=vars_config,
