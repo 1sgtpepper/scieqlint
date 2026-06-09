@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import json
 from importlib import resources
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
