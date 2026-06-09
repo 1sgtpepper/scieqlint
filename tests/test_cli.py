@@ -16,7 +16,12 @@ def test_help() -> None:
 def test_check_help_lists_v010_flags() -> None:
     result = CliRunner().invoke(main, ["check", "--help"])
     assert result.exit_code == 0
-    for option in ["--no-algebra", "--inline-math", "--strict-unknowns", "--absolute-paths"]:
+    for option in [
+        "--no-algebra",
+        "--inline-math",
+        "--strict-unknowns",
+        "--absolute-paths",
+    ]:
         assert option in result.output
     assert "github" in result.output
 
@@ -166,10 +171,7 @@ def test_check_reports_bad_equation(tmp_path) -> None:
 def test_markdown_suppression_hides_diagnostic_and_exits_zero(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -200,10 +202,7 @@ def test_latex_current_block_suppression_hides_diagnostic_and_exits_zero(tmp_pat
 def test_unknown_suppression_code_reports_warning_and_does_not_suppress(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line NOPE999 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line NOPE999 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -218,10 +217,7 @@ def test_unknown_suppression_code_reports_warning_and_does_not_suppress(tmp_path
 def test_malformed_suppression_code_reports_warning_and_does_not_suppress(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line 123 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line 123 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -236,10 +232,7 @@ def test_malformed_suppression_code_reports_warning_and_does_not_suppress(tmp_pa
 def test_empty_suppression_code_reports_warning_and_does_not_suppress(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -270,7 +263,10 @@ def test_latex_suppression_outside_block_does_not_suppress_later_block(tmp_path)
 
 def test_check_discovers_latex_source_files(tmp_path) -> None:
     doc = tmp_path / "paper.tex"
-    doc.write_text("\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n", encoding="utf-8")
+    doc.write_text(
+        "\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n",
+        encoding="utf-8",
+    )
 
     result = CliRunner().invoke(main, ["check", str(tmp_path)])
 
