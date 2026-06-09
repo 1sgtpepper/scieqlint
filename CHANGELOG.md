@@ -27,6 +27,7 @@ Release notes must use these sections:
 - `scieqlint graph` JSON output with schema validation and golden output coverage.
 - Explicit Markdown and LaTeX `scieqlint-symbol` directive parsing for later
   symbol-table checks.
+- Opt-in undefined-symbol diagnostics from explicit symbol directives.
 
 ## v0.1.5 - 2026-06-08
 

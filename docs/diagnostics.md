@@ -22,6 +22,7 @@ codes before every code is emitted by the current analyzer.
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
+| `SYM001` | warning | Undefined symbol used before explicit definition |
 
 ## Reserved in catalog
 

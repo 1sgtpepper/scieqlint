@@ -157,6 +157,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.2",
         "Dimension checking skipped an expression outside the supported subset.",
     ),
+    "SYM001": DiagnosticInfo(
+        "SYM001",
+        Severity.WARNING,
+        "undefined symbol",
+        "v1.0.0",
+        "A symbol is used before an explicit scieqlint-symbol directive defines it.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

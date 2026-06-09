@@ -97,8 +97,8 @@ not a unit database, and aliases must be listed explicitly.
 
 ## Symbols
 
-Explicit Markdown and LaTeX `scieqlint-symbol` comments are parsed for later
-symbol-table checks. SciEqLint does not infer symbols from prose.
+Explicit Markdown and LaTeX `scieqlint-symbol` comments can define symbols for
+the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 ## Notebooks
 

@@ -48,7 +48,18 @@ def test_load_config_finds_default_file_in_current_directory(tmp_path, monkeypat
 def test_load_config_accepts_check_toggles(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
-        "[checks.algebra]\nenabled = false\n\n[checks.references]\nenabled = false\n",
+        "\n".join(
+            [
+                "[checks.algebra]",
+                "enabled = false",
+                "",
+                "[checks.references]",
+                "enabled = false",
+                "",
+                "[checks.symbols]",
+                "enabled = true",
+            ]
+        ),
         encoding="utf-8",
     )
 
@@ -56,6 +67,7 @@ def test_load_config_accepts_check_toggles(tmp_path) -> None:
 
     assert config.checks.algebra.enabled is False
     assert config.checks.references.enabled is False
+    assert config.checks.symbols.enabled is True
 
 
 def test_load_config_accepts_ignore_files(tmp_path) -> None:
@@ -161,6 +173,14 @@ def test_load_config_rejects_non_bool_report_show_suppressed(tmp_path) -> None:
     config_path.write_text('[report]\nshow_suppressed = "yes"\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="show_suppressed must be true or false"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_bool_symbol_setting(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[checks.symbols]\nenabled = "yes"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="enabled must be true or false"):
         load_config(config_path)
 
 

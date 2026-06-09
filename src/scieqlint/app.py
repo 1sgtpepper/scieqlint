@@ -12,6 +12,7 @@ from scieqlint.check.algebra import check_algebra
 from scieqlint.check.dimensions import check_dimensions
 from scieqlint.check.references import check_references
 from scieqlint.check.suppressions import apply_suppressions
+from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.catalog import CATALOG
@@ -20,7 +21,7 @@ from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
+from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookScanner
@@ -89,9 +90,11 @@ def check_documents(
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
+    path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
+    symbol_directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
@@ -104,6 +107,7 @@ def check_documents(
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
         references.extend(scan.references)
+        symbol_directives.extend(scan.symbol_directives)
         diagnostics.extend(scan.diagnostics)
         for block in scan.blocks:
             block_diagnostics = check_algebra(block)
@@ -126,6 +130,14 @@ def check_documents(
                 tuple(references),
                 blocks=tuple(blocks),
                 strict_missing_labels=config.checks.references.missing_label_strict,
+            )
+        )
+    if config.checks.symbols.enabled:
+        diagnostics.extend(
+            check_symbols(
+                tuple(blocks),
+                tuple(symbol_directives),
+                path_order=path_order,
             )
         )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
