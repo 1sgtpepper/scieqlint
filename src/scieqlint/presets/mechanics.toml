@@ -1,0 +1,12 @@
+[checks.dimension]
+mode = "on"
+unknown_variables = "warn"
+
+[vars]
+m = "M"
+a = "L T^-2"
+c = "L T^-1"
+F = "M L T^-2"
+E = "M L^2 T^-2"
+x = "L"
+t = "T"

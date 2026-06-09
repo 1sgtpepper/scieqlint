@@ -85,6 +85,12 @@ jobs:
           /tmp/scieqlint-smoke/bin/python -m pip install dist/*.whl
           /tmp/scieqlint-smoke/bin/scieqlint --help
           /tmp/scieqlint-smoke/bin/python -m scieqlint --help
+          /tmp/scieqlint-smoke/bin/python - <<'PY'
+          from importlib import resources
+
+          preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
+          assert preset.is_file(), "mechanics preset missing from installed wheel"
+          PY
 
   docs:
     name: docs
