@@ -59,6 +59,7 @@ scieqlint demo
 
 ```bash
 scieqlint check [PATH_OR_GLOB...]
+scieqlint graph [PATH_OR_GLOB...] --output scieqlint-graph.json
 scieqlint init
 scieqlint init --preset mechanics
 scieqlint presets list

@@ -10,8 +10,10 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import check_paths
+from scieqlint.api import graph_paths
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
+from scieqlint.graph.json import render_graph_json
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -157,6 +159,25 @@ def show_preset(name: str) -> None:
     try:
         click.echo(_preset_text(name), nl=False)
     except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@main.command()
+@click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
+@click.option("--config", "config_path", type=click.Path(path_type=Path), default=None)
+@click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+def graph(
+    paths: tuple[Path, ...],
+    config_path: Path | None,
+    output_path: Path | None,
+) -> None:
+    """Build a graph JSON export."""
+    try:
+        rendered = render_graph_json(graph_paths(paths, config_path=config_path))
+        _write_output(rendered, output_path, sys.stdout)
+    except click.ClickException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive CLI boundary
         raise click.ClickException(str(exc)) from exc
 
 

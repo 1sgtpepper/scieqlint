@@ -46,6 +46,12 @@ v0.1.5 adds SARIF:
 scieqlint check . --format sarif --output scieqlint.sarif
 ```
 
+Graph JSON exports equation-label nodes and supported reference edges:
+
+```bash
+scieqlint graph . --output scieqlint-graph.json
+```
+
 ## Demo
 
 ```bash

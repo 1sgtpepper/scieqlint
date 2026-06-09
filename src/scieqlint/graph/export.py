@@ -21,21 +21,11 @@ def build_graph(
     labels_by_name: dict[str, list[EquationLabel]] = defaultdict(list)
     for label in labels:
         labels_by_name[label.label].append(label)
-    edges = [
-        GraphEdge(
-            source=_reference_id(reference),
-            target=_reference_target(reference, labels_by_name),
-            kind="references",
-            target_label=reference.target,
-            raw=reference.raw,
-            source_kind=reference.source.value,
-        )
-        for reference in references
-    ]
+    edges = [(_reference_key(reference), _reference_edge(reference, labels_by_name)) for reference in references]
     return Graph(
         schema_version=GRAPH_SCHEMA_VERSION,
         nodes=tuple(sorted((*equation_nodes, *reference_nodes), key=_node_key)),
-        edges=tuple(sorted(edges, key=_edge_key)),
+        edges=tuple(edge for _key, edge in sorted(edges, key=lambda item: item[0])),
     )
 
 
@@ -56,6 +46,20 @@ def _reference_node(reference: EquationReference) -> GraphNode:
         label=reference.target,
         source=reference.source.value,
         span=_span(reference.span),
+    )
+
+
+def _reference_edge(
+    reference: EquationReference,
+    labels_by_name: dict[str, list[EquationLabel]],
+) -> GraphEdge:
+    return GraphEdge(
+        source=_reference_id(reference),
+        target=_reference_target(reference, labels_by_name),
+        kind="references",
+        target_label=reference.target,
+        raw=reference.raw,
+        source_kind=reference.source.value,
     )
 
 
@@ -102,5 +106,7 @@ def _node_key(node: GraphNode) -> tuple[str, int, int, int, str, str]:
     return (node.span.path.as_posix(), cell, node.span.line, node.span.col, node.kind, node.id)
 
 
-def _edge_key(edge: GraphEdge) -> tuple[str, str, str]:
-    return (edge.source, edge.target, edge.kind)
+def _reference_key(reference: EquationReference) -> tuple[str, int, int, int, int, str, str]:
+    span = reference.span
+    cell = -1 if span.cell is None else span.cell
+    return (span.path.as_posix(), cell, span.line, span.col, span.start, reference.target, reference.raw)

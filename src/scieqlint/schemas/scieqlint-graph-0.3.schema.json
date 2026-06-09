@@ -1,0 +1,144 @@
+{
+  "$id": "https://scieqlint.dev/schemas/scieqlint-graph-0.3.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SciEqLint graph result",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "nodes",
+    "edges"
+  ],
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "equation",
+            "reference"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "source",
+        "span"
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "references"
+        },
+        "target_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw": {
+          "type": "string"
+        },
+        "source_kind": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "source",
+        "target",
+        "kind",
+        "target_label",
+        "raw",
+        "source_kind"
+      ]
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_col": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cell": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cell_line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "path",
+        "line",
+        "col",
+        "end_line",
+        "end_col"
+      ]
+    }
+  }
+}
