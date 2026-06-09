@@ -34,17 +34,21 @@ jobs:
       - name: Import boundaries
         run: lint-imports || python -m lint_imports
 
-  test:
-    name: test
+  test-matrix:
+    name: test (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - name: Install test environment
         run: |
           python -m pip install --upgrade pip
@@ -58,6 +62,7 @@ jobs:
           coverage report --include='src/scieqlint/report/json.py' --fail-under=95
           coverage report --include='src/scieqlint/report/github.py' --fail-under=95
       - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -65,6 +70,13 @@ jobs:
           flags: tests
           name: scieqlint
           fail_ci_if_error: false
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    needs: test-matrix
+    steps:
+      - run: echo "test matrix passed"
 
   package:
     name: package
