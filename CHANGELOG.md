@@ -16,6 +16,36 @@ Release notes must use these sections:
 
 ### Added
 
+- Nothing yet.
+
+### Changed
+
+- Nothing yet.
+
+### Fixed
+
+- Nothing yet.
+
+### Deprecated
+
+- Nothing yet.
+
+### Removed
+
+- Nothing yet.
+
+### Migration notes
+
+- Nothing yet.
+
+### Known limitations
+
+- Nothing yet.
+
+## v1.0.0 - 2026-06-09
+
+### Added
+
 - Markdown and LaTeX suppression comments for known diagnostic codes, with
   `SUP001` warnings for unknown suppression codes.
 - Configured JSON output can include suppressed diagnostics with suppression
@@ -37,6 +67,29 @@ Release notes must use these sections:
 
 - CI test coverage now runs across the declared Python 3.11, 3.12, and 3.13
   compatibility matrix.
+
+### Fixed
+
+- Nothing yet.
+
+### Deprecated
+
+- Nothing yet.
+
+### Removed
+
+- Nothing yet.
+
+### Migration notes
+
+- The stable contract freezes the documented CLI, JSON, SARIF, graph JSON,
+  configuration, diagnostic, and public API surfaces for v1-compatible users.
+
+### Known limitations
+
+- SciEqLint remains intentionally source-only: it does not execute notebooks,
+  import user project modules, expand arbitrary LaTeX macros, or evaluate
+  document-provided code.
 
 ## v0.1.5 - 2026-06-08
 

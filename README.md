@@ -83,7 +83,7 @@ labels and references, simple scalar algebra, text output, deterministic JSON ou
 SARIF, and JSON Schema validation. See `docs/limitations.md` for the exact
 scanner and grammar coverage.
 
-Current release target: v0.1.5.
+Current release target: v1.0.0.
 
 ## Pull request annotations
 
@@ -101,7 +101,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v0.1.5
+  - uses: Kuhai9801/scieqlint@v1.0.0
     with:
       args: check "docs/**/*.md" --format sarif --output scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
