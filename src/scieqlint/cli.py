@@ -9,8 +9,7 @@ from typing import TextIO
 import click
 
 from scieqlint import __version__
-from scieqlint.api import check_paths
-from scieqlint.api import graph_paths
+from scieqlint.api import check_paths, graph_paths
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.graph.json import render_graph_json
