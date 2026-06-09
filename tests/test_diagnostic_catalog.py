@@ -16,6 +16,7 @@ def test_catalog_has_core_codes() -> None:
         "DIM010",
         "DIM020",
         "SUP001",
+        "SCAN010",
     ]:
         assert code in CATALOG
         assert explain_code(code) is not None

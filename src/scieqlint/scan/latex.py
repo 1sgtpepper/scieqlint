@@ -17,17 +17,22 @@ from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
     ScanResult,
+    SymbolDirective,
+    SymbolDirectiveSource,
 )
+from scieqlint.scan.symbols import parse_symbol_directive
 
 ENV_RE = re.compile(r"\\begin\{(?P<name>equation\*?|align\*?)\}")
 VERBATIM_RE = re.compile(r"\\begin\{verbatim\}.*?\\end\{verbatim\}", re.DOTALL)
 LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}]+)\}")
+SYMBOL_PREFIX = "scieqlint-symbol:"
 
 
 class LatexScanner:
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         _ = config
+        verbatim = _verbatim_ranges(document)
         ignored = _ignored_ranges(document)
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
@@ -44,11 +49,14 @@ class LatexScanner:
         diagnostics.extend(_unterminated_delimiters(document, ignored, "$$", "$$"))
         labels.extend(_labels(document, blocks, ignored))
         references = tuple(_references(document, ignored))
+        symbol_directives, symbol_diagnostics = _symbol_directives(document, verbatim)
+        diagnostics.extend(symbol_diagnostics)
 
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
             labels=tuple(sorted(labels, key=lambda label: label.span.start)),
             references=references,
+            symbol_directives=symbol_directives,
             diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
         )
 
@@ -209,6 +217,42 @@ def _references(
         )
 
 
+def _symbol_directives(
+    document: SourceDocument,
+    verbatim: tuple[tuple[int, int], ...],
+) -> tuple[tuple[SymbolDirective, ...], tuple[Diagnostic, ...]]:
+    directives: list[SymbolDirective] = []
+    diagnostics: list[Diagnostic] = []
+    for line_start, line_end in _line_ranges(document.text):
+        comment_start = _comment_start(document.text[line_start:line_end])
+        if comment_start is None:
+            continue
+        start = line_start + comment_start
+        if _in_ranges(start, verbatim):
+            continue
+        comment = document.text[start:line_end].rstrip("\n")
+        comment_body = comment[1:].lstrip()
+        if not comment_body.startswith(SYMBOL_PREFIX):
+            continue
+        body_start = start + 1 + len(comment[1:]) - len(comment_body) + len(SYMBOL_PREFIX)
+        directive, diagnostic = parse_symbol_directive(
+            body=document.text[body_start:line_end],
+            raw=comment,
+            span=_span(document, start, line_end),
+            source=SymbolDirectiveSource.LATEX_COMMENT,
+            make_span=lambda span_start, span_end: _span(document, span_start, span_end),
+            body_start=body_start,
+        )
+        if directive is not None:
+            directives.append(directive)
+        if diagnostic is not None:
+            diagnostics.append(diagnostic)
+    return (
+        tuple(sorted(directives, key=lambda directive: directive.span.start)),
+        tuple(sorted(diagnostics, key=_diagnostic_key)),
+    )
+
+
 def _unterminated_delimiters(
     document: SourceDocument,
     ignored: tuple[tuple[int, int], ...],
@@ -281,12 +325,16 @@ def _find_close(
 
 
 def _ignored_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    ranges = [(match.start(), match.end()) for match in VERBATIM_RE.finditer(document.text)]
+    ranges = list(_verbatim_ranges(document))
     for line_start, line_end in _line_ranges(document.text):
         comment_start = _comment_start(document.text[line_start:line_end])
         if comment_start is not None:
             ranges.append((line_start + comment_start, line_end))
     return tuple(sorted(ranges))
+
+
+def _verbatim_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
+    return tuple((match.start(), match.end()) for match in VERBATIM_RE.finditer(document.text))
 
 
 def _line_ranges(text: str) -> Iterable[tuple[int, int]]:

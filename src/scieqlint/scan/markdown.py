@@ -17,7 +17,10 @@ from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
     ScanResult,
+    SymbolDirective,
+    SymbolDirectiveSource,
 )
+from scieqlint.scan.symbols import parse_symbol_directive
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
 INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
@@ -35,6 +38,10 @@ DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
+SYMBOL_DIRECTIVE_RE = re.compile(
+    r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
+    re.DOTALL,
+)
 
 
 class MarkdownScanner:
@@ -63,10 +70,13 @@ class MarkdownScanner:
             blocks.extend(_inline_blocks(document, blocks))
 
         references = tuple(_references(document))
+        symbol_directives, symbol_diagnostics = _symbol_directives(document)
+        diagnostics.extend(symbol_diagnostics)
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
             labels=tuple(sorted(labels, key=lambda label: label.span.start)),
             references=references,
+            symbol_directives=symbol_directives,
             diagnostics=tuple(diagnostics),
         )
 
@@ -263,6 +273,33 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         )
 
 
+def _symbol_directives(
+    document: SourceDocument,
+) -> tuple[tuple[SymbolDirective, ...], tuple[Diagnostic, ...]]:
+    occupied = _code_spans(document)
+    directives: list[SymbolDirective] = []
+    diagnostics: list[Diagnostic] = []
+    for match in SYMBOL_DIRECTIVE_RE.finditer(document.text):
+        if _in_ranges(match.start(), occupied):
+            continue
+        directive, diagnostic = parse_symbol_directive(
+            body=match.group("body"),
+            raw=match.group(0),
+            span=_span(document, match.start(), match.end()),
+            source=SymbolDirectiveSource.MARKDOWN_COMMENT,
+            make_span=lambda start, end: _span(document, start, end),
+            body_start=match.start("body"),
+        )
+        if directive is not None:
+            directives.append(directive)
+        if diagnostic is not None:
+            diagnostics.append(diagnostic)
+    return (
+        tuple(sorted(directives, key=lambda directive: directive.span.start)),
+        tuple(sorted(diagnostics, key=_diagnostic_key)),
+    )
+
+
 def _extract_role_target(body: str) -> str:
     angle = re.search(r"<([^<>]+)>\s*$", body)
     return angle.group(1).strip() if angle else body.strip()
@@ -304,3 +341,7 @@ def _scan_diagnostic(document: SourceDocument, start: int, end: int) -> Diagnost
         span=_span(document, start, end),
         rule="scanner",
     )
+
+
+def _diagnostic_key(diagnostic: Diagnostic) -> int:
+    return diagnostic.span.start if diagnostic.span is not None else 0

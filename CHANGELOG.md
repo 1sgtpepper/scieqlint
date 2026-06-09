@@ -25,6 +25,8 @@ Release notes must use these sections:
 - Explicit `[aliases]` config normalization for dimension symbol lookup.
 - Graph export data model for equation label nodes and supported reference edges.
 - `scieqlint graph` JSON output with schema validation and golden output coverage.
+- Explicit Markdown and LaTeX `scieqlint-symbol` directive parsing for later
+  symbol-table checks.
 
 ## v0.1.5 - 2026-06-08
 

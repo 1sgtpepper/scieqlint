@@ -13,6 +13,7 @@ codes before every code is emitted by the current analyzer.
 | `SCAN001` | warning | Unterminated math container |
 | `INP001` | error | File could not be read or decoded |
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
+| `SCAN010` | warning | Malformed explicit symbol directive |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |

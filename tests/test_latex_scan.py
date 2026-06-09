@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import LabelSource, MathContainer, ReferenceSource
+from scieqlint.scan.base import (
+    LabelSource,
+    MathContainer,
+    ReferenceSource,
+    SymbolDirectiveSource,
+)
 from scieqlint.scan.latex import LatexScanner
 
 
@@ -110,6 +115,62 @@ def test_latex_unterminated_display_delimiter_warns() -> None:
 
     assert result.blocks == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+def test_latex_symbol_directive_fixture_is_extracted() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tests/fixtures/good/symbol_directives.tex"),
+        Path("tests/fixtures/good/symbol_directives.tex").read_text(encoding="utf-8"),
+        DocumentKind.LATEX,
+    )
+
+    result = LatexScanner().scan(document, Config())
+
+    assert [
+        (directive.symbol, directive.description, directive.dimension)
+        for directive in result.symbol_directives
+    ] == [("F", "force", "M L T^-2")]
+    assert result.symbol_directives[0].source is SymbolDirectiveSource.LATEX_COMMENT
+    span = result.symbol_directives[0].span
+    assert document.text[span.start : span.end] == "F"
+    assert result.diagnostics == ()
+
+
+def test_malformed_latex_symbol_directive_warns_and_verbatim_is_ignored() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "% scieqlint-symbol: = missing\n"
+            "\\begin{verbatim}\n"
+            "% scieqlint-symbol: X = ignored, dim=\"1\"\n"
+            "\\end{verbatim}\n"
+        ),
+        Config(),
+    )
+
+    assert result.symbol_directives == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN010"]
+
+
+def test_latex_symbol_directive_accepts_tex_macro_symbol() -> None:
+    result = LatexScanner().scan(
+        _document('% scieqlint-symbol: \\alpha = angle, dim="1"\n'),
+        Config(),
+    )
+
+    assert [
+        (directive.symbol, directive.description, directive.dimension)
+        for directive in result.symbol_directives
+    ] == [(r"\alpha", "angle", "1")]
+
+
+def test_latex_symbol_directive_must_start_comment_content() -> None:
+    result = LatexScanner().scan(
+        _document('% note: scieqlint-symbol: X = ignored, dim="1"\n'),
+        Config(),
+    )
+
+    assert result.symbol_directives == ()
+    assert result.diagnostics == ()
 
 
 def _document(text: str) -> SourceDocument:

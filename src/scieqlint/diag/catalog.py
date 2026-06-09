@@ -87,6 +87,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.0",
         "Inline math was found but inline scanning is disabled.",
     ),
+    "SCAN010": DiagnosticInfo(
+        "SCAN010",
+        Severity.WARNING,
+        "malformed symbol directive",
+        "v1.0.0",
+        "An explicit scieqlint-symbol directive could not be parsed.",
+    ),
     "INP001": DiagnosticInfo(
         "INP001",
         Severity.ERROR,

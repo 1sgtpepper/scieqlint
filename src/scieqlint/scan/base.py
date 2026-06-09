@@ -36,6 +36,11 @@ class ReferenceSource(Enum):
     LATEX_EQREF = "latex_eqref"
 
 
+class SymbolDirectiveSource(Enum):
+    MARKDOWN_COMMENT = "markdown_comment"
+    LATEX_COMMENT = "latex_comment"
+
+
 @dataclass(frozen=True, slots=True)
 class MathBlock:
     text: str
@@ -61,10 +66,21 @@ class EquationReference:
 
 
 @dataclass(frozen=True, slots=True)
+class SymbolDirective:
+    symbol: str
+    description: str
+    dimension: str | None
+    span: SourceSpan
+    raw: str
+    source: SymbolDirectiveSource
+
+
+@dataclass(frozen=True, slots=True)
 class ScanResult:
     blocks: tuple[MathBlock, ...]
     labels: tuple[EquationLabel, ...] = ()
     references: tuple[EquationReference, ...] = ()
+    symbol_directives: tuple[SymbolDirective, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
 
 

@@ -95,6 +95,11 @@ preset provides packaged dimension defaults, and `[aliases]` can normalize
 explicit symbol spellings before dimension lookup. Presets are TOML templates,
 not a unit database, and aliases must be listed explicitly.
 
+## Symbols
+
+Explicit Markdown and LaTeX `scieqlint-symbol` comments are parsed for later
+symbol-table checks. SciEqLint does not infer symbols from prose.
+
 ## Notebooks
 
 Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
