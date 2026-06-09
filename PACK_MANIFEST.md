@@ -131,6 +131,9 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/examples/bad/famous_bad.md`
 - `src/scieqlint/examples/good/__init__.py`
 - `src/scieqlint/examples/good/algebra_good.md`
+- `src/scieqlint/graph/__init__.py`
+- `src/scieqlint/graph/export.py`
+- `src/scieqlint/graph/model.py`
 - `src/scieqlint/io/__init__.py`
 - `src/scieqlint/io/discover.py`
 - `src/scieqlint/io/limits.py`
@@ -190,6 +193,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
 - `tests/test_golden_outputs.py`
+- `tests/test_graph.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`

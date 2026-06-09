@@ -17,6 +17,7 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - Scanners extract math text, labels, references, and source spans. They do not parse expressions.
 - Parser returns AST or unknown diagnostics. It does not call SymPy.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
+- Graph export models are built from scanner label/reference outputs and do not rescan documents.
 - Reporters render diagnostics. They do not read files or run checks.
 - CLI owns command-line plumbing only.
 

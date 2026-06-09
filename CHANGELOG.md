@@ -23,6 +23,7 @@ Release notes must use these sections:
 - Packaged `mechanics` preset resource loading for config defaults.
 - CLI preset commands for listing, showing, and initializing packaged presets.
 - Explicit `[aliases]` config normalization for dimension symbol lookup.
+- Graph export data model for equation label nodes and supported reference edges.
 
 ## v0.1.5 - 2026-06-08
 
