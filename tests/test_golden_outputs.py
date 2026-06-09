@@ -48,9 +48,7 @@ def test_json_golden_output_hides_suppressed_diagnostics_by_default() -> None:
     rendered = JsonReporter().render(check_paths([SUPPRESSED_FIXTURE]))
     _validate_json_result(rendered)
 
-    assert rendered == Path("tests/golden/json/suppressed_hidden.json").read_text(
-        encoding="utf-8"
-    )
+    assert rendered == Path("tests/golden/json/suppressed_hidden.json").read_text(encoding="utf-8")
 
 
 def test_json_golden_output_includes_suppressed_diagnostics_when_enabled() -> None:
@@ -63,9 +61,7 @@ def test_json_golden_output_includes_suppressed_diagnostics_when_enabled() -> No
     rendered = JsonReporter().render(result)
     _validate_json_result(rendered)
 
-    assert rendered == Path("tests/golden/json/suppressed_visible.json").read_text(
-        encoding="utf-8"
-    )
+    assert rendered == Path("tests/golden/json/suppressed_visible.json").read_text(encoding="utf-8")
 
 
 def test_github_golden_output_matches_famous_bad_fixture() -> None:
