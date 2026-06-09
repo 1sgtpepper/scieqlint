@@ -14,6 +14,7 @@ from scieqlint.config.model import (
     DimensionMode,
     DimVector,
     IgnoreConfig,
+    ProjectConfig,
     ReportConfig,
     ReferencesConfig,
     ScannerConfig,
@@ -44,6 +45,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
         if not config_path.exists():
             raise FileNotFoundError(f"config not found: {config_path}")
     data = _config_data(config_path, preset=preset)
+    project_data = _table(data, "project")
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
@@ -57,6 +59,10 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     vars_config = _vars_config(vars_data)
     return Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
+        project=ProjectConfig(
+            root=_posix_path(project_data, "root", PurePosixPath(".")),
+            order=_str_tuple(project_data, "order"),
+        ),
         scanner=ScannerConfig(
             markdown=_bool(scanner_data, "markdown", True),
             inline_math=_bool(scanner_data, "inline_math", False),
@@ -144,6 +150,15 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
     return tuple(items)
+
+
+def _posix_path(data: dict[str, Any], key: str, default: PurePosixPath) -> PurePosixPath:
+    value: object = data.get(key, default.as_posix())
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be a string")
+    if not value:
+        raise ValueError(f"{key} must not be empty")
+    return PurePosixPath(value)
 
 
 def _dimension_mode(

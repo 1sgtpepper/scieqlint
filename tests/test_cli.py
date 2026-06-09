@@ -435,6 +435,46 @@ def test_config_ignore_files_does_not_exclude_explicit_file(tmp_path) -> None:
     assert "ALG001" in result.output
 
 
+def test_project_order_controls_cross_file_symbol_checks_without_paths(tmp_path) -> None:
+    root = tmp_path / "book"
+    root.mkdir()
+    symbols = root / "z-symbols.md"
+    appendix = root / "m-appendix.md"
+    paper = root / "a-paper.md"
+    ignored = root / "ignored.md"
+    config = tmp_path / "scieqlint.toml"
+    symbols.write_text("<!-- scieqlint-symbol: E = energy -->\n", encoding="utf-8")
+    appendix.write_text("# Appendix\n", encoding="utf-8")
+    paper.write_text("$$\nE = E\n$$\n", encoding="utf-8")
+    ignored.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    config.write_text(
+        "\n".join(
+            [
+                "[project]",
+                'root = "book"',
+                'order = ["z-symbols.md", "a-paper.md"]',
+                "",
+                "[checks.symbols]",
+                "enabled = true",
+                "",
+                "[ignore]",
+                'files = ["ignored.md"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["diagnostics"] == []
+    assert payload["summary"]["files_checked"] == 3
+
+
 def test_missing_reference_warning_does_not_fail(tmp_path) -> None:
     doc = tmp_path / "refs.md"
     doc.write_text("See {eq}`missing`.\n", encoding="utf-8")

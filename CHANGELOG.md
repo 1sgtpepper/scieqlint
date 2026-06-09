@@ -28,6 +28,7 @@ Release notes must use these sections:
 - Explicit Markdown and LaTeX `scieqlint-symbol` directive parsing for later
   symbol-table checks.
 - Opt-in undefined-symbol diagnostics from explicit symbol directives.
+- Project file ordering for deterministic cross-file checks.
 
 ## v0.1.5 - 2026-06-08
 
