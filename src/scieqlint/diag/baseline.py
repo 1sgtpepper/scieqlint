@@ -28,6 +28,7 @@ def baseline_identities_from_json(text: str) -> frozenset[BaselineIdentity]:
     diagnostics = data.get("diagnostics", [])
     if not isinstance(diagnostics, list):
         raise ValueError("baseline diagnostics must be a list")
+    diagnostics = cast(list[object], diagnostics)
     return frozenset(_entry_identity(item) for item in diagnostics)
 
 
