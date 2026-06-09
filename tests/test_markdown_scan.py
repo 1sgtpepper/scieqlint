@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import MathContainer, ReferenceSource
+from scieqlint.scan.base import (
+    MathContainer,
+    ReferenceSource,
+    SymbolDirectiveSource,
+)
 from scieqlint.scan.markdown import MarkdownScanner
 
 
@@ -130,3 +134,50 @@ def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None
 
     assert result.blocks == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+def test_markdown_symbol_directive_fixture_is_extracted() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tests/fixtures/good/symbol_directives.md"),
+        Path("tests/fixtures/good/symbol_directives.md").read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [
+        (directive.symbol, directive.description, directive.dimension)
+        for directive in result.symbol_directives
+    ] == [("E", "energy", "M L^2 T^-2")]
+    assert result.symbol_directives[0].source is SymbolDirectiveSource.MARKDOWN_COMMENT
+    span = result.symbol_directives[0].span
+    assert document.text[span.start : span.end] == "E"
+    assert result.diagnostics == ()
+
+
+def test_malformed_markdown_symbol_directive_warns_and_code_fence_is_ignored() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tests/fixtures/bad/symbol_directives_bad.md"),
+        Path("tests/fixtures/bad/symbol_directives_bad.md").read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.symbol_directives == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN010"]
+
+
+def test_markdown_symbol_directive_dimension_is_optional() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-symbol: n = sample count -->\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [
+        (directive.symbol, directive.description, directive.dimension)
+        for directive in result.symbol_directives
+    ] == [("n", "sample count", None)]

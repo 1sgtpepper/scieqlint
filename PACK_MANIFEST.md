@@ -162,6 +162,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/scan/latex.py`
 - `src/scieqlint/scan/markdown.py`
 - `src/scieqlint/scan/notebook.py`
+- `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
 - `src/scieqlint/schemas/scieqlint-graph-0.3.schema.json`
@@ -172,12 +173,15 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/bad/preset_mechanics_bad.md`
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
+- `tests/fixtures/bad/symbol_directives_bad.md`
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
 - `tests/fixtures/good/graph_refs.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
+- `tests/fixtures/good/symbol_directives.md`
+- `tests/fixtures/good/symbol_directives.tex`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
