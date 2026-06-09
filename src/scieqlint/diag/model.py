@@ -37,6 +37,7 @@ class Diagnostic:
     hint: str | None = None
     rule: str | None = None
     suppressed: bool = False
+    suppression_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -50,6 +50,26 @@ def test_github_report_emits_annotation_location_and_title() -> None:
     )
 
 
+def test_github_report_omits_suppressed_diagnostics() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=None,
+                suppressed=True,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    assert GitHubReporter().render(result) == ""
+
+
 def test_github_report_escapes_workflow_command_data_and_properties() -> None:
     result = CheckResult(
         diagnostics=(

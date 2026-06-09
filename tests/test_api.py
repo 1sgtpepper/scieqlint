@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from scieqlint.api import check_documents
-from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ReferencesConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    BaselineConfig,
+    ChecksConfig,
+    Config,
+    ReferencesConfig,
+)
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -85,3 +91,17 @@ def test_check_documents_does_not_suppress_different_code() -> None:
     assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
         ("ALG001", False)
     ]
+
+
+def test_check_documents_does_not_load_path_baselines() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(baseline=BaselineConfig(files=("missing-baseline.json",)))
+
+    result = check_documents([document], config=config)
+
+    assert result.exit_code() == 1
+    assert result.diagnostics[0].suppressed is False

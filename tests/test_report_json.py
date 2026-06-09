@@ -55,7 +55,7 @@ def test_json_report_includes_suppressed_diagnostics_when_enabled() -> None:
 
     assert payload["diagnostics"][0]["suppressed"] is True
     assert payload["diagnostics"][0]["suppression_reason"] == "source comment"
-    assert payload["summary"]["errors"] == 1
+    assert payload["summary"]["errors"] == 0
 
 
 def _suppressed_diagnostic() -> Diagnostic:
@@ -73,4 +73,40 @@ def _suppressed_diagnostic() -> Diagnostic:
             end_col=1,
         ),
         suppressed=True,
+        suppression_reason="source comment",
     )
+
+
+def test_json_report_keeps_baseline_suppression_reason_when_enabled() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("paper.md"),
+                    start=0,
+                    end=1,
+                    line=1,
+                    col=1,
+                    end_line=1,
+                    end_col=1,
+                ),
+                detail="left - right = 2*a*b",
+                suppressed=True,
+                suppression_reason="baseline",
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+        show_suppressed=True,
+    )
+
+    payload = json.loads(JsonReporter().render(result))
+
+    assert payload["summary"]["errors"] == 0
+    assert payload["diagnostics"][0]["suppressed"] is True
+    assert payload["diagnostics"][0]["suppression_reason"] == "baseline"

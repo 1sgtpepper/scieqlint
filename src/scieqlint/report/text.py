@@ -11,7 +11,9 @@ class TextReporter:
 
     def render(self, result: CheckResult) -> str:
         diagnostics = tuple(
-            diagnostic for diagnostic in result.diagnostics if not diagnostic.suppressed
+            diagnostic
+            for diagnostic in result.diagnostics
+            if not diagnostic.suppressed or result.show_suppressed
         )
         if not diagnostics:
             if self.quiet:
@@ -25,8 +27,10 @@ class TextReporter:
         for diagnostic in diagnostics:
             span = diagnostic.span
             location = "<unknown>" if span is None else f"{span.path}:{span.line}:{span.col}"
+            status = " suppressed" if diagnostic.suppressed else ""
             lines.append(
-                f"{location}: {diagnostic.severity.value} {diagnostic.code} {diagnostic.message}"
+                f"{location}:{status} {diagnostic.severity.value} "
+                f"{diagnostic.code} {diagnostic.message}"
             )
             if diagnostic.detail:
                 lines.append(f"  detail: {diagnostic.detail}")

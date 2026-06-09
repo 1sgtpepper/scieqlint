@@ -88,6 +88,29 @@ def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
     ]
 
 
+def test_sarif_report_omits_suppressed_diagnostics() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=None,
+                suppressed=True,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["tool"]["driver"]["rules"] == []
+    assert payload["runs"][0]["results"] == []
+
+
 def test_sarif_result_limit_guard_fails_deterministically() -> None:
     result = CheckResult(
         diagnostics=(_diagnostic("ALG001"), _diagnostic("REF002")),

@@ -43,6 +43,9 @@ unknown_variables = "warn"
 [checks.symbols]
 enabled = false
 
+[baseline]
+files = []
+
 [vars]
 # m = "M"
 # v = "L T^-1"
@@ -76,10 +79,10 @@ known, otherwise relative to the current working directory. `project.order`
 accepts POSIX-style file or glob patterns relative to `project.root`.
 
 When paths are passed to `scieqlint check`, `project.order` controls the
-analysis order of discovered files. When no paths are passed, SciEqLint
-discovers `project.root`. Unmatched files keep deterministic lexical ordering
-after configured entries. The default root and empty order preserve
-single-command discovery behavior.
+analysis order of discovered files. When no paths are passed and
+`project.order` is non-empty, SciEqLint discovers those ordered project entries.
+Unmatched files keep deterministic lexical ordering after configured entries.
+The default empty order preserves single-command discovery behavior.
 
 `report.show_suppressed` controls JSON output only. By default, suppressed
 diagnostics are hidden from JSON diagnostics and summary counts. Set it to
@@ -128,6 +131,20 @@ enabled = true
 When enabled, symbol checks use only explicit `scieqlint-symbol` comments as
 definitions and emit `SYM001` for supported math symbols used before definition.
 SciEqLint does not infer definitions from prose.
+
+## Baseline config
+
+```toml
+[baseline]
+files = ["scieqlint-baseline.json"]
+```
+
+Baseline files use the same diagnostic fields as JSON output. Relative baseline
+file paths resolve from `project.root`. Diagnostics that match by stable
+identity are marked `suppressed`, do not affect exit status, and remain visible
+in JSON and text output. New diagnostics that are not present in a baseline
+remain unsuppressed. Baselines apply to path-based checks; the
+already-loaded-document API does not read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 

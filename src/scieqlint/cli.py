@@ -45,6 +45,9 @@ unknown_variables = "warn"
 [checks.symbols]
 enabled = false
 
+[baseline]
+files = []
+
 [vars]
 # m = "M"
 # v = "L T^-1"

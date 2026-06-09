@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from scieqlint.config.model import (
     AlgebraConfig,
+    BaselineConfig,
     ChecksConfig,
     Config,
     DimensionConfig,
@@ -46,6 +47,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
             raise FileNotFoundError(f"config not found: {config_path}")
     data = _config_data(config_path, preset=preset)
     project_data = _table(data, "project")
+    baseline_data = _table(data, "baseline")
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
@@ -63,6 +65,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
         ),
+        baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
         scanner=ScannerConfig(
             markdown=_bool(scanner_data, "markdown", True),
             inline_math=_bool(scanner_data, "inline_math", False),
