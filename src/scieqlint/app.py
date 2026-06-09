@@ -11,6 +11,7 @@ from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
 from scieqlint.check.dimensions import check_dimensions
 from scieqlint.check.references import check_references
+from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.catalog import CATALOG
@@ -124,6 +125,7 @@ def check_documents(
                 strict_missing_labels=config.checks.references.missing_label_strict,
             )
         )
+    diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
         diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
         files_checked=len(documents),

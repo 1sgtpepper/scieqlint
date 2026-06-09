@@ -26,9 +26,12 @@ class SarifReporter:
         self.max_results = max_results
 
     def render(self, result: CheckResult) -> str:
-        if len(result.diagnostics) > self.max_results:
+        diagnostics = tuple(
+            diagnostic for diagnostic in result.diagnostics if not diagnostic.suppressed
+        )
+        if len(diagnostics) > self.max_results:
             raise ValueError(
-                f"SARIF result limit exceeded: {len(result.diagnostics)} > {self.max_results}"
+                f"SARIF result limit exceeded: {len(diagnostics)} > {self.max_results}"
             )
         payload: dict[str, JsonValue] = {
             "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
@@ -39,10 +42,10 @@ class SarifReporter:
                         "driver": {
                             "name": "SciEqLint",
                             "semanticVersion": result.version or __version__,
-                            "rules": _rules(result.diagnostics),
+                            "rules": _rules(diagnostics),
                         }
                     },
-                    "results": [_result(diagnostic) for diagnostic in result.diagnostics],
+                    "results": [_result(diagnostic) for diagnostic in diagnostics],
                 }
             ],
         }

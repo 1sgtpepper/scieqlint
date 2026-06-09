@@ -171,6 +171,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.0",
         "An equation block has no label while strict label mode is enabled.",
     ),
+    "SUP001": DiagnosticInfo(
+        "SUP001",
+        Severity.WARNING,
+        "unknown suppression code",
+        "v0.2.0",
+        "A suppression comment names a diagnostic code that is not in the catalog.",
+    ),
 }
 
 

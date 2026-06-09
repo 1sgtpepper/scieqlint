@@ -16,6 +16,7 @@ codes before every code is emitted by the current analyzer.
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |
+| `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
 | `DIM010` | warning | Unknown variable dimension |

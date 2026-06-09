@@ -115,6 +115,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/check/algebra.py`
 - `src/scieqlint/check/dimensions.py`
 - `src/scieqlint/check/references.py`
+- `src/scieqlint/check/suppressions.py`
 - `src/scieqlint/cli.py`
 - `src/scieqlint/config/__init__.py`
 - `src/scieqlint/config/load.py`

@@ -13,7 +13,11 @@ _COMMANDS = {
 
 class GitHubReporter:
     def render(self, result: CheckResult) -> str:
-        lines = [_render_diagnostic(diagnostic) for diagnostic in result.diagnostics]
+        lines = [
+            _render_diagnostic(diagnostic)
+            for diagnostic in result.diagnostics
+            if not diagnostic.suppressed
+        ]
         if not lines:
             return ""
         return "\n".join(lines) + "\n"

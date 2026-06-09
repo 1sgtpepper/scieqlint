@@ -10,7 +10,10 @@ class TextReporter:
         self.quiet = quiet
 
     def render(self, result: CheckResult) -> str:
-        if not result.diagnostics:
+        diagnostics = tuple(
+            diagnostic for diagnostic in result.diagnostics if not diagnostic.suppressed
+        )
+        if not diagnostics:
             if self.quiet:
                 return ""
             return (
@@ -19,7 +22,7 @@ class TextReporter:
                 f"math blocks checked: {result.math_blocks_checked}\n"
             )
         lines: list[str] = []
-        for diagnostic in result.diagnostics:
+        for diagnostic in diagnostics:
             span = diagnostic.span
             location = "<unknown>" if span is None else f"{span.path}:{span.line}:{span.col}"
             lines.append(
