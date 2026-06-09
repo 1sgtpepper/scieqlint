@@ -105,6 +105,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `mkdocs.yml`
 - `pyproject.toml`
 - `schemas/scieqlint-diagnostic-0.1.schema.json`
+- `schemas/scieqlint-graph-0.3.schema.json`
 - `schemas/scieqlint-result-0.1.schema.json`
 - `scieqlint.toml`
 - `scripts/check_pack.py`
@@ -133,6 +134,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/examples/good/algebra_good.md`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
+- `src/scieqlint/graph/json.py`
 - `src/scieqlint/graph/model.py`
 - `src/scieqlint/io/__init__.py`
 - `src/scieqlint/io/discover.py`
@@ -162,6 +164,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
+- `src/scieqlint/schemas/scieqlint-graph-0.3.schema.json`
 - `src/scieqlint/schemas/scieqlint-result-0.1.schema.json`
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/famous_bad.md`
@@ -172,9 +175,11 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
+- `tests/fixtures/good/graph_refs.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
 - `tests/golden/github/famous_bad.txt`
+- `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/suppressed_hidden.json`

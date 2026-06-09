@@ -84,3 +84,16 @@ def _diagnostic(*, suppressed: bool) -> dict[str, object]:
         "severity": "error",
         "suppressed": suppressed,
     }
+
+
+def test_graph_schema_is_valid_json_and_names_required_fields() -> None:
+    schema_text = (
+        resources.files("scieqlint.schemas")
+        .joinpath("scieqlint-graph-0.3.schema.json")
+        .read_text(encoding="utf-8")
+    )
+    schema = json.loads(schema_text)
+
+    assert schema["$schema"].startswith("https://json-schema.org/")
+    assert schema["required"] == ["schema_version", "nodes", "edges"]
+    assert schema["properties"]["schema_version"]["const"] == "0.3"

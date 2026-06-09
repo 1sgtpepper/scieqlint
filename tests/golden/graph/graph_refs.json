@@ -1,0 +1,96 @@
+{
+  "schema_version": "0.3",
+  "nodes": [
+    {
+      "id": "eq:tests/fixtures/good/graph_refs.md:28",
+      "kind": "equation",
+      "label": "z",
+      "source": "markdown_anchor",
+      "span": {
+        "path": "tests/fixtures/good/graph_refs.md",
+        "line": 5,
+        "col": 6,
+        "end_line": 5,
+        "end_col": 6
+      }
+    },
+    {
+      "id": "eq:tests/fixtures/good/graph_refs.md:50",
+      "kind": "equation",
+      "label": "a",
+      "source": "myst_directive_label",
+      "span": {
+        "path": "tests/fixtures/good/graph_refs.md",
+        "line": 8,
+        "col": 9,
+        "end_line": 8,
+        "end_col": 9
+      }
+    },
+    {
+      "id": "ref:tests/fixtures/good/graph_refs.md:72",
+      "kind": "reference",
+      "label": "z",
+      "source": "myst_eq_role",
+      "span": {
+        "path": "tests/fixtures/good/graph_refs.md",
+        "line": 12,
+        "col": 10,
+        "end_line": 12,
+        "end_col": 10
+      }
+    },
+    {
+      "id": "ref:tests/fixtures/good/graph_refs.md:95",
+      "kind": "reference",
+      "label": "a",
+      "source": "myst_numref_role",
+      "span": {
+        "path": "tests/fixtures/good/graph_refs.md",
+        "line": 12,
+        "col": 33,
+        "end_line": 12,
+        "end_col": 33
+      }
+    },
+    {
+      "id": "ref:tests/fixtures/good/graph_refs.md:115",
+      "kind": "reference",
+      "label": "missing",
+      "source": "markdown_anchor",
+      "span": {
+        "path": "tests/fixtures/good/graph_refs.md",
+        "line": 12,
+        "col": 53,
+        "end_line": 12,
+        "end_col": 59
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "ref:tests/fixtures/good/graph_refs.md:72",
+      "target": "eq:tests/fixtures/good/graph_refs.md:28",
+      "kind": "references",
+      "target_label": "z",
+      "raw": "{eq}`z`",
+      "source_kind": "myst_eq_role"
+    },
+    {
+      "source": "ref:tests/fixtures/good/graph_refs.md:95",
+      "target": "eq:tests/fixtures/good/graph_refs.md:50",
+      "kind": "references",
+      "target_label": "a",
+      "raw": "{numref}`Equation <a>`",
+      "source_kind": "myst_numref_role"
+    },
+    {
+      "source": "ref:tests/fixtures/good/graph_refs.md:115",
+      "target": "label:missing",
+      "kind": "references",
+      "target_label": "missing",
+      "raw": "[missing](#missing)",
+      "source_kind": "markdown_anchor"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ Release notes must use these sections:
 - CLI preset commands for listing, showing, and initializing packaged presets.
 - Explicit `[aliases]` config normalization for dimension symbol lookup.
 - Graph export data model for equation label nodes and supported reference edges.
+- `scieqlint graph` JSON output with schema validation and golden output coverage.
 
 ## v0.1.5 - 2026-06-08
 

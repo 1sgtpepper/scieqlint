@@ -7,9 +7,10 @@ from pathlib import Path, PurePosixPath
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
-from scieqlint.api import check_documents, check_paths
+from scieqlint.api import check_documents, check_paths, graph_paths
 from scieqlint.config.model import Config, ReportConfig
 from scieqlint.diag.model import CheckResult
+from scieqlint.graph.json import render_graph_json
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
@@ -18,6 +19,7 @@ from scieqlint.report.text import TextReporter
 
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
+GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
 
 
 def test_text_golden_output_matches_famous_bad_fixture() -> None:
@@ -77,6 +79,14 @@ def test_sarif_golden_output_matches_famous_bad_fixture() -> None:
     assert SarifReporter().render(result) == Path("tests/golden/sarif/famous_bad.sarif").read_text(
         encoding="utf-8"
     )
+
+
+def test_graph_golden_output_matches_schema_and_fixture() -> None:
+    rendered = render_graph_json(graph_paths([GRAPH_FIXTURE]))
+    schema = _schema("scieqlint-graph-0.3.schema.json")
+
+    Draft202012Validator(schema).validate(json.loads(rendered))
+    assert rendered == Path("tests/golden/graph/graph_refs.json").read_text(encoding="utf-8")
 
 
 def test_github_acceptance_example_emits_annotation_location_and_title() -> None:

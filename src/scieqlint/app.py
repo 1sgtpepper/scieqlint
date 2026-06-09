@@ -16,6 +16,8 @@ from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.graph.export import build_graph
+from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
@@ -135,6 +137,49 @@ def check_documents(
         version=__version__,
         show_suppressed=config.report.show_suppressed,
     )
+
+
+def graph_paths(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+) -> Graph:
+    """Load supported files and build the label/reference graph."""
+    config = load_config(config_path)
+    discovered = _discover_files(paths or [Path(".")], config.ignore.files)
+    documents: list[SourceDocument] = []
+    for path in discovered:
+        documents.append(
+            SourceDocument.from_text(
+                _display_path(path, absolute_paths=False),
+                path.read_text(encoding="utf-8"),
+                _document_kind(path),
+            )
+        )
+    return graph_documents(documents, config=config)
+
+
+def graph_documents(
+    documents: Sequence[SourceDocument],
+    *,
+    config: Config,
+) -> Graph:
+    """Build graph data from already-loaded documents."""
+    scanner = MarkdownScanner()
+    latex_scanner = LatexScanner()
+    notebook_scanner = NotebookScanner()
+    labels: list[EquationLabel] = []
+    references: list[EquationReference] = []
+    for document in documents:
+        if document.kind is DocumentKind.LATEX:
+            scan = latex_scanner.scan(document, config)
+        elif document.kind is DocumentKind.NOTEBOOK:
+            scan = notebook_scanner.scan(document, config)
+        else:
+            scan = scanner.scan(document, config)
+        labels.extend(scan.labels)
+        references.extend(scan.references)
+    return build_graph(tuple(labels), tuple(references))
 
 
 def _apply_overrides(
