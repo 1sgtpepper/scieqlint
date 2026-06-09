@@ -303,6 +303,14 @@ def test_load_config_rejects_alias_for_unknown_var(tmp_path) -> None:
         load_config(config_path)
 
 
+def test_load_config_rejects_empty_alias_key(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[vars]\nrho = "M"\n[aliases]\n"" = ["\\\\rho"]\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"\[aliases\] keys must be non-empty strings"):
+        load_config(config_path)
+
+
 def test_load_config_rejects_non_list_aliases(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[vars]\nrho = "M"\n[aliases]\nrho = "\\\\rho"\n', encoding="utf-8")
