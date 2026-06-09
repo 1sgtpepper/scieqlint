@@ -82,10 +82,7 @@ def test_check_writes_output_file(tmp_path) -> None:
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -101,10 +98,7 @@ def test_json_output_includes_suppressed_diagnostics_when_configured(tmp_path) -
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
     config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
@@ -126,10 +120,7 @@ def test_show_suppressed_config_includes_suppressed_text_output(tmp_path) -> Non
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
     config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
@@ -477,7 +468,7 @@ def test_empty_project_order_preserves_no_path_current_directory_behavior(
     book = tmp_path / "book"
     chapter = book / "chapter"
     chapter.mkdir(parents=True)
-    (book / "scieqlint.toml").write_text("[project]\nroot = \".\"\norder = []\n", encoding="utf-8")
+    (book / "scieqlint.toml").write_text('[project]\nroot = "."\norder = []\n', encoding="utf-8")
     (book / "outside.md").write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
     (chapter / "inside.md").write_text("# clean\n", encoding="utf-8")
     monkeypatch.chdir(chapter)
@@ -515,8 +506,7 @@ def test_baseline_suppresses_known_diagnostic_in_json_output(tmp_path, monkeypat
         encoding="utf-8",
     )
     config.write_text(
-        '[baseline]\nfiles = ["scieqlint-baseline.json"]\n\n'
-        "[report]\nshow_suppressed = true\n",
+        '[baseline]\nfiles = ["scieqlint-baseline.json"]\n\n[report]\nshow_suppressed = true\n',
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -560,8 +550,7 @@ def test_baseline_keeps_new_diagnostics_visible(tmp_path, monkeypatch) -> None:
         encoding="utf-8",
     )
     config.write_text(
-        '[baseline]\nfiles = ["scieqlint-baseline.json"]\n\n'
-        "[report]\nshow_suppressed = true\n",
+        '[baseline]\nfiles = ["scieqlint-baseline.json"]\n\n[report]\nshow_suppressed = true\n',
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
@@ -637,6 +626,7 @@ def test_invalid_baseline_file_reports_cli_error(tmp_path, monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "Error: baseline diagnostic line must be an integer or null" in result.output
+
 
 def test_missing_reference_warning_does_not_fail(tmp_path) -> None:
     doc = tmp_path / "refs.md"

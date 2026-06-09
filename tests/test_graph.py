@@ -13,15 +13,9 @@ from scieqlint.scan.markdown import MarkdownScanner
 def test_graph_nodes_cover_markdown_myst_and_latex_labels() -> None:
     markdown = _markdown(
         "paper.md",
-        "$$\nE = m c^2\n$$ {#eq-md}\n\n"
-        "```{math}\n:label: eq-myst\nF = m a\n```\n",
+        "$$\nE = m c^2\n$$ {#eq-md}\n\n```{math}\n:label: eq-myst\nF = m a\n```\n",
     )
-    latex = _latex(
-        "\\begin{equation}\n"
-        "\\label{eq:tex}\n"
-        "E = m c^2\n"
-        "\\end{equation}\n"
-    )
+    latex = _latex("\\begin{equation}\n\\label{eq:tex}\nE = m c^2\n\\end{equation}\n")
     markdown_scan = MarkdownScanner().scan(markdown, Config())
     latex_scan = LatexScanner().scan(latex, Config())
 
@@ -106,17 +100,13 @@ def test_graph_edges_resolve_unique_label_targets() -> None:
 
     equation_ids = [node.id for node in graph.nodes if node.kind == "equation"]
     assert len(equation_ids) == 1
-    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
-        (equation_ids[0], "only")
-    ]
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [(equation_ids[0], "only")]
 
 
 def test_duplicate_label_nodes_have_stable_unique_ids_and_ambiguous_edges() -> None:
     markdown = _markdown(
         "paper.md",
-        "$$\na = a\n$$ {#dup}\n\n"
-        "$$\nb = b\n$$ {#dup}\n\n"
-        "See {eq}`dup`.\n",
+        "$$\na = a\n$$ {#dup}\n\n$$\nb = b\n$$ {#dup}\n\nSee {eq}`dup`.\n",
     )
     scan = MarkdownScanner().scan(markdown, Config())
     graph = build_graph(tuple(reversed(scan.labels)), scan.references)
@@ -124,17 +114,13 @@ def test_duplicate_label_nodes_have_stable_unique_ids_and_ambiguous_edges() -> N
     equation_nodes = [node for node in graph.nodes if node.kind == "equation"]
     assert [node.label for node in equation_nodes] == ["dup", "dup"]
     assert len({node.id for node in equation_nodes}) == 2
-    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
-        ("label:dup", "dup")
-    ]
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [("label:dup", "dup")]
 
 
 def test_graph_output_is_stably_sorted() -> None:
     markdown = _markdown(
         "paper.md",
-        "$$\na = a\n$$ {#z}\n\n"
-        "$$\nb = b\n$$ {#a}\n\n"
-        "See {eq}`z` and {eq}`a`.\n",
+        "$$\na = a\n$$ {#z}\n\n$$\nb = b\n$$ {#a}\n\nSee {eq}`z` and {eq}`a`.\n",
     )
     scan = MarkdownScanner().scan(markdown, Config())
     reversed_labels = tuple(reversed(scan.labels))
