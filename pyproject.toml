@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scieqlint"
-version = "0.1.5"
+version = "1.0.0"
 description = "Deterministic linter for exact scalar equations and equation references in scientific documents."
 readme = "README.md"
 requires-python = ">=3.11"

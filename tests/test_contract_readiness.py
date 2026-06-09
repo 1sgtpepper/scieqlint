@@ -81,7 +81,7 @@ def test_v100_documented_diagnostic_codes_exist_in_catalog() -> None:
         assert explain_code(code) is not None
 
 
-def test_v100_contract_readiness_leaves_remote_ci_gates_unchecked() -> None:
+def test_v100_contract_readiness_marks_remote_ci_gates_checked_after_main_is_green() -> None:
     readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(encoding="utf-8")
 
     for gate in [
@@ -90,7 +90,7 @@ def test_v100_contract_readiness_leaves_remote_ci_gates_unchecked() -> None:
         "GitHub CI package build",
         "GitHub CI docs job",
     ]:
-        assert f"- [ ] {gate}" in readiness
+        assert f"- [x] {gate}" in readiness
 
 
 def _schema(name: str) -> dict[str, object]:

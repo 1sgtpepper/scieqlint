@@ -171,7 +171,7 @@ config = load_config("scieqlint.toml", preset="mechanics")
 
 The repository-level `scieqlint.toml` may include specification placeholders such
 as `[parser]`, `[limits]`, `[report]`, `[severity]`, or per-code severity keys.
-The v0.1.5 loader does not apply those placeholders. Current severity-affecting
+The v1.0.0 loader does not apply those placeholders. Current severity-affecting
 behavior is limited to CLI/config toggles such as
 `--strict-unknowns`, `[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables`.
