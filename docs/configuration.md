@@ -59,9 +59,27 @@ show_suppressed = false
 ```
 
 `ignore.files` accepts POSIX-style glob patterns. Discovered files are matched
-against both their path relative to the current working directory, when possible,
-and their resolved absolute path. Explicitly passed files are still checked even
-when they match an ignore pattern.
+against both their path relative to `project.root`, when possible, and their
+resolved absolute path. Explicitly passed files are still checked even when they
+match an ignore pattern.
+
+## Project config
+
+```toml
+[project]
+root = "."
+order = ["symbols.md", "chapters/**/*.md"]
+```
+
+`project.root` is resolved relative to the config file when a config path is
+known, otherwise relative to the current working directory. `project.order`
+accepts POSIX-style file or glob patterns relative to `project.root`.
+
+When paths are passed to `scieqlint check`, `project.order` controls the
+analysis order of discovered files. When no paths are passed, SciEqLint
+discovers `project.root`. Unmatched files keep deterministic lexical ordering
+after configured entries. The default root and empty order preserve
+single-command discovery behavior.
 
 `report.show_suppressed` controls JSON output only. By default, suppressed
 diagnostics are hidden from JSON diagnostics and summary counts. Set it to
@@ -133,8 +151,8 @@ config = load_config("scieqlint.toml", preset="mechanics")
 ## Reserved config surface
 
 The repository-level `scieqlint.toml` may include specification placeholders such
-as `[project]`, `[parser]`, `[limits]`, `[report]`, `[severity]`, or per-code
-severity keys. The v0.1.5 loader does not apply those placeholders. Current
-severity-affecting behavior is limited to CLI/config toggles such as
+as `[parser]`, `[limits]`, `[report]`, `[severity]`, or per-code severity keys.
+The v0.1.5 loader does not apply those placeholders. Current severity-affecting
+behavior is limited to CLI/config toggles such as
 `--strict-unknowns`, `[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables`.

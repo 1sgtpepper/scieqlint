@@ -43,7 +43,13 @@ def check_paths(
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
     )
-    discovered = _discover_files(paths or [Path(".")], config.ignore.files)
+    project_root = _project_root(config)
+    discovered = _discover_files(
+        _input_paths(paths, project_root),
+        config.ignore.files,
+        config.project.order,
+        project_root=project_root,
+    )
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
 
@@ -219,6 +225,9 @@ def _apply_overrides(
 def _discover_files(
     paths: Sequence[Path | str],
     ignore_patterns: tuple[str, ...],
+    order_patterns: tuple[str, ...] = (),
+    *,
+    project_root: Path | None = None,
 ) -> tuple[Path, ...]:
     explicit_files: list[Path] = []
     discovered_inputs: list[Path | str] = []
@@ -230,23 +239,85 @@ def _discover_files(
         else:
             discovered_inputs.append(raw)
 
-    discovered = _filter_ignored(discover_files(discovered_inputs), ignore_patterns)
-    return tuple(sorted({*explicit_files, *discovered}, key=lambda path: path.as_posix()))
+    discovered = _filter_ignored(
+        discover_files(discovered_inputs),
+        ignore_patterns,
+        project_root=project_root,
+    )
+    return tuple(
+        sorted(
+            {*explicit_files, *discovered},
+            key=lambda path: _path_key(path, order_patterns, project_root=project_root),
+        )
+    )
 
 
-def _filter_ignored(paths: Sequence[Path], patterns: tuple[str, ...]) -> tuple[Path, ...]:
+def _filter_ignored(
+    paths: Sequence[Path],
+    patterns: tuple[str, ...],
+    *,
+    project_root: Path | None = None,
+) -> tuple[Path, ...]:
     if not patterns:
         return tuple(paths)
-    return tuple(path for path in paths if not _is_ignored(path, patterns))
+    return tuple(
+        path for path in paths if not _is_ignored(path, patterns, project_root=project_root)
+    )
 
 
-def _is_ignored(path: Path, patterns: tuple[str, ...]) -> bool:
-    rel = _display_path(path, absolute_paths=False).as_posix()
+def _is_ignored(
+    path: Path,
+    patterns: tuple[str, ...],
+    *,
+    project_root: Path | None = None,
+) -> bool:
+    rel = _project_relative_path(path, project_root)
     absolute = path.resolve().as_posix()
     return any(
         fnmatch.fnmatchcase(rel, pattern) or fnmatch.fnmatchcase(absolute, pattern)
         for pattern in patterns
     )
+
+
+def _input_paths(
+    paths: Sequence[Path | str],
+    project_root: Path,
+) -> tuple[Path | str, ...]:
+    if paths:
+        return tuple(paths)
+    return (project_root,)
+
+
+def _project_root(config: Config) -> Path:
+    root = Path(config.project.root.as_posix())
+    if root.is_absolute():
+        return root
+    if config.path is None:
+        return Path.cwd() / root
+    return Path(config.path.as_posix()).parent / root
+
+
+def _path_key(
+    path: Path,
+    order_patterns: tuple[str, ...],
+    *,
+    project_root: Path | None,
+) -> tuple[int, str]:
+    rel = _project_relative_path(path, project_root)
+    absolute = path.resolve().as_posix()
+    for index, pattern in enumerate(order_patterns):
+        if fnmatch.fnmatchcase(rel, pattern) or fnmatch.fnmatchcase(absolute, pattern):
+            return (index, path.as_posix())
+    return (len(order_patterns), path.as_posix())
+
+
+def _project_relative_path(path: Path, project_root: Path | None) -> str:
+    if project_root is not None:
+        try:
+            return path.resolve().relative_to(project_root.resolve()).as_posix()
+        except ValueError:
+            pass
+    return _display_path(path, absolute_paths=False).as_posix()
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:

@@ -35,6 +35,12 @@ class ScannerConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectConfig:
+    root: PurePosixPath = PurePosixPath(".")
+    order: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class AlgebraConfig:
     enabled: bool = True
 
@@ -91,6 +97,7 @@ class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
     path: PurePosixPath | None = None
+    project: ProjectConfig = field(default_factory=ProjectConfig)
     scanner: ScannerConfig = field(default_factory=ScannerConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)
