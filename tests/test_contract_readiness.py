@@ -34,8 +34,7 @@ def test_v100_public_api_contract_matches_docs() -> None:
         "(documents: 'Sequence[SourceDocument]', *, config: 'Config') -> 'CheckResult'"
     )
     assert str(inspect.signature(api.graph_paths)) == (
-        "(paths: 'Sequence[Path | str]', *, config_path: 'Path | str | None' = None) "
-        "-> 'Graph'"
+        "(paths: 'Sequence[Path | str]', *, config_path: 'Path | str | None' = None) -> 'Graph'"
     )
     assert str(inspect.signature(api.graph_documents)) == (
         "(documents: 'Sequence[SourceDocument]', *, config: 'Config') -> 'Graph'"
@@ -43,9 +42,7 @@ def test_v100_public_api_contract_matches_docs() -> None:
 
 
 def test_v100_cli_contract_names_documented_commands() -> None:
-    readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(
-        encoding="utf-8"
-    )
+    readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(encoding="utf-8")
 
     assert sorted(main.commands) == ["check", "demo", "explain", "graph", "init", "presets"]
     for command in ["check", "init", "demo", "explain", "presets", "graph"]:
@@ -65,12 +62,13 @@ def test_v100_schema_contract_resources_and_versions_are_stable() -> None:
     }
 
     assert schema_names <= packaged
-    assert _schema("scieqlint-result-0.1.schema.json")["properties"]["schema_version"][
-        "const"
-    ] == "0.1"
-    assert _schema("scieqlint-graph-0.3.schema.json")["properties"]["schema_version"][
-        "const"
-    ] == "0.3"
+    assert (
+        _schema("scieqlint-result-0.1.schema.json")["properties"]["schema_version"]["const"]
+        == "0.1"
+    )
+    assert (
+        _schema("scieqlint-graph-0.3.schema.json")["properties"]["schema_version"]["const"] == "0.3"
+    )
 
 
 def test_v100_documented_diagnostic_codes_exist_in_catalog() -> None:
@@ -84,9 +82,7 @@ def test_v100_documented_diagnostic_codes_exist_in_catalog() -> None:
 
 
 def test_v100_contract_readiness_leaves_remote_ci_gates_unchecked() -> None:
-    readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(
-        encoding="utf-8"
-    )
+    readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(encoding="utf-8")
 
     for gate in [
         "GitHub CI quality job",
