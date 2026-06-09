@@ -89,7 +89,11 @@ for reference checks. LaTeX macro expansion and full environment parsing are def
 
 ## Dimensions
 
-Dimensions are quiet without config. v0.1.2 adds configured dimension checking; zero-config mode must not emit unknown-variable dimension noise.
+Dimensions are quiet without config. v0.1.2 adds configured dimension checking;
+zero-config mode must not emit unknown-variable dimension noise. The `mechanics`
+preset provides packaged dimension defaults, and `[aliases]` can normalize
+explicit symbol spellings before dimension lookup. Presets are TOML templates,
+not a unit database, and aliases must be listed explicitly.
 
 ## Notebooks
 
