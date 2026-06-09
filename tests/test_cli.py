@@ -634,7 +634,10 @@ def test_project_absolute_root_controls_default_paths(tmp_path) -> None:
     doc = root / "paper.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text("# Paper\n", encoding="utf-8")
-    config.write_text(f'[project]\nroot = "{root.resolve().as_posix()}"\n', encoding="utf-8")
+    config.write_text(
+        f'[project]\nroot = "{root.resolve().as_posix()}"\norder = ["paper.md"]\n',
+        encoding="utf-8",
+    )
 
     result = CliRunner().invoke(main, ["check", "--config", str(config)])
 
