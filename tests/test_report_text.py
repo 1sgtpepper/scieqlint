@@ -36,7 +36,7 @@ def test_text_report_marks_suppressed_diagnostics_when_enabled() -> None:
 
 
 def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
-    result = CheckResult(
+    return CheckResult(
         diagnostics=(
             Diagnostic(
                 code="ALG001",
@@ -60,4 +60,3 @@ def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
         version="0.1.0",
         show_suppressed=show_suppressed,
     )
-    return result
