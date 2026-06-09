@@ -14,7 +14,10 @@ Release notes must use these sections:
 
 ## Unreleased
 
-- Nothing yet.
+### Added
+
+- Markdown and LaTeX suppression comments for known diagnostic codes, with
+  `SUP001` warnings for unknown suppression codes.
 
 ## v0.1.5 - 2026-06-08
 

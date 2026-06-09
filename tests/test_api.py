@@ -39,3 +39,49 @@ def test_check_documents_honors_strict_missing_label_config() -> None:
     config = Config(checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)))
     result = check_documents([document], config=config)
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF003"]
+
+
+def test_check_documents_marks_markdown_next_line_suppression() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.exit_code() == 0
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("ALG001", True)
+    ]
+
+
+def test_check_documents_warns_for_unknown_suppression_code() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line NOPE999 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.exit_code() == 1
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("SUP001", False),
+        ("ALG001", False),
+    ]
+
+
+def test_check_documents_does_not_suppress_different_code() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line REF002 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.exit_code() == 1
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("ALG001", False)
+    ]

@@ -106,6 +106,37 @@ def test_sarif_result_limit_rejects_negative_values() -> None:
         SarifReporter(max_results=-1)
 
 
+def test_sarif_report_hides_suppressed_diagnostics() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("paper.md"),
+                    start=0,
+                    end=1,
+                    line=1,
+                    col=1,
+                    end_line=1,
+                    end_col=1,
+                ),
+                suppressed=True,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["results"] == []
+    assert payload["runs"][0]["tool"]["driver"]["rules"] == []
+
+
 def _result() -> CheckResult:
     return CheckResult(
         diagnostics=(

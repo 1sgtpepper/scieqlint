@@ -102,3 +102,31 @@ def test_github_report_maps_info_to_notice() -> None:
         GitHubReporter().render(result)
         == "::notice title=PARSE021 unsupported function::unsupported function\n"
     )
+
+
+def test_github_report_hides_suppressed_diagnostics() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("paper.md"),
+                    start=0,
+                    end=1,
+                    line=1,
+                    col=1,
+                    end_line=1,
+                    end_col=1,
+                ),
+                suppressed=True,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    assert GitHubReporter().render(result) == ""

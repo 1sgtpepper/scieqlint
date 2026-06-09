@@ -59,6 +59,21 @@ Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and n
 - github
 - sarif
 
+## Suppression comments
+
+SciEqLint supports narrow source suppressions for Markdown and LaTeX:
+
+```md
+<!-- scieqlint-disable-next-line ALG001 -->
+```
+
+```tex
+% scieqlint-disable-current-block ALG001
+```
+
+Suppressed diagnostics do not affect the CLI exit code and are hidden from text,
+GitHub annotation, and SARIF output. Unknown suppression codes emit `SUP001`.
+
 ## v0.1.3 LaTeX source subset
 
 SciEqLint scans supported LaTeX display containers in `.tex` files:
