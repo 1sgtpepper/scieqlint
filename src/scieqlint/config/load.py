@@ -14,6 +14,7 @@ from scieqlint.config.model import (
     DimensionMode,
     DimVector,
     IgnoreConfig,
+    ReportConfig,
     ReferencesConfig,
     ScannerConfig,
     UnknownVariablePolicy,
@@ -45,6 +46,7 @@ def load_config(path: Path | str | None = None) -> Config:
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
+    report_data = _table(data, "report")
     vars_data = _table(data, "vars")
     algebra_data = _table(checks_data, "algebra")
     references_data = _table(checks_data, "references")
@@ -75,6 +77,7 @@ def load_config(path: Path | str | None = None) -> Config:
         ),
         vars=_vars_config(vars_data),
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
+        report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
     )
 
 

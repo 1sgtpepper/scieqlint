@@ -46,6 +46,7 @@ class CheckResult:
     math_blocks_checked: int
     config_path: PurePosixPath | None
     version: str
+    show_suppressed: bool = False
 
     def exit_code(self) -> int:
         """Return 1 only when an unsuppressed error diagnostic exists."""

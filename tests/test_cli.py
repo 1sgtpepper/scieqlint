@@ -72,6 +72,68 @@ def test_check_writes_output_file(tmp_path) -> None:
     assert payload["summary"]["errors"] == 0
 
 
+def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text(
+        "<!-- scieqlint-disable-next-line ALG001 -->\n"
+        "$$\n"
+        "(a+b)^2 = a^2 + b^2\n"
+        "$$\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["diagnostics"] == []
+    assert payload["summary"]["errors"] == 0
+
+
+def test_json_output_includes_suppressed_diagnostics_when_configured(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text(
+        "<!-- scieqlint-disable-next-line ALG001 -->\n"
+        "$$\n"
+        "(a+b)^2 = a^2 + b^2\n"
+        "$$\n",
+        encoding="utf-8",
+    )
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--config", str(config)],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["diagnostics"][0]["code"] == "ALG001"
+    assert payload["diagnostics"][0]["suppressed"] is True
+    assert payload["diagnostics"][0]["suppression_reason"] == "source comment"
+    assert payload["summary"]["errors"] == 1
+
+
+def test_show_suppressed_config_does_not_change_text_output(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text(
+        "<!-- scieqlint-disable-next-line ALG001 -->\n"
+        "$$\n"
+        "(a+b)^2 = a^2 + b^2\n"
+        "$$\n",
+        encoding="utf-8",
+    )
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "ALG001" not in result.output
+    assert "found no diagnostics" in result.output
+
+
 def test_sarif_output_for_bad_equation(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")

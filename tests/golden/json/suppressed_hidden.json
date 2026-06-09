@@ -1,0 +1,13 @@
+{
+  "diagnostics": [],
+  "schema_version": "0.1",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 1,
+    "warnings": 0
+  },
+  "tool": "scieqlint",
+  "version": "0.1.5"
+}

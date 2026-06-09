@@ -160,6 +160,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
 - `tests/fixtures/bad/references_bad.md`
+- `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/myst_good.md`
@@ -167,6 +168,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/famous_bad.json`
+- `tests/golden/json/suppressed_hidden.json`
+- `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/famous_bad.txt`

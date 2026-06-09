@@ -3,17 +3,22 @@ from __future__ import annotations
 import json
 from importlib import resources
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
-from scieqlint.api import check_paths
+from scieqlint.api import check_documents, check_paths
+from scieqlint.config.model import Config, ReportConfig
+from scieqlint.diag.model import CheckResult
+from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
+SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 
 
 def test_text_golden_output_matches_famous_bad_fixture() -> None:
@@ -37,6 +42,30 @@ def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
 
     Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
     assert rendered == Path("tests/golden/json/famous_bad.json").read_text(encoding="utf-8")
+
+
+def test_json_golden_output_hides_suppressed_diagnostics_by_default() -> None:
+    rendered = JsonReporter().render(check_paths([SUPPRESSED_FIXTURE]))
+    _validate_json_result(rendered)
+
+    assert rendered == Path("tests/golden/json/suppressed_hidden.json").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_json_golden_output_includes_suppressed_diagnostics_when_enabled() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath(SUPPRESSED_FIXTURE.as_posix()),
+        SUPPRESSED_FIXTURE.read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+    result = _check_documents_with_report([document], show_suppressed=True)
+    rendered = JsonReporter().render(result)
+    _validate_json_result(rendered)
+
+    assert rendered == Path("tests/golden/json/suppressed_visible.json").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_github_golden_output_matches_famous_bad_fixture() -> None:
@@ -68,4 +97,27 @@ def test_github_acceptance_example_emits_annotation_location_and_title() -> None
 def _schema(name: str) -> dict[str, object]:
     return json.loads(
         resources.files("scieqlint.schemas").joinpath(name).read_text(encoding="utf-8")
+    )
+
+
+def _validate_json_result(rendered: str) -> None:
+    schema = _schema("scieqlint-result-0.1.schema.json")
+    diagnostic_schema = _schema("scieqlint-diagnostic-0.1.schema.json")
+    registry = Registry().with_resources(
+        [
+            (schema["$id"], Resource.from_contents(schema)),
+            (diagnostic_schema["$id"], Resource.from_contents(diagnostic_schema)),
+        ]
+    )
+    Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
+
+
+def _check_documents_with_report(
+    documents: list[SourceDocument],
+    *,
+    show_suppressed: bool,
+) -> CheckResult:
+    return check_documents(
+        documents,
+        config=Config(report=ReportConfig(show_suppressed=show_suppressed)),
     )

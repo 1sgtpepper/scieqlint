@@ -70,6 +70,11 @@ class IgnoreConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ReportConfig:
+    show_suppressed: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
@@ -79,3 +84,4 @@ class Config:
     checks: ChecksConfig = field(default_factory=ChecksConfig)
     vars: tuple[VarDimension, ...] = ()
     ignore: IgnoreConfig = field(default_factory=IgnoreConfig)
+    report: ReportConfig = field(default_factory=ReportConfig)
