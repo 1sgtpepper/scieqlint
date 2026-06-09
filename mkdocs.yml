@@ -44,6 +44,7 @@ nav:
       - v0.1.4: releases/v0.1.4-checklist.md
       - v0.1.5: releases/v0.1.5-checklist.md
       - v0.1.5 tag: releases/v0.1.5-tag-checklist.md
+      - v1.0.0: releases/v1.0.0-checklist.md
   - Security: security.md
 
 markdown_extensions:

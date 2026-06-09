@@ -94,6 +94,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `docs/releases/v0.1.4-checklist.md`
 - `docs/releases/v0.1.5-checklist.md`
 - `docs/releases/v0.1.5-tag-checklist.md`
+- `docs/releases/v1.0.0-checklist.md`
 - `docs/security.md`
 - `examples/bad/famous_bad.md`
 - `examples/bad/myst_bad.md`
@@ -162,10 +163,12 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
+- `tests/fixtures/bad/preset_mechanics_bad.md`
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
+- `tests/fixtures/good/alias_dimensions_good.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
 - `tests/golden/github/famous_bad.txt`
@@ -198,6 +201,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_pr_template.py`
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_references.py`
+- `tests/test_release_fixtures.py`
 - `tests/test_release_metadata.py`
 - `tests/test_report_github.py`
 - `tests/test_report_json.py`
