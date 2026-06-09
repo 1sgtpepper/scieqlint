@@ -63,6 +63,16 @@ def test_configured_unicode_alias_normalizes_before_dimension_lookup(tmp_path) -
     assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
 
 
+def test_configured_punctuation_alias_normalizes_before_dimension_lookup(tmp_path) -> None:
+    config = _mechanics_config(
+        tmp_path, aliases=['speed = ["v."]'], extra_vars=['speed = "L T^-1"']
+    )
+
+    result = _check("$$\nv. = speed\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
+
+
 def test_unaliased_tex_command_keeps_skipped_dimension_behavior(tmp_path) -> None:
     config = _mechanics_config(tmp_path)
 
