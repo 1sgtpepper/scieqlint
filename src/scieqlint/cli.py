@@ -46,6 +46,9 @@ unknown_variables = "warn"
 # v = "L T^-1"
 # theta = "1"
 
+[aliases]
+# theta = ["\\theta", "θ"]
+
 [ignore]
 files = []
 

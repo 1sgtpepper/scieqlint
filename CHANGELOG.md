@@ -22,6 +22,7 @@ Release notes must use these sections:
   state and reason.
 - Packaged `mechanics` preset resource loading for config defaults.
 - CLI preset commands for listing, showing, and initializing packaged presets.
+- Explicit `[aliases]` config normalization for dimension symbol lookup.
 
 ## v0.1.5 - 2026-06-08
 

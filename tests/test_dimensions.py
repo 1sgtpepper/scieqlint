@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 from scieqlint.api import check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config
+from scieqlint.diag.model import CheckResult, Diagnostic
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -37,6 +38,55 @@ def test_configured_equation_dimension_match_with_power_passes(tmp_path) -> None
     result = _check("$$\nE = m*c^2\n$$\n", config)
 
     assert result.diagnostics == ()
+
+
+def test_configured_aliases_normalize_before_dimension_lookup(tmp_path) -> None:
+    config = _mechanics_config(
+        tmp_path,
+        aliases=[
+            'F = ["\\\\mathcalF"]',
+            'm = ["mass"]',
+            'a = ["accel"]',
+        ],
+    )
+
+    result = _check("$$\n\\mathcalF = mass*accel\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
+
+
+def test_configured_unicode_alias_normalizes_before_dimension_lookup(tmp_path) -> None:
+    config = _mechanics_config(tmp_path, aliases=['theta = ["θ"]'], extra_vars=['theta = "1"'])
+
+    result = _check("$$\nθ + 1 = theta\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
+
+
+def test_configured_punctuation_alias_normalizes_before_dimension_lookup(tmp_path) -> None:
+    config = _mechanics_config(
+        tmp_path, aliases=['speed = ["v."]'], extra_vars=['speed = "L T^-1"']
+    )
+
+    result = _check("$$\nv. = speed\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
+
+
+def test_unaliased_tex_command_keeps_skipped_dimension_behavior(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = \\mathcalF\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == ["DIM020"]
+
+
+def test_unaliased_unicode_symbol_keeps_skipped_dimension_behavior(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = ρ*a\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == ["DIM020"]
 
 
 def test_dimension_check_ignores_expression_without_equality(tmp_path) -> None:
@@ -127,7 +177,17 @@ def _check(text: str, config: Config):
     return check_documents([document], config=config)
 
 
-def _mechanics_config(tmp_path, *, unknown_variables: str = "warn") -> Config:
+def _dimension_diagnostics(result: CheckResult) -> tuple[Diagnostic, ...]:
+    return tuple(diagnostic for diagnostic in result.diagnostics if diagnostic.rule == "dimensions")
+
+
+def _mechanics_config(
+    tmp_path,
+    *,
+    unknown_variables: str = "warn",
+    aliases: list[str] | None = None,
+    extra_vars: list[str] | None = None,
+) -> Config:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
         "\n".join(
@@ -147,8 +207,16 @@ def _mechanics_config(tmp_path, *, unknown_variables: str = "warn") -> Config:
                 'E = "M L^2 T^-2"',
                 'x = "L"',
                 't = "T"',
+                *(extra_vars or []),
+                *(_aliases_section(aliases or [])),
             ]
         ),
         encoding="utf-8",
     )
     return load_config(config_path)
+
+
+def _aliases_section(aliases: list[str]) -> list[str]:
+    if not aliases:
+        return []
+    return ["", "[aliases]", *aliases]

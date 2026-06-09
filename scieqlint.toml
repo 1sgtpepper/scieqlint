@@ -30,6 +30,9 @@ unknown_variables = "warn"
 # v = "L T^-1"
 # theta = "1"
 
+[aliases]
+# theta = ["\\theta", "θ"]
+
 [limits]
 max_file_bytes = 1048576
 max_math_blocks_per_file = 2000
