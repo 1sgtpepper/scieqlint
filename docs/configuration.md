@@ -93,9 +93,13 @@ Invalid config fails before document analysis and reports a deterministic error.
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
-override preset values. The initial resource-loading surface exposes the
-`mechanics` preset for API callers; CLI preset commands are part of the next
-release slice.
+override preset values. The initial preset is `mechanics`.
+
+```bash
+scieqlint presets list
+scieqlint presets show mechanics
+scieqlint init --preset mechanics
+```
 
 ```python
 from scieqlint.config.load import load_config

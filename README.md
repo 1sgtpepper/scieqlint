@@ -60,6 +60,9 @@ scieqlint demo
 ```bash
 scieqlint check [PATH_OR_GLOB...]
 scieqlint init
+scieqlint init --preset mechanics
+scieqlint presets list
+scieqlint presets show mechanics
 scieqlint demo
 scieqlint explain CODE
 python -m scieqlint --help

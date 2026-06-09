@@ -10,6 +10,7 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import check_paths
+from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
@@ -121,12 +122,39 @@ def check(
     type=click.Path(path_type=Path),
     default=Path("scieqlint.toml"),
 )
-def init(config_path: Path) -> None:
+@click.option("--preset", default=None, help="Initialize from a packaged preset.")
+def init(config_path: Path, preset: str | None) -> None:
     """Write a default config file."""
     if config_path.exists():
         raise click.ClickException(f"config already exists: {config_path}")
-    config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
+    try:
+        content = DEFAULT_CONFIG if preset is None else _preset_text(preset)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    config_path.write_text(content, encoding="utf-8")
     click.echo(f"wrote {config_path}")
+
+
+@main.group()
+def presets() -> None:
+    """Inspect packaged config presets."""
+
+
+@presets.command("list")
+def list_preset_names() -> None:
+    """List packaged config presets."""
+    for name in list_presets():
+        click.echo(name)
+
+
+@presets.command("show")
+@click.argument("name")
+def show_preset(name: str) -> None:
+    """Show a packaged config preset."""
+    try:
+        click.echo(_preset_text(name), nl=False)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @main.command()
@@ -153,6 +181,11 @@ def explain(code: str) -> None:
     if explanation is None:
         raise click.ClickException(f"unknown diagnostic code: {code}")
     click.echo(explanation)
+
+
+def _preset_text(name: str) -> str:
+    text = read_preset_text(name)
+    return text if text.endswith("\n") else f"{text}\n"
 
 
 def _write_output(rendered: str, output_path: Path | None, stdout: TextIO) -> None:
