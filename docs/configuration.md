@@ -45,6 +45,9 @@ unknown_variables = "warn"
 # v = "L T^-1"
 # theta = "1"
 
+[aliases]
+# theta = ["\\theta", "θ"]
+
 [ignore]
 files = []
 
@@ -76,6 +79,9 @@ x = "L"
 t = "T"
 v = "L T^-1"
 theta = "1"
+
+[aliases]
+theta = ["\\theta", "θ"]
 ```
 
 `auto` runs dimension checks only when `[vars]` is non-empty. Without configured
@@ -87,6 +93,9 @@ and `1` means dimensionless.
 When dimension checking is active, supported equality sides with different dimensions
 emit `DIM001`, supported addition or subtraction with incompatible dimensions emits
 `DIM002`, and unknown symbols emit `DIM010` unless `unknown_variables = "ignore"`.
+Aliases normalize explicit surface forms before dimension lookup. Alias keys must
+name configured `[vars]` entries, and an alias may not collide with another
+configured variable or alias.
 
 Invalid config fails before document analysis and reports a deterministic error.
 

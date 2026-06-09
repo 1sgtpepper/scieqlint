@@ -22,6 +22,12 @@ class VarDimension:
 
 
 @dataclass(frozen=True, slots=True)
+class SymbolAlias:
+    canonical: str
+    alias: str
+
+
+@dataclass(frozen=True, slots=True)
 class ScannerConfig:
     markdown: bool = True
     inline_math: bool = False
@@ -83,5 +89,6 @@ class Config:
     parser: ParserConfig = field(default_factory=ParserConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)
     vars: tuple[VarDimension, ...] = ()
+    aliases: tuple[SymbolAlias, ...] = ()
     ignore: IgnoreConfig = field(default_factory=IgnoreConfig)
     report: ReportConfig = field(default_factory=ReportConfig)

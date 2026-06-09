@@ -11,7 +11,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic
 from scieqlint.scan.base import MathBlock
 
-TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]")
+TOKEN_PATTERN = r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]"
 TEX_MULTIPLY = {"\\cdot", "\\times"}
 
 _DIMENSIONLESS = DimVector((0, 0, 0, 0, 0, 0, 0))
@@ -27,10 +27,11 @@ def check_dimensions(block: MathBlock, config: Config) -> tuple[Diagnostic, ...]
         return ()
 
     dimensions = {entry.name: entry.dimension for entry in config.vars}
+    aliases = {entry.alias: entry.canonical for entry in config.aliases}
     diagnostics: list[Diagnostic] = []
     for left_raw, right_raw in zip(sides, sides[1:], strict=False):
-        left = _Parser(left_raw, block, text, dimensions, config).parse()
-        right = _Parser(right_raw, block, text, dimensions, config).parse()
+        left = _Parser(left_raw, block, text, dimensions, aliases, config).parse()
+        right = _Parser(right_raw, block, text, dimensions, aliases, config).parse()
         diagnostics.extend(left.diagnostics)
         diagnostics.extend(right.diagnostics)
         if left.value is None or right.value is None or left.value == right.value:
@@ -53,13 +54,14 @@ class _Parser:
     block: MathBlock
     equation: str
     dimensions: dict[str, DimVector]
+    aliases: dict[str, str]
     config: Config
     tokens: tuple[str, ...] = field(init=False)
     index: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
         cleaned = self.text.replace("{", "(").replace("}", ")")
-        tokens = TOKEN_RE.findall(cleaned)
+        tokens = _token_re(tuple(self.aliases)).findall(cleaned)
         if "".join(tokens).replace(" ", "") != re.sub(r"\s+", "", cleaned):
             tokens = ()
         self.tokens = tuple(tokens)
@@ -122,11 +124,15 @@ class _Parser:
             return self._mul(self._group(), self._group(), -1)
         if token == "\\sqrt":
             return self._sqrt(self._group())
-        if token in TEX_MULTIPLY or token.startswith("\\"):
+        if token in TEX_MULTIPLY:
+            return self._skipped()
+        if token.startswith("\\"):
+            if token in self.aliases:
+                return self._symbol(token)
             return self._skipped()
         if re.fullmatch(r"\d+(?:/\d+)?", token):
             return _DimensionResult(_DIMENSIONLESS)
-        if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token):
+        if _is_symbol_token(token) or token in self.aliases:
             return self._symbol(token)
         return self._skipped()
 
@@ -143,7 +149,8 @@ class _Parser:
         return self._with_diagnostics(_scale(value.value, 1, divisor=2), value.diagnostics)
 
     def _symbol(self, name: str) -> _DimensionResult:
-        dimension = self.dimensions.get(name)
+        canonical = self.aliases.get(name, name)
+        dimension = self.dimensions.get(canonical)
         if dimension is not None:
             return _DimensionResult(dimension)
         if self.config.checks.dimension.unknown_variables == "ignore":
@@ -232,6 +239,19 @@ def _is_atom_start(token: str) -> bool:
     return token not in TEX_MULTIPLY and (
         token.startswith("\\") or token.isdigit() or token[0].isalpha()
     )
+
+
+def _is_symbol_token(token: str) -> bool:
+    return re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token) is not None
+
+
+def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
+    alias_pattern = "|".join(
+        re.escape(alias) for alias in sorted(aliases, key=len, reverse=True)
+    )
+    if not alias_pattern:
+        return re.compile(TOKEN_PATTERN)
+    return re.compile(f"{alias_pattern}|{TOKEN_PATTERN}")
 
 
 def _strip_labels(text: str) -> str:

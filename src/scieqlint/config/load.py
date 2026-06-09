@@ -17,6 +17,7 @@ from scieqlint.config.model import (
     ReportConfig,
     ReferencesConfig,
     ScannerConfig,
+    SymbolAlias,
     UnknownVariablePolicy,
     VarDimension,
 )
@@ -47,9 +48,11 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     ignore_data = _table(data, "ignore")
     report_data = _table(data, "report")
     vars_data = _table(data, "vars")
+    aliases_data = _table(data, "aliases")
     algebra_data = _table(checks_data, "algebra")
     references_data = _table(checks_data, "references")
     dimension_data = _table(checks_data, "dimension")
+    vars_config = _vars_config(vars_data)
     return Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
         scanner=ScannerConfig(
@@ -74,7 +77,8 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
                 ),
             ),
         ),
-        vars=_vars_config(vars_data),
+        vars=vars_config,
+        aliases=_aliases_config(aliases_data, vars_config),
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
         report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
     )
@@ -171,6 +175,32 @@ def _vars_config(data: dict[str, Any]) -> tuple[VarDimension, ...]:
         if not isinstance(expression, str):
             raise ValueError(f"[vars].{name} must be a dimension string")
         entries.append(VarDimension(name=name, dimension=_parse_dimension(expression)))
+    return tuple(entries)
+
+
+def _aliases_config(
+    data: dict[str, Any],
+    vars_config: tuple[VarDimension, ...],
+) -> tuple[SymbolAlias, ...]:
+    canonical_names = {entry.name for entry in vars_config}
+    alias_owner: dict[str, str] = {name: name for name in canonical_names}
+    entries: list[SymbolAlias] = []
+    for canonical, aliases in sorted(data.items()):
+        if not canonical:
+            raise ValueError("[aliases] keys must be non-empty strings")
+        if canonical not in canonical_names:
+            raise ValueError(f"[aliases].{canonical} must reference a configured variable")
+        if not isinstance(aliases, list):
+            raise ValueError(f"[aliases].{canonical} must be a list of strings")
+        for alias in cast(list[object], aliases):
+            if not isinstance(alias, str) or not alias:
+                raise ValueError(f"[aliases].{canonical} must be a list of non-empty strings")
+            owner = alias_owner.get(alias)
+            if owner is not None and owner != canonical:
+                raise ValueError(f"alias collision: {alias} maps to both {owner} and {canonical}")
+            alias_owner[alias] = canonical
+            if alias != canonical:
+                entries.append(SymbolAlias(canonical=canonical, alias=alias))
     return tuple(entries)
 
 
