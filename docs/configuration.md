@@ -90,6 +90,19 @@ emit `DIM001`, supported addition or subtraction with incompatible dimensions em
 
 Invalid config fails before document analysis and reports a deterministic error.
 
+## Presets
+
+Packaged presets are TOML templates loaded before user config. User config values
+override preset values. The initial resource-loading surface exposes the
+`mechanics` preset for API callers; CLI preset commands are part of the next
+release slice.
+
+```python
+from scieqlint.config.load import load_config
+
+config = load_config("scieqlint.toml", preset="mechanics")
+```
+
 ## Reserved config surface
 
 The repository-level `scieqlint.toml` may include specification placeholders such

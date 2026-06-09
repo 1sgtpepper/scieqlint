@@ -20,6 +20,7 @@ Release notes must use these sections:
   `SUP001` warnings for unknown suppression codes.
 - Configured JSON output can include suppressed diagnostics with suppression
   state and reason.
+- Packaged `mechanics` preset resource loading for config defaults.
 
 ## v0.1.5 - 2026-06-08
 

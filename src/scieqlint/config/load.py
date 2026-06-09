@@ -20,6 +20,7 @@ from scieqlint.config.model import (
     UnknownVariablePolicy,
     VarDimension,
 )
+from scieqlint.config.presets import read_preset_text
 
 _BASE_DIMENSIONS = {
     "M": 0,
@@ -32,17 +33,15 @@ _BASE_DIMENSIONS = {
 }
 
 
-def load_config(path: Path | str | None = None) -> Config:
+def load_config(path: Path | str | None = None, *, preset: str | None = None) -> Config:
     """Load config defaults and the supported scanner options."""
     if path is None:
         config_path = _find_default_config()
-        if config_path is None:
-            return Config(path=None)
     else:
         config_path = Path(path)
         if not config_path.exists():
             raise FileNotFoundError(f"config not found: {config_path}")
-    data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    data = _config_data(config_path, preset=preset)
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
@@ -52,7 +51,7 @@ def load_config(path: Path | str | None = None) -> Config:
     references_data = _table(checks_data, "references")
     dimension_data = _table(checks_data, "dimension")
     return Config(
-        path=PurePosixPath(config_path.as_posix()),
+        path=None if config_path is None else PurePosixPath(config_path.as_posix()),
         scanner=ScannerConfig(
             markdown=_bool(scanner_data, "markdown", True),
             inline_math=_bool(scanner_data, "inline_math", False),
@@ -79,6 +78,29 @@ def load_config(path: Path | str | None = None) -> Config:
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
         report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
     )
+
+
+def _config_data(config_path: Path | None, *, preset: str | None) -> dict[str, Any]:
+    data: dict[str, Any] = {}
+    if preset is not None:
+        data = _merge_tables(data, tomllib.loads(read_preset_text(preset)))
+    if config_path is not None:
+        data = _merge_tables(data, tomllib.loads(config_path.read_text(encoding="utf-8")))
+    return data
+
+
+def _merge_tables(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        base_value = merged.get(key)
+        if isinstance(base_value, dict) and isinstance(value, dict):
+            merged[key] = _merge_tables(
+                cast(dict[str, Any], base_value),
+                cast(dict[str, Any], value),
+            )
+        else:
+            merged[key] = value
+    return merged
 
 
 def _find_default_config() -> Path | None:

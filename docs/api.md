@@ -14,3 +14,6 @@ print(result.exit_code())
 API calls must not print to stdout/stderr and must not call `sys.exit`.
 `CheckResult.show_suppressed` records the loaded report setting used by the JSON
 reporter to decide whether suppressed diagnostics are included.
+
+`load_config(path, preset="mechanics")` loads packaged preset defaults before the
+user config file, so user config values override preset values.
