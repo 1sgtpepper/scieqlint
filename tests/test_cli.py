@@ -628,6 +628,47 @@ def test_invalid_baseline_file_reports_cli_error(tmp_path, monkeypatch) -> None:
     assert "Error: baseline diagnostic line must be an integer or null" in result.output
 
 
+def test_project_absolute_root_controls_default_paths(tmp_path) -> None:
+    root = tmp_path / "book"
+    root.mkdir()
+    doc = root / "paper.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# Paper\n", encoding="utf-8")
+    config.write_text(f'[project]\nroot = "{root.resolve().as_posix()}"\n', encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "files checked: 1" in result.output
+
+
+def test_project_ignore_can_match_absolute_discovered_paths_outside_root(tmp_path) -> None:
+    root = tmp_path / "book"
+    external = tmp_path / "external"
+    root.mkdir()
+    external.mkdir()
+    ignored = external / "ignored.md"
+    config = tmp_path / "scieqlint.toml"
+    ignored.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    config.write_text(
+        "\n".join(
+            [
+                "[project]",
+                'root = "book"',
+                "",
+                "[ignore]",
+                f'files = ["{ignored.resolve().as_posix()}"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(external), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "files checked: 0" in result.output
+
+
 def test_missing_reference_warning_does_not_fail(tmp_path) -> None:
     doc = tmp_path / "refs.md"
     doc.write_text("See {eq}`missing`.\n", encoding="utf-8")
