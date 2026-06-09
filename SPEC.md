@@ -7,7 +7,7 @@ Python: 3.11+
 Default license: MIT  
 Spec status: polished implementation input with OSS contributor pass  
 Supersedes: v10 and v11 draft  
-Primary change: v0.1 is narrowed to the smallest credible public wedge; later capabilities are split into short, time-boxed releases with explicit cut rules.
+Primary change: v0.1 is narrowed to the smallest credible public wedge; later capabilities are split into scoped releases with explicit cut rules.
 Contributor pass: adds a first-class onboarding path, issue taxonomy, PR flow, maintainer review expectations, and starter issue map.
 
 SciEqLint is a deterministic quality linter for scientific documents. It scans supported writing formats, extracts supported equation markup, checks exact scalar algebra where possible, validates equation labels and references, and reports stable diagnostics for local use, CI, JSON API consumers, and later editor integrations.
@@ -18,7 +18,7 @@ The product wedge is deliberately small:
 
 Everything else is sequenced after that first win. This document is intentionally strict about release boundaries: the project earns trust by shipping narrow, exact capabilities, not by claiming broad mathematical coverage early.
 
-Recommended reading order for implementers: product contract, time-boxed release ladder, v0.1.0 scope, data contracts, parser/algebra boundaries, reporters, testing, and release checklist.
+Recommended reading order for implementers: product contract, release ladder, v0.1.0 scope, data contracts, parser/algebra boundaries, reporters, testing, and release checklist.
 
 Recommended reading order for new contributors: README first screen, contributor quickstart, issue labels, first ten issues, narrow PR rules, tests/golden outputs, and limitations page.
 
@@ -139,29 +139,27 @@ Not v0.x users:
 
 ---
 
-## 4. Time-boxed release ladder
+## 4. Release ladder
 
-Dates below assume implementation starts Monday, 2026-06-08. If implementation starts later, shift every date by the same number of days. Durations are normative. Calendar dates are planning anchors.
+| Release | User-facing reason | Ships |
+|---|---|---|
+| v0.0.1 | installable skeleton | package, CLI shell, config defaults, CI skeleton |
+| v0.1.0 | catch bad equations and broken refs in Markdown/MyST | Markdown/MyST scanner subset, labels/references, parser, algebra, text, JSON, JSON Schema, demo |
+| v0.1.1 | make PR annotations easy | GitHub reporter, pre-commit metadata, CI docs |
+| v0.1.2 | catch configured dimension mistakes | dimension engine, `[vars]`, dimension diagnostics |
+| v0.1.3 | support LaTeX source files | LaTeX container scanner, LaTeX labels/references |
+| v0.1.4 | support notebook Markdown cells | `.ipynb` markdown-cell scanner, cell spans |
+| v0.1.5 | support code scanning | SARIF reporter, thin GitHub Action wrapper |
+| v0.2.0 | fit serious docs workflows | suppressions, presets, aliases, optional scalar functions if time remains |
+| v0.3.0 | make equations navigable | graph JSON export |
+| v0.4.0 | catch undefined symbols and notation drift | symbol table, explicit directives, symbol diagnostics |
+| v0.5.0 | run well on books/sites | project mode, baselines, file order |
+| v0.9.0 | stabilize contracts | performance pass, compatibility pass, contract candidates |
+| v1.0.0 | stable scientific CI core | frozen CLI/JSON/SARIF/config/API |
 
-| Release | Time box | Planning window | User-facing reason | Ships | Explicitly does not ship |
-|---|---:|---|---|---|---|
-| v0.0.1 | 1 week | 2026-06-08 to 2026-06-14 | installable skeleton | package, CLI shell, config defaults, CI skeleton | real checks |
-| v0.1.0 | 4 weeks | 2026-06-15 to 2026-07-12 | catch bad equations and broken refs in Markdown/MyST | Markdown/MyST scanner subset, labels/references, parser, algebra, text, JSON, JSON Schema, demo | dimensions, LaTeX files, notebooks, GitHub annotations, SARIF |
-| v0.1.1 | 1 week | 2026-07-13 to 2026-07-19 | make PR annotations easy | GitHub reporter, pre-commit metadata, CI docs | new math behavior |
-| v0.1.2 | 2 weeks | 2026-07-20 to 2026-08-02 | catch configured dimension mistakes | dimension engine, `[vars]`, dimension diagnostics | presets, aliases, unit database |
-| v0.1.3 | 2 weeks | 2026-08-03 to 2026-08-16 | support LaTeX source files | LaTeX container scanner, LaTeX labels/references | full LaTeX parser, macro expansion |
-| v0.1.4 | 1 week | 2026-08-17 to 2026-08-23 | support notebook Markdown cells | `.ipynb` markdown-cell scanner, cell spans | notebook execution, code-cell variable analysis |
-| v0.1.5 | 1 week | 2026-08-24 to 2026-08-30 | support code scanning | SARIF reporter, thin GitHub Action wrapper | new scanner/math behavior |
-| v0.2.0 | 3 weeks | 2026-08-31 to 2026-09-20 | fit serious docs workflows | suppressions, presets, aliases, optional scalar functions if time remains | graph, symbol inference |
-| v0.3.0 | 2 weeks | 2026-09-21 to 2026-10-04 | make equations navigable | graph JSON export | natural-language symbol parsing |
-| v0.4.0 | 3 weeks | 2026-10-05 to 2026-10-25 | catch undefined symbols and notation drift | symbol table, explicit directives, symbol diagnostics | prose inference |
-| v0.5.0 | 4 weeks | 2026-10-26 to 2026-11-22 | run well on books/sites | project mode, baselines, file order | plugin API |
-| v0.9.0 | 4 weeks | 2026-11-23 to 2026-12-20 | stabilize contracts | performance pass, compatibility pass, contract candidates | large new features |
-| v1.0.0 | acceptance-gated | no earlier than 2027-Q1 | stable scientific CI core | frozen CLI/JSON/SARIF/config/API | experimental defaults |
+### Scope enforcement
 
-### Time-box enforcement
-
-Each release has three possible outcomes at the deadline:
+Each release has three possible outcomes at release review:
 
 1. Ship if release checks pass.
 2. Cut unfinished optional scope and ship.
@@ -214,8 +212,6 @@ The hard cut lists in this spec are the default source of truth.
 
 Goal: prove the package can install, run, and pass the basic quality loop.
 
-Time box: 1 week.
-
 Ships:
 
 - `src/scieqlint` package.
@@ -249,8 +245,6 @@ Deferred:
 ### 5.2 v0.1.0 — Markdown/MyST zero-config MVP
 
 Goal: useful on a real Markdown/MyST scientific repo before config exists.
-
-Time box: 4 weeks.
 
 v0.1.0 intentionally ships only these source formats:
 
@@ -540,8 +534,6 @@ Do not cut:
 
 Goal: make the MVP useful in pull requests without changing analysis behavior.
 
-Time box: 1 week.
-
 Ships:
 
 - `--format github`.
@@ -579,8 +571,6 @@ Hard rule: v0.1.1 MUST NOT add parser, scanner, dimension, or algebra features.
 ### 5.4 v0.1.2 — dimension MVP
 
 Goal: catch dimension mistakes once users provide small config.
-
-Time box: 2 weeks.
 
 Ships:
 
@@ -670,8 +660,6 @@ Do not cut:
 
 Goal: support `.tex` files through a container scanner, not a full LaTeX parser.
 
-Time box: 2 weeks.
-
 Ships:
 
 - `.tex` discovery,
@@ -735,8 +723,6 @@ Do not cut:
 
 Goal: scan notebook Markdown cells without execution.
 
-Time box: 1 week.
-
 Ships:
 
 - `.ipynb` discovery,
@@ -781,8 +767,6 @@ Do not cut:
 ### 5.7 v0.1.5 — SARIF and thin GitHub Action
 
 Goal: support GitHub code scanning and copy-pasteable CI without changing analysis behavior.
-
-Time box: 1 week.
 
 Ships:
 
@@ -835,8 +819,6 @@ Hard rule: v0.1.5 MUST NOT change scanner, parser, algebra, reference, or dimens
 ### 5.8 v0.2.0 — serious docs workflow layer
 
 Goal: reduce adoption friction in real repositories after the core is trusted.
-
-Time box: 3 weeks.
 
 Ships, in priority order:
 
@@ -938,8 +920,6 @@ Do not cut:
 
 Goal: make equations and references navigable.
 
-Time box: 2 weeks.
-
 Ships:
 
 - graph data model,
@@ -970,8 +950,6 @@ Acceptance:
 ### 5.10 v0.4.0 — symbols
 
 Goal: catch undefined variables and notation drift without natural-language inference.
-
-Time box: 3 weeks.
 
 Ships:
 
@@ -1010,8 +988,6 @@ Acceptance:
 
 Goal: support larger docs/books without changing core semantics.
 
-Time box: 4 weeks.
-
 Ships:
 
 - better project discovery,
@@ -1020,7 +996,7 @@ Ships:
 - large-fixture performance pass,
 - docs for book-style repositories.
 
-Does not ship:
+Deferred scope:
 
 - plugin API,
 - natural-language symbol extraction,

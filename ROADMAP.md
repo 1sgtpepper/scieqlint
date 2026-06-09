@@ -1,24 +1,24 @@
 # Roadmap
 
-SciEqLint grows by narrow, release-gated slices. A release date does not move because a nice-to-have is unfinished. Scope is cut before dates move. Dates move only for correctness, security, packaging, or trust defects.
+SciEqLint grows by narrow, release-gated slices. Scope is cut before a release absorbs unrelated features. Release order changes only for correctness, security, packaging, or trust defects.
 
 ## Release ladder
 
-| Release | Time box | User-facing reason | Ships | Does not ship |
-|---|---:|---|---|---|
-| v0.0.1 | 1 week | installable skeleton | package, CLI shell, config defaults, CI skeleton | real checks |
-| v0.1.0 | 4 weeks | catch bad equations and broken refs in Markdown/MyST | Markdown/MyST scanner subset, references, parser, algebra, text, JSON, schemas, demo | dimensions, LaTeX, notebooks, GitHub annotations, SARIF |
-| v0.1.1 | 1 week | make PR annotations easy | GitHub reporter, pre-commit metadata, CI docs | new math behavior |
-| v0.1.2 | 2 weeks | catch configured dimension mistakes | dimension engine and config | presets, aliases, unit database |
-| v0.1.3 | 2 weeks | support LaTeX source files | LaTeX containers, labels, references | full LaTeX parser, macro expansion |
-| v0.1.4 | 1 week | support notebook Markdown cells | `.ipynb` Markdown-cell scanning | notebook execution, code-cell analysis |
-| v0.1.5 | 1 week | support code scanning | SARIF reporter and thin Action wrapper | new scanner/math behavior |
-| v0.2.0 | 3 weeks | fit serious docs workflows | suppressions, presets, aliases, maybe scalar functions | graph, symbol inference |
-| v0.3.0 | 2 weeks | make equations navigable | graph JSON export | natural-language symbol parsing |
-| v0.4.0 | 3 weeks | catch undefined symbols and notation drift | explicit symbol directives and checks | prose inference |
-| v0.5.0 | 4 weeks | run well on books/sites | project mode, baselines, file ordering | plugin API |
-| v0.9.0 | 4 weeks | stabilize contracts | performance, compatibility, contract candidates | large new features |
-| v1.0.0 | acceptance-gated | stable scientific CI core | frozen CLI/JSON/SARIF/config/API | experimental defaults |
+| Release | User-facing reason | Ships |
+|---|---|---|
+| v0.0.1 | installable skeleton | package, CLI shell, config defaults, CI skeleton |
+| v0.1.0 | catch bad equations and broken refs in Markdown/MyST | Markdown/MyST scanner subset, references, parser, algebra, text, JSON, schemas, demo |
+| v0.1.1 | make PR annotations easy | GitHub reporter, pre-commit metadata, CI docs |
+| v0.1.2 | catch configured dimension mistakes | dimension engine and config |
+| v0.1.3 | support LaTeX source files | LaTeX containers, labels, references |
+| v0.1.4 | support notebook Markdown cells | `.ipynb` Markdown-cell scanning |
+| v0.1.5 | support code scanning | SARIF reporter and thin Action wrapper |
+| v0.2.0 | fit serious docs workflows | suppressions, presets, aliases, maybe scalar functions |
+| v0.3.0 | make equations navigable | graph JSON export |
+| v0.4.0 | catch undefined symbols and notation drift | explicit symbol directives and checks |
+| v0.5.0 | run well on books/sites | project mode, baselines, file ordering |
+| v0.9.0 | stabilize contracts | performance, compatibility, contract candidates |
+| v1.0.0 | stable scientific CI core | frozen CLI/JSON/SARIF/config/API |
 
 ## Scope rule
 
