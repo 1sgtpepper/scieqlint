@@ -84,9 +84,11 @@ analysis order of discovered files. When no paths are passed and
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
 
-`report.show_suppressed` controls JSON output only. By default, suppressed
-diagnostics are hidden from JSON diagnostics and summary counts. Set it to
-`true` to include suppressed diagnostics with their suppression state and reason.
+`report.show_suppressed` controls text and JSON output. By default, suppressed
+diagnostics are hidden from text output, JSON diagnostics, and JSON summary
+counts. Set it to `true` to include suppressed diagnostics with their
+suppression state and reason. GitHub annotations and SARIF omit suppressed
+diagnostics.
 
 ## Dimension config
 
@@ -141,10 +143,10 @@ files = ["scieqlint-baseline.json"]
 
 Baseline files use the same diagnostic fields as JSON output. Relative baseline
 file paths resolve from `project.root`. Diagnostics that match by stable
-identity are marked `suppressed`, do not affect exit status, and remain visible
-in JSON and text output. New diagnostics that are not present in a baseline
-remain unsuppressed. Baselines apply to path-based checks; the
-already-loaded-document API does not read baseline files.
+identity are marked `suppressed` with reason `baseline` and do not affect exit
+status. New diagnostics that are not present in a baseline remain unsuppressed.
+Baselines apply to path-based checks; the already-loaded-document API does not
+read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 

@@ -46,6 +46,7 @@ nav:
       - v0.1.5 tag: releases/v0.1.5-tag-checklist.md
       - v1.0.0: releases/v1.0.0-checklist.md
       - v1.0.0 stabilization: releases/v1.0.0-stabilization-checklist.md
+      - v1.0.0 contract readiness: releases/v1.0.0-contract-readiness.md
   - Security: security.md
 
 markdown_extensions:

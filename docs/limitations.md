@@ -3,7 +3,7 @@
 This page records the file formats, math grammar, scanners, and integrations
 implemented in the current release.
 
-## Current supported source files as of v0.1.5
+## Current supported source files
 
 | Format | Status |
 |---|---|
@@ -52,12 +52,15 @@ E = mc^2
 
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
 
-## Current integration outputs as of v0.1.5
+## Current integration outputs
 
 - text
 - json
 - github
 - sarif
+
+`scieqlint graph` exports deterministic JSON graph data for supported equation
+labels and references.
 
 ## Suppression comments
 
@@ -71,8 +74,14 @@ SciEqLint supports narrow source suppressions for Markdown and LaTeX:
 % scieqlint-disable-current-block ALG001
 ```
 
-Suppressed diagnostics do not affect the CLI exit code and are hidden from text,
-GitHub annotation, and SARIF output. Unknown suppression codes emit `SUP001`.
+Suppressed diagnostics do not affect the CLI exit code. They are hidden from
+text and JSON output by default, can be included in text and JSON with
+`report.show_suppressed = true`, and are omitted from GitHub annotation and
+SARIF output. Unknown suppression codes emit `SUP001`.
+
+Diagnostic baselines mark matching diagnostics as suppressed for path-based
+checks. Baselines are deterministic JSON files that use the same diagnostic
+identity fields as JSON output; they do not apply to `check_documents()`.
 
 ## v0.1.3 LaTeX source subset
 
