@@ -29,6 +29,7 @@ Release notes must use these sections:
   symbol-table checks.
 - Opt-in undefined-symbol diagnostics from explicit symbol directives.
 - Project file ordering for deterministic cross-file checks.
+- Diagnostic baselines for known findings in repeated CI runs.
 
 ## v0.1.5 - 2026-06-08
 

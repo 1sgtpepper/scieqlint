@@ -25,8 +25,10 @@ class TextReporter:
         for diagnostic in diagnostics:
             span = diagnostic.span
             location = "<unknown>" if span is None else f"{span.path}:{span.line}:{span.col}"
+            status = " suppressed" if diagnostic.suppressed else ""
             lines.append(
-                f"{location}: {diagnostic.severity.value} {diagnostic.code} {diagnostic.message}"
+                f"{location}:{status} {diagnostic.severity.value} "
+                f"{diagnostic.code} {diagnostic.message}"
             )
             if diagnostic.detail:
                 lines.append(f"  detail: {diagnostic.detail}")

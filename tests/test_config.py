@@ -165,6 +165,15 @@ def test_load_config_accepts_project_order(tmp_path) -> None:
     assert config.project.order == ("symbols.md", "chapters/**/*.md")
 
 
+def test_load_config_accepts_baseline_files(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[baseline]\nfiles = ["scieqlint-baseline.json"]\n', encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.baseline.files == ("scieqlint-baseline.json",)
+
+
 def test_load_config_rejects_non_table_sections(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('scanner = "enabled"\n', encoding="utf-8")
@@ -218,6 +227,14 @@ def test_load_config_rejects_non_string_project_root(tmp_path) -> None:
     config_path.write_text("[project]\nroot = 1\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="root must be a string"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_string_baseline_files(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text("[baseline]\nfiles = [1]\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="files must be a list of strings"):
         load_config(config_path)
 
 

@@ -126,6 +126,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/config/presets.py`
 - `src/scieqlint/config/validate.py`
 - `src/scieqlint/diag/__init__.py`
+- `src/scieqlint/diag/baseline.py`
 - `src/scieqlint/diag/catalog.py`
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/examples/__init__.py`
@@ -198,6 +199,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_algebra.py`
 - `tests/test_api.py`
 - `tests/test_ast_print.py`
+- `tests/test_baseline.py`
 - `tests/test_cli.py`
 - `tests/test_config.py`
 - `tests/test_diagnostic_catalog.py`

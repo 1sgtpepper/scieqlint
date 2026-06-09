@@ -185,7 +185,7 @@ def _apply_to_diagnostic(
     if diagnostic.span is None:
         return diagnostic
     if any(_matches(diagnostic, suppression) for suppression in suppressions):
-        return replace(diagnostic, suppressed=True)
+        return replace(diagnostic, suppressed=True, suppression_reason="source comment")
     return diagnostic
 
 

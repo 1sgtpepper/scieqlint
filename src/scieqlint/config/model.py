@@ -41,6 +41,11 @@ class ProjectConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class BaselineConfig:
+    files: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class AlgebraConfig:
     enabled: bool = True
 
@@ -98,6 +103,7 @@ class Config:
 
     path: PurePosixPath | None = None
     project: ProjectConfig = field(default_factory=ProjectConfig)
+    baseline: BaselineConfig = field(default_factory=BaselineConfig)
     scanner: ScannerConfig = field(default_factory=ScannerConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
     checks: ChecksConfig = field(default_factory=ChecksConfig)

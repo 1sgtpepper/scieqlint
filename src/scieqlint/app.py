@@ -15,6 +15,11 @@ from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
+from scieqlint.diag.baseline import (
+    BaselineIdentity,
+    apply_baseline,
+    baseline_identities_from_json,
+)
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.graph.export import build_graph
@@ -45,7 +50,7 @@ def check_paths(
     )
     project_root = _project_root(config)
     discovered = _discover_files(
-        _input_paths(paths, project_root),
+        _input_paths(paths, config, project_root),
         config.ignore.files,
         config.project.order,
         project_root=project_root,
@@ -77,8 +82,10 @@ def check_paths(
         )
 
     result = check_documents(documents, config=config)
+    diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
+    diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, project_root))
     return CheckResult(
-        diagnostics=tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key)),
+        diagnostics=diagnostics_result,
         files_checked=len(discovered),
         math_blocks_checked=result.math_blocks_checked,
         config_path=config.path,
@@ -283,11 +290,14 @@ def _is_ignored(
 
 def _input_paths(
     paths: Sequence[Path | str],
+    config: Config,
     project_root: Path,
 ) -> tuple[Path | str, ...]:
     if paths:
         return tuple(paths)
-    return (project_root,)
+    if config.project.order:
+        return tuple(project_root / pattern for pattern in config.project.order)
+    return (Path("."),)
 
 
 def _project_root(config: Config) -> Path:
@@ -320,6 +330,16 @@ def _project_relative_path(path: Path, project_root: Path | None) -> str:
         except ValueError:
             pass
     return _display_path(path, absolute_paths=False).as_posix()
+
+
+def _load_baselines(config: Config, project_root: Path) -> frozenset[BaselineIdentity]:
+    identities: set[BaselineIdentity] = set()
+    for raw in config.baseline.files:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = project_root / path
+        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
+    return frozenset(identities)
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:
