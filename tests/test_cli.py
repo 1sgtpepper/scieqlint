@@ -5,6 +5,8 @@ import json
 from click.testing import CliRunner
 
 from scieqlint.cli import main
+from scieqlint.config.load import load_config
+from scieqlint.config.presets import read_preset_text
 
 
 def test_help() -> None:
@@ -418,6 +420,49 @@ def test_init_writes_default_config(tmp_path) -> None:
     assert "[checks.dimension]" in config.read_text(encoding="utf-8")
 
 
+def test_presets_list_reports_packaged_presets() -> None:
+    result = CliRunner().invoke(main, ["presets", "list"])
+
+    assert result.exit_code == 0
+    assert result.output == "mechanics\n"
+
+
+def test_presets_show_reports_packaged_preset() -> None:
+    result = CliRunner().invoke(main, ["presets", "show", "mechanics"])
+
+    assert result.exit_code == 0
+    assert result.output == read_preset_text("mechanics")
+
+
+def test_presets_show_rejects_invalid_preset_name() -> None:
+    result = CliRunner().invoke(main, ["presets", "show", "../mechanics"])
+
+    assert result.exit_code == 1
+    assert "unknown preset: ../mechanics" in result.output
+
+
+def test_init_writes_packaged_preset_config(tmp_path) -> None:
+    config = tmp_path / "mechanics.toml"
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config), "--preset", "mechanics"])
+
+    assert result.exit_code == 0
+    assert "wrote" in result.output
+    assert config.read_text(encoding="utf-8") == read_preset_text("mechanics")
+    loaded = load_config(config)
+    assert loaded.checks.dimension.mode == "on"
+
+
+def test_init_with_preset_rejects_unknown_preset_without_writing(tmp_path) -> None:
+    config = tmp_path / "scieqlint.toml"
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config), "--preset", "unknown"])
+
+    assert result.exit_code == 1
+    assert "unknown preset: unknown" in result.output
+    assert not config.exists()
+
+
 def test_init_refuses_to_overwrite_existing_config(tmp_path) -> None:
     config = tmp_path / "scieqlint.toml"
     config.write_text("[scanner]\n", encoding="utf-8")
@@ -426,6 +471,17 @@ def test_init_refuses_to_overwrite_existing_config(tmp_path) -> None:
 
     assert result.exit_code == 1
     assert "config already exists" in result.output
+
+
+def test_init_with_preset_refuses_to_overwrite_existing_config(tmp_path) -> None:
+    config = tmp_path / "scieqlint.toml"
+    config.write_text("[scanner]\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config), "--preset", "mechanics"])
+
+    assert result.exit_code == 1
+    assert "config already exists" in result.output
+    assert config.read_text(encoding="utf-8") == "[scanner]\n"
 
 
 def test_explain_reports_known_diagnostic() -> None:
