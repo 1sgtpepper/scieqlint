@@ -95,6 +95,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `docs/releases/v0.1.5-checklist.md`
 - `docs/releases/v0.1.5-tag-checklist.md`
 - `docs/releases/v1.0.0-checklist.md`
+- `docs/releases/v1.0.0-stabilization-checklist.md`
 - `docs/security.md`
 - `examples/bad/famous_bad.md`
 - `examples/bad/myst_bad.md`
@@ -225,4 +226,5 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_report_text.py`
 - `tests/test_sarif_workflow.py`
 - `tests/test_source.py`
+- `tests/test_stabilization.py`
 - `tests/test_symbols.py`

@@ -31,6 +31,11 @@ Release notes must use these sections:
 - Project file ordering for deterministic cross-file checks.
 - Diagnostic baselines for known findings in repeated CI runs.
 
+### Changed
+
+- CI test coverage now runs across the declared Python 3.11, 3.12, and 3.13
+  compatibility matrix.
+
 ## v0.1.5 - 2026-06-08
 
 ### Added

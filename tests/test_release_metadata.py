@@ -30,6 +30,32 @@ def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     assert "password:" not in workflow
 
 
+def test_ci_test_matrix_covers_declared_python_versions() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+    declared_versions = sorted(
+        classifier.rsplit(" :: ", 1)[1]
+        for classifier in project["classifiers"]
+        if classifier.startswith("Programming Language :: Python :: 3.")
+    )
+
+    matrix_line = next(
+        line.strip()
+        for line in workflow.splitlines()
+        if line.strip().startswith("python-version: [")
+    )
+
+    assert declared_versions == ["3.11", "3.12", "3.13"]
+    for version in declared_versions:
+        assert f'"{version}"' in matrix_line
+    assert "python-version: ${{ matrix.python-version }}" in workflow
+    assert "if: matrix.python-version == '3.11'" in workflow
+    assert re.search(
+        r"(?m)^  test:\n    name: test\n    runs-on: ubuntu-latest\n    needs: test-matrix",
+        workflow,
+    )
+
+
 def _assigned_string(tree: ast.Module, name: str) -> str:
     for node in tree.body:
         if isinstance(node, ast.Assign):
