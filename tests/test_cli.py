@@ -16,7 +16,12 @@ def test_help() -> None:
 def test_check_help_lists_v010_flags() -> None:
     result = CliRunner().invoke(main, ["check", "--help"])
     assert result.exit_code == 0
-    for option in ["--no-algebra", "--inline-math", "--strict-unknowns", "--absolute-paths"]:
+    for option in [
+        "--no-algebra",
+        "--inline-math",
+        "--strict-unknowns",
+        "--absolute-paths",
+    ]:
         assert option in result.output
     assert "github" in result.output
 
@@ -208,7 +213,10 @@ def test_latex_suppression_outside_block_does_not_suppress_later_block(tmp_path)
 
 def test_check_discovers_latex_source_files(tmp_path) -> None:
     doc = tmp_path / "paper.tex"
-    doc.write_text("\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n", encoding="utf-8")
+    doc.write_text(
+        "\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n",
+        encoding="utf-8",
+    )
 
     result = CliRunner().invoke(main, ["check", str(tmp_path)])
 
