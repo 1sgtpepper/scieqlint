@@ -18,6 +18,8 @@ Release notes must use these sections:
 
 - Markdown and LaTeX suppression comments for known diagnostic codes, with
   `SUP001` warnings for unknown suppression codes.
+- Configured JSON output can include suppressed diagnostics with suppression
+  state and reason.
 
 ## v0.1.5 - 2026-06-08
 

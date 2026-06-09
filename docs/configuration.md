@@ -47,12 +47,19 @@ unknown_variables = "warn"
 
 [ignore]
 files = []
+
+[report]
+show_suppressed = false
 ```
 
 `ignore.files` accepts POSIX-style glob patterns. Discovered files are matched
 against both their path relative to the current working directory, when possible,
 and their resolved absolute path. Explicitly passed files are still checked even
 when they match an ignore pattern.
+
+`report.show_suppressed` controls JSON output only. By default, suppressed
+diagnostics are hidden from JSON diagnostics and summary counts. Set it to
+`true` to include suppressed diagnostics with their suppression state and reason.
 
 ## Dimension config
 

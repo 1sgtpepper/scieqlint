@@ -47,6 +47,9 @@ unknown_variables = "warn"
 
 [ignore]
 files = []
+
+[report]
+show_suppressed = false
 """
 
 

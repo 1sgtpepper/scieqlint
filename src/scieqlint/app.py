@@ -74,6 +74,7 @@ def check_paths(
         math_blocks_checked=result.math_blocks_checked,
         config_path=config.path,
         version=__version__,
+        show_suppressed=config.report.show_suppressed,
     )
 
 
@@ -132,6 +133,7 @@ def check_documents(
         math_blocks_checked=len(blocks),
         config_path=config.path,
         version=__version__,
+        show_suppressed=config.report.show_suppressed,
     )
 
 

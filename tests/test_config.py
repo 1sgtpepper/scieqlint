@@ -66,6 +66,15 @@ def test_load_config_accepts_ignore_files(tmp_path) -> None:
     assert config.ignore.files == ("examples/bad/**",)
 
 
+def test_load_config_accepts_report_show_suppressed(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.report.show_suppressed is True
+
+
 def test_load_config_rejects_non_table_sections(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('scanner = "enabled"\n', encoding="utf-8")
@@ -79,6 +88,14 @@ def test_load_config_rejects_non_bool_scanner_settings(tmp_path) -> None:
     config_path.write_text('[scanner]\nmarkdown = "yes"\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="markdown must be true or false"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_bool_report_show_suppressed(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[report]\nshow_suppressed = "yes"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="show_suppressed must be true or false"):
         load_config(config_path)
 
 
