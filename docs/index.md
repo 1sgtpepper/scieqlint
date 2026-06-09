@@ -1,10 +1,11 @@
 # SciEqLint
 
-SciEqLint catches exact scalar algebra mistakes and broken equation references in a documented subset of scientific documents.
+SciEqLint checks documented scientific document formats for exact scalar algebra
+mistakes and broken equation references.
 
-It is intentionally narrow. Unsupported math is reported as unknown or skipped. The checker does not guess.
+Unsupported math is reported as unknown or skipped. The checker does not guess.
 
-## First public wedge
+## Example diagnostics
 
 ```md
 $$

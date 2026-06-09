@@ -9,8 +9,8 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kuhai9801/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/Kuhai9801/scieqlint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-SciEqLint catches exact scalar algebra mistakes and broken equation references in a
-documented subset of scientific documents.
+SciEqLint checks documented scientific document formats for exact scalar algebra
+mistakes and broken equation references.
 
 Run it on Markdown/MyST docs before review to catch mistakes like this:
 
@@ -65,7 +65,7 @@ scieqlint explain CODE
 python -m scieqlint --help
 ```
 
-## Project promise
+## Deterministic output
 
 SciEqLint is deterministic. Given the same files, config, and version, it must emit
 the same diagnostics in the same order. Supported math is checked exactly.
@@ -76,7 +76,8 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 SciEqLint checks `.md`, `.markdown`, `.tex`, and `.ipynb` documents. It supports
 Markdown/MyST display math, supported LaTeX containers, notebook Markdown cells,
 labels and references, simple scalar algebra, text output, deterministic JSON output,
-SARIF, and JSON Schema validation. See `docs/limitations.md` for the supported subset.
+SARIF, and JSON Schema validation. See `docs/limitations.md` for the exact
+scanner and grammar coverage.
 
 Current release target: v0.1.5.
 

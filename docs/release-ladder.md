@@ -1,6 +1,6 @@
 # Roadmap
 
-SciEqLint grows by narrow, release-gated slices. Scope is cut before a release absorbs unrelated features. Release order changes only for correctness, security, packaging, or trust defects.
+SciEqLint grows by scoped release slices. Release order changes only for correctness, security, packaging, or compatibility defects.
 
 ## Release ladder
 
@@ -24,8 +24,8 @@ SciEqLint grows by narrow, release-gated slices. Scope is cut before a release a
 
 At the start of each release, every issue must be marked as one of:
 
-- `required`: needed for the release promise,
-- `cuttable`: may be deferred without breaking the promise,
-- `forbidden`: belongs to a later release.
+- `required`: needed for the release scope,
+- `cuttable`: may be deferred without breaking the release scope,
+- `later`: belongs to a later release.
 
-A release must not absorb the next release's features to feel bigger.
+A release keeps unrelated surfaces outside the active release scope.

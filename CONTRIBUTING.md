@@ -1,12 +1,10 @@
 # Contributing to SciEqLint
 
-Thank you for helping make scientific writing tooling more reliable.
-
-SciEqLint has one contributor rule above all others: keep changes narrow. The project earns trust by shipping exact, deterministic behavior in small slices.
+SciEqLint changes are scoped by release, layer, and test surface.
 
 ## Start here
 
-1. Read `README.md` for the project promise.
+1. Read `README.md` for the project summary.
 2. Read the first sections of `SPEC.md`: product contract, release ladder, v0.1.0 scope, data contracts, parser/algebra boundaries, reporters, testing, and release checklist.
 3. Pick an issue from `GOOD_FIRST_ISSUES.md` or a GitHub issue labeled `good first issue`, `good second issue`, or `help wanted`.
 4. Run the local quality loop before opening a PR.

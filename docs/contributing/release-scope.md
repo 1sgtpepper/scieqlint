@@ -4,6 +4,6 @@ Each release has three outcomes at the deadline:
 
 1. ship if release checks pass,
 2. cut unfinished optional scope and ship,
-3. do not ship if correctness, security, or packaging trust is broken.
+3. hold release if correctness, security, or packaging checks fail.
 
-Do not move features forward just because they are interesting. Do not absorb next-release work to make a release feel bigger.
+Keep unrelated surfaces outside the active release scope.

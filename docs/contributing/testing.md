@@ -1,6 +1,6 @@
 # Testing
 
-Tests protect trust, not just code coverage.
+Tests protect documented behavior, not just code coverage.
 
 ## Test types
 

@@ -1,8 +1,7 @@
 # Limitations
 
-Limitations are part of SciEqLint's trust model.
-
-SciEqLint checks a supported subset. It is not a theorem prover, a full CAS, a LaTeX compiler, a Sphinx/Jupyter Book build validator, or a notebook execution system.
+This page records the file formats, math grammar, scanners, and integrations
+implemented in the current release.
 
 ## Current supported source files as of v0.1.5
 
@@ -45,11 +44,11 @@ E = mc^2
 | integer powers | supported |
 | `\frac{a}{b}` | supported |
 | `\sqrt{x}` | supported when exact handling is possible |
-| trig/log/exp | unsupported until later optional scope |
-| integrals/derivatives/limits | unsupported |
-| matrices/vectors/tensors | unsupported |
-| non-integer powers except `sqrt` | unsupported |
-| user TeX macros | unsupported |
+| trig/log/exp | deferred |
+| integrals/derivatives/limits | deferred |
+| matrices/vectors/tensors | deferred |
+| non-integer powers except `sqrt` | deferred |
+| user TeX macros | deferred |
 
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
 
@@ -71,12 +70,7 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 
 For `align`, rows are split on unescaped `\\` and alignment markers are removed before
 equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
-for reference checks. LaTeX macro expansion and full environment parsing are out of
-scope.
-
-## Why unknown is good
-
-A small exact checker that says “unknown” honestly is better than a broad checker that guesses. Unknown means SciEqLint did not prove the equation false within the supported subset.
+for reference checks. LaTeX macro expansion and full environment parsing are deferred.
 
 ## Dimensions
 
@@ -84,7 +78,7 @@ Dimensions are quiet without config. v0.1.2 adds configured dimension checking; 
 
 ## Notebooks
 
-Notebooks are never executed. v0.1.4 scans Markdown cells only, preserves notebook
+Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
 cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
 or `INP002` input diagnostics for malformed notebook inputs. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.

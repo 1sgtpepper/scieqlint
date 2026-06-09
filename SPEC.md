@@ -5,86 +5,60 @@ Package: `scieqlint`
 CLI: `scieqlint`  
 Python: 3.11+  
 Default license: MIT  
-Spec status: polished implementation input with OSS contributor pass  
+Spec status: implementation reference  
 Supersedes: v10 and v11 draft  
-Primary change: v0.1 is narrowed to the smallest credible public wedge; later capabilities are split into scoped releases with explicit cut rules.
-Contributor pass: adds a first-class onboarding path, issue taxonomy, PR flow, maintainer review expectations, and starter issue map.
+Primary change: v0.1 is scoped to Markdown/MyST equation diagnostics, with later capabilities split by scanner, checker, and reporter surface.
 
 SciEqLint is a deterministic quality linter for scientific documents. It scans supported writing formats, extracts supported equation markup, checks exact scalar algebra where possible, validates equation labels and references, and reports stable diagnostics for local use, CI, JSON API consumers, and later editor integrations.
 
-The product wedge is deliberately small:
+Initial releases implement Markdown/MyST equation diagnostics, reference validation, deterministic output, and documented scanner boundaries.
 
-> First win: catch obviously false scalar equations and broken equation references in Markdown/MyST scientific docs before review.
-
-Everything else is sequenced after that first win. This document is intentionally strict about release boundaries: the project earns trust by shipping narrow, exact capabilities, not by claiming broad mathematical coverage early.
-
-Recommended reading order for implementers: product contract, release ladder, v0.1.0 scope, data contracts, parser/algebra boundaries, reporters, testing, and release checklist.
-
-Recommended reading order for new contributors: README first screen, contributor quickstart, issue labels, first ten issues, narrow PR rules, tests/golden outputs, and limitations page.
-
-Complete pack note: this repository tracks the full release ladder through v1.0.0. The current implementation covers the v0.1.5 analyzer slice behind fixtures, docs, CI, and acceptance gates; later roadmap items remain explicitly scoped below.
+Complete pack note: this repository tracks the release ladder through v1.0.0. The current implementation covers the v0.1.5 analyzer slice behind fixtures, docs, CI, and release checks.
 
 ---
 
-## 0. Decision record
+## 0. Release partition
 
-v10 was strong but overstuffed for a first release. v11.1 keeps the core architecture and trust model, but changes release execution.
+| Area | Release |
+|---|---:|
+| Markdown/MyST display math | v0.1.0 |
+| Equation labels/references | v0.1.0 |
+| Minimal parser + algebra | v0.1.0 |
+| Text + JSON reporters | v0.1.0 |
+| JSON Schema | v0.1.0 |
+| GitHub annotations | v0.1.1 |
+| pre-commit metadata | v0.1.1 |
+| Dimensions | v0.1.2 |
+| LaTeX scanner | v0.1.3 |
+| Notebook scanner | v0.1.4 |
+| SARIF + Action | v0.1.5 |
+| Suppressions + presets | v0.2.0 |
+| Graph export | v0.3.0 |
+| Symbols | v0.4.0 |
 
-### Major scope changes from v10
+### Release sequencing
 
-| Area | v10 placement | v11.1 placement | Reason |
-|---|---:|---:|---|
-| Markdown/MyST display math | v0.1 | v0.1 | Core wedge; keep. |
-| Equation labels/references | v0.1 | v0.1 | Strong zero-config value; keep. |
-| Minimal parser + algebra | v0.1 | v0.1 | Demo-defining value; keep. |
-| Text + JSON reporters | v0.1 | v0.1 | Local + automation foundation; keep. |
-| JSON Schema | v0.1 | v0.1 | Cheap enough; keeps integrations honest. |
-| GitHub annotations | v0.1 | v0.1.1 | Useful, but not required for first correctness loop. |
-| pre-commit metadata | v0.1 | v0.1.1 | Adoption polish after core proof. |
-| Dimensions | v0.1 | v0.1.2 | Valuable but config-heavy; should not distract from zero-config wedge. |
-| LaTeX scanner | v0.1 | v0.1.3 | Important, but a separate source-location problem. |
-| Notebook scanner | v0.1 | v0.1.4 | Important, but notebook cell spans deserve their own release. |
-| SARIF + Action | v0.1.1 | v0.1.5 | Keep, but after GitHub annotations, dimensions, LaTeX, notebook MVP. |
-| Suppressions + presets | v0.2 | v0.2 | Keep. |
-| Graph export | v0.3 | v0.3 | Keep. |
-| Symbols | v0.4 | v0.4 | Keep. |
-
-### Operating principle
-
-A release date does not move because a nice-to-have is unfinished. Scope is cut before the date moves. Dates move only for correctness, security, or packaging defects that would damage trust.
+Each release changes one primary surface where practical: scanner, parser, checker, reporter/schema, config, docs/governance, or packaging/CI.
 
 ---
 
-## 1. Normative language
-
-`MUST`, `MUST NOT`, `SHOULD`, and `MAY` are used as release requirements.
-
-- `MUST`: required for the named release.
-- `MUST NOT`: forbidden unless this spec changes first.
-- `SHOULD`: required unless a PR documents a reason not to.
-- `MAY`: optional.
-
-A requirement belongs to the earliest release named beside it. Later releases inherit previous requirements unless explicitly changed.
-
----
-
-## 2. Product contract
+## 1. Product contract
 
 SciEqLint is a deterministic CI linter for equations and equation-adjacent structure in scientific documents.
 
-Given the same files, config, and SciEqLint version, the tool MUST emit the same diagnostics in the same order. Supported math is checked exactly. Supported labels and references are checked deterministically. Unsupported math is reported as unknown or skipped. The checker MUST NOT guess.
+Given the same files, config, and SciEqLint version, the tool emits the same diagnostics in the same order. Supported math is checked exactly. Supported labels and references are checked deterministically. Unsupported math is reported as unknown or skipped. The checker does not guess.
 
-### Product promise
+### Core checks
 
-SciEqLint does three things well, in this order:
+SciEqLint implements these checks in release order:
 
 1. Catch equation reference mistakes that deterministic scanners can see.
 2. Catch exact scalar algebra mistakes in a deliberately small grammar.
 3. Catch configured physical-dimension mistakes once users opt into dimension metadata.
 
-### Non-negotiable trust rules
+### Runtime boundaries
 
-The checker runtime MUST NOT:
+The checker runtime does not:
 
 - make network calls,
 - execute notebooks,
@@ -95,51 +69,9 @@ The checker runtime MUST NOT:
 - silently infer unsupported math,
 - emit timestamps or machine-specific paths in JSON by default.
 
-### Anti-overclaiming rule
-
-The README, docs, diagnostics, and release notes MUST say “supported subset” instead of implying broad mathematical understanding.
-
-Bad positioning:
-
-> SciEqLint verifies scientific equations.
-
-Good positioning:
-
-> SciEqLint catches exact scalar algebra mistakes and broken equation references in a documented subset of scientific documents.
-
 ---
 
-## 3. Target users
-
-Primary early users:
-
-- Scientific Python maintainers with Markdown docs.
-- Jupyter Book and MyST authors.
-- Open textbook authors.
-- Research software engineers maintaining docs and examples.
-- Students writing Markdown reports.
-- Paper and documentation authors who want broken equation references caught before review.
-
-Secondary users after v0.1.3+:
-
-- LaTeX paper authors.
-- Lab documentation maintainers.
-- Sphinx/Jupyter Book projects with mixed Markdown, notebooks, and LaTeX.
-- CI maintainers for scientific projects.
-- Editor-extension authors consuming JSON.
-
-Not v0.x users:
-
-- Full theorem-proving projects.
-- General CAS users.
-- Tensor calculus systems.
-- PDE symbolic manipulation users.
-- Notebook execution workflows.
-- Runtime unit-checking libraries.
-
----
-
-## 4. Release ladder
+## 2. Release ladder
 
 | Release | User-facing reason | Ships |
 |---|---|---|
@@ -163,9 +95,9 @@ Each release has three possible outcomes at release review:
 
 1. Ship if release checks pass.
 2. Cut unfinished optional scope and ship.
-3. Do not ship if correctness/security/package trust is broken.
+3. Hold release if correctness, security, or packaging checks fail.
 
-A release MUST NOT absorb the next release’s features to “make the release feel bigger.”
+A release keeps unrelated surfaces unchanged unless the release checklist names the coupled change.
 
 ### Release definition of done
 
@@ -199,10 +131,10 @@ At any time, only one of these layers may be actively changing in a PR unless th
 At the start of each release, maintainers must mark every planned item as one of:
 
 - **required**: must ship for the release to be meaningful,
-- **cuttable**: may be deferred without breaking the release promise,
-- **forbidden**: belongs to a later release and must not enter the current branch.
+- **cuttable**: may be deferred without breaking the release scope,
+- **later**: belongs to a later release.
 
-The hard cut lists in this spec are the default source of truth.
+The release checklists are the default source of truth.
 
 ---
 
@@ -251,7 +183,7 @@ v0.1.0 intentionally ships only these source formats:
 - `.md`
 - `.markdown`
 
-v0.1.0 does not scan `.tex` or `.ipynb`. Discovered `.tex` and `.ipynb` files MAY be ignored quietly. Explicitly passed unsupported files SHOULD produce a clear unsupported-kind diagnostic or CLI message.
+v0.1.0 does not scan `.tex` or `.ipynb`. Discovered `.tex` and `.ipynb` files may be ignored quietly. Explicitly passed unsupported files should produce a clear unsupported-kind diagnostic or CLI message.
 
 #### v0.1.0 CLI
 
@@ -277,7 +209,7 @@ Required check options:
 --absolute-paths
 ```
 
-Not v0.1.0:
+Deferred CLI flags:
 
 ```bash
 --format github      # v0.1.1
@@ -349,7 +281,7 @@ See {numref}`energy`.
 See {numref}`Eq. %s <energy>`.
 ```
 
-Inline math is opt-in and parse failures from inline math MUST be low severity by default.
+Inline math is opt-in and parse failures from inline math must be low severity by default.
 
 #### v0.1.0 parser scope
 
@@ -392,7 +324,7 @@ Unsupported in v0.1.0:
 - user-defined TeX macros,
 - Greek alias normalization.
 
-Unsupported syntax MUST emit an unknown/skipped diagnostic, not an exception.
+Unsupported syntax must emit an unknown/skipped diagnostic, not an exception.
 
 #### v0.1.0 algebra scope
 
@@ -427,7 +359,7 @@ Checks:
 - missing supported reference targets -> `REF002` warning by default,
 - unlabeled equation blocks -> `REF003` only in strict mode.
 
-Reference checking MUST work with no config file.
+Reference checking must work with no config file.
 
 #### v0.1.0 reporters
 
@@ -445,7 +377,7 @@ examples/bad/famous_bad.md:5:1: error ALG001 algebraic identity does not hold
   detail: left - right = 2*a*b
 ```
 
-JSON output MUST be deterministic, timestamp-free, and suitable as the first automation contract.
+JSON output must be deterministic, timestamp-free, and suitable as the first automation contract.
 
 #### v0.1.0 acceptance
 
@@ -522,7 +454,7 @@ Hard cut list if late:
 3. Cut `init` polish, but not the command.
 4. Cut inline math support entirely.
 
-Do not cut:
+Required baseline:
 
 - algebra demo,
 - reference demo,
@@ -551,7 +483,7 @@ GitHub reporter maps severities:
 | warning | `warning` |
 | info | `notice` |
 
-Reporter MUST escape:
+Reporter must escape:
 
 - `%` as `%25`,
 - `\r` as `%0D`,
@@ -566,7 +498,7 @@ scieqlint check examples/bad/famous_bad.md --format github
 
 Must emit a valid annotation with file, line, column, and diagnostic title.
 
-Hard rule: v0.1.1 MUST NOT add parser, scanner, dimension, or algebra features.
+Release boundary: v0.1.1 must not add parser, scanner, dimension, or algebra features.
 
 ### 5.4 v0.1.2 — dimension MVP
 
@@ -608,7 +540,7 @@ unknown_variables = "warn"
 Rules:
 
 - `auto` runs only when `[vars]` is non-empty.
-- Zero-config mode MUST NOT emit unknown-variable dimension noise.
+- Zero-config mode must not emit unknown-variable dimension noise.
 - `on` runs and applies unknown-variable policy.
 - `off` disables dimension checks.
 
@@ -650,7 +582,7 @@ Hard cut list if late:
 2. Cut `--dimension` and `--no-dimension` CLI flags, but keep config mode.
 3. Cut detailed expression names from dimension detail output.
 
-Do not cut:
+Required baseline:
 
 - zero-config quiet behavior,
 - `DIM001`,
@@ -679,9 +611,9 @@ $$ ... $$
 \begin{align*} ... \end{align*}
 ```
 
-For `align`, scanner MUST split rows on unescaped `\\` and remove `&` alignment markers before creating `MathBlock` objects.
+For `align`, scanner must split rows on unescaped `\\` and remove `&` alignment markers before creating `MathBlock` objects.
 
-LaTeX scanner MUST ignore:
+LaTeX scanner must ignore:
 
 - verbatim environments,
 - comment-only math lines,
@@ -713,7 +645,7 @@ Hard cut list if late:
 2. Cut `$$ ... $$` in LaTeX files if ambiguity is high.
 3. Cut source-span end columns, but keep start line/column.
 
-Do not cut:
+Required baseline:
 
 - `equation` environment,
 - `\[ ... \]`,
@@ -731,7 +663,7 @@ Ships:
 - notebook cell metadata in diagnostics,
 - malformed notebook handling.
 
-Notebook scanner MUST:
+Notebook scanner must:
 
 - scan only markdown cells,
 - ignore code cells without diagnostics,
@@ -758,7 +690,7 @@ Hard cut list if late:
 1. Cut best-effort schema-warning path and only handle valid notebooks.
 2. Cut file-level line mapping.
 
-Do not cut:
+Required baseline:
 
 - no execution,
 - markdown-cell scanning,
@@ -777,7 +709,7 @@ Ships:
 - GitHub SARIF upload docs,
 - thin composite action wrapper.
 
-SARIF MUST include:
+SARIF must include:
 
 - `$schema`,
 - `version = "2.1.0"`,
@@ -798,7 +730,7 @@ Fingerprint input:
 code + "\0" + normalized path + "\0" + line/col span + "\0" + normalized equation-or-target
 ```
 
-The GitHub Action wrapper MUST be thin:
+The GitHub Action wrapper must be thin:
 
 - checkout is user responsibility,
 - set up Python,
@@ -814,11 +746,11 @@ Acceptance:
 - Result-size guard is deterministic.
 - Composite action remains a CLI wrapper.
 
-Hard rule: v0.1.5 MUST NOT change scanner, parser, algebra, reference, or dimension semantics.
+Release boundary: v0.1.5 must not change scanner, parser, algebra, reference, or dimension semantics.
 
 ### 5.8 v0.2.0 — serious docs workflow layer
 
-Goal: reduce adoption friction in real repositories after the core is trusted.
+Goal: reduce adoption friction in real repositories after the core checks stabilize.
 
 Ships, in priority order:
 
@@ -879,7 +811,7 @@ Alias conflicts are config errors.
 
 #### Optional scalar functions
 
-If included, parser MAY support:
+If included, parser may support:
 
 - `\sin`,
 - `\cos`,
@@ -910,7 +842,7 @@ Hard cut list if late:
 2. Cut aliases.
 3. Cut all but `mechanics` preset.
 
-Do not cut:
+Required baseline:
 
 - suppressions,
 - suppression visibility in JSON,
@@ -936,7 +868,7 @@ Command:
 scieqlint graph "docs/**/*.md" --output scieqlint-graph.json
 ```
 
-Graph command MUST reuse the same scanning/parsing/checking pipeline as `check`. It MUST NOT implement a parallel analyzer.
+Graph command must reuse the same scanning/parsing/checking pipeline as `check`. It must not implement a parallel analyzer.
 
 Acceptance:
 
@@ -1028,7 +960,7 @@ v1.0.0 ships only when:
 - performance budgets are met,
 - at least 100 documented equation fixtures exist.
 
-v1.0.0 MUST NOT be date-shipped if these conditions are not met.
+v1.0.0 must not be date-shipped if these conditions are not met.
 
 ---
 
@@ -1069,7 +1001,7 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 | Docs | `mkdocs`, `mkdocs-material` | v0.1.0 | strict docs build when docs site exists |
 | Build/tool env | `uv` | v0.0.1 | sync, run, build |
 
-SciEqLint MUST NOT depend on Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or TexLab in core analysis.
+SciEqLint must not depend on Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or TexLab in core analysis.
 
 ### Package layout by v0.1.0
 
@@ -1153,25 +1085,25 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 
 ### Import rules
 
-`cli` MAY import `api` and reporter selection code. It MUST NOT import scanners, parser modules, or check modules directly.
+`cli` may import `api` and reporter selection code. It must not import scanners, parser modules, or check modules directly.
 
-`api` MAY import `app`, `config`, `diag`, and public data models.
+`api` may import `app`, `config`, `diag`, and public data models.
 
-`app` MAY orchestrate `io`, `scan`, `parse`, `check`, `report`, `config`, and `diag`.
+`app` may orchestrate `io`, `scan`, `parse`, `check`, `report`, `config`, and `diag`.
 
-`scan` MAY import `io.source`, `diag.model`, and `scan.base`. It MUST NOT import `parse`, `check`, or `report`.
+`scan` may import `io.source`, `diag.model`, and `scan.base`. It must not import `parse`, `check`, or `report`.
 
-`parse` MAY import `parse.ast`, `diag.model`, and source-span types. It MUST NOT import scanners, checks, reporters, config loaders, or SymPy.
+`parse` may import `parse.ast`, `diag.model`, and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
 
-`check` MAY import `parse.ast`, `diag`, `config.model`, and `graph` when graph exists. It MUST NOT import `scan`, `io.discover`, `report`, or `cli`.
+`check` may import `parse.ast`, `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
 
-`report` MAY import `diag.model`, result models, and packaged schema metadata. It MUST NOT import `scan`, `parse`, or `check`.
+`report` may import `diag.model`, result models, and packaged schema metadata. It must not import `scan`, `parse`, or `check`.
 
-`config` MUST NOT import `cli`, `scan`, `parse`, `check`, or `report`.
+`config` must not import `cli`, `scan`, `parse`, `check`, or `report`.
 
-`io.resources` MAY use `importlib.resources` to load package data. It MUST NOT import `scan`, `parse`, `check`, `report`, or `cli`.
+`io.resources` may use `importlib.resources` to load package data. It must not import `scan`, `parse`, `check`, `report`, or `cli`.
 
-These rules MUST be enforced by import-linter no later than v0.1.0.
+These rules must be enforced by import-linter no later than v0.1.0.
 
 ---
 
@@ -1207,11 +1139,11 @@ def load_config(path: Path | str | None = None) -> Config: ...
 
 Rules:
 
-- API calls MUST NOT print to stdout/stderr.
-- API calls MUST NOT call `sys.exit`.
-- API results MUST be deterministic.
-- v0.x MAY change undocumented internals.
-- v1.0 MUST freeze documented API names, JSON schema, and diagnostic codes.
+- API calls must not print to stdout/stderr.
+- API calls must not call `sys.exit`.
+- API results must be deterministic.
+- v0.x may change undocumented internals.
+- v1.0 must freeze documented API names, JSON schema, and diagnostic codes.
 
 ---
 
@@ -1231,10 +1163,10 @@ class SourceDocument:
 
 Rules:
 
-- `text` MUST be decoded UTF-8 unless config explicitly allows replacement.
-- Newlines MUST be normalized to `\n` before scanning.
-- `path` MUST be normalized to repo-relative POSIX path where possible.
-- `display_path` MUST be stable across operating systems.
+- `text` must be decoded UTF-8 unless config explicitly allows replacement.
+- Newlines must be normalized to `\n` before scanning.
+- `path` must be normalized to repo-relative POSIX path where possible.
+- `display_path` must be stable across operating systems.
 
 `DocumentKind` values by release:
 
@@ -1254,8 +1186,8 @@ Requirements:
 
 - Offsets are Python string character offsets, not UTF-8 byte offsets.
 - Lines and columns in diagnostics are one-based.
-- `LineIndex.position(offset)` MUST be O(log n) or better.
-- `LineIndex.slice_span(start, end)` MUST preserve original line/column boundaries.
+- `LineIndex.position(offset)` must be O(log n) or better.
+- `LineIndex.slice_span(start, end)` must preserve original line/column boundaries.
 
 ### 8.3 SourceSpan
 
@@ -1314,7 +1246,7 @@ class MathContainer(Enum):
     NOTEBOOK_MARKDOWN = "notebook_markdown"
 ```
 
-`block_id` MUST be deterministic. Suggested format:
+`block_id` must be deterministic. Suggested format:
 
 ```text
 {display_path}:{line}:{col}:{container}
@@ -1360,11 +1292,11 @@ class EquationReference:
 
 Rules:
 
-- `label` and `target` MUST be normalized deterministically.
+- `label` and `target` must be normalized deterministically.
 - For Markdown links, `#eq-energy` normalizes to `eq-energy`.
-- For MyST roles such as ``{numref}`Eq. %s <energy>` ``, scanner MUST extract `energy` and preserve raw role text.
+- For MyST roles such as ``{numref}`Eq. %s <energy>` ``, scanner must extract `energy` and preserve raw role text.
 - Duplicate labels and missing references are check-level diagnostics, not scanner diagnostics.
-- Notebook labels and references MUST preserve `cell` and `cell_line` once notebooks ship.
+- Notebook labels and references must preserve `cell` and `cell_line` once notebooks ship.
 
 ### 8.6 Diagnostic
 
@@ -1391,11 +1323,11 @@ class Severity(Enum):
 
 Rules:
 
-- `message` MUST be one sentence without trailing period.
-- `detail` MAY contain computed facts such as dimensions or residuals.
-- `hint` MAY contain one actionable fix.
-- `code` MUST exist in `diag.catalog`.
-- Suppressed diagnostics MUST appear in JSON when `--show-suppressed` is enabled.
+- `message` must be one sentence without trailing period.
+- `detail` may contain computed facts such as dimensions or residuals.
+- `hint` may contain one actionable fix.
+- `code` must exist in `diag.catalog`.
+- Suppressed diagnostics must appear in JSON when `--show-suppressed` is enabled.
 
 ### 8.7 CheckResult
 
@@ -1422,7 +1354,7 @@ CLI invalid usage, invalid config, internal error, unreadable explicit file, and
 
 ### 8.8 Stable sort
 
-Diagnostics MUST be sorted by:
+Diagnostics must be sorted by:
 
 1. path,
 2. cell, treating `None` before numbers,
@@ -1431,7 +1363,7 @@ Diagnostics MUST be sorted by:
 5. code,
 6. message.
 
-This sort MUST be used before all reporters.
+This sort must be used before all reporters.
 
 ---
 
@@ -1453,11 +1385,11 @@ class ScanResult:
     diagnostics: tuple[Diagnostic, ...] = ()
 ```
 
-Scanners MUST NOT parse math expressions. They extract math text, labels, references, and spans.
+Scanners must not parse math expressions. They extract math text, labels, references, and spans.
 
-Scanners MUST preserve source locations enough for local output, GitHub annotations, JSON, and SARIF.
+Scanners must preserve source locations enough for local output, GitHub annotations, JSON, and SARIF.
 
-Scanners MUST NOT emit algebra, dimension, duplicate-label, or missing-reference diagnostics.
+Scanners must not emit algebra, dimension, duplicate-label, or missing-reference diagnostics.
 
 ---
 
@@ -1477,13 +1409,13 @@ or:
 ParseUnknown(reason: UnsupportedReason, diagnostics: tuple[Diagnostic, ...])
 ```
 
-Parser MUST NOT run algebra, dimension, or reference checks.
+Parser must not run algebra, dimension, or reference checks.
 
-Parser MUST NOT call SymPy directly. SymPy conversion belongs in `check.algebra`.
+Parser must not call SymPy directly. SymPy conversion belongs in `check.algebra`.
 
 ### AST nodes
 
-All AST nodes MUST be frozen dataclasses with slots and spans.
+All AST nodes must be frozen dataclasses with slots and spans.
 
 ```python
 class Expr: ...
@@ -1571,7 +1503,7 @@ class FunctionName(Enum):
 
 Algebra check proves or rejects scalar equalities for supported expressions.
 
-The check MUST be exact. It MUST NOT use random sampling or floating-point testing.
+The check must be exact. It must not use random sampling or floating-point testing.
 
 v0.1.0 uses SymPy through a constrained adapter.
 
@@ -1585,9 +1517,9 @@ v0.1.0 uses SymPy through a constrained adapter.
 - residual computation,
 - diagnostic detail formatting.
 
-It MUST NOT expose SymPy objects outside `check.algebra`.
+It must not expose SymPy objects outside `check.algebra`.
 
-It MUST construct SymPy expressions from SciEqLint AST nodes only. It MUST NOT pass document text, normalized TeX strings, or user-controlled expressions to `sympy.parsing.sympy_parser.parse_expr`, `sympy.parsing.latex.parse_latex`, or equivalent text parsers.
+It must construct SymPy expressions from SciEqLint AST nodes only. It must not pass document text, normalized TeX strings, or user-controlled expressions to `sympy.parsing.sympy_parser.parse_expr`, `sympy.parsing.latex.parse_latex`, or equivalent text parsers.
 
 ### Diagnostics
 
@@ -1598,7 +1530,7 @@ It MUST construct SymPy expressions from SciEqLint AST nodes only. It MUST NOT p
 | `ALG020` | v0.1.0 | info | Algebra check skipped |
 | `ALG030` | v0.1.0 | warning | Algebra check exceeded configured limit |
 
-`ALG001` detail MUST include residual when printable:
+`ALG001` detail must include residual when printable:
 
 ```text
 left - right = 2*a*b
@@ -1616,7 +1548,7 @@ left - right is nonzero; residual omitted because it exceeds display limit
 
 Dimension checking starts in v0.1.2.
 
-Dimension checking MUST be useful when configured and quiet when unconfigured.
+Dimension checking must be useful when configured and quiet when unconfigured.
 
 ### Dimension model
 
@@ -1632,7 +1564,7 @@ class DimVector:
     exponents: tuple[int, int, int, int, int, int, int]
 ```
 
-Config accepts `Theta` for temperature. Unicode `Θ` MAY be accepted as an alias in v0.2.0.
+Config accepts `Theta` for temperature. Unicode `Θ` may be accepted as an alias in v0.2.0.
 
 Dimensionless is all zeros.
 
@@ -1687,8 +1619,8 @@ Rules:
 
 - Duplicate labels emit `REF001`.
 - Missing supported reference targets emit `REF002`.
-- Strict mode MAY emit `REF003`.
-- Reference checking MUST be deterministic and zero-config.
+- Strict mode may emit `REF003`.
+- Reference checking must be deterministic and zero-config.
 - Natural-language references are not extracted in v0.x.
 
 ### Graph export
@@ -1711,7 +1643,7 @@ Graph schema example:
 
 ### Symbol table
 
-Symbol checks start in v0.4.0 and MUST be explicit. No prose inference in v0.x.
+Symbol checks start in v0.4.0 and must be explicit. No prose inference in v0.x.
 
 ---
 
@@ -1744,7 +1676,7 @@ Later codes are added only when their release starts.
 
 ### Severity override
 
-Config MAY override severity for selected codes:
+Config may override severity for selected codes:
 
 ```toml
 [severity]
@@ -1804,7 +1736,7 @@ Rules:
 - No timestamps.
 - No absolute paths unless `--absolute-paths`.
 - No color or ANSI codes.
-- JSON output MUST validate against checked-in schema artifacts in tests.
+- JSON output must validate against checked-in schema artifacts in tests.
 
 ### Reporter interface
 
@@ -1813,9 +1745,9 @@ class Reporter(Protocol):
     def render(self, result: CheckResult) -> str: ...
 ```
 
-Reporters MUST NOT mutate diagnostics.
-Reporters MUST NOT read files.
-Reporters MUST NOT run checks.
+Reporters must not mutate diagnostics.
+Reporters must not read files.
+Reporters must not run checks.
 
 ---
 
@@ -1834,10 +1766,10 @@ Search order:
 3. Parent directories until no more parents remain.
 4. Built-in defaults.
 
-Config loading MUST be deterministic.
+Config loading must be deterministic.
 
 The v0.1.5 loader does not detect VCS roots. Users that need a specific project
-boundary SHOULD pass `--config`.
+boundary should pass `--config`.
 
 ### Planned config schema
 
@@ -1917,7 +1849,7 @@ show_ignored = false
 
 Invalid config is exit code 2.
 
-Validation MUST report all detected config errors at once where practical.
+Validation must report all detected config errors at once where practical.
 
 Examples:
 
@@ -1963,7 +1895,7 @@ Exit codes:
   require_serial: true
 ```
 
-v0.1.1 hook metadata MUST target only `.md` and `.markdown`. v0.1.3 expands the pattern to include `.tex`; v0.1.4 expands it to include `.ipynb`.
+v0.1.1 hook metadata must target only `.md` and `.markdown`. v0.1.3 expands the pattern to include `.tex`; v0.1.4 expands it to include `.ipynb`.
 
 ### v0.1.5 SARIF workflow
 
@@ -1985,7 +1917,7 @@ steps:
       category: scieqlint-docs
 ```
 
-SARIF is a reporter. It MUST NOT change analysis.
+SARIF is a reporter. It must not change analysis.
 
 ---
 
@@ -2050,7 +1982,7 @@ tests/golden/github/*.txt       # v0.1.1
 tests/golden/sarif/*.json       # v0.1.5
 ```
 
-Golden tests MUST be stable across operating systems.
+Golden tests must be stable across operating systems.
 
 ### Accuracy benchmark fixtures
 
@@ -2072,9 +2004,9 @@ benchmarks/accuracy/dimensions.yml
 Rules:
 
 - Each benchmark case has input, config if needed, expected diagnostic codes, and expected pass/fail status.
-- Benchmarks MUST run in PR CI as ordinary fast tests.
-- Release notes SHOULD report benchmark count and changed expectations.
-- Benchmark cases MUST be small and license-safe.
+- Benchmarks must run in PR CI as ordinary fast tests.
+- Release notes should report benchmark count and changed expectations.
+- Benchmark cases must be small and license-safe.
 
 ### Coverage gates
 
@@ -2164,7 +2096,7 @@ A feature is not shipped until docs and fixtures demonstrate it. This rule appli
 
 ### Release checklist
 
-Every release MUST include:
+Every release must include:
 
 - release scope statement,
 - release checklist status,
@@ -2179,7 +2111,7 @@ Every release MUST include:
 - package-data verification,
 - release notes with migration notes.
 
-Release notes MUST use:
+Release notes must use:
 
 ```text
 Added
@@ -2199,7 +2131,7 @@ No vague release notes such as “various improvements.”
 
 ### Runtime security
 
-The checker runtime MUST NOT:
+The checker runtime must not:
 
 - make network calls,
 - execute notebooks,
@@ -2228,7 +2160,7 @@ Files over limit emit `INP003` warning and are skipped unless config explicitly 
 
 ### Determinism
 
-Output MUST NOT depend on:
+Output must not depend on:
 
 - filesystem traversal order,
 - dictionary insertion from external sources,
@@ -2259,7 +2191,7 @@ Performance tests are non-required until v0.4.0, then scheduled.
 
 ### README first screen
 
-README MUST show:
+README must show:
 
 1. Project name and one-line pitch.
 2. Install command.
@@ -2274,9 +2206,7 @@ No architecture wall on the first screen.
 
 ### Limitations page
 
-Limitations are a trust asset.
-
-Must include:
+Coverage documentation includes:
 
 - supported grammar table,
 - supported label/reference forms,
@@ -2285,13 +2215,13 @@ Must include:
 - unsupported examples,
 - what unknown means,
 - why dimensions are quiet without config,
-- why notebooks are not executed,
-- why unsupported math is not guessed,
-- why SciEqLint does not replace ChkTeX, latexindent, TexLab, Sphinx, or Jupyter Book.
+- notebook execution behavior,
+- unsupported math behavior,
+- related-tool boundaries for ChkTeX, latexindent, TexLab, Sphinx, and Jupyter Book.
 
 ### Diagnostic docs
 
-Every diagnostic code page/table MUST include:
+Every diagnostic code page/table must include:
 
 - code,
 - default severity,
@@ -2303,18 +2233,17 @@ Every diagnostic code page/table MUST include:
 
 ### OSS contributor experience
 
-Contributor experience is part of product quality. SciEqLint should feel approachable to a stranger who has never touched the repository, while still protecting the trust rules that make the project credible.
+Contributor documentation covers repository layout, local checks, starter issues, and review flow.
 
-The contributor promise:
+Contributor documentation includes:
 
-- a new contributor can understand the first useful product win in less than five minutes,
-- a new contributor can run the full local quality loop with one documented command group,
-- a new contributor can find a starter issue with a clear summary, affected area, change, and test notes,
-- a reviewer can reject scope creep by linking to this spec instead of debating taste,
-- a contributor never has to infer whether a change belongs to scanner, parser, checker, reporter, config, docs, or packaging,
-- a contributor never has to guess whether a feature belongs in the current release.
+- product summary,
+- local quality loop commands,
+- starter issues with affected area, change, and test notes,
+- release scope reference,
+- architecture map for scanner, parser, checker, reporter, config, docs, and packaging.
 
-By v0.0.1 the repository MUST include these top-level files:
+By v0.0.1 the repository must include these top-level files:
 
 | File | Purpose | Required by |
 |---|---|---:|
@@ -2329,7 +2258,7 @@ By v0.0.1 the repository MUST include these top-level files:
 | `.github/PULL_REQUEST_TEMPLATE.md` | contributor checklist | v0.0.1 |
 | `.github/ISSUE_TEMPLATE/*.md` | bug, feature, docs, and task issue templates | v0.0.1 |
 
-The first screen of `CONTRIBUTING.md` MUST include:
+The first screen of `CONTRIBUTING.md` must include:
 
 ```bash
 git clone https://github.com/OWNER/scieqlint.git
@@ -2341,15 +2270,15 @@ uv run ruff check .
 uv run pyright
 ```
 
-If `uv` is not installed, the file SHOULD link or point to the supported fallback command sequence using standard Python virtual environments. The fallback MUST remain a documented second path, not the primary path.
+If `uv` is not installed, the file should link or point to the supported fallback command sequence using standard Python virtual environments. The fallback must remain a documented second path, not the primary path.
 
 #### Contributor issue contract
 
-Every starter or help-wanted issue MUST include:
+Every starter or help-wanted issue must include:
 
 - summary,
 - release target,
-- scope label: `required`, `cuttable`, or `forbidden-for-now`,
+- scope label: `required`, `cuttable`, or `later-release`,
 - affected area,
 - requested change,
 - test notes when applicable,
@@ -2373,13 +2302,13 @@ Scope:
 ## Test Notes
 ```
 
-A `good first issue` MUST be solvable without making product policy decisions. It SHOULD be less than roughly 150 lines of code or docs, excluding fixtures and golden outputs. It MUST NOT require changing public JSON schema, grammar semantics, algebra behavior, release policy, or security rules unless the issue is explicitly marked `good second issue` instead.
+A `good first issue` must be solvable without making product policy decisions. It should be less than roughly 150 lines of code or docs, excluding fixtures and golden outputs. It must not require changing public JSON schema, grammar semantics, algebra behavior, release policy, or security rules unless the issue is explicitly marked `good second issue` instead.
 
-A `good second issue` MAY touch code behavior but MUST still stay narrow and name a reviewer area.
+A `good second issue` may touch code behavior but must still stay narrow and name a reviewer area.
 
 #### Label taxonomy
 
-The repository MUST define labels before the first public call for contributors.
+The repository must define labels before the first public call for contributors.
 
 Required contributor labels:
 
@@ -2435,14 +2364,14 @@ Required scope labels:
 ```text
 scope:required
 scope:cuttable
-scope:forbidden-for-now
+scope:later-release
 ```
 
-Issues marked `scope:forbidden-for-now` MUST be closed or converted to a discussion unless they document a future release idea. They MUST NOT remain in the active milestone.
+Issues marked `scope:later-release` are kept out of the active milestone.
 
 #### First ten starter issues
 
-By v0.0.1, `GOOD_FIRST_ISSUES.md` MUST include at least these ten issues, even if the tracker is not yet public:
+By v0.0.1, `GOOD_FIRST_ISSUES.md` must include at least these ten issues, even if the tracker is not yet public:
 
 | # | Title | Labels | Contributor value |
 |---:|---|---|---|
@@ -2454,52 +2383,52 @@ By v0.0.1, `GOOD_FIRST_ISSUES.md` MUST include at least these ten issues, even i
 | 6 | Add parser tests for unary signs and powers | `good second issue`, `area:parser`, `release:v0.1.0` | teaches grammar without expanding scope |
 | 7 | Add algebra golden case for famous false identity | `good first issue`, `area:algebra`, `release:v0.1.0` | anchors the product demo |
 | 8 | Add JSON reporter schema validation fixture | `good second issue`, `area:report-json`, `release:v0.1.0` | teaches automation contract |
-| 9 | Write limitations examples for unsupported functions | `good first issue`, `area:docs`, `release:v0.1.0` | reinforces anti-overclaiming |
+| 9 | Write limitations examples for unsupported functions | `good first issue`, `area:docs`, `release:v0.1.0` | reinforces parser-boundary docs |
 | 10 | Add package-resource smoke test for grammar and schemas | `good second issue`, `area:packaging`, `release:v0.1.0` | protects release quality |
 
-These are seed issues. Maintainers MAY replace them with equivalent issues, but the issue list MUST preserve the same mix: docs, fixtures, tests, CLI, scanner, parser, reporter, packaging.
+These are seed issues. Maintainers may replace them with equivalent issues, but the issue list must preserve the same mix: docs, fixtures, tests, CLI, scanner, parser, reporter, packaging.
 
 #### Contributor paths
 
-The repository SHOULD document four contributor paths:
+The repository should document four contributor paths:
 
 | Path | Best first contribution | Avoid at first |
 |---|---|---|
 | Scientific writer | limitations examples, fixture cases, README clarity | parser grammar changes |
 | Python developer | tests, CLI, config validation, reporter output | algebra semantics |
-| Math/science domain contributor | benchmark cases, unsupported examples, dimension configs | broad symbolic claims |
+| Math/science domain contributor | benchmark cases, unsupported examples, dimension configs | parser or algebra expansion |
 | CI/integration contributor | package smoke, pre-commit, GitHub reporter, SARIF fixtures | core checker behavior |
 
-Each path SHOULD have one linked starter issue.
+Each path should have one linked starter issue.
 
 #### PR flow
 
-Pull requests MUST use the template and identify the layer touched:
+Pull requests must use the template and identify the layer touched:
 
 ```text
 Layer: scanner / parser / checker / reporter-schema / config / docs / packaging-CI
 Release target: v0.1.0 / v0.1.1 / future
-Scope: required / cuttable / forbidden-for-now
+Scope: required / cuttable / later-release
 Behavior change: yes/no
 Golden output changed: yes/no
 Docs updated: yes/no
 ```
 
-A PR marked `behavior change: yes` MUST include tests. A PR marked `golden output changed: yes` MUST explain why the output changed.
+A PR marked `behavior change: yes` must include tests. A PR marked `golden output changed: yes` must explain why the output changed.
 
-Maintainers SHOULD review PRs for scope first, correctness second, and style last. Review comments SHOULD distinguish blocking requests from suggestions.
+Maintainers should review PRs for scope first, correctness second, and style last. Review comments should distinguish blocking requests from suggestions.
 
 #### Maintainer response expectations
 
-Maintainers SHOULD triage new issues with labels before deep discussion. A triaged issue has at least one area label, one release or `future` label, and one status label.
+Maintainers should triage new issues with labels before deep discussion. A triaged issue has at least one area label, one release or `future` label, and one status label.
 
-Maintainers SHOULD avoid asking contributors to expand the PR beyond the stated issue. When a PR reveals adjacent work, maintainers SHOULD ask for a follow-up issue instead of widening the PR.
+Maintainers should avoid asking contributors to expand the PR beyond the stated issue. When a PR reveals adjacent work, maintainers should ask for a follow-up issue instead of widening the PR.
 
-Maintainers MUST NOT merge drive-by broadening of parser, algebra, scanner, or reporter semantics unless the change is already in the release scope.
+Maintainers merge parser, algebra, scanner, or reporter semantic changes only when the change is already in the release scope.
 
 #### Review style
 
-Reviews SHOULD be direct, kind, and specific. Preferred review wording:
+Reviews should be direct, kind, and specific. Preferred review wording:
 
 ```text
 Blocking: this changes parser scope, which belongs to v0.2. Please remove it from this PR.
@@ -2507,11 +2436,11 @@ Non-blocking: this helper name could be clearer, but it does not need to block m
 Question: did you consider adding this as a golden fixture instead of only a unit test?
 ```
 
-Reviewers SHOULD explain project-specific constraints rather than saying only “no.” The best rejection links to one of: release ladder, trust rules, parser scope, reporter contract, or limitations page.
+Reviewers should explain project-specific constraints with links to the release ladder, parser scope, reporter contract, or limitations page.
 
 #### Documentation for contributors
 
-The docs site SHOULD include a `Contributing` section with these pages by v0.1.0:
+The docs site should include a `Contributing` section with these pages by v0.1.0:
 
 ```text
 docs/contributing/index.md
@@ -2526,7 +2455,7 @@ docs/contributing/review-guide.md
 docs/contributing/issue-guide.md
 ```
 
-The architecture map MUST be short and task-oriented. It SHOULD answer:
+The architecture map must be short and task-oriented. It should answer:
 
 - “I want to add a fixture; where do I go?”
 - “I want to add a diagnostic; what files change?”
@@ -2559,7 +2488,7 @@ v0.2.0 contributor acceptance:
 
 ### Contribution rules
 
-PRs MUST be narrow.
+PRs must be narrow.
 
 One PR should not combine:
 
@@ -2754,13 +2683,11 @@ Package:
 
 ---
 
-## 22. Final product rule
+## 22. Release contract
 
-SciEqLint should feel boringly reliable. It should also feel unusually easy to contribute to without accidentally damaging that reliability.
-
-A small exact checker that says “unknown” honestly is better than a broad checker that guesses. A narrow release that ships on time is better than a grand release that never earns trust.
-
-The v11.1 path wins by making the first public release undeniable: install it, run it on Markdown/MyST docs, catch a wrong equation or broken reference, get deterministic output, and understand exactly what was checked.
+SciEqLint releases are complete when documented behavior, fixtures, reporter output,
+and package checks agree. Unsupported math remains an explicit unknown/skipped
+diagnostic instead of an inferred result.
 
 ---
 
