@@ -117,7 +117,7 @@ def test_json_output_includes_suppressed_diagnostics_when_configured(tmp_path) -
     assert payload["summary"]["errors"] == 0
 
 
-def test_show_suppressed_config_does_not_change_text_output(tmp_path) -> None:
+def test_show_suppressed_config_includes_suppressed_text_output(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text(
@@ -132,8 +132,7 @@ def test_show_suppressed_config_does_not_change_text_output(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
 
     assert result.exit_code == 0
-    assert "ALG001" not in result.output
-    assert "found no diagnostics" in result.output
+    assert "suppressed error ALG001" in result.output
 
 
 def test_graph_outputs_json_to_stdout() -> None:

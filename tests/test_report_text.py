@@ -20,7 +20,22 @@ def test_empty_text_report_names_checked_counts() -> None:
     assert "math blocks checked: 3" in rendered
 
 
-def test_text_report_marks_suppressed_diagnostics() -> None:
+def test_text_report_hides_suppressed_diagnostics_by_default() -> None:
+    result = _suppressed_result(show_suppressed=False)
+
+    rendered = TextReporter().render(result)
+
+    assert "found no diagnostics" in rendered
+    assert "ALG001" not in rendered
+
+
+def test_text_report_marks_suppressed_diagnostics_when_enabled() -> None:
+    result = _suppressed_result(show_suppressed=True)
+
+    assert "paper.md:1:1: suppressed error ALG001" in TextReporter().render(result)
+
+
+def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
     result = CheckResult(
         diagnostics=(
             Diagnostic(
@@ -43,6 +58,6 @@ def test_text_report_marks_suppressed_diagnostics() -> None:
         math_blocks_checked=1,
         config_path=None,
         version="0.1.0",
+        show_suppressed=show_suppressed,
     )
-
-    assert "paper.md:1:1: suppressed error ALG001" in TextReporter().render(result)
+    return result

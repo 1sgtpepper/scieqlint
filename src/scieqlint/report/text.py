@@ -11,7 +11,9 @@ class TextReporter:
 
     def render(self, result: CheckResult) -> str:
         diagnostics = tuple(
-            diagnostic for diagnostic in result.diagnostics if not diagnostic.suppressed
+            diagnostic
+            for diagnostic in result.diagnostics
+            if not diagnostic.suppressed or result.show_suppressed
         )
         if not diagnostics:
             if self.quiet:
