@@ -21,7 +21,10 @@ def build_graph(
     labels_by_name: dict[str, list[EquationLabel]] = defaultdict(list)
     for label in labels:
         labels_by_name[label.label].append(label)
-    edges = [(_reference_key(reference), _reference_edge(reference, labels_by_name)) for reference in references]
+    edges = [
+        (_reference_key(reference), _reference_edge(reference, labels_by_name))
+        for reference in references
+    ]
     return Graph(
         schema_version=GRAPH_SCHEMA_VERSION,
         nodes=tuple(sorted((*equation_nodes, *reference_nodes), key=_node_key)),
@@ -109,4 +112,12 @@ def _node_key(node: GraphNode) -> tuple[str, int, int, int, str, str]:
 def _reference_key(reference: EquationReference) -> tuple[str, int, int, int, int, str, str]:
     span = reference.span
     cell = -1 if span.cell is None else span.cell
-    return (span.path.as_posix(), cell, span.line, span.col, span.start, reference.target, reference.raw)
+    return (
+        span.path.as_posix(),
+        cell,
+        span.line,
+        span.col,
+        span.start,
+        reference.target,
+        reference.raw,
+    )

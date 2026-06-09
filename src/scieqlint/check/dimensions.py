@@ -246,9 +246,7 @@ def _is_symbol_token(token: str) -> bool:
 
 
 def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
-    alias_pattern = "|".join(
-        re.escape(alias) for alias in sorted(aliases, key=len, reverse=True)
-    )
+    alias_pattern = "|".join(re.escape(alias) for alias in sorted(aliases, key=len, reverse=True))
     if not alias_pattern:
         return re.compile(TOKEN_PATTERN)
     return re.compile(f"{alias_pattern}|{TOKEN_PATTERN}")

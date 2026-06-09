@@ -37,7 +37,7 @@ def test_symbol_check_reports_use_before_explicit_definition() -> None:
 def test_symbol_check_accepts_symbols_defined_before_use_across_ordered_files() -> None:
     result = check_documents(
         [
-            _document("z-symbols.md", '<!-- scieqlint-symbol: E = energy -->\n'),
+            _document("z-symbols.md", "<!-- scieqlint-symbol: E = energy -->\n"),
             _document("a-paper.md", "$$\nE = E\n$$\n"),
         ],
         config=_symbols_config(enabled=True),
@@ -60,8 +60,8 @@ def test_symbol_check_ignores_label_text_and_tex_operators() -> None:
         [
             _document(
                 "paper.md",
-                '<!-- scieqlint-symbol: E = energy -->\n'
-                '<!-- scieqlint-symbol: m = mass -->\n'
+                "<!-- scieqlint-symbol: E = energy -->\n"
+                "<!-- scieqlint-symbol: m = mass -->\n"
                 "$$\n"
                 "\\label{eq:energy}\n"
                 "E = \\frac{m}{m}\n"

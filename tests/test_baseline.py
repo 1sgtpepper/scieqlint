@@ -125,9 +125,7 @@ def test_baseline_rejects_boolean_integer_field() -> None:
 
 def test_baseline_rejects_out_of_range_integer_field() -> None:
     with pytest.raises(ValueError, match="baseline diagnostic col must be >= 1"):
-        baseline_identities_from_json(
-            json.dumps({"diagnostics": [{"code": "ALG001", "col": 0}]})
-        )
+        baseline_identities_from_json(json.dumps({"diagnostics": [{"code": "ALG001", "col": 0}]}))
 
 
 def _diagnostic(*, detail: str | None) -> Diagnostic:
