@@ -96,9 +96,7 @@ def check_documents(
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
-    path_order = {
-        document.path.as_posix(): index for index, document in enumerate(documents)
-    }
+    path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []

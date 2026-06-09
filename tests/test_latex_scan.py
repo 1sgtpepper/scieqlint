@@ -141,7 +141,7 @@ def test_malformed_latex_symbol_directive_warns_and_verbatim_is_ignored() -> Non
         _document(
             "% scieqlint-symbol: = missing\n"
             "\\begin{verbatim}\n"
-            "% scieqlint-symbol: X = ignored, dim=\"1\"\n"
+            '% scieqlint-symbol: X = ignored, dim="1"\n'
             "\\end{verbatim}\n"
         ),
         Config(),
