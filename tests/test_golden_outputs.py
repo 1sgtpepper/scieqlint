@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import json
 from importlib import resources
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
-from scieqlint.api import check_documents, check_paths
-from scieqlint.api import graph_paths
+from scieqlint.api import check_documents, check_paths, graph_paths
 from scieqlint.config.model import Config, ReportConfig
 from scieqlint.diag.model import CheckResult
 from scieqlint.graph.json import render_graph_json
