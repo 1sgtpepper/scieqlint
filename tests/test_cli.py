@@ -82,10 +82,7 @@ def test_check_writes_output_file(tmp_path) -> None:
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
 
@@ -101,10 +98,7 @@ def test_json_output_includes_suppressed_diagnostics_when_configured(tmp_path) -
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
     config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
@@ -126,10 +120,7 @@ def test_show_suppressed_config_includes_suppressed_text_output(tmp_path) -> Non
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"
     doc.write_text(
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n"
-        "(a+b)^2 = a^2 + b^2\n"
-        "$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
         encoding="utf-8",
     )
     config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
