@@ -1031,6 +1031,7 @@ src/scieqlint/
     __init__.py
     base.py
     markdown.py
+    markdown_semantics.py
 
   parse/
     __init__.py
@@ -1044,6 +1045,7 @@ src/scieqlint/
   check/
     __init__.py
     algebra.py
+    algebra_poly.py
     references.py
 
   diag/
@@ -1070,8 +1072,12 @@ Add these modules only when their releases start:
 
 ```text
 scan/latex.py             # v0.1.3
+scan/latex_semantics.py   # v0.1.3
+scan/latex_support.py     # v0.1.3
+scan/latex_symbols.py     # v0.1.3
 scan/notebook.py          # v0.1.4
 check/dimensions.py       # v0.1.2
+check/dimensions_parser.py # v0.1.2
 check/suppressions.py     # v0.2.0
 check/symbols.py          # v0.4.0
 report/github.py          # v0.1.1

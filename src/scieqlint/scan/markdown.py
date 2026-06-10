@@ -6,21 +6,41 @@ import re
 from collections.abc import Iterable
 
 from scieqlint.config.model import Config
-from scieqlint.diag.catalog import CATALOG
-from scieqlint.diag.model import Diagnostic, SourceSpan
+from scieqlint.diag.model import Diagnostic
 from scieqlint.io.source import SourceDocument
 from scieqlint.scan.base import (
     EquationLabel,
-    EquationReference,
-    LabelSource,
     MathBlock,
     MathContainer,
-    ReferenceSource,
     ScanResult,
-    SymbolDirective,
-    SymbolDirectiveSource,
 )
-from scieqlint.scan.symbols import parse_symbol_directive
+from scieqlint.scan.markdown_semantics import (
+    block_id as _block_id,
+)
+from scieqlint.scan.markdown_semantics import (
+    display_tail_labels as _display_tail_labels,
+)
+from scieqlint.scan.markdown_semantics import (
+    in_ranges as _in_ranges,
+)
+from scieqlint.scan.markdown_semantics import (
+    myst_directive_labels as _myst_directive_labels,
+)
+from scieqlint.scan.markdown_semantics import (
+    references as _references,
+)
+from scieqlint.scan.markdown_semantics import (
+    scan_diagnostic as _scan_diagnostic,
+)
+from scieqlint.scan.markdown_semantics import (
+    span as _span,
+)
+from scieqlint.scan.markdown_semantics import (
+    symbol_directives as _symbol_directives,
+)
+from scieqlint.scan.markdown_semantics import (
+    tex_labels as _tex_labels,
+)
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
 INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
@@ -32,15 +52,6 @@ CODE_FENCE_RE = re.compile(
 FENCE_RE = re.compile(
     r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
     re.MULTILINE | re.DOTALL,
-)
-TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
-DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
-MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
-MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
-EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
-SYMBOL_DIRECTIVE_RE = re.compile(
-    r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
-    re.DOTALL,
 )
 
 
@@ -70,7 +81,7 @@ class MarkdownScanner:
             blocks.extend(_inline_blocks(document, blocks))
 
         references = tuple(_references(document))
-        symbol_directives, symbol_diagnostics = _symbol_directives(document)
+        symbol_directives, symbol_diagnostics = _symbol_directives(document, _code_spans(document))
         diagnostics.extend(symbol_diagnostics)
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
@@ -195,153 +206,3 @@ def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
         *((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text)),
         *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
     )
-
-
-def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
-    return any(start <= position < end for start, end in ranges)
-
-
-def _tex_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    for match in TEX_LABEL_RE.finditer(block.text):
-        label_start = block.span.start + match.start(1)
-        label_end = block.span.start + match.end(1)
-        yield EquationLabel(
-            label=_normalize_label(match.group(1)),
-            span=_span(document, label_start, label_end),
-            block_id=block.block_id,
-            source=LabelSource.TEX_LABEL_IN_MARKDOWN_MATH,
-        )
-
-
-def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    close_start = document.text.find("$$", block.span.end)
-    if close_start == -1:
-        return
-    tail_start = close_start + 2
-    line_end = document.text.find("\n", tail_start)
-    if line_end == -1:
-        line_end = len(document.text)
-    tail = document.text[tail_start:line_end]
-    for match in DOLLAR_LABEL_RE.finditer(tail):
-        raw = match.group(1) or match.group(2)
-        if raw is None:
-            continue
-        label_start = tail_start + match.start(1 if match.group(1) else 2)
-        label_end = tail_start + match.end(1 if match.group(1) else 2)
-        yield EquationLabel(
-            label=_normalize_label(raw),
-            span=_span(document, label_start, label_end),
-            block_id=block.block_id,
-            source=(
-                LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
-            ),
-        )
-
-
-def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    for match in MYST_LABEL_RE.finditer(block.text):
-        label_start = block.span.start + match.start("label")
-        label_end = block.span.start + match.end("label")
-        yield EquationLabel(
-            label=_normalize_label(match.group("label")),
-            span=_span(document, label_start, label_end),
-            block_id=block.block_id,
-            source=LabelSource.MYST_DIRECTIVE_LABEL,
-        )
-
-
-def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    for match in MD_LINK_RE.finditer(document.text):
-        target = _normalize_label(match.group("target"))
-        yield EquationReference(
-            target=target,
-            span=_span(document, match.start("target"), match.end("target")),
-            raw=match.group(0),
-            source=ReferenceSource.MARKDOWN_ANCHOR,
-        )
-    for match in EQ_ROLE_RE.finditer(document.text):
-        role = match.group("role")
-        body = match.group("body")
-        target = _extract_role_target(body)
-        source = ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
-        target_start = match.start("body") + body.rfind(target)
-        yield EquationReference(
-            target=_normalize_label(target),
-            span=_span(document, target_start, target_start + len(target)),
-            raw=match.group(0),
-            source=source,
-        )
-
-
-def _symbol_directives(
-    document: SourceDocument,
-) -> tuple[tuple[SymbolDirective, ...], tuple[Diagnostic, ...]]:
-    occupied = _code_spans(document)
-    directives: list[SymbolDirective] = []
-    diagnostics: list[Diagnostic] = []
-    for match in SYMBOL_DIRECTIVE_RE.finditer(document.text):
-        if _in_ranges(match.start(), occupied):
-            continue
-        directive, diagnostic = parse_symbol_directive(
-            body=match.group("body"),
-            raw=match.group(0),
-            span=_span(document, match.start(), match.end()),
-            source=SymbolDirectiveSource.MARKDOWN_COMMENT,
-            make_span=lambda start, end: _span(document, start, end),
-            body_start=match.start("body"),
-        )
-        if directive is not None:
-            directives.append(directive)
-        if diagnostic is not None:
-            diagnostics.append(diagnostic)
-    return (
-        tuple(sorted(directives, key=lambda directive: directive.span.start)),
-        tuple(sorted(diagnostics, key=_diagnostic_key)),
-    )
-
-
-def _extract_role_target(body: str) -> str:
-    angle = re.search(r"<([^<>]+)>\s*$", body)
-    return angle.group(1).strip() if angle else body.strip()
-
-
-def _normalize_label(value: str) -> str:
-    value = value.strip()
-    return value[1:] if value.startswith("#") else value
-
-
-def _block_id(
-    document: SourceDocument,
-    span: SourceSpan,
-    container: MathContainer,
-) -> str:
-    return f"{document.display_path}:{span.line}:{span.col}:{container.value}"
-
-
-def _span(document: SourceDocument, start: int, end: int) -> SourceSpan:
-    line, col = document.line_index.position(start)
-    end_line, end_col = document.line_index.position(max(start, end - 1))
-    return SourceSpan(
-        path=document.path,
-        start=start,
-        end=end,
-        line=line,
-        col=col,
-        end_line=end_line,
-        end_col=end_col,
-    )
-
-
-def _scan_diagnostic(document: SourceDocument, start: int, end: int) -> Diagnostic:
-    info = CATALOG["SCAN001"]
-    return Diagnostic(
-        code=info.code,
-        severity=info.severity,
-        message=info.message,
-        span=_span(document, start, end),
-        rule="scanner",
-    )
-
-
-def _diagnostic_key(diagnostic: Diagnostic) -> int:
-    return diagnostic.span.start if diagnostic.span is not None else 0
