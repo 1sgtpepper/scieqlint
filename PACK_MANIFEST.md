@@ -117,7 +117,9 @@ tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 - `src/scieqlint/app.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
+- `src/scieqlint/check/algebra_poly.py`
 - `src/scieqlint/check/dimensions.py`
+- `src/scieqlint/check/dimensions_parser.py`
 - `src/scieqlint/check/references.py`
 - `src/scieqlint/check/suppressions.py`
 - `src/scieqlint/check/symbols.py`
@@ -167,7 +169,11 @@ tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 - `src/scieqlint/scan/base.py`
 - `src/scieqlint/scan/dispatch.py`
 - `src/scieqlint/scan/latex.py`
+- `src/scieqlint/scan/latex_semantics.py`
+- `src/scieqlint/scan/latex_support.py`
+- `src/scieqlint/scan/latex_symbols.py`
 - `src/scieqlint/scan/markdown.py`
+- `src/scieqlint/scan/markdown_semantics.py`
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schemas/__init__.py`
