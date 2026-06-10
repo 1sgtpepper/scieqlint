@@ -64,6 +64,21 @@ def test_tex_sqrt_requires_grouped_operand() -> None:
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
+def test_division_by_zero_reports_parse_unknown() -> None:
+    diagnostics = check_algebra(_first_block("$$\n1 / 0 = 1\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_division_by_polynomial_reports_parse_unknown() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx / (y + 1) = z\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_sqrt_non_square_expression_reports_parse_unknown() -> None:
+    diagnostics = check_algebra(_first_block("$$\n\\sqrt{x^2 + y^2} = x + y\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
 def test_assignment_with_different_symbols_is_not_treated_as_identity() -> None:
     diagnostics = check_algebra(_first_block("$$\nE = m c^2\n$$\n"))
     assert diagnostics == ()
