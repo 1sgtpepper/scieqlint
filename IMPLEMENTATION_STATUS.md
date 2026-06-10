@@ -1,8 +1,8 @@
 # Implementation Status
 
-This repository contains the complete specification and the v0.1.5 analyzer slice.
+This repository contains the complete specification and the v1.0.0 analyzer core.
 
-The included Python package is a v0.1.5 implementation. It can:
+The included Python package is a v1.0.0 implementation. It can:
 
 - install as a Python package,
 - expose `scieqlint` and `python -m scieqlint`,
@@ -15,9 +15,11 @@ The included Python package is a v0.1.5 implementation. It can:
 - check simple scalar polynomial identities,
 - check configured dimensions,
 - report duplicate equation labels and missing supported references,
+- export equation reference graphs,
+- check explicit symbol definitions,
 - provide package resources, docs, schemas, examples, and CI templates.
 
-It does not claim broad algebra, macro expansion, code-cell execution, graph export,
-theorem proving, or Sphinx/Jupyter Book build validation.
+It does not claim broad algebra, macro expansion, code-cell execution, theorem
+proving, or Sphinx/Jupyter Book build validation.
 
 The source of truth for feature readiness is `SPEC.md`, the release checklists under `docs/releases/`, golden fixtures, and the changelog.
