@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "SciEqLint contributors" }]
 keywords = ["scientific-writing", "markdown", "myst", "equations", "lint", "ci"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
@@ -140,4 +140,34 @@ forbidden_modules = [
   "scieqlint.scan",
   "scieqlint.parse",
   "scieqlint.check",
+]
+
+[[tool.importlinter.contracts]]
+name = "Scanners must not import parser/checker/reporter layers"
+type = "forbidden"
+source_modules = ["scieqlint.scan"]
+forbidden_modules = [
+  "scieqlint.parse",
+  "scieqlint.check",
+  "scieqlint.report",
+]
+
+[[tool.importlinter.contracts]]
+name = "Parser must not import scanner/checker/reporter layers"
+type = "forbidden"
+source_modules = ["scieqlint.parse"]
+forbidden_modules = [
+  "scieqlint.scan",
+  "scieqlint.check",
+  "scieqlint.report",
+]
+
+[[tool.importlinter.contracts]]
+name = "Checkers must not import CLI, app, or reporter layers"
+type = "forbidden"
+source_modules = ["scieqlint.check"]
+forbidden_modules = [
+  "scieqlint.cli",
+  "scieqlint.app",
+  "scieqlint.report",
 ]
