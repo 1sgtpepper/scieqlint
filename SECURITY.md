@@ -4,7 +4,9 @@ SciEqLint analyzes untrusted document text. Security is part of the product cont
 
 ## Supported versions
 
-Security fixes are provided for the latest released minor version during v0.x. This policy should be revisited before v1.0.0.
+Security fixes are provided for the latest released minor version. Maintainers
+may also provide fixes for earlier supported release lines when a vulnerability
+affects active downstream users.
 
 ## Reporting a vulnerability
 
@@ -31,9 +33,13 @@ The checker runtime must not:
 - evaluate Python code from documents,
 - run shell commands from the analysis core,
 - write files except explicit `--output` or `init`,
-- follow symlinks outside the project root by default,
+- follow symlinks outside the project root during project discovery,
 - read ignored files unless explicitly passed,
 - call SymPy text parsers on document content.
+
+Explicitly passed files are treated as caller-selected inputs, including when
+the explicit path is a symlink. Project discovery still skips files whose
+resolved path is outside `project.root`.
 
 ## Dependency updates
 

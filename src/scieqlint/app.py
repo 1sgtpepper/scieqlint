@@ -1,11 +1,10 @@
-"""Application orchestration layer."""
+"""Application service layer."""
 
 from __future__ import annotations
 
-import fnmatch
 from collections.abc import Sequence
 from dataclasses import replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
@@ -21,15 +20,14 @@ from scieqlint.diag.baseline import (
     baseline_identities_from_json,
 )
 from scieqlint.diag.catalog import CATALOG
-from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.diag.model import CheckResult, Diagnostic, Severity
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
-from scieqlint.io.discover import discover_files
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.load import file_start_span, load_source_document
+from scieqlint.io.project import discover_project_files, input_paths, project_root
+from scieqlint.io.source import SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
-from scieqlint.scan.latex import LatexScanner
-from scieqlint.scan.markdown import MarkdownScanner
-from scieqlint.scan.notebook import NotebookScanner
+from scieqlint.scan.dispatch import scan_document
 
 
 def check_paths(
@@ -48,19 +46,19 @@ def check_paths(
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
     )
-    project_root = _project_root(config)
-    discovered = _discover_files(
-        _input_paths(paths, config, project_root),
-        config.ignore.files,
-        config.project.order,
-        project_root=project_root,
+    root = project_root(config)
+    discovered = discover_project_files(
+        input_paths(paths, config, root),
+        ignore_patterns=config.ignore.files,
+        order_patterns=config.project.order,
+        root=root,
     )
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
 
     for path in discovered:
         try:
-            text = path.read_text(encoding="utf-8")
+            documents.append(load_source_document(path, absolute_paths=absolute_paths))
         except OSError as exc:
             info = CATALOG["INP001"]
             diagnostics.append(
@@ -68,22 +66,14 @@ def check_paths(
                     code=info.code,
                     severity=info.severity,
                     message=f"{info.message}: {path}",
-                    span=_file_start_span(path, absolute_paths=absolute_paths),
+                    span=file_start_span(path, absolute_paths=absolute_paths),
                     detail=str(exc),
                 )
             )
-            continue
-        documents.append(
-            SourceDocument.from_text(
-                _display_path(path, absolute_paths=absolute_paths),
-                text,
-                _document_kind(path),
-            )
-        )
 
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
-    diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, project_root))
+    diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, root))
     return CheckResult(
         diagnostics=diagnostics_result,
         files_checked=len(discovered),
@@ -100,9 +90,6 @@ def check_documents(
     config: Config,
 ) -> CheckResult:
     """Check already-loaded documents."""
-    scanner = MarkdownScanner()
-    latex_scanner = LatexScanner()
-    notebook_scanner = NotebookScanner()
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -111,12 +98,7 @@ def check_documents(
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
-        if document.kind is DocumentKind.LATEX:
-            scan = latex_scanner.scan(document, config)
-        elif document.kind is DocumentKind.NOTEBOOK:
-            scan = notebook_scanner.scan(document, config)
-        else:
-            scan = scanner.scan(document, config)
+        scan = scan_document(document, config)
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
         references.extend(scan.references)
@@ -171,16 +153,15 @@ def graph_paths(
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
     config = load_config(config_path)
-    discovered = _discover_files(paths or [Path(".")], config.ignore.files)
+    root = project_root(config)
+    discovered = discover_project_files(
+        paths or [Path(".")],
+        ignore_patterns=config.ignore.files,
+        root=root,
+    )
     documents: list[SourceDocument] = []
     for path in discovered:
-        documents.append(
-            SourceDocument.from_text(
-                _display_path(path, absolute_paths=False),
-                path.read_text(encoding="utf-8"),
-                _document_kind(path),
-            )
-        )
+        documents.append(load_source_document(path, absolute_paths=False))
     return graph_documents(documents, config=config)
 
 
@@ -190,18 +171,10 @@ def graph_documents(
     config: Config,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
-    scanner = MarkdownScanner()
-    latex_scanner = LatexScanner()
-    notebook_scanner = NotebookScanner()
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     for document in documents:
-        if document.kind is DocumentKind.LATEX:
-            scan = latex_scanner.scan(document, config)
-        elif document.kind is DocumentKind.NOTEBOOK:
-            scan = notebook_scanner.scan(document, config)
-        else:
-            scan = scanner.scan(document, config)
+        scan = scan_document(document, config)
         labels.extend(scan.labels)
         references.extend(scan.references)
     return build_graph(tuple(labels), tuple(references))
@@ -229,107 +202,6 @@ def _apply_overrides(
     return replace(config, scanner=scanner, checks=checks, parser=parser)
 
 
-def _discover_files(
-    paths: Sequence[Path | str],
-    ignore_patterns: tuple[str, ...],
-    order_patterns: tuple[str, ...] = (),
-    *,
-    project_root: Path | None = None,
-) -> tuple[Path, ...]:
-    explicit_files: list[Path] = []
-    discovered_inputs: list[Path | str] = []
-    for raw in paths:
-        path = Path(raw)
-        text = str(raw)
-        if not any(ch in text for ch in "*?[") and path.is_file():
-            explicit_files.append(path)
-        else:
-            discovered_inputs.append(raw)
-
-    discovered = _filter_ignored(
-        discover_files(discovered_inputs),
-        ignore_patterns,
-        project_root=project_root,
-    )
-    return tuple(
-        sorted(
-            {*explicit_files, *discovered},
-            key=lambda path: _path_key(path, order_patterns, project_root=project_root),
-        )
-    )
-
-
-def _filter_ignored(
-    paths: Sequence[Path],
-    patterns: tuple[str, ...],
-    *,
-    project_root: Path | None = None,
-) -> tuple[Path, ...]:
-    if not patterns:
-        return tuple(paths)
-    return tuple(
-        path for path in paths if not _is_ignored(path, patterns, project_root=project_root)
-    )
-
-
-def _is_ignored(
-    path: Path,
-    patterns: tuple[str, ...],
-    *,
-    project_root: Path | None = None,
-) -> bool:
-    rel = _project_relative_path(path, project_root)
-    absolute = path.resolve().as_posix()
-    return any(
-        fnmatch.fnmatchcase(rel, pattern) or fnmatch.fnmatchcase(absolute, pattern)
-        for pattern in patterns
-    )
-
-
-def _input_paths(
-    paths: Sequence[Path | str],
-    config: Config,
-    project_root: Path,
-) -> tuple[Path | str, ...]:
-    if paths:
-        return tuple(paths)
-    if config.project.order:
-        return tuple(project_root / pattern for pattern in config.project.order)
-    return (Path("."),)
-
-
-def _project_root(config: Config) -> Path:
-    root = Path(config.project.root.as_posix())
-    if root.is_absolute():
-        return root
-    if config.path is None:
-        return Path.cwd() / root
-    return Path(config.path.as_posix()).parent / root
-
-
-def _path_key(
-    path: Path,
-    order_patterns: tuple[str, ...],
-    *,
-    project_root: Path | None,
-) -> tuple[int, str]:
-    rel = _project_relative_path(path, project_root)
-    absolute = path.resolve().as_posix()
-    for index, pattern in enumerate(order_patterns):
-        if fnmatch.fnmatchcase(rel, pattern) or fnmatch.fnmatchcase(absolute, pattern):
-            return (index, path.as_posix())
-    return (len(order_patterns), path.as_posix())
-
-
-def _project_relative_path(path: Path, project_root: Path | None) -> str:
-    if project_root is not None:
-        try:
-            return path.resolve().relative_to(project_root.resolve()).as_posix()
-        except ValueError:
-            pass
-    return _display_path(path, absolute_paths=False).as_posix()
-
-
 def _load_baselines(config: Config, project_root: Path) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
     for raw in config.baseline.files:
@@ -344,38 +216,6 @@ def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:
     if diagnostic.code not in {"PARSE020", "PARSE021", "PARSE022"}:
         return diagnostic
     return replace(diagnostic, severity=Severity.ERROR)
-
-
-def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
-    if absolute_paths:
-        return PurePosixPath(path.resolve().as_posix())
-    try:
-        return PurePosixPath(path.resolve().relative_to(Path.cwd().resolve()).as_posix())
-    except ValueError:
-        return PurePosixPath(path.as_posix())
-
-
-def _document_kind(path: Path) -> DocumentKind:
-    match path.suffix.lower():
-        case ".tex":
-            return DocumentKind.LATEX
-        case ".ipynb":
-            return DocumentKind.NOTEBOOK
-        case _:
-            return DocumentKind.MARKDOWN
-
-
-def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
-    display_path = _display_path(path, absolute_paths=absolute_paths)
-    return SourceSpan(
-        path=display_path,
-        start=0,
-        end=0,
-        line=1,
-        col=1,
-        end_line=1,
-        end_col=1,
-    )
 
 
 def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, str]:

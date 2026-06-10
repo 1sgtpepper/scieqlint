@@ -1,19 +1,19 @@
 # Pack Manifest
 
 This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
-tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
+tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 
 ## Important distinction
 
 - `SPEC.md` defines the full release ladder through v1.0.0.
-- `src/scieqlint/` implements the v0.1.5 analyzer slice.
+- `src/scieqlint/` implements the v1.0.0 analyzer core.
 - Later release features still need fixtures, docs, golden outputs, and release
   acceptance gates before they are claimed.
 
 ## Validation Performed
 
 - Python compile smoke passed.
-- Pytest passed for the v0.1.5 analyzer slice.
+- Pytest passed for the v1.0.0 analyzer core.
 - Ruff and Pyright are configured in CI; run them where the full dev environment is
   available.
 
@@ -143,6 +143,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/io/__init__.py`
 - `src/scieqlint/io/discover.py`
 - `src/scieqlint/io/limits.py`
+- `src/scieqlint/io/load.py`
+- `src/scieqlint/io/project.py`
 - `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/parse/__init__.py`
@@ -163,6 +165,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/report/text.py`
 - `src/scieqlint/scan/__init__.py`
 - `src/scieqlint/scan/base.py`
+- `src/scieqlint/scan/dispatch.py`
 - `src/scieqlint/scan/latex.py`
 - `src/scieqlint/scan/markdown.py`
 - `src/scieqlint/scan/notebook.py`
@@ -203,7 +206,14 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_ast_print.py`
 - `tests/test_baseline.py`
 - `tests/test_cli.py`
+- `tests/test_cli_baseline.py`
+- `tests/test_cli_graph.py`
+- `tests/test_cli_project.py`
+- `tests/test_cli_suppressions.py`
 - `tests/test_config.py`
+- `tests/test_config_dimensions.py`
+- `tests/test_config_presets.py`
+- `tests/test_config_project.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
