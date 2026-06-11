@@ -124,6 +124,14 @@ def test_configured_dimensions_support_signed_exponents(tmp_path) -> None:
     assert result.diagnostics == ()
 
 
+def test_configured_dimensions_support_unary_signs(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = +m*a = -m*a\n$$\n", config)
+
+    assert result.diagnostics == ()
+
+
 def test_configured_addition_dimension_mismatch_reports_dim002(tmp_path) -> None:
     config = _mechanics_config(tmp_path)
 
