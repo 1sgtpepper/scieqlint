@@ -115,3 +115,7 @@ Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
 cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
 or `INP002` input diagnostics for malformed notebook inputs. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.
+Reporter locations for Markdown-cell diagnostics are cell-local: text output uses
+`path.ipynb#cell-N:line:col`, GitHub annotations stay file-level with cell detail
+in the message, and SARIF uses logical cell locations instead of physical JSON
+regions.

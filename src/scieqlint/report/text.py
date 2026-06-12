@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from scieqlint.diag.model import CheckResult
+from scieqlint.report.base import text_location
 
 
 class TextReporter:
@@ -26,7 +27,7 @@ class TextReporter:
         lines: list[str] = []
         for diagnostic in diagnostics:
             span = diagnostic.span
-            location = "<unknown>" if span is None else f"{span.path}:{span.line}:{span.col}"
+            location = "<unknown>" if span is None else text_location(span)
             status = " suppressed" if diagnostic.suppressed else ""
             lines.append(
                 f"{location}:{status} {diagnostic.severity.value} "

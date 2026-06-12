@@ -24,7 +24,9 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- Notebook Markdown-cell diagnostics now render cell-qualified text locations,
+  file-level GitHub annotations, and SARIF locations without fake physical JSON
+  regions; SARIF fingerprints now include notebook cell identity.
 
 ### Deprecated
 

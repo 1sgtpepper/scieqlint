@@ -124,6 +124,39 @@ def test_github_report_maps_info_to_notice() -> None:
     )
 
 
+def test_github_report_uses_file_level_annotation_for_notebook_cell_span() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("notes.ipynb"),
+                    start=3,
+                    end=21,
+                    line=2,
+                    col=1,
+                    end_line=2,
+                    end_col=19,
+                    cell=1,
+                    cell_line=2,
+                ),
+                detail="left - right = 2*a*b",
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    assert GitHubReporter().render(result) == (
+        "::error title=ALG001 algebraic identity does not hold,file=notes.ipynb"
+        "::cell 1 line 2: left - right = 2*a*b\n"
+    )
+
+
 def test_github_report_hides_suppressed_diagnostics() -> None:
     result = CheckResult(
         diagnostics=(

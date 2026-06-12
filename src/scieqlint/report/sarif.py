@@ -8,6 +8,7 @@ import json
 from scieqlint import __version__
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.report.base import cell_location_prefix
 
 JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
@@ -87,25 +88,33 @@ def _result(diagnostic: Diagnostic) -> JsonValue:
 
 
 def _message(diagnostic: Diagnostic) -> str:
-    if diagnostic.detail:
-        return f"{diagnostic.message}: {diagnostic.detail}"
-    return diagnostic.message
+    message = (
+        f"{diagnostic.message}: {diagnostic.detail}" if diagnostic.detail else diagnostic.message
+    )
+    if diagnostic.span is None:
+        return message
+    prefix = cell_location_prefix(diagnostic.span)
+    if prefix is None:
+        return message
+    return f"{prefix}: {message}"
 
 
 def _location(span: SourceSpan) -> JsonValue:
-    location: dict[str, JsonValue] = {
-        "physicalLocation": {
-            "artifactLocation": {
-                "uri": span.path.as_posix(),
-                "uriBaseId": "%SRCROOT%",
-            },
-            "region": {
-                "startLine": span.line,
-                "startColumn": span.col,
-                "endLine": span.end_line,
-                "endColumn": span.end_col + 1,
-            },
+    physical_location: dict[str, JsonValue] = {
+        "artifactLocation": {
+            "uri": span.path.as_posix(),
+            "uriBaseId": "%SRCROOT%",
+        },
+    }
+    if span.cell is None:
+        physical_location["region"] = {
+            "startLine": span.line,
+            "startColumn": span.col,
+            "endLine": span.end_line,
+            "endColumn": span.end_col + 1,
         }
+    location: dict[str, JsonValue] = {
+        "physicalLocation": physical_location,
     }
     if span.cell is not None:
         location["logicalLocations"] = [
@@ -120,7 +129,14 @@ def _location(span: SourceSpan) -> JsonValue:
 def _fingerprint(diagnostic: Diagnostic) -> str:
     span = diagnostic.span
     path = "" if span is None else span.path.as_posix()
-    line_col = "" if span is None else f"{span.line}:{span.col}:{span.end_line}:{span.end_col}"
+    line_col = "" if span is None else _fingerprint_location(span)
     signal = diagnostic.equation or diagnostic.detail or diagnostic.message
     payload = "\0".join([diagnostic.code, path, line_col, signal])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _fingerprint_location(span: SourceSpan) -> str:
+    location = f"{span.line}:{span.col}:{span.end_line}:{span.end_col}"
+    if span.cell is None:
+        return location
+    return f"{location}:cell:{span.cell}:{span.cell_line or ''}"

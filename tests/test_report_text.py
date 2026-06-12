@@ -35,6 +35,25 @@ def test_text_report_marks_suppressed_diagnostics_when_enabled() -> None:
     assert "paper.md:1:1: suppressed error ALG001" in TextReporter().render(result)
 
 
+def test_text_report_disambiguates_notebook_cell_locations() -> None:
+    result = CheckResult(
+        diagnostics=(
+            _notebook_diagnostic(cell=0),
+            _notebook_diagnostic(cell=1),
+        ),
+        files_checked=1,
+        math_blocks_checked=2,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    rendered = TextReporter().render(result)
+
+    assert "notes.ipynb#cell-0:2:1: error ALG001" in rendered
+    assert "notes.ipynb#cell-1:2:1: error ALG001" in rendered
+    assert "notes.ipynb:2:1: error ALG001" not in rendered
+
+
 def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
     return CheckResult(
         diagnostics=(
@@ -59,4 +78,24 @@ def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
         config_path=None,
         version="0.1.0",
         show_suppressed=show_suppressed,
+    )
+
+
+def _notebook_diagnostic(*, cell: int) -> Diagnostic:
+    return Diagnostic(
+        code="ALG001",
+        severity=Severity.ERROR,
+        message="algebraic identity does not hold",
+        span=SourceSpan(
+            path=PurePosixPath("notes.ipynb"),
+            start=3,
+            end=21,
+            line=2,
+            col=1,
+            end_line=2,
+            end_col=19,
+            cell=cell,
+            cell_line=2,
+        ),
+        detail="left - right = 2*a*b",
     )
