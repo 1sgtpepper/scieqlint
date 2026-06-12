@@ -99,6 +99,21 @@ def test_markdown_suppression_inside_code_fence_does_not_suppress(tmp_path) -> N
     assert "ALG001" in result.output
 
 
+def test_markdown_suppression_inside_unclosed_code_fence_does_not_suppress(
+    tmp_path,
+) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text(
+        "```md\n<!-- scieqlint-disable-next-line ALG001 -->\n$$(a+b)^2 = a^2 + b^2$$\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(doc)])
+
+    assert result.exit_code == 1
+    assert "ALG001" in result.output
+
+
 def test_notebook_markdown_suppression_hides_same_cell_diagnostic(tmp_path) -> None:
     doc = tmp_path / "notes.ipynb"
     doc.write_text(
@@ -122,6 +137,55 @@ def test_notebook_markdown_suppression_hides_same_cell_diagnostic(tmp_path) -> N
     assert result.exit_code == 0
     assert "ALG001" not in result.output
     assert "found no diagnostics" in result.output
+
+
+def test_notebook_suppression_skips_non_object_cells(tmp_path) -> None:
+    doc = tmp_path / "notes.ipynb"
+    doc.write_text(
+        json.dumps(
+            {
+                "cells": [
+                    "not a cell object",
+                    _markdown_cell(
+                        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+                    ),
+                ],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert [diagnostic["code"] for diagnostic in payload["diagnostics"]] == ["INP002"]
+    assert payload["diagnostics"][0]["detail"] == "cell 0 must be an object"
+
+
+def test_notebook_suppression_skips_non_list_cells(tmp_path) -> None:
+    doc = tmp_path / "notes.ipynb"
+    doc.write_text(
+        json.dumps(
+            {
+                "cells": {},
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert [diagnostic["code"] for diagnostic in payload["diagnostics"]] == ["INP002"]
+    assert payload["diagnostics"][0]["detail"] == "notebook cells must be a list"
 
 
 def test_notebook_markdown_suppression_does_not_cross_cells(tmp_path) -> None:
