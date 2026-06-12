@@ -51,4 +51,7 @@ steps:
 ```
 
 The wrapper is intentionally thin: it sets up Python, installs SciEqLint, and runs
-the CLI arguments from `args`. SARIF upload stays in `github/codeql-action/upload-sarif`.
+the CLI arguments from `args`. The `args` value is parsed with shell-like quoting
+and passed directly to `scieqlint`; shell operators and shell-side glob expansion
+are not evaluated. Keep glob patterns quoted so SciEqLint receives them. SARIF
+upload stays in `github/codeql-action/upload-sarif`.

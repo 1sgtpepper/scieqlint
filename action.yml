@@ -24,7 +24,30 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Install SciEqLint
       shell: bash
-      run: python -m pip install "scieqlint==${{ inputs.package-version }}"
+      env:
+        SCIEQLINT_PACKAGE_VERSION: ${{ inputs.package-version }}
+      run: |
+        python - <<'PY'
+        import os
+        import re
+        import subprocess
+        import sys
+
+        version = os.environ["SCIEQLINT_PACKAGE_VERSION"]
+        if not re.fullmatch(r"[A-Za-z0-9_.!+*-]+", version):
+            raise SystemExit("package-version must be a plain Python package version")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", f"scieqlint=={version}"])
+        PY
     - name: Run SciEqLint
       shell: bash
-      run: scieqlint ${{ inputs.args }}
+      env:
+        SCIEQLINT_ARGS: ${{ inputs.args }}
+      run: |
+        python - <<'PY'
+        import os
+        import shlex
+        import subprocess
+
+        args = shlex.split(os.environ["SCIEQLINT_ARGS"])
+        subprocess.check_call(["scieqlint", *args])
+        PY
