@@ -24,8 +24,26 @@ Release notes must use these sections:
 
 ### Fixed
 
+- `check` and `graph` now both apply configured project roots, ordered inputs,
+  and ignored files consistently when no explicit file paths are provided.
+- Markdown references and symbol directives inside code spans or non-math code
+  fences are ignored, and math fences now accept CommonMark-compatible longer
+  closing fences.
+- Unsupported relation-style operators such as `<=` and `\le` now emit the
+  specific `PARSE022` unsupported-operator diagnostic instead of a generic
+  skipped parse result or no algebra diagnostic.
+- Markdown suppression comments inside code spans or fenced code blocks no
+  longer suppress diagnostics from real source math.
+- Markdown suppression comments inside notebook Markdown cells now suppress only
+  diagnostics from the same cell and report unknown suppression codes with cell
+  metadata.
+- Notebook Markdown-cell diagnostics now render cell-qualified text locations,
+  file-level GitHub annotations, and SARIF locations without fake physical JSON
+  regions; SARIF fingerprints now include notebook cell identity.
 - The composite GitHub Action now installs and invokes SciEqLint without
   shell-executing `package-version` or `args` input values.
+- The SARIF upload example workflow now installs the release package version
+  used by the 1.0.0 release branch.
 
 ### Deprecated
 
