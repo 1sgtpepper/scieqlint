@@ -202,6 +202,37 @@ def test_project_order_controls_cross_file_symbol_checks_without_paths(tmp_path)
     assert payload["summary"]["files_checked"] == 2
 
 
+def test_ignore_applies_to_project_order_entries_without_paths(tmp_path) -> None:
+    root = tmp_path / "book"
+    root.mkdir()
+    ignored = root / "ignored.md"
+    config = tmp_path / "scieqlint.toml"
+    ignored.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    config.write_text(
+        "\n".join(
+            [
+                "[project]",
+                'root = "book"',
+                'order = ["ignored.md"]',
+                "",
+                "[ignore]",
+                'files = ["ignored.md"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["diagnostics"] == []
+    assert payload["summary"]["files_checked"] == 0
+
+
 def test_empty_project_order_preserves_no_path_current_directory_behavior(
     tmp_path,
     monkeypatch,
