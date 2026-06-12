@@ -24,7 +24,7 @@ TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
-EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
+EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^\n`]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -80,8 +80,13 @@ def myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterabl
         )
 
 
-def references(document: SourceDocument) -> Iterable[EquationReference]:
+def references(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...] = (),
+) -> Iterable[EquationReference]:
     for match in MD_LINK_RE.finditer(document.text):
+        if in_ranges(match.start(), occupied):
+            continue
         target = normalize_label(match.group("target"))
         yield EquationReference(
             target=target,
@@ -90,6 +95,8 @@ def references(document: SourceDocument) -> Iterable[EquationReference]:
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
+        if in_ranges(match.start(), occupied):
+            continue
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)

@@ -24,7 +24,9 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- Markdown references and symbol directives inside code spans or non-math code
+  fences are ignored, and math fences now accept CommonMark-compatible longer
+  closing fences.
 
 ### Deprecated
 

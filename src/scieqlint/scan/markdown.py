@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic
@@ -45,14 +46,16 @@ from scieqlint.scan.markdown_semantics import (
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
 INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
 INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
-CODE_FENCE_RE = re.compile(
-    r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
-    re.MULTILINE | re.DOTALL,
-)
-FENCE_RE = re.compile(
-    r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
-    re.MULTILINE | re.DOTALL,
-)
+CODE_FENCE_OPEN_RE = re.compile(r"^(?P<fence>`{3,})(?P<info>[^\n]*)$", re.MULTILINE)
+
+
+@dataclass(frozen=True, slots=True)
+class _CodeFence:
+    start: int
+    body_start: int
+    body_end: int
+    end: int
+    info: str
 
 
 class MarkdownScanner:
@@ -80,8 +83,9 @@ class MarkdownScanner:
         if config.scanner.inline_math:
             blocks.extend(_inline_blocks(document, blocks))
 
-        references = tuple(_references(document))
-        symbol_directives, symbol_diagnostics = _symbol_directives(document, _code_spans(document))
+        code_spans = _code_spans(document)
+        references = tuple(_references(document, code_spans))
+        symbol_directives, symbol_diagnostics = _symbol_directives(document, code_spans)
         diagnostics.extend(symbol_diagnostics)
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
@@ -154,11 +158,13 @@ def _find_display_close(
 
 
 def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for match in FENCE_RE.finditer(document.text):
-        body = match.group("body")
+    for fence in _closed_code_fences(document):
+        if not _is_math_fence_info(fence.info):
+            continue
+        body = document.text[fence.body_start : fence.body_end]
         text = body.strip()
-        body_start = match.start("body") + len(body) - len(body.lstrip())
-        body_end = match.start("body") + len(body.rstrip())
+        body_start = fence.body_start + len(body) - len(body.lstrip())
+        body_end = fence.body_start + len(body.rstrip())
         span = _span(document, body_start, body_end)
         yield MathBlock(
             text=text,
@@ -169,12 +175,21 @@ def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 
 
 def _unterminated_fence_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
-    closed = {(match.start(), match.end()) for match in FENCE_RE.finditer(document.text)}
-    for match in re.finditer(r"^```(?:math|\{math\})[ \t]*$", document.text, re.MULTILINE):
+    closed = {
+        (fence.start, fence.end)
+        for fence in _closed_code_fences(document)
+        if _is_math_fence_info(fence.info)
+    }
+    occupied = _non_math_code_fences(document)
+    for match in CODE_FENCE_OPEN_RE.finditer(document.text):
+        if not _is_math_fence_info(match.group("info")):
+            continue
         if any(start <= match.start() < end for start, end in closed):
             continue
-        next_close = re.search(r"^```[ \t]*$", document.text[match.end() :], re.MULTILINE)
-        if next_close is None:
+        if _in_ranges(match.start(), occupied):
+            continue
+        body_start = _fence_body_start(document.text, match.end())
+        if _find_code_fence_close(document.text, body_start, len(match.group("fence"))) is None:
             yield _scan_diagnostic(document, match.start(), match.end())
 
 
@@ -204,5 +219,58 @@ def _inline_blocks(
 def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
     return (
         *((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text)),
-        *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
+        *_non_math_code_fences(document),
     )
+
+
+def _non_math_code_fences(document: SourceDocument) -> tuple[tuple[int, int], ...]:
+    return tuple(
+        (fence.start, fence.end)
+        for fence in _closed_code_fences(document)
+        if not _is_math_fence_info(fence.info)
+    )
+
+
+def _is_math_fence_info(info: str) -> bool:
+    return info.strip() in {"math", "{math}"}
+
+
+def _closed_code_fences(document: SourceDocument) -> Iterable[_CodeFence]:
+    cursor = 0
+    while True:
+        match = CODE_FENCE_OPEN_RE.search(document.text, cursor)
+        if match is None:
+            return
+        opener_length = len(match.group("fence"))
+        body_start = _fence_body_start(document.text, match.end())
+        close = _find_code_fence_close(document.text, body_start, opener_length)
+        if close is None:
+            cursor = body_start
+            continue
+        close_start, close_end = close
+        yield _CodeFence(
+            start=match.start(),
+            body_start=body_start,
+            body_end=close_start,
+            end=close_end,
+            info=match.group("info"),
+        )
+        cursor = close_end
+
+
+def _fence_body_start(text: str, opening_line_end: int) -> int:
+    if opening_line_end < len(text) and text[opening_line_end] == "\n":
+        return opening_line_end + 1
+    return opening_line_end
+
+
+def _find_code_fence_close(
+    text: str,
+    start: int,
+    opener_length: int,
+) -> tuple[int, int] | None:
+    close_re = re.compile(rf"^`{{{opener_length},}}[ \t]*$", re.MULTILINE)
+    match = close_re.search(text, start)
+    if match is None:
+        return None
+    return (match.start(), match.end())

@@ -38,6 +38,13 @@ def test_existing_reference_is_quiet() -> None:
     assert check_references(scan.labels, scan.references) == ()
 
 
+def test_myst_role_reference_does_not_span_lines() -> None:
+    scan = _scan("See {eq}`missing\nacross line`.\n")
+
+    assert scan.references == ()
+    assert check_references(scan.labels, scan.references) == ()
+
+
 def test_latex_missing_reference_warns() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.tex"),
