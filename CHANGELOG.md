@@ -24,7 +24,8 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- `check` and `graph` now both apply configured project roots, ordered inputs,
+  and ignored files consistently when no explicit file paths are provided.
 
 ### Deprecated
 
