@@ -44,14 +44,7 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-## Install
-
-```bash
-python -m pip install scieqlint
-scieqlint check .
-```
-
-For local development:
+## Local development
 
 ```bash
 python -m pip install -e '.[dev]'
