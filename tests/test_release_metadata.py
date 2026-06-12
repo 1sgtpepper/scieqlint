@@ -56,6 +56,28 @@ def test_ci_test_matrix_covers_declared_python_versions() -> None:
     )
 
 
+def test_clean_wheel_smoke_checks_runtime_package_resources() -> None:
+    workflows = [
+        Path(".github/workflows/ci.yml").read_text(encoding="utf-8"),
+        Path(".github/workflows/release.yml").read_text(encoding="utf-8"),
+    ]
+    required = [
+        '"scieqlint": ["py.typed"]',
+        '"scieqlint.examples.bad": ["famous_bad.md"]',
+        '"scieqlint.examples.good": ["algebra_good.md"]',
+        '"scieqlint.parse": ["grammar.lark"]',
+        '"scieqlint.presets": ["mechanics.toml"]',
+        '"scieqlint-diagnostic-0.1.schema.json"',
+        '"scieqlint-graph-0.3.schema.json"',
+        '"scieqlint-result-0.1.schema.json"',
+        'assert package_files.joinpath(name).is_file(), f"{package}:{name} missing"',
+    ]
+
+    for workflow in workflows:
+        for text in required:
+            assert text in workflow
+
+
 def _assigned_string(tree: ast.Module, name: str) -> str:
     for node in tree.body:
         if isinstance(node, ast.Assign):
