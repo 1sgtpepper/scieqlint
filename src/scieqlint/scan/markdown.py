@@ -56,6 +56,7 @@ class _CodeFence:
     body_end: int
     end: int
     info: str
+    closed: bool
 
 
 class MarkdownScanner:
@@ -158,8 +159,8 @@ def _find_display_close(
 
 
 def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for fence in _closed_code_fences(document):
-        if not _is_math_fence_info(fence.info):
+    for fence in _code_fences(document):
+        if not fence.closed or not _is_math_fence_info(fence.info):
             continue
         body = document.text[fence.body_start : fence.body_end]
         text = body.strip()
@@ -177,8 +178,8 @@ def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 def _unterminated_fence_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
     closed = {
         (fence.start, fence.end)
-        for fence in _closed_code_fences(document)
-        if _is_math_fence_info(fence.info)
+        for fence in _code_fences(document)
+        if fence.closed and _is_math_fence_info(fence.info)
     }
     occupied = _non_math_code_fences(document)
     for match in CODE_FENCE_OPEN_RE.finditer(document.text):
@@ -226,7 +227,7 @@ def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
 def _non_math_code_fences(document: SourceDocument) -> tuple[tuple[int, int], ...]:
     return tuple(
         (fence.start, fence.end)
-        for fence in _closed_code_fences(document)
+        for fence in _code_fences(document)
         if not _is_math_fence_info(fence.info)
     )
 
@@ -235,7 +236,7 @@ def _is_math_fence_info(info: str) -> bool:
     return info.strip() in {"math", "{math}"}
 
 
-def _closed_code_fences(document: SourceDocument) -> Iterable[_CodeFence]:
+def _code_fences(document: SourceDocument) -> Iterable[_CodeFence]:
     cursor = 0
     while True:
         match = CODE_FENCE_OPEN_RE.search(document.text, cursor)
@@ -245,6 +246,16 @@ def _closed_code_fences(document: SourceDocument) -> Iterable[_CodeFence]:
         body_start = _fence_body_start(document.text, match.end())
         close = _find_code_fence_close(document.text, body_start, opener_length)
         if close is None:
+            if not _is_math_fence_info(match.group("info")):
+                yield _CodeFence(
+                    start=match.start(),
+                    body_start=body_start,
+                    body_end=len(document.text),
+                    end=len(document.text),
+                    info=match.group("info"),
+                    closed=False,
+                )
+                return
             cursor = body_start
             continue
         close_start, close_end = close
@@ -254,6 +265,7 @@ def _closed_code_fences(document: SourceDocument) -> Iterable[_CodeFence]:
             body_end=close_start,
             end=close_end,
             info=match.group("info"),
+            closed=True,
         )
         cursor = close_end
 

@@ -115,6 +115,21 @@ def test_longer_example_fence_closer_still_hides_nested_math() -> None:
     assert result.diagnostics == ()
 
 
+def test_unclosed_markdown_example_fence_hides_nested_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "````md\n```{math}\n:label: example\n(a+b)^2 = a^2 + b^2\n```\nSee {eq}`example`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert result.labels == ()
+    assert result.references == ()
+    assert result.diagnostics == ()
+
+
 def test_unterminated_display_math_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
