@@ -51,6 +51,7 @@ def check_paths(
         input_paths(paths, config, root),
         ignore_patterns=config.ignore.files,
         order_patterns=config.project.order,
+        explicit_file_inputs=bool(paths),
         root=root,
     )
     documents: list[SourceDocument] = []
@@ -155,8 +156,10 @@ def graph_paths(
     config = load_config(config_path)
     root = project_root(config)
     discovered = discover_project_files(
-        paths or [Path(".")],
+        input_paths(paths, config, root),
         ignore_patterns=config.ignore.files,
+        order_patterns=config.project.order,
+        explicit_file_inputs=bool(paths),
         root=root,
     )
     documents: list[SourceDocument] = []
