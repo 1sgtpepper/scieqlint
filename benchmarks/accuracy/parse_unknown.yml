@@ -3,3 +3,7 @@ cases:
     input: "\\sin(x)^2 + \\cos(x)^2 = 1"
     expected_codes: ["PARSE021"]
     expected_pass: true
+  - id: relation-operator-unsupported
+    input: "x <= y"
+    expected_codes: ["PARSE022"]
+    expected_pass: true

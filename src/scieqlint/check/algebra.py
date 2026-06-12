@@ -26,10 +26,27 @@ from scieqlint.scan.base import MathBlock
 
 TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]")
 TEX_MULTIPLY = {"\\cdot", "\\times"}
+UNSUPPORTED_OPERATOR_TEXT_RE = re.compile(r"<=|>=|==|!=|\*\*|[<>≤≥≠≈]")
+UNSUPPORTED_OPERATOR_COMMANDS = {
+    "\\approx",
+    "\\equiv",
+    "\\ge",
+    "\\geq",
+    "\\gt",
+    "\\le",
+    "\\leq",
+    "\\lt",
+    "\\ne",
+    "\\neq",
+    "\\sim",
+}
 
 
 def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
     text = _strip_labels(block.text)
+    if _contains_unsupported_operator(text):
+        return (_unsupported_diagnostic(block, text, "PARSE022"),)
+
     sides = [part.strip() for part in text.split("=")]
     if len(sides) < 2:
         return ()
@@ -199,6 +216,14 @@ def _is_atom_start(token: str) -> bool:
 
 
 UNSUPPORTED_FUNCTIONS = {"\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp"}
+
+
+def _contains_unsupported_operator(text: str) -> bool:
+    if UNSUPPORTED_OPERATOR_TEXT_RE.search(text):
+        return True
+    return any(
+        command in UNSUPPORTED_OPERATOR_COMMANDS for command in re.findall(r"\\[A-Za-z]+", text)
+    )
 
 
 def _strip_labels(text: str) -> str:

@@ -10,6 +10,7 @@ codes before every code is emitted by the current analyzer.
 | `ALG001` | error | Algebraic identity does not hold |
 | `PARSE020` | info | Unsupported syntax; check skipped |
 | `PARSE021` | info | Unsupported function; check skipped |
+| `PARSE022` | info | Unsupported operator; check skipped |
 | `SCAN001` | warning | Unterminated math container |
 | `INP001` | error | File could not be read or decoded |
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
@@ -36,7 +37,6 @@ emit them from normal checks:
 | `ALG020` | info | Algebra check skipped |
 | `ALG030` | warning | Algebra check exceeded configured limit |
 | `PARSE001` | warning | Could not parse supported-looking math |
-| `PARSE022` | info | Unsupported operator; check skipped |
 | `SCAN002` | info | Inline math skipped by config |
 | `INP003` | warning | File exceeded configured limit |
 | `CFG001` | error | Invalid config file |

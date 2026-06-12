@@ -24,7 +24,9 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- Unsupported relation-style operators such as `<=` and `\le` now emit the
+  specific `PARSE022` unsupported-operator diagnostic instead of a generic
+  skipped parse result or no algebra diagnostic.
 
 ### Deprecated
 
