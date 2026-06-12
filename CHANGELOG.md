@@ -24,7 +24,8 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- The composite GitHub Action now installs and invokes SciEqLint without
+  shell-executing `package-version` or `args` input values.
 
 ### Deprecated
 
@@ -36,7 +37,8 @@ Release notes must use these sections:
 
 ### Migration notes
 
-- Nothing yet.
+- GitHub Action `args` are parsed with shell-like quoting and passed directly to
+  `scieqlint`; shell operators and shell-side glob expansion are not evaluated.
 
 ### Known limitations
 
