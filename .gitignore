@@ -26,3 +26,4 @@ site/
 # Generated reports
 scieqlint.sarif
 scieqlint.json
+SCIEQLINT_PLATFORM_ARCHITECTURE_FINAL_RELEASE_PACKAGE/
