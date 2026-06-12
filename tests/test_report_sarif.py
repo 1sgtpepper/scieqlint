@@ -79,13 +79,97 @@ def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
     )
 
     payload = json.loads(SarifReporter().render(result))
+    location = payload["runs"][0]["results"][0]["locations"][0]
 
-    assert payload["runs"][0]["results"][0]["locations"][0]["logicalLocations"] == [
+    assert location["physicalLocation"] == {
+        "artifactLocation": {
+            "uri": "notes.ipynb",
+            "uriBaseId": "%SRCROOT%",
+        },
+    }
+    assert location["logicalLocations"] == [
         {
             "fullyQualifiedName": "cell:3",
             "kind": "module",
         }
     ]
+    assert payload["runs"][0]["results"][0]["message"]["text"] == (
+        "cell 3 line 1: notebook schema issue: "
+        "markdown cell 3 source must be a string or string list"
+    )
+
+
+def test_sarif_report_handles_cell_location_without_cell_line() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="INP002",
+                severity=Severity.WARNING,
+                message="notebook schema issue",
+                span=SourceSpan(
+                    path=PurePosixPath("notes.ipynb"),
+                    start=0,
+                    end=0,
+                    line=1,
+                    col=1,
+                    end_line=1,
+                    end_col=1,
+                    cell=2,
+                ),
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["results"][0]["message"]["text"] == ("cell 2: notebook schema issue")
+
+
+def test_sarif_report_handles_diagnostic_without_location() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="PARSE021",
+                severity=Severity.INFO,
+                message="unsupported function",
+                span=None,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["results"][0]["message"]["text"] == "unsupported function"
+    assert "locations" not in payload["runs"][0]["results"][0]
+
+
+def test_sarif_notebook_cell_fingerprints_include_cell_identity() -> None:
+    result = CheckResult(
+        diagnostics=(
+            _notebook_diagnostic(cell=0),
+            _notebook_diagnostic(cell=1),
+        ),
+        files_checked=1,
+        math_blocks_checked=2,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+    fingerprints = [
+        sarif_result["partialFingerprints"]["primaryLocationLineHash"]
+        for sarif_result in payload["runs"][0]["results"]
+    ]
+
+    assert fingerprints[0] != fingerprints[1]
 
 
 def test_sarif_report_omits_suppressed_diagnostics() -> None:
@@ -201,4 +285,24 @@ def _diagnostic(code: str) -> Diagnostic:
             end_line=1,
             end_col=1,
         ),
+    )
+
+
+def _notebook_diagnostic(*, cell: int) -> Diagnostic:
+    return Diagnostic(
+        code="ALG001",
+        severity=Severity.ERROR,
+        message="algebraic identity does not hold",
+        span=SourceSpan(
+            path=PurePosixPath("notes.ipynb"),
+            start=3,
+            end=21,
+            line=2,
+            col=1,
+            end_line=2,
+            end_col=19,
+            cell=cell,
+            cell_line=2,
+        ),
+        detail="left - right = 2*a*b",
     )

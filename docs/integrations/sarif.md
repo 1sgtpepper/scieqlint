@@ -8,6 +8,9 @@ scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
 
 SARIF output fails deterministically if a result would exceed the reporter's result
 limit. Split the input set or fix broad warning sources before upload.
+For notebook Markdown cells, SARIF records the `.ipynb` artifact and a logical
+`cell:N` location. It does not emit a physical JSON region for cell-local source
+spans.
 
 GitHub upload example:
 
