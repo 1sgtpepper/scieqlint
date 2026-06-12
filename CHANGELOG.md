@@ -24,7 +24,11 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- Markdown suppression comments inside code spans or fenced code blocks no
+  longer suppress diagnostics from real source math.
+- Markdown suppression comments inside notebook Markdown cells now suppress only
+  diagnostics from the same cell and report unknown suppression codes with cell
+  metadata.
 
 ### Deprecated
 

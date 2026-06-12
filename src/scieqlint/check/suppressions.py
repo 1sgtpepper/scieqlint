@@ -9,11 +9,13 @@ from dataclasses import dataclass, replace
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import MathBlock
+from scieqlint.scan.base import MathBlock, iter_markdown_cell_sources
 
 _MARKDOWN_RE = re.compile(
     r"<!--\s*scieqlint-disable-next-line\b\s*(?P<codes>[A-Za-z0-9_, \t-]*?)\s*-->"
 )
+_MARKDOWN_INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
+_MARKDOWN_CODE_FENCE_OPEN_RE = re.compile(r"^(?P<fence>`{3,})[^\n]*$", re.MULTILINE)
 _LATEX_RE = re.compile(r"scieqlint-disable-current-block\b\s*(?P<codes>[A-Za-z0-9_, \t-]*)")
 _CODE_RE = re.compile(r"[A-Z]+[0-9]+")
 _OPERAND_RE = re.compile(r"[^,\s]+")
@@ -25,6 +27,7 @@ class _Suppression:
     path: str
     line_start: int
     line_end: int
+    cell: int | None = None
 
 
 def apply_suppressions(
@@ -55,6 +58,8 @@ def _collect_suppressions(
             parsed, unknown = _markdown_suppressions(document, document_blocks)
         elif document.kind is DocumentKind.LATEX:
             parsed, unknown = _latex_suppressions(document, document_blocks)
+        elif document.kind is DocumentKind.NOTEBOOK:
+            parsed, unknown = _notebook_suppressions(document, document_blocks)
         else:
             continue
         suppressions.extend(parsed)
@@ -65,17 +70,24 @@ def _collect_suppressions(
 def _markdown_suppressions(
     document: SourceDocument,
     blocks: Sequence[MathBlock],
+    *,
+    cell: int | None = None,
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
+    code_ranges = _markdown_code_ranges(document.text)
     for line_start, line_end in _line_ranges(document.text):
         line = document.text[line_start:line_end]
         for match in _MARKDOWN_RE.finditer(line):
+            match_start = line_start + match.start()
+            if _in_ranges(match_start, code_ranges):
+                continue
             line_number, _col = document.line_index.position(line_start + match.start())
             parsed, unknown = _codes(
                 document,
                 line_start + match.start("codes"),
                 match.group("codes"),
+                cell=cell,
             )
             warnings.extend(unknown)
             target_start, target_end = _markdown_target_lines(blocks, line_number + 1)
@@ -85,6 +97,7 @@ def _markdown_suppressions(
                     path=document.path.as_posix(),
                     line_start=target_start,
                     line_end=target_end,
+                    cell=cell,
                 )
                 for code in parsed
             )
@@ -96,6 +109,21 @@ def _markdown_target_lines(blocks: Sequence[MathBlock], target_line: int) -> tup
         if block.span.line in {target_line, target_line + 1}:
             return block.span.line, block.span.end_line
     return target_line, target_line
+
+
+def _notebook_suppressions(
+    document: SourceDocument,
+    blocks: Sequence[MathBlock],
+) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
+    suppressions: list[_Suppression] = []
+    warnings: list[Diagnostic] = []
+    for cell, source in iter_markdown_cell_sources(document.text):
+        cell_document = SourceDocument.from_text(document.path, source, DocumentKind.MARKDOWN)
+        cell_blocks = [block for block in blocks if block.span.cell == cell]
+        parsed, unknown = _markdown_suppressions(cell_document, cell_blocks, cell=cell)
+        suppressions.extend(parsed)
+        warnings.extend(unknown)
+    return tuple(suppressions), tuple(warnings)
 
 
 def _latex_suppressions(
@@ -139,12 +167,14 @@ def _codes(
     document: SourceDocument,
     codes_start: int,
     raw: str,
+    *,
+    cell: int | None = None,
 ) -> tuple[tuple[str, ...], tuple[Diagnostic, ...]]:
     codes: list[str] = []
     warnings: list[Diagnostic] = []
     operands = tuple(_OPERAND_RE.finditer(raw))
     if not operands:
-        return (), (_unknown_code_diagnostic(document, codes_start, codes_start, "<empty>"),)
+        return (), (_unknown_code_diagnostic(document, codes_start, codes_start, "<empty>", cell),)
     for match in operands:
         code = match.group(0).upper()
         if _CODE_RE.fullmatch(code) and code in CATALOG:
@@ -156,6 +186,7 @@ def _codes(
                     codes_start + match.start(),
                     codes_start + match.end(),
                     code,
+                    cell,
                 )
             )
     return tuple(codes), tuple(warnings)
@@ -166,13 +197,14 @@ def _unknown_code_diagnostic(
     start: int,
     end: int,
     code: str,
+    cell: int | None,
 ) -> Diagnostic:
     info = CATALOG["SUP001"]
     return Diagnostic(
         code=info.code,
         severity=info.severity,
         message=info.message,
-        span=_span(document, start, end),
+        span=_span(document, start, end, cell=cell),
         detail=code,
         rule="suppressions",
     )
@@ -195,6 +227,7 @@ def _matches(diagnostic: Diagnostic, suppression: _Suppression) -> bool:
         span is not None
         and diagnostic.code == suppression.code
         and span.path.as_posix() == suppression.path
+        and span.cell == suppression.cell
         and suppression.line_start <= span.line <= suppression.line_end
     )
 
@@ -232,7 +265,53 @@ def _is_escaped(text: str, index: int) -> bool:
     return slash_count % 2 == 1
 
 
-def _span(document: SourceDocument, start: int, end: int) -> SourceSpan:
+def _markdown_code_ranges(text: str) -> tuple[tuple[int, int], ...]:
+    return (
+        *((match.start(), match.end()) for match in _MARKDOWN_INLINE_CODE_RE.finditer(text)),
+        *_markdown_code_fence_ranges(text),
+    )
+
+
+def _markdown_code_fence_ranges(text: str) -> tuple[tuple[int, int], ...]:
+    ranges: list[tuple[int, int]] = []
+    cursor = 0
+    while True:
+        match = _MARKDOWN_CODE_FENCE_OPEN_RE.search(text, cursor)
+        if match is None:
+            return tuple(ranges)
+        body_start = (
+            match.end() + 1
+            if match.end() < len(text) and text[match.end()] == "\n"
+            else match.end()
+        )
+        close = _markdown_code_fence_close(text, body_start, len(match.group("fence")))
+        end = len(text) if close is None else close[1]
+        ranges.append((match.start(), end))
+        cursor = end
+
+
+def _markdown_code_fence_close(
+    text: str,
+    start: int,
+    opener_length: int,
+) -> tuple[int, int] | None:
+    match = re.search(rf"^`{{{opener_length},}}[ \t]*$", text[start:], re.MULTILINE)
+    if match is None:
+        return None
+    return (start + match.start(), start + match.end())
+
+
+def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
+    return any(start <= position < end for start, end in ranges)
+
+
+def _span(
+    document: SourceDocument,
+    start: int,
+    end: int,
+    *,
+    cell: int | None = None,
+) -> SourceSpan:
     line, col = document.line_index.position(start)
     end_line, end_col = document.line_index.position(max(start, end - 1))
     return SourceSpan(
@@ -243,4 +322,6 @@ def _span(document: SourceDocument, start: int, end: int) -> SourceSpan:
         col=col,
         end_line=end_line,
         end_col=end_col,
+        cell=cell,
+        cell_line=line if cell is not None else None,
     )
