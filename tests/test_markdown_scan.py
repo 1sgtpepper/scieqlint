@@ -56,6 +56,80 @@ def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
     assert result.blocks == ()
 
 
+def test_references_ignore_code_spans_and_non_math_fences() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Code span `[Eq.](#missing)`.\n\n```md\nSee {eq}`missing`.\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.references == ()
+
+
+def test_markdown_example_fence_does_not_scan_nested_math_fence() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "````md\n```{math}\n:label: example\n(a+b)^2 = a^2 + b^2\n```\nSee {eq}`example`.\n````\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert result.labels == ()
+    assert result.references == ()
+    assert result.diagnostics == ()
+
+
+def test_math_fence_accepts_longer_closing_fence() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```{math}\n:label: energy\nE = m c^2\n````\n\nSee {eq}`energy`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert len(result.blocks) == 1
+    assert [label.label for label in result.labels] == ["energy"]
+    assert [(ref.target, ref.source) for ref in result.references] == [
+        ("energy", ReferenceSource.MYST_EQ_ROLE),
+    ]
+    assert result.diagnostics == ()
+
+
+def test_longer_example_fence_closer_still_hides_nested_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "````md\n```{math}\n:label: example\n(a+b)^2 = a^2 + b^2\n```\nSee {eq}`example`.\n`````\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert result.labels == ()
+    assert result.references == ()
+    assert result.diagnostics == ()
+
+
+def test_unclosed_markdown_example_fence_hides_nested_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "````md\n```{math}\n:label: example\n(a+b)^2 = a^2 + b^2\n```\nSee {eq}`example`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert result.labels == ()
+    assert result.references == ()
+    assert result.diagnostics == ()
+
+
 def test_unterminated_display_math_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
