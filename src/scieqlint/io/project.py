@@ -36,6 +36,7 @@ def discover_project_files(
     *,
     ignore_patterns: tuple[str, ...],
     order_patterns: tuple[str, ...] = (),
+    explicit_file_inputs: bool = True,
     root: Path | None = None,
 ) -> tuple[Path, ...]:
     explicit_files: list[Path] = []
@@ -43,7 +44,7 @@ def discover_project_files(
     for raw in paths:
         path = Path(raw)
         text = str(raw)
-        if not any(ch in text for ch in "*?[") and path.is_file():
+        if explicit_file_inputs and not any(ch in text for ch in "*?[") and path.is_file():
             explicit_files.append(path)
         else:
             discovered_inputs.append(raw)
