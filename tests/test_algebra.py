@@ -84,6 +84,16 @@ def test_assignment_with_different_symbols_is_not_treated_as_identity() -> None:
     assert diagnostics == ()
 
 
+def test_unsupported_relation_operator_reports_parse_operator_unknown() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx <= y\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE022"]
+
+
+def test_unsupported_tex_relation_operator_reports_parse_operator_unknown() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx \\le y\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE022"]
+
+
 def test_unsupported_trig_reports_parse_unknown() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sin(x) = x\n$$\n"))
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE021"]

@@ -162,6 +162,14 @@ def test_strict_unknowns_escalates_parse_diagnostic(tmp_path) -> None:
     assert "error PARSE021" in result.output
 
 
+def test_strict_unknowns_escalates_unsupported_operator_diagnostic(tmp_path) -> None:
+    doc = tmp_path / "inequality.md"
+    doc.write_text("$$\nx <= y\n$$\n", encoding="utf-8")
+    result = CliRunner().invoke(main, ["check", str(doc), "--strict-unknowns"])
+    assert result.exit_code == 1
+    assert "error PARSE022" in result.output
+
+
 def test_absolute_paths_render_resolved_diagnostic_path(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
