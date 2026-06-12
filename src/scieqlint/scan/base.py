@@ -97,13 +97,18 @@ def iter_markdown_cell_sources(text: str) -> Iterable[tuple[int, str]]:
         return
     if not isinstance(notebook_data, Mapping):
         return
-    raw_cells = notebook_data.get("cells")
+    notebook = cast(Mapping[str, object], notebook_data)
+    raw_cells = notebook.get("cells")
     if not isinstance(raw_cells, list):
         return
-    for cell_index, raw_cell in enumerate(raw_cells):
-        if not isinstance(raw_cell, Mapping) or raw_cell.get("cell_type") != "markdown":
+    cells = cast(list[object], raw_cells)
+    for cell_index, raw_cell in enumerate(cells):
+        if not isinstance(raw_cell, Mapping):
             continue
-        source = notebook_cell_source(raw_cell.get("source"))
+        cell = cast(Mapping[str, object], raw_cell)
+        if cell.get("cell_type") != "markdown":
+            continue
+        source = notebook_cell_source(cell.get("source"))
         if source is not None:
             yield cell_index, source
 
