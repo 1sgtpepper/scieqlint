@@ -24,7 +24,8 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- The SARIF upload example workflow now installs the release package version
+  used by the 1.0.0 release branch.
 
 ### Deprecated
 
