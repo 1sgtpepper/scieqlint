@@ -12,6 +12,8 @@
 SciEqLint checks documented scientific document formats for exact scalar algebra
 mistakes and broken equation references.
 
+![SciEqLint demo](docs/assets/scieqlint-readme-demo.gif)
+
 Run it on Markdown/MyST docs before review to catch mistakes like this:
 
 ```tex
