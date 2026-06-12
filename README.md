@@ -9,10 +9,15 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kuhai9801/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/Kuhai9801/scieqlint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-SciEqLint checks documented scientific document formats for exact scalar algebra
-mistakes and broken equation references.
+SciEqLint lints scientific Markdown, LaTeX, and notebooks for equation mistakes,
+broken references, and CI-ready diagnostics before they reach reviewers.
 
 ![SciEqLint demo](docs/assets/scieqlint-readme-demo.gif)
+
+```bash
+python -m pip install scieqlint
+scieqlint check README.md
+```
 
 Run it on Markdown/MyST docs before review to catch mistakes like this:
 
@@ -52,7 +57,6 @@ For local development:
 python -m pip install -e '.[dev]'
 scieqlint --help
 scieqlint check .
-scieqlint check README.md
 scieqlint check examples/bad/famous_bad.md --format github
 scieqlint demo
 ```
