@@ -99,6 +99,58 @@ def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
     )
 
 
+def test_sarif_report_handles_cell_location_without_cell_line() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="INP002",
+                severity=Severity.WARNING,
+                message="notebook schema issue",
+                span=SourceSpan(
+                    path=PurePosixPath("notes.ipynb"),
+                    start=0,
+                    end=0,
+                    line=1,
+                    col=1,
+                    end_line=1,
+                    end_col=1,
+                    cell=2,
+                ),
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["results"][0]["message"]["text"] == ("cell 2: notebook schema issue")
+
+
+def test_sarif_report_handles_diagnostic_without_location() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="PARSE021",
+                severity=Severity.INFO,
+                message="unsupported function",
+                span=None,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert payload["runs"][0]["results"][0]["message"]["text"] == "unsupported function"
+    assert "locations" not in payload["runs"][0]["results"][0]
+
+
 def test_sarif_notebook_cell_fingerprints_include_cell_identity() -> None:
     result = CheckResult(
         diagnostics=(
