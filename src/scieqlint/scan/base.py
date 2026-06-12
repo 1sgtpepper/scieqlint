@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol
+from typing import Protocol, cast
 
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic, SourceSpan
@@ -86,3 +88,36 @@ class ScanResult:
 
 class Scanner(Protocol):
     def scan(self, document: SourceDocument, config: Config) -> ScanResult: ...
+
+
+def iter_markdown_cell_sources(text: str) -> Iterable[tuple[int, str]]:
+    try:
+        notebook_data: object = json.loads(text)
+    except json.JSONDecodeError:
+        return
+    if not isinstance(notebook_data, Mapping):
+        return
+    notebook = cast(Mapping[str, object], notebook_data)
+    raw_cells = notebook.get("cells")
+    if not isinstance(raw_cells, list):
+        return
+    cells = cast(list[object], raw_cells)
+    for cell_index, raw_cell in enumerate(cells):
+        if not isinstance(raw_cell, Mapping):
+            continue
+        cell = cast(Mapping[str, object], raw_cell)
+        if cell.get("cell_type") != "markdown":
+            continue
+        source = notebook_cell_source(cell.get("source"))
+        if source is not None:
+            yield cell_index, source
+
+
+def notebook_cell_source(source: object) -> str | None:
+    if isinstance(source, str):
+        return source
+    if isinstance(source, list):
+        parts = cast(list[object], source)
+        if all(isinstance(part, str) for part in parts):
+            return "".join(cast(list[str], parts))
+    return None

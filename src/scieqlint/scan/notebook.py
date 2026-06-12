@@ -11,7 +11,13 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, ScanResult
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    MathBlock,
+    ScanResult,
+    notebook_cell_source,
+)
 from scieqlint.scan.markdown import MarkdownScanner
 
 
@@ -57,7 +63,7 @@ class NotebookScanner:
             cell = cast(Mapping[str, object], raw_cell)
             if cell.get("cell_type") != "markdown":
                 continue
-            source = _cell_source(cell.get("source"))
+            source = notebook_cell_source(cell.get("source"))
             if source is None:
                 diagnostics.append(
                     _schema_diagnostic(
@@ -83,16 +89,6 @@ class NotebookScanner:
             references=tuple(references),
             diagnostics=tuple(diagnostics),
         )
-
-
-def _cell_source(source: object) -> str | None:
-    if isinstance(source, str):
-        return source
-    if isinstance(source, list):
-        parts = cast(list[object], source)
-        if all(isinstance(part, str) for part in parts):
-            return "".join(cast(list[str], parts))
-    return None
 
 
 def _notebook_schema_diagnostics(

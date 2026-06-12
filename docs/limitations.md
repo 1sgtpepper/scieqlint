@@ -77,7 +77,10 @@ SciEqLint supports narrow source suppressions for Markdown and LaTeX:
 Suppressed diagnostics do not affect the CLI exit code. They are hidden from
 text and JSON output by default, can be included in text and JSON with
 `report.show_suppressed = true`, and are omitted from GitHub annotation and
-SARIF output. Unknown suppression codes emit `SUP001`.
+SARIF output. Unknown suppression codes emit `SUP001`. Markdown suppression
+comments work in Markdown notebook cells and are scoped to the same cell.
+Markdown suppression comments inside code spans or fenced code blocks are
+ignored.
 
 Diagnostic baselines mark matching diagnostics as suppressed for path-based
 checks. Baselines are deterministic JSON files that use the same diagnostic
