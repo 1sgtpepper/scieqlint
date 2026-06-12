@@ -1,4 +1,10 @@
+<div align="center">
+
 # SciEqLint
+
+**Deterministic linting for scientific Markdown, MyST, LaTeX, and notebooks.**
+
+Catch exact scalar algebra mistakes and broken equation references before review.
 
 [![PyPI](https://img.shields.io/pypi/v/scieqlint.svg)](https://pypi.org/project/scieqlint/)
 [![Python versions](https://img.shields.io/pypi/pyversions/scieqlint.svg)](https://pypi.org/project/scieqlint/)
@@ -9,71 +15,40 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Kuhai9801/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/Kuhai9801/scieqlint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-SciEqLint checks documented scientific document formats for exact scalar algebra
-mistakes and broken equation references.
+![SciEqLint catches algebra and equation-reference mistakes before review](docs/assets/scieqlint-readme-demo.gif)
 
-Run it on Markdown/MyST docs before review to catch mistakes like this:
+</div>
 
-```tex
-(a+b)^2 = a^2 + b^2
-```
+## Why SciEqLint
 
-Diagnostic:
+General prose and Markdown linters catch style issues. SciEqLint checks the
+scientific-document failure modes that are easy to miss in review:
 
-```text
-ALG001 algebraic identity does not hold
-left - right = 2*a*b
-```
+| Check | Example | Diagnostic |
+| --- | --- | --- |
+| Exact scalar algebra | `(a+b)^2 = a^2 + b^2` | `ALG001 algebraic identity does not hold` |
+| Equation references | ``See {eq}`missing`.`` | `REF002 equation reference target not found` |
 
-It also catches supported broken equation references:
+SciEqLint is deterministic. Given the same files, config, and version, it emits
+the same diagnostics in the same order. Supported math is checked exactly;
+unsupported math is reported as unknown or skipped instead of guessed.
 
-```md
-See {eq}`missing`.
-```
-
-Diagnostic:
-
-```text
-REF002 equation reference target not found: missing
-```
-
-## Install
+## Quick Start
 
 ```bash
 python -m pip install scieqlint
 scieqlint check .
 ```
 
-For local development:
+Common commands:
 
 ```bash
-python -m pip install -e '.[dev]'
-scieqlint --help
 scieqlint check .
 scieqlint check README.md
 scieqlint check examples/bad/famous_bad.md --format github
+scieqlint graph "docs/**/*.md" --output scieqlint-graph.json
 scieqlint demo
 ```
-
-## Commands
-
-```bash
-scieqlint check [PATH_OR_GLOB...]
-scieqlint graph [PATH_OR_GLOB...] --output scieqlint-graph.json
-scieqlint init
-scieqlint init --preset mechanics
-scieqlint presets list
-scieqlint presets show mechanics
-scieqlint demo
-scieqlint explain CODE
-python -m scieqlint --help
-```
-
-## Deterministic output
-
-SciEqLint is deterministic. Given the same files, config, and version, it must emit
-the same diagnostics in the same order. Supported math is checked exactly.
-Unsupported math is reported as unknown or skipped. The checker must not guess.
 
 ## Supported files
 
@@ -85,14 +60,16 @@ scanner and grammar coverage.
 
 Current release target: v1.0.0.
 
-## Pull request annotations
+## Integrations
+
+Use GitHub annotations for pull requests:
 
 ```yaml
 - name: Check equations
   run: scieqlint check "docs/**/*.md" --format github
 ```
 
-## Code scanning
+Upload SARIF for code scanning:
 
 ```yaml
 permissions:
@@ -108,6 +85,15 @@ steps:
     with:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
+```
+
+## Local Development
+
+```bash
+python -m pip install -e '.[dev]'
+scieqlint --help
+scieqlint check .
+python -m pytest
 ```
 
 ## For contributors
