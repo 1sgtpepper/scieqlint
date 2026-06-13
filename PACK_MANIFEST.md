@@ -22,7 +22,7 @@ tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 - `.editorconfig`
 - `.github/CODEOWNERS`
 - `.github/FUNDING.yml`
-- `.github/ISSUE_TEMPLATE/0_bug.md`
+- `.github/ISSUE_TEMPLATE/0_bug.yml`
 - `.github/ISSUE_TEMPLATE/1_feature.md`
 - `.github/ISSUE_TEMPLATE/2_task.md`
 - `.github/ISSUE_TEMPLATE/3_documentation.md`
@@ -67,6 +67,7 @@ tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 - `benchmarks/accuracy/references.yml`
 - `docs/api.md`
 - `docs/architecture.md`
+- `docs/assets/scieqlint-readme-demo.gif`
 - `docs/configuration.md`
 - `docs/contributing/architecture-map.md`
 - `docs/contributing/dev-setup.md`
@@ -111,6 +112,7 @@ tests, schemas, CI templates, and the working v1.0.0 analyzer core.
 - `schemas/scieqlint-result-0.1.schema.json`
 - `scieqlint.toml`
 - `scripts/check_pack.py`
+- `scripts/render_readme_gifs.py`
 - `src/scieqlint/__init__.py`
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`
