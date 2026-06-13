@@ -1,0 +1,87 @@
+name: Bug report
+description: Report reproducible incorrect behavior.
+title: "[Bug] "
+labels:
+  - needs reproduction
+body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched open and closed issues for the same bug.
+          required: true
+        - label: This is not a security issue.
+          required: true
+        - label: I reproduced this on the current `main` branch.
+          required: true
+        - label: I reproduced this on the newest release.
+          required: true
+        - label: I included command, input, and output.
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the bug and the affected SciEqLint behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: affected-version
+    attributes:
+      label: Affected version
+      description: Include the SciEqLint version or commit, Python version, and operating system.
+      value: |
+        SciEqLint version or commit:
+        Python:
+        OS:
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Add the smallest command or workflow that reproduces the issue.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input
+      description: Paste the smallest document or config here if relevant.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: Paste the observed output or diagnostic.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Paste the expected output or diagnostic.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: source-references
+    attributes:
+      label: Source references
+      description: Add files, commands, docs pages, or code paths.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Explain the affected workflow or contract.
+    validations:
+      required: true
