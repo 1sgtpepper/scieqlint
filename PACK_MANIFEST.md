@@ -22,7 +22,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `.editorconfig`
 - `.github/CODEOWNERS`
 - `.github/FUNDING.yml`
-- `.github/ISSUE_TEMPLATE/0_bug.md`
+- `.github/ISSUE_TEMPLATE/0_bug.yml`
 - `.github/ISSUE_TEMPLATE/1_feature.md`
 - `.github/ISSUE_TEMPLATE/2_task.md`
 - `.github/ISSUE_TEMPLATE/3_documentation.md`
@@ -67,6 +67,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `benchmarks/accuracy/references.yml`
 - `docs/api.md`
 - `docs/architecture.md`
+- `docs/assets/scieqlint-readme-demo.gif`
 - `docs/configuration.md`
 - `docs/contributing/architecture-map.md`
 - `docs/contributing/dev-setup.md`
