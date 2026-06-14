@@ -1,4 +1,4 @@
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
@@ -8,9 +8,20 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 
+GOOD_FIXTURE = Path("tests/fixtures/good/architecture_myst_good.md")
+BAD_FIXTURE = Path("tests/fixtures/bad/architecture_myst_bad.md")
+
 
 def doc(text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath("lecture.md"), text, DocumentKind.MARKDOWN)
+
+
+def fixture_doc(path: Path) -> SourceDocument:
+    return SourceDocument.from_text(
+        PurePosixPath(path.as_posix()),
+        path.read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
 
 
 def span(col: int) -> SourceSpan:
@@ -40,6 +51,58 @@ def test_missing_ref_reports_target_span():
     assert diagnostics[0].code == "REF011"
     assert diagnostics[0].span is not None
     assert diagnostics[0].span.col == 11
+
+
+def test_myst_reference_fixture_extracts_titled_refs_and_equation_roles():
+    snapshot = MySTFrontend().lower((fixture_doc(GOOD_FIXTURE),))
+
+    assert [(ref.role_kind, ref.title, ref.target, ref.raw) for ref in snapshot.generic_refs] == [
+        (
+            "ref",
+            "workaround section",
+            "qe-workaround",
+            "{ref}`workaround section <qe-workaround>`",
+        )
+    ]
+    assert [(ref.ref_kind, ref.target, ref.raw) for ref in snapshot.equation_refs] == [
+        ("eq", "eq-bellman", "{eq}`eq-bellman`"),
+        ("numref", "eq-bellman", "{numref}`Equation %s <eq-bellman>`"),
+    ]
+    assert QueryHost(snapshot).references.unresolved_generic_refs() == ()
+
+
+def test_myst_reference_fixture_reports_orphaned_and_missing_targets():
+    snapshot = MySTFrontend().lower((fixture_doc(BAD_FIXTURE),))
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF011", "REF013"]
+    assert diagnostics[0].span is not None
+    assert diagnostics[0].span.col == 11
+    assert diagnostics[1].span is not None
+    assert diagnostics[1].span.line == 5
+
+
+def test_reference_engine_reports_equation_duplicates_and_missing_refs():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "```{math}\n:label: eq-bellman\n\nV = V\n```\n\n"
+                "```{math}\n:label: eq-bellman\n\nW = W\n```\n\n"
+                "See {eq}`eq-bellman` and {eq}`missing-equation`.\n",
+            ),
+        )
+    )
+
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == [
+        "REF001",
+        "REF002",
+        "REF002",
+    ]
+    assert diagnostics[0].message == "duplicate equation label: eq-bellman"
+    assert diagnostics[1].message == "missing equation reference target: missing-equation"
+    assert diagnostics[2].message == "ambiguous equation reference target: eq-bellman"
 
 
 def test_reference_engine_reports_duplicate_ambiguous_and_orphaned_targets():
