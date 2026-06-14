@@ -115,6 +115,7 @@
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`
@@ -223,6 +224,7 @@
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
+- `tests/test_myst_reference_view.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
 - `tests/test_notebook_scan.py`
