@@ -118,6 +118,7 @@
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
+- `src/scieqlint/engine/math_container.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -147,6 +148,8 @@
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/ir/__init__.py`
 - `src/scieqlint/ir/model.py`
+- `src/scieqlint/math/__init__.py`
+- `src/scieqlint/math/host.py`
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
