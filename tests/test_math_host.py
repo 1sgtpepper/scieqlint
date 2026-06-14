@@ -47,6 +47,24 @@ def test_math_host_classifies_unknown_math_reasons():
     ]
 
 
+def test_math_host_classifies_suspicious_generated_formula_text():
+    snapshot = FactSnapshot(
+        display_math=(
+            display_math(r"A t t e n t ( Q , K , V )"),
+            display_math("<!-- formula-not-decoded -->"),
+        ),
+        inline_math=(inline_math("cid:127 + x"),),
+    )
+
+    classified = MathHost().classify(snapshot)
+
+    assert [(fact.reason, fact.excerpt) for fact in classified.suspicious_formulas] == [
+        ("spaced_latex_tokens", "A t t e n t ( Q , K , V )"),
+        ("formula_placeholder", "<!-- formula-not-decoded -->"),
+        ("garbled_marker", "cid:127"),
+    ]
+
+
 def test_math_host_leaves_known_math_classified():
     snapshot = FactSnapshot(
         display_math=(display_math(r"x^2 + y^2 = z^2"),),
@@ -56,6 +74,7 @@ def test_math_host_leaves_known_math_classified():
     classified = MathHost().classify(snapshot)
 
     assert classified.unknown_math == ()
+    assert classified.suspicious_formulas == ()
 
 
 def test_math_container_engine_reports_unknown_and_multi_label_math():
