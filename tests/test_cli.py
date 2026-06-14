@@ -382,6 +382,14 @@ def test_strict_unknowns_escalates_parse_diagnostic(tmp_path) -> None:
     assert "error PARSE021" in result.output
 
 
+def test_strict_unknowns_keeps_algebra_diagnostics_unchanged(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    result = CliRunner().invoke(main, ["check", str(doc), "--strict-unknowns"])
+    assert result.exit_code == 1
+    assert "error ALG001" in result.output
+
+
 def test_absolute_paths_render_resolved_diagnostic_path(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
@@ -474,6 +482,34 @@ def test_project_absolute_root_controls_default_paths(tmp_path) -> None:
     )
 
     result = CliRunner().invoke(main, ["check", "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "files checked: 1" in result.output
+
+
+def test_relative_default_project_root_uses_current_directory_without_config() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with open("paper.md", "w", encoding="utf-8") as handle:
+            handle.write("# Paper\n")
+        result = runner.invoke(main, ["check"])
+
+    assert result.exit_code == 0
+    assert "files checked: 1" in result.output
+
+
+def test_project_relative_root_uses_default_config_directory(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "book"
+    root.mkdir()
+    doc = root / "paper.md"
+    doc.write_text("# Paper\n", encoding="utf-8")
+    (tmp_path / "scieqlint.toml").write_text(
+        '[project]\nroot = "book"\norder = ["paper.md"]\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(main, ["check"])
 
     assert result.exit_code == 0
     assert "files checked: 1" in result.output

@@ -221,6 +221,14 @@ def test_load_config_rejects_non_string_project_root(tmp_path) -> None:
         load_config(config_path)
 
 
+def test_load_config_rejects_empty_project_root(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[project]\nroot = ""\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="root must not be empty"):
+        load_config(config_path)
+
+
 def test_load_config_accepts_dimension_settings_and_vars(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(
