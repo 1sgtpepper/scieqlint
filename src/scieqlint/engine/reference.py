@@ -9,15 +9,69 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF010", "REF011", "REF012", "REF013"})
+    rule_codes = frozenset({"REF001", "REF002", "REF010", "REF011", "REF012", "REF013"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
+        diagnostics.extend(self._duplicate_equation_targets(query))
+        diagnostics.extend(self._unresolved_equation_refs(query))
+        diagnostics.extend(self._ambiguous_equation_refs(query))
         diagnostics.extend(self._duplicate_targets(query))
         diagnostics.extend(self._unresolved_refs(query))
         diagnostics.extend(self._ambiguous_refs(query))
         diagnostics.extend(self._orphaned_targets(query))
         return tuple(diagnostics)
+
+    def _duplicate_equation_targets(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
+        out: list[DiagnosticIR] = []
+        for label, targets in query.references.duplicate_equation_targets().items():
+            for duplicate in targets[1:]:
+                out.append(
+                    DiagnosticIR(
+                        code="REF001",
+                        severity_default=Severity.ERROR,
+                        message=f"duplicate equation label: {label}",
+                        span=duplicate.label_span or duplicate.span,
+                        detail=f"First definition and duplicate both normalize to {label!r}.",
+                        rule="reference.duplicate_equation_label",
+                        false_positive_risk="low",
+                    )
+                )
+        return tuple(out)
+
+    def _unresolved_equation_refs(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
+        out: list[DiagnosticIR] = []
+        for ref in query.references.unresolved_equation_refs():
+            out.append(
+                DiagnosticIR(
+                    code="REF002",
+                    severity_default=Severity.WARNING,
+                    message=f"missing equation reference target: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=ref.raw,
+                    hint="Restore the equation label or correct the equation reference target.",
+                    rule="reference.missing_equation_target",
+                    false_positive_risk="low",
+                )
+            )
+        return tuple(out)
+
+    def _ambiguous_equation_refs(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
+        out: list[DiagnosticIR] = []
+        for ref in query.references.ambiguous_equation_refs():
+            out.append(
+                DiagnosticIR(
+                    code="REF002",
+                    severity_default=Severity.WARNING,
+                    message=f"ambiguous equation reference target: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=ref.raw,
+                    hint="Keep equation labels unique within the project.",
+                    rule="reference.ambiguous_equation_target",
+                    false_positive_risk="low",
+                )
+            )
+        return tuple(out)
 
     def _duplicate_targets(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
