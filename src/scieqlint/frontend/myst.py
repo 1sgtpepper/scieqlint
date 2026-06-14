@@ -133,9 +133,7 @@ def _math_occupied_ranges(
     display_math: Sequence[DisplayMathFact],
 ) -> tuple[OffsetRange, ...]:
     math_ranges = tuple(
-        (fact.span.start, fact.span.end)
-        for fact in display_math
-        if fact.span is not None
+        (fact.span.start, fact.span.end) for fact in display_math if fact.span is not None
     )
     return (*tuple(fence_ranges), *math_ranges)
 
