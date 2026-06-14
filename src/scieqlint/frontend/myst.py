@@ -10,7 +10,9 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
+from typing import Any
 
+from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.reference import (
     EquationLabelFact,
@@ -70,8 +72,8 @@ class MySTFrontend:
         )
 
 
-def _flatten(parts: Sequence[FactSnapshot], name: str):
-    items = []
+def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
+    items: list[Any] = []
     for part in parts:
         items.extend(getattr(part, name))
     return tuple(items)
@@ -207,8 +209,8 @@ def _make_fence_fact(
     marker: str,
     info: str,
     is_closed: bool,
-    opener_span,
-    closer_span,
+    opener_span: SourceSpan,
+    closer_span: SourceSpan | None,
 ) -> FenceFact:
     directive = _DIRECTIVE_INFO_RE.match(info)
     language = None
@@ -456,7 +458,11 @@ def _attach_anchors(
         )
 
 
-def _is_immediate_attachment(document: SourceDocument, anchor, next_fact) -> bool:
+def _is_immediate_attachment(
+    document: SourceDocument,
+    anchor: TargetAnchorFact,
+    next_fact: HeadingFact | FenceFact,
+) -> bool:
     if anchor.span is None or next_fact.span is None:
         return False
     between = document.text[anchor.span.end : next_fact.span.start]
