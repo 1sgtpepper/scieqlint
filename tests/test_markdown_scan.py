@@ -84,6 +84,18 @@ def test_closed_display_math_does_not_emit_scan_warning() -> None:
     assert result.diagnostics == ()
 
 
+def test_display_math_tail_label_at_end_of_file_is_extracted() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\na = a\n$${#tail}",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [label.label for label in result.labels] == ["tail"]
+
+
 def test_display_delimiter_in_inline_code_does_not_emit_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

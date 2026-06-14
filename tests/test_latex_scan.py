@@ -102,6 +102,17 @@ def test_latex_labels_in_comments_are_ignored() -> None:
     assert [label.label for label in result.labels] == ["real"]
 
 
+def test_latex_references_in_verbatim_are_ignored() -> None:
+    result = LatexScanner().scan(
+        _document("\\begin{verbatim}\n\\eqref{ignored}\n\\end{verbatim}\nSee \\ref{real}.\n"),
+        Config(),
+    )
+
+    assert [(ref.target, ref.source) for ref in result.references] == [
+        ("real", ReferenceSource.LATEX_REF)
+    ]
+
+
 def test_latex_unterminated_equation_warns() -> None:
     result = LatexScanner().scan(_document("\\begin{equation}\na = a\n"), Config())
 

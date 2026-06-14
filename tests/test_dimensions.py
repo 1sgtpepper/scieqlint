@@ -176,6 +176,22 @@ def test_odd_square_root_dimension_reports_skipped_check(tmp_path) -> None:
     assert "DIM020" in [diagnostic.code for diagnostic in result.diagnostics]
 
 
+def test_dimension_parser_skips_missing_exponent_and_group(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = m^ + \\frac m a\n$$\n", config)
+
+    assert "DIM020" in [diagnostic.code for diagnostic in _dimension_diagnostics(result)]
+
+
+def test_dimension_parser_skips_stray_tex_multiply(tmp_path) -> None:
+    config = _mechanics_config(tmp_path)
+
+    result = _check("$$\nF = \\cdot m*a\n$$\n", config)
+
+    assert "DIM020" in [diagnostic.code for diagnostic in _dimension_diagnostics(result)]
+
+
 def _check(text: str, config: Config):
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

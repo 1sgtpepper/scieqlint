@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from fractions import Fraction
 from pathlib import PurePosixPath
 
+import pytest
+
 from scieqlint.check.algebra import check_algebra
+from scieqlint.check.algebra_poly import UnsupportedExpressionError, format_poly, sqrt_poly
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.markdown import MarkdownScanner
@@ -88,3 +92,24 @@ def test_unsupported_trig_reports_parse_unknown() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sin(x) = x\n$$\n"))
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE021"]
     assert diagnostics[0].rule == "parser"
+
+
+def test_polynomial_formatting_covers_sign_and_fraction_edges() -> None:
+    polynomial = {
+        (("x", 1),): Fraction(1),
+        (("y", 1),): Fraction(-1),
+        (): Fraction(1, 2),
+    }
+
+    assert format_poly(polynomial) == "x - y + 1/2"
+
+
+def test_sqrt_rejects_near_binomial_squares() -> None:
+    with pytest.raises(UnsupportedExpressionError, match="sqrt of non-square expression"):
+        sqrt_poly(
+            {
+                (("x", 2),): Fraction(1),
+                (("x", 1),): Fraction(2),
+                (): Fraction(-1),
+            }
+        )
