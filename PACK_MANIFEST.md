@@ -1,4 +1,3 @@
-
 - `.editorconfig`
 - `.github/CODEOWNERS`
 - `.github/FUNDING.yml`
@@ -228,11 +227,13 @@
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
+- `tests/test_generated_validation.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
+- `tests/test_math_host.py`
 - `tests/test_myst_reference_view.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
