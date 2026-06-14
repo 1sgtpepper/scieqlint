@@ -135,6 +135,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`
 - `src/scieqlint/examples/bad/famous_bad.md`
@@ -149,6 +150,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/facts/reference.py`
 - `src/scieqlint/facts/snapshot.py`
 - `src/scieqlint/facts/structure.py`
+- `src/scieqlint/frontend/__init__.py`
+- `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -199,6 +202,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/source/__init__.py`
 - `src/scieqlint/source/maps.py`
 - `tests/fixtures/bad/.gitkeep`
+- `tests/fixtures/bad/architecture_myst_bad.md`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
 - `tests/fixtures/bad/preset_mechanics_bad.md`
@@ -208,6 +212,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
+- `tests/fixtures/good/architecture_myst_good.md`
 - `tests/fixtures/good/graph_refs.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
@@ -241,6 +246,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
+- `tests/test_myst_structure_facts.py`
 - `tests/test_notebook_scan.py`
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
