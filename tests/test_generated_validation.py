@@ -2,7 +2,10 @@ from pathlib import PurePosixPath
 
 from scieqlint.compat.architecture_pipeline import analyze_documents_architecture
 from scieqlint.compat.generated import attach_generated_provenance
+from scieqlint.engine.algebra import AlgebraEngine
 from scieqlint.engine.generated import GeneratedOutputEngine
+from scieqlint.facts.math import DisplayMathFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.math.host import MathHost
@@ -127,3 +130,37 @@ def test_generated_profile_runs_myst_and_generated_checks_without_companion_prof
     codes = {diagnostic.code for diagnostic in result.diagnostics}
     assert {"STR001", "REF002", "REF014", "GEN003", "GEN005"} <= codes
     assert any(d.severity.value == "error" for d in result.diagnostics if d.code == "GEN003")
+
+
+def test_generated_profile_runs_algebra_checks():
+    generated = doc("generated/bad.md", "$$\n(a+b)^2 = a^2 + b^2\n$$\n")
+
+    result = analyze_documents_architecture((generated,), profiles=("generated",))
+
+    by_code = {diagnostic.code: diagnostic for diagnostic in result.diagnostics}
+    assert by_code["ALG001"].severity.value == "error"
+    assert by_code["ALG001"].detail == "left - right = 2*a*b"
+
+
+def test_generated_profile_accepts_valid_algebra_identity():
+    generated = doc("generated/good.md", "$$\n(a+b)^2 = a^2 + 2*a*b + b^2\n$$\n")
+
+    result = analyze_documents_architecture((generated,), profiles=("generated",))
+
+    assert "ALG001" not in {diagnostic.code for diagnostic in result.diagnostics}
+
+
+def test_architecture_algebra_engine_skips_spanless_math_facts():
+    snapshot = FactSnapshot(
+        display_math=(
+            DisplayMathFact(
+                fact_id="math-1",
+                document_id="generated/bad.md",
+                span=None,
+                body="(a+b)^2 = a^2 + b^2",
+                container="dollar-dollar",
+            ),
+        )
+    )
+
+    assert AlgebraEngine().run(QueryHost(snapshot)) == ()

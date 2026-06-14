@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from scieqlint.compat.generated import attach_generated_provenance
 from scieqlint.diag.ir import DiagnosticIR
+from scieqlint.engine.algebra import AlgebraEngine
 from scieqlint.engine.base import Engine
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.math_container import MathContainerEngine
@@ -25,6 +26,7 @@ from scieqlint.query.host import QueryHost
 from scieqlint.schema.result import AnalysisResult
 
 _ENGINES: dict[str, Engine] = {
+    "algebra": AlgebraEngine(),
     "structure": StructureEngine(),
     "references": ReferenceEngine(),
     "generated": GeneratedOutputEngine(),

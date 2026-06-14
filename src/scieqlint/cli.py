@@ -10,8 +10,12 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import check_paths, graph_paths
-from scieqlint.api_architecture import analyze_paths_architecture
+from scieqlint.api_architecture import (
+    analyze_paths_architecture,
+    apply_config_policy_architecture,
+)
 from scieqlint.config.load import load_config
+from scieqlint.config.model import Config
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.diag.catalog_architecture import install_architecture_catalog
@@ -128,10 +132,10 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
+        config = load_config(config_path)
         architecture_profiles = profiles
         architecture_generated_pairs = generated_pairs
         if not architecture_profiles:
-            config = load_config(config_path)
             architecture_profiles = config.architecture.profiles
             architecture_generated_pairs = (
                 *config.architecture.generated_pairs,
@@ -140,6 +144,7 @@ def check(
         if architecture_profiles:
             result = _run_architecture_check(
                 paths,
+                config=config,
                 profiles=architecture_profiles,
                 generated_pairs=architecture_generated_pairs,
                 output_format=output_format,
@@ -267,6 +272,7 @@ def _preset_text(name: str) -> str:
 def _run_architecture_check(
     paths: tuple[Path, ...],
     *,
+    config: Config,
     profiles: tuple[str, ...],
     generated_pairs: tuple[str, ...],
     output_format: str,
@@ -278,17 +284,21 @@ def _run_architecture_check(
         profiles=profiles,
         generated_pairs=_parse_generated_pairs(generated_pairs),
     )
+    result = apply_config_policy_architecture(result, config)
+    check_result = _architecture_check_result(result, config)
     if output_format == "json":
-        rendered = render_analysis_result_json(result)
+        rendered = render_analysis_result_json(
+            result,
+            show_suppressed=config.report.show_suppressed,
+        )
     else:
-        check_result = _architecture_check_result(result)
         if output_format == "github":
             rendered = GitHubReporter().render(check_result)
         elif output_format == "sarif":
             rendered = SarifReporter().render(check_result)
         else:
             rendered = TextReporter(quiet=quiet).render(check_result)
-    return rendered, 1 if result.summary()["errors"] else 0
+    return rendered, check_result.exit_code()
 
 
 def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
@@ -303,14 +313,15 @@ def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ..
     return tuple(pairs)
 
 
-def _architecture_check_result(result: AnalysisResult) -> CheckResult:
+def _architecture_check_result(result: AnalysisResult, config: Config) -> CheckResult:
     summary = result.summary()
     return CheckResult(
         diagnostics=result.diagnostics,
         files_checked=summary["files_checked"],
         math_blocks_checked=summary["facts"],
-        config_path=None,
+        config_path=config.path,
         version=__version__,
+        show_suppressed=config.report.show_suppressed,
     )
 
 

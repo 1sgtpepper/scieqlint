@@ -6,13 +6,18 @@ import pytest
 
 import scieqlint.compat.architecture_pipeline as architecture_pipeline
 from scieqlint.api import check_paths
-from scieqlint.api_architecture import analyze_paths_architecture
+from scieqlint.api_architecture import analyze_paths_architecture, apply_config_policy_architecture
 from scieqlint.compat.architecture_pipeline import analyze_documents_architecture
+from scieqlint.config.model import BaselineConfig, Config, ProjectConfig
 from scieqlint.diag.catalog import CATALOG, explain_code
 from scieqlint.diag.catalog_architecture import ARCHITECTURE_CATALOG, install_architecture_catalog
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.base import Engine
+from scieqlint.facts.math import DisplayMathFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.schema.json_architecture import render_analysis_result_json
+from scieqlint.schema.result import AnalysisResult
 
 ARCHITECTURE_BAD_FIXTURE = Path("tests/fixtures/bad/architecture_myst_bad.md")
 ARCHITECTURE_BAD_GOLDEN = Path("tests/golden/json/architecture_myst_bad.json")
@@ -109,3 +114,143 @@ def test_stable_scan001_and_architecture_str002_are_separate(tmp_path: Path):
 
     assert [diagnostic.code for diagnostic in stable_result.diagnostics] == ["SCAN001"]
     assert [diagnostic.code for diagnostic in architecture_result.diagnostics] == ["STR002"]
+
+
+def test_architecture_policy_suppresses_fenced_math_with_spanless_fact_present() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n```{math}\n(a+b)^2 = a^2 + b^2\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+    diagnostic = _diagnostic(span=_span(line=3, col=1, end_line=3, end_col=20))
+    result = AnalysisResult(
+        snapshot=FactSnapshot(
+            documents=(document,),
+            display_math=(
+                DisplayMathFact(
+                    fact_id="display:spanless",
+                    document_id="lecture.md",
+                    span=None,
+                    body="ignored",
+                    container="dollar-dollar",
+                ),
+                DisplayMathFact(
+                    fact_id="display:fenced",
+                    document_id="lecture.md",
+                    span=_span(start=43, end=73, line=2, col=1, end_line=4, end_col=3),
+                    body="(a+b)^2 = a^2 + b^2",
+                    container="fenced-math",
+                ),
+            ),
+        ),
+        diagnostics=(diagnostic,),
+        profiles=("generated",),
+    )
+
+    policy_result = apply_config_policy_architecture(result, Config())
+
+    assert policy_result.diagnostics[0].suppressed is True
+    assert policy_result.diagnostics[0].suppression_reason == "source comment"
+
+
+def test_architecture_policy_resolves_relative_baseline_without_config_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline = tmp_path / "scieqlint-baseline.json"
+    baseline.write_text(json.dumps({"diagnostics": [_baseline_entry()]}), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    result = _analysis_result_with_diagnostic()
+
+    policy_result = apply_config_policy_architecture(
+        result,
+        Config(baseline=BaselineConfig(files=("scieqlint-baseline.json",))),
+    )
+
+    assert policy_result.diagnostics[0].suppressed is True
+    assert policy_result.diagnostics[0].suppression_reason == "baseline"
+
+
+def test_architecture_policy_resolves_relative_baseline_from_absolute_project_root(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "book"
+    project.mkdir()
+    baseline = project / "scieqlint-baseline.json"
+    baseline.write_text(json.dumps({"diagnostics": [_baseline_entry()]}), encoding="utf-8")
+    result = _analysis_result_with_diagnostic()
+
+    policy_result = apply_config_policy_architecture(
+        result,
+        Config(
+            project=ProjectConfig(root=PurePosixPath(project.as_posix())),
+            baseline=BaselineConfig(files=("scieqlint-baseline.json",)),
+        ),
+    )
+
+    assert policy_result.diagnostics[0].suppressed is True
+    assert policy_result.diagnostics[0].suppression_reason == "baseline"
+
+
+def test_architecture_policy_accepts_absolute_baseline_file(tmp_path: Path) -> None:
+    baseline = tmp_path / "scieqlint-baseline.json"
+    baseline.write_text(json.dumps({"diagnostics": [_baseline_entry()]}), encoding="utf-8")
+    result = _analysis_result_with_diagnostic()
+
+    policy_result = apply_config_policy_architecture(
+        result,
+        Config(baseline=BaselineConfig(files=(baseline.as_posix(),))),
+    )
+
+    assert policy_result.diagnostics[0].suppressed is True
+    assert policy_result.diagnostics[0].suppression_reason == "baseline"
+
+
+def _analysis_result_with_diagnostic() -> AnalysisResult:
+    return AnalysisResult(
+        snapshot=FactSnapshot(),
+        diagnostics=(_diagnostic(span=_span()),),
+        profiles=("generated",),
+    )
+
+
+def _diagnostic(*, span: SourceSpan) -> Diagnostic:
+    return Diagnostic(
+        code="ALG001",
+        severity=Severity.ERROR,
+        message="algebraic identity does not hold",
+        span=span,
+        detail="left - right = 2*a*b",
+    )
+
+
+def _baseline_entry() -> dict[str, object]:
+    return {
+        "code": "ALG001",
+        "path": "lecture.md",
+        "line": 2,
+        "col": 1,
+        "end_line": 2,
+        "end_col": 19,
+        "detail": "left - right = 2*a*b",
+    }
+
+
+def _span(
+    *,
+    start: int = 3,
+    end: int = 12,
+    line: int = 2,
+    col: int = 1,
+    end_line: int = 2,
+    end_col: int = 19,
+) -> SourceSpan:
+    return SourceSpan(
+        path=PurePosixPath("lecture.md"),
+        start=start,
+        end=end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+    )
