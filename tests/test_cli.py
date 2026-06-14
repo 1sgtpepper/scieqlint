@@ -122,6 +122,91 @@ def test_generated_profile_cli_uses_source_generated_pairs(tmp_path) -> None:
     }
 
 
+def test_architecture_profile_applies_source_suppressions(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text(
+        "<!-- scieqlint-disable-next-line STR001 -->\n####Title\n",
+        encoding="utf-8",
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "[architecture]",
+                'profiles = ["scientific-myst", "strict-ci"]',
+                "",
+                "[report]",
+                "show_suppressed = true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["summary"]["errors"] == 0
+    assert payload["diagnostics"][0]["code"] == "STR001"
+    assert payload["diagnostics"][0]["suppressed"] is True
+    assert payload["diagnostics"][0]["suppression_reason"] == "source comment"
+
+
+def test_architecture_profile_applies_baseline_files(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "known.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "scieqlint-baseline.json"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    baseline.write_text(
+        json.dumps(
+            {
+                "diagnostics": [
+                    {
+                        "code": "ALG001",
+                        "path": "known.md",
+                        "line": 1,
+                        "col": 3,
+                        "end_line": 2,
+                        "end_col": 20,
+                        "detail": "left - right = 2*a*b",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "[architecture]",
+                'profiles = ["generated"]',
+                "",
+                "[baseline]",
+                'files = ["scieqlint-baseline.json"]',
+                "",
+                "[report]",
+                "show_suppressed = true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "known.md", "--config", "scieqlint.toml", "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["summary"]["errors"] == 0
+    assert payload["diagnostics"][0]["code"] == "ALG001"
+    assert payload["diagnostics"][0]["suppression_reason"] == "baseline"
+
+
 def test_architecture_profile_can_be_selected_from_config(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     config = tmp_path / "scieqlint.toml"

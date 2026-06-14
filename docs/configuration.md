@@ -171,7 +171,9 @@ config = load_config("scieqlint.toml", preset="mechanics")
 
 The architecture-preview pipeline has named policy profiles. Select them with
 `scieqlint check --profile` or with the `[architecture]` table in
-`scieqlint.toml`.
+`scieqlint.toml`. Architecture-profile CLI runs use the same source
+suppressions, baseline files, and `report.show_suppressed` setting as the
+stable check path.
 
 | Profile | Use | Notes |
 |---|---|---|

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import TextIO
 
@@ -11,8 +12,15 @@ import click
 from scieqlint import __version__
 from scieqlint.api import check_paths, graph_paths
 from scieqlint.api_architecture import analyze_paths_architecture
+from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.config.load import load_config
+from scieqlint.config.model import Config
 from scieqlint.config.presets import list_presets, read_preset_text
+from scieqlint.diag.baseline import (
+    BaselineIdentity,
+    apply_baseline,
+    baseline_identities_from_json,
+)
 from scieqlint.diag.catalog import explain_code
 from scieqlint.diag.catalog_architecture import install_architecture_catalog
 from scieqlint.diag.model import CheckResult
@@ -22,6 +30,7 @@ from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
+from scieqlint.scan.base import MathBlock, MathContainer
 from scieqlint.schema.json_architecture import render_analysis_result_json
 from scieqlint.schema.result import AnalysisResult
 
@@ -128,10 +137,10 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
+        config = load_config(config_path)
         architecture_profiles = profiles
         architecture_generated_pairs = generated_pairs
         if not architecture_profiles:
-            config = load_config(config_path)
             architecture_profiles = config.architecture.profiles
             architecture_generated_pairs = (
                 *config.architecture.generated_pairs,
@@ -140,6 +149,7 @@ def check(
         if architecture_profiles:
             result = _run_architecture_check(
                 paths,
+                config=config,
                 profiles=architecture_profiles,
                 generated_pairs=architecture_generated_pairs,
                 output_format=output_format,
@@ -267,6 +277,7 @@ def _preset_text(name: str) -> str:
 def _run_architecture_check(
     paths: tuple[Path, ...],
     *,
+    config: Config,
     profiles: tuple[str, ...],
     generated_pairs: tuple[str, ...],
     output_format: str,
@@ -278,17 +289,21 @@ def _run_architecture_check(
         profiles=profiles,
         generated_pairs=_parse_generated_pairs(generated_pairs),
     )
+    result = _apply_architecture_suppressions_and_baselines(result, config)
+    check_result = _architecture_check_result(result, config)
     if output_format == "json":
-        rendered = render_analysis_result_json(result)
+        rendered = render_analysis_result_json(
+            result,
+            show_suppressed=config.report.show_suppressed,
+        )
     else:
-        check_result = _architecture_check_result(result)
         if output_format == "github":
             rendered = GitHubReporter().render(check_result)
         elif output_format == "sarif":
             rendered = SarifReporter().render(check_result)
         else:
             rendered = TextReporter(quiet=quiet).render(check_result)
-    return rendered, 1 if result.summary()["errors"] else 0
+    return rendered, check_result.exit_code()
 
 
 def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
@@ -303,14 +318,72 @@ def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ..
     return tuple(pairs)
 
 
-def _architecture_check_result(result: AnalysisResult) -> CheckResult:
+def _apply_architecture_suppressions_and_baselines(
+    result: AnalysisResult,
+    config: Config,
+) -> AnalysisResult:
+    diagnostics = apply_suppressions(
+        result.diagnostics,
+        documents=result.snapshot.documents,
+        blocks=_architecture_math_blocks(result),
+    )
+    diagnostics = apply_baseline(
+        diagnostics,
+        _load_architecture_baselines(config),
+    )
+    return replace(result, diagnostics=diagnostics)
+
+
+def _architecture_math_blocks(result: AnalysisResult) -> tuple[MathBlock, ...]:
+    blocks: list[MathBlock] = []
+    for fact in result.snapshot.display_math:
+        span = fact.span
+        if span is None:
+            continue
+        container = (
+            MathContainer.MARKDOWN_FENCE
+            if fact.container == "fenced-math"
+            else MathContainer.MARKDOWN_DISPLAY
+        )
+        blocks.append(
+            MathBlock(
+                text=fact.body,
+                span=span,
+                block_id=fact.fact_id,
+                container=container,
+            )
+        )
+    return tuple(blocks)
+
+
+def _load_architecture_baselines(config: Config) -> frozenset[BaselineIdentity]:
+    identities: set[BaselineIdentity] = set()
+    for raw in config.baseline.files:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = _architecture_project_root(config) / path
+        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
+    return frozenset(identities)
+
+
+def _architecture_project_root(config: Config) -> Path:
+    root = Path(config.project.root.as_posix())
+    if root.is_absolute():
+        return root
+    if config.path is None:
+        return Path.cwd() / root
+    return Path(config.path.as_posix()).parent / root
+
+
+def _architecture_check_result(result: AnalysisResult, config: Config) -> CheckResult:
     summary = result.summary()
     return CheckResult(
         diagnostics=result.diagnostics,
         files_checked=summary["files_checked"],
         math_blocks_checked=summary["facts"],
-        config_path=None,
+        config_path=config.path,
         version=__version__,
+        show_suppressed=config.report.show_suppressed,
     )
 
 
