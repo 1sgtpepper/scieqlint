@@ -1,23 +1,3 @@
-# Pack Manifest
-
-This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
-tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
-
-## Important distinction
-
-- `SPEC.md` defines the full release ladder through v1.0.0.
-- `src/scieqlint/` implements the v0.1.5 analyzer slice.
-- Later release features still need fixtures, docs, golden outputs, and release
-  acceptance gates before they are claimed.
-
-## Validation Performed
-
-- Python compile smoke passed.
-- Pytest passed for the v0.1.5 analyzer slice.
-- Ruff and Pyright are configured in CI; run them where the full dev environment is
-  available.
-
-## Contents
 
 - `.editorconfig`
 - `.github/CODEOWNERS`
@@ -131,12 +111,24 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/__init__.py`
 - `src/scieqlint/diag/baseline.py`
 - `src/scieqlint/diag/catalog.py`
+- `src/scieqlint/diag/ir.py`
 - `src/scieqlint/diag/model.py`
+- `src/scieqlint/engine/__init__.py`
+- `src/scieqlint/engine/base.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`
 - `src/scieqlint/examples/bad/famous_bad.md`
 - `src/scieqlint/examples/good/__init__.py`
 - `src/scieqlint/examples/good/algebra_good.md`
+- `src/scieqlint/facts/__init__.py`
+- `src/scieqlint/facts/base.py`
+- `src/scieqlint/facts/generated.py`
+- `src/scieqlint/facts/math.py`
+- `src/scieqlint/facts/portability.py`
+- `src/scieqlint/facts/project.py`
+- `src/scieqlint/facts/reference.py`
+- `src/scieqlint/facts/snapshot.py`
+- `src/scieqlint/facts/structure.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -146,6 +138,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/io/limits.py`
 - `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`
+- `src/scieqlint/ir/__init__.py`
+- `src/scieqlint/ir/model.py`
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
@@ -156,6 +150,14 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/mechanics.toml`
 - `src/scieqlint/py.typed`
+- `src/scieqlint/query/__init__.py`
+- `src/scieqlint/query/generated.py`
+- `src/scieqlint/query/host.py`
+- `src/scieqlint/query/math.py`
+- `src/scieqlint/query/portability.py`
+- `src/scieqlint/query/project.py`
+- `src/scieqlint/query/reference.py`
+- `src/scieqlint/query/structure.py`
 - `src/scieqlint/report/__init__.py`
 - `src/scieqlint/report/base.py`
 - `src/scieqlint/report/github.py`
@@ -168,10 +170,14 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/scan/markdown.py`
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
+- `src/scieqlint/schema/__init__.py`
+- `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
 - `src/scieqlint/schemas/scieqlint-graph-0.3.schema.json`
 - `src/scieqlint/schemas/scieqlint-result-0.1.schema.json`
+- `src/scieqlint/source/__init__.py`
+- `src/scieqlint/source/maps.py`
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
@@ -201,6 +207,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
 - `tests/test_api.py`
+- `tests/test_architecture_contracts.py`
 - `tests/test_ast_print.py`
 - `tests/test_baseline.py`
 - `tests/test_cli.py`
