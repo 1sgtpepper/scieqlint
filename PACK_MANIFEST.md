@@ -123,6 +123,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/check/suppressions.py`
 - `src/scieqlint/check/symbols.py`
 - `src/scieqlint/cli.py`
+- `src/scieqlint/compat/__init__.py`
+- `src/scieqlint/compat/generated.py`
 - `src/scieqlint/config/__init__.py`
 - `src/scieqlint/config/load.py`
 - `src/scieqlint/config/model.py`
@@ -135,6 +137,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -241,6 +244,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
+- `tests/test_generated_validation.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_json_schema.py`
