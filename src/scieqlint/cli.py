@@ -11,6 +11,7 @@ import click
 from scieqlint import __version__
 from scieqlint.api import check_paths, graph_paths
 from scieqlint.api_architecture import analyze_paths_architecture
+from scieqlint.config.load import load_config
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.diag.catalog_architecture import install_architecture_catalog
@@ -67,6 +68,10 @@ files = []
 
 [report]
 show_suppressed = false
+
+[architecture]
+profiles = []
+generated_pairs = []
 """
 
 
@@ -123,11 +128,20 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
-        if profiles:
+        architecture_profiles = profiles
+        architecture_generated_pairs = generated_pairs
+        if not architecture_profiles:
+            config = load_config(config_path)
+            architecture_profiles = config.architecture.profiles
+            architecture_generated_pairs = (
+                *config.architecture.generated_pairs,
+                *generated_pairs,
+            )
+        if architecture_profiles:
             result = _run_architecture_check(
                 paths,
-                profiles=profiles,
-                generated_pairs=generated_pairs,
+                profiles=architecture_profiles,
+                generated_pairs=architecture_generated_pairs,
                 output_format=output_format,
                 quiet=quiet,
             )

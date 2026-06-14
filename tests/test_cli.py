@@ -122,6 +122,26 @@ def test_generated_profile_cli_uses_source_generated_pairs(tmp_path) -> None:
     }
 
 
+def test_architecture_profile_can_be_selected_from_config(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("####Title\n", encoding="utf-8")
+    config.write_text(
+        '[architecture]\nprofiles = ["scientific-myst", "strict-ci"]\n',
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["profiles"] == ["scientific-myst", "strict-ci"]
+    assert payload["diagnostics"][0]["code"] == "STR001"
+
+
 def test_generated_profile_github_annotations(tmp_path) -> None:
     generated = tmp_path / "generated.md"
     generated.write_text("$$\nA t t e n t ( Q , K , V )\n$$\n", encoding="utf-8")

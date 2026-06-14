@@ -47,8 +47,8 @@ user config file, so user config values override preset values.
 ## Architecture-preview API
 
 The architecture-preview API is exported separately from `scieqlint.api`. It is
-available for profile and generated-output validation while the stable CLI and
-config surfaces continue to use the v1.0 path.
+available for profile and generated-output validation behind the same
+architecture-preview contracts used by `scieqlint check --profile`.
 
 - `analyze_paths_architecture(paths, *, profiles=("scientific-myst",), generated_pairs=())`
 - `analyze_documents_architecture(documents, *, profiles=("scientific-myst",), generated_pairs=())`
@@ -56,8 +56,9 @@ config surfaces continue to use the v1.0 path.
 `scientific-myst` enables deterministic MyST/Markdown structure, generic and
 equation reference, and math-container diagnostics. `generated` is a standalone
 generated-document validation profile; it includes the scientific MyST rule
-families and adds source/generated preservation checks. Generated preservation
-checks require explicit `(source_path, generated_path)` pairs.
+families and adds source/generated preservation plus suspicious generated
+formula checks. Generated preservation checks require explicit
+`(source_path, generated_path)` pairs.
 
 ```python
 from pathlib import Path
@@ -80,6 +81,6 @@ Path("scieqlint-generated.json").write_text(
 raise SystemExit(1 if result.summary()["errors"] else 0)
 ```
 
-The preview result schema is `0.2-architecture-preview`. It is intentionally not
-the stable JSON reporter schema, and it does not imply a stable CLI flag or TOML
-profile key.
+The preview result schema is `0.2-architecture-preview`. The `check --profile`
+CLI path emits this schema for `--format json` and uses the existing text,
+GitHub, and SARIF reporters for the other output formats.
