@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import replace
 from pathlib import Path
 from typing import TextIO
 
@@ -11,16 +10,13 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import check_paths, graph_paths
-from scieqlint.api_architecture import analyze_paths_architecture
-from scieqlint.check.suppressions import apply_suppressions
+from scieqlint.api_architecture import (
+    analyze_paths_architecture,
+    apply_config_policy_architecture,
+)
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config
 from scieqlint.config.presets import list_presets, read_preset_text
-from scieqlint.diag.baseline import (
-    BaselineIdentity,
-    apply_baseline,
-    baseline_identities_from_json,
-)
 from scieqlint.diag.catalog import explain_code
 from scieqlint.diag.catalog_architecture import install_architecture_catalog
 from scieqlint.diag.model import CheckResult
@@ -30,7 +26,6 @@ from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
-from scieqlint.scan.base import MathBlock, MathContainer
 from scieqlint.schema.json_architecture import render_analysis_result_json
 from scieqlint.schema.result import AnalysisResult
 
@@ -289,7 +284,7 @@ def _run_architecture_check(
         profiles=profiles,
         generated_pairs=_parse_generated_pairs(generated_pairs),
     )
-    result = _apply_architecture_suppressions_and_baselines(result, config)
+    result = apply_config_policy_architecture(result, config)
     check_result = _architecture_check_result(result, config)
     if output_format == "json":
         rendered = render_analysis_result_json(
@@ -316,63 +311,6 @@ def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ..
             )
         pairs.append((source, generated))
     return tuple(pairs)
-
-
-def _apply_architecture_suppressions_and_baselines(
-    result: AnalysisResult,
-    config: Config,
-) -> AnalysisResult:
-    diagnostics = apply_suppressions(
-        result.diagnostics,
-        documents=result.snapshot.documents,
-        blocks=_architecture_math_blocks(result),
-    )
-    diagnostics = apply_baseline(
-        diagnostics,
-        _load_architecture_baselines(config),
-    )
-    return replace(result, diagnostics=diagnostics)
-
-
-def _architecture_math_blocks(result: AnalysisResult) -> tuple[MathBlock, ...]:
-    blocks: list[MathBlock] = []
-    for fact in result.snapshot.display_math:
-        span = fact.span
-        if span is None:
-            continue
-        container = (
-            MathContainer.MARKDOWN_FENCE
-            if fact.container == "fenced-math"
-            else MathContainer.MARKDOWN_DISPLAY
-        )
-        blocks.append(
-            MathBlock(
-                text=fact.body,
-                span=span,
-                block_id=fact.fact_id,
-                container=container,
-            )
-        )
-    return tuple(blocks)
-
-
-def _load_architecture_baselines(config: Config) -> frozenset[BaselineIdentity]:
-    identities: set[BaselineIdentity] = set()
-    for raw in config.baseline.files:
-        path = Path(raw)
-        if not path.is_absolute():
-            path = _architecture_project_root(config) / path
-        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
-    return frozenset(identities)
-
-
-def _architecture_project_root(config: Config) -> Path:
-    root = Path(config.project.root.as_posix())
-    if root.is_absolute():
-        return root
-    if config.path is None:
-        return Path.cwd() / root
-    return Path(config.path.as_posix()).parent / root
 
 
 def _architecture_check_result(result: AnalysisResult, config: Config) -> CheckResult:
