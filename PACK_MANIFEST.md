@@ -244,6 +244,7 @@
 - `tests/test_package_resources.py`
 - `tests/test_parser.py`
 - `tests/test_policy_profiles.py`
+- `tests/test_portability_quarto.py`
 - `tests/test_pr_template.py`
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_references.py`
