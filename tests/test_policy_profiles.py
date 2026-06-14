@@ -33,6 +33,23 @@ def test_default_profile_filters_unselected_rule():
     assert [diagnostic.code for diagnostic in diagnostics] == ["STR002"]
 
 
+def test_generated_profile_is_standalone_document_gate():
+    plan = PolicyHost().make_plan(("generated",))
+
+    assert plan.engines == frozenset({"structure", "references", "math-container", "generated"})
+    assert {
+        "STR001",
+        "REF001",
+        "REF002",
+        "REF010",
+        "REF011",
+        "REF014",
+        "GEN003",
+        "MATH020",
+    } <= plan.rules
+    assert dict(plan.severity_overrides)["REF011"] is Severity.ERROR
+
+
 def test_unknown_profile_is_rejected_before_analysis():
     with pytest.raises(ValueError, match="unknown profile: typo"):
         PolicyHost().make_plan(("typo",))
