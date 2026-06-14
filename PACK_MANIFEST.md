@@ -138,6 +138,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
+- `src/scieqlint/engine/math_container.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -167,6 +168,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/ir/__init__.py`
 - `src/scieqlint/ir/model.py`
+- `src/scieqlint/math/__init__.py`
+- `src/scieqlint/math/host.py`
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
@@ -250,6 +253,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
+- `tests/test_math_host.py`
 - `tests/test_myst_reference_view.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
