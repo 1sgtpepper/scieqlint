@@ -1,3 +1,23 @@
+# Pack Manifest
+
+This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
+tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
+
+## Important distinction
+
+- `SPEC.md` defines the full release ladder through v1.0.0.
+- `src/scieqlint/` implements the v0.1.5 analyzer slice.
+- Later release features still need fixtures, docs, golden outputs, and release
+  acceptance gates before they are claimed.
+
+## Validation Performed
+
+- Python compile smoke passed.
+- Pytest passed for the v0.1.5 analyzer slice.
+- Ruff and Pyright are configured in CI; run them where the full dev environment is
+  available.
+
+## Contents
 
 - `.editorconfig`
 - `.github/CODEOWNERS`
