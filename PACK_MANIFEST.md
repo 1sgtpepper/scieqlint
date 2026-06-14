@@ -115,6 +115,7 @@
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`
 - `src/scieqlint/examples/bad/famous_bad.md`
@@ -129,6 +130,8 @@
 - `src/scieqlint/facts/reference.py`
 - `src/scieqlint/facts/snapshot.py`
 - `src/scieqlint/facts/structure.py`
+- `src/scieqlint/frontend/__init__.py`
+- `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -221,6 +224,7 @@
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
+- `tests/test_myst_structure_facts.py`
 - `tests/test_notebook_scan.py`
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
