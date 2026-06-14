@@ -157,6 +157,9 @@
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/policy/__init__.py`
+- `src/scieqlint/policy/host.py`
+- `src/scieqlint/policy/profiles.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/mechanics.toml`
 - `src/scieqlint/py.typed`
