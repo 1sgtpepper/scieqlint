@@ -88,6 +88,25 @@ def test_load_config_accepts_report_show_suppressed(tmp_path) -> None:
     assert config.report.show_suppressed is True
 
 
+def test_load_config_accepts_architecture_profiles(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[architecture]",
+                'profiles = ["generated", "strict-ci"]',
+                'generated_pairs = ["source.md=generated.md"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.architecture.profiles == ("generated", "strict-ci")
+    assert config.architecture.generated_pairs == ("source.md=generated.md",)
+
+
 def test_load_config_applies_packaged_preset_without_user_config(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
 

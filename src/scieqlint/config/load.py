@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from scieqlint.config.model import (
     AlgebraConfig,
+    ArchitectureConfig,
     BaselineConfig,
     ChecksConfig,
     Config,
@@ -52,6 +53,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
     report_data = _table(data, "report")
+    architecture_data = _table(data, "architecture")
     vars_data = _table(data, "vars")
     aliases_data = _table(data, "aliases")
     algebra_data = _table(checks_data, "algebra")
@@ -95,6 +97,10 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
         aliases=_aliases_config(aliases_data, vars_config),
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
         report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
+        architecture=ArchitectureConfig(
+            profiles=_str_tuple(architecture_data, "profiles"),
+            generated_pairs=_str_tuple(architecture_data, "generated_pairs"),
+        ),
     )
 
 

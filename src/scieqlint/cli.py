@@ -10,13 +10,24 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import check_paths, graph_paths
+from scieqlint.api_architecture import (
+    analyze_paths_architecture,
+    apply_config_policy_architecture,
+)
+from scieqlint.config.load import load_config
+from scieqlint.config.model import Config
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
+from scieqlint.diag.catalog_architecture import install_architecture_catalog
+from scieqlint.diag.model import CheckResult
 from scieqlint.graph.json import render_graph_json
+from scieqlint.policy.profiles import PROFILES
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
+from scieqlint.schema.json_architecture import render_analysis_result_json
+from scieqlint.schema.result import AnalysisResult
 
 DEFAULT_CONFIG = """[project]
 root = "."
@@ -61,6 +72,10 @@ files = []
 
 [report]
 show_suppressed = false
+
+[architecture]
+profiles = []
+generated_pairs = []
 """
 
 
@@ -88,6 +103,20 @@ def main() -> None:
 @click.option("--quiet", is_flag=True, help="Suppress empty-success text output.")
 @click.option("--strict-unknowns", is_flag=True, help="Report unsupported math as errors.")
 @click.option("--absolute-paths", is_flag=True, help="Render absolute diagnostic paths.")
+@click.option(
+    "--profile",
+    "profiles",
+    multiple=True,
+    type=click.Choice(sorted(PROFILES)),
+    help="Run an architecture-preview profile. Repeat to combine profiles.",
+)
+@click.option(
+    "--generated-pair",
+    "generated_pairs",
+    multiple=True,
+    metavar="SOURCE=GENERATED",
+    help="Pair a source document with generated output for generated profiles.",
+)
 def check(
     paths: tuple[Path, ...],
     config_path: Path | None,
@@ -98,9 +127,32 @@ def check(
     quiet: bool,
     strict_unknowns: bool,
     absolute_paths: bool,
+    profiles: tuple[str, ...],
+    generated_pairs: tuple[str, ...],
 ) -> None:
     """Check supported files."""
     try:
+        config = load_config(config_path)
+        architecture_profiles = profiles
+        architecture_generated_pairs = generated_pairs
+        if not architecture_profiles:
+            architecture_profiles = config.architecture.profiles
+            architecture_generated_pairs = (
+                *config.architecture.generated_pairs,
+                *generated_pairs,
+            )
+        if architecture_profiles:
+            result = _run_architecture_check(
+                paths,
+                config=config,
+                profiles=architecture_profiles,
+                generated_pairs=architecture_generated_pairs,
+                output_format=output_format,
+                quiet=quiet,
+            )
+            rendered, exit_code = result
+            _write_output(rendered, output_path, sys.stdout)
+            raise SystemExit(exit_code)
         result = check_paths(
             paths,
             config_path=config_path,
@@ -215,6 +267,62 @@ def explain(code: str) -> None:
 def _preset_text(name: str) -> str:
     text = read_preset_text(name)
     return text if text.endswith("\n") else f"{text}\n"
+
+
+def _run_architecture_check(
+    paths: tuple[Path, ...],
+    *,
+    config: Config,
+    profiles: tuple[str, ...],
+    generated_pairs: tuple[str, ...],
+    output_format: str,
+    quiet: bool,
+) -> tuple[str, int]:
+    install_architecture_catalog()
+    result = analyze_paths_architecture(
+        paths,
+        profiles=profiles,
+        generated_pairs=_parse_generated_pairs(generated_pairs),
+    )
+    result = apply_config_policy_architecture(result, config)
+    check_result = _architecture_check_result(result, config)
+    if output_format == "json":
+        rendered = render_analysis_result_json(
+            result,
+            show_suppressed=config.report.show_suppressed,
+        )
+    else:
+        if output_format == "github":
+            rendered = GitHubReporter().render(check_result)
+        elif output_format == "sarif":
+            rendered = SarifReporter().render(check_result)
+        else:
+            rendered = TextReporter(quiet=quiet).render(check_result)
+    return rendered, check_result.exit_code()
+
+
+def _parse_generated_pairs(values: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    pairs: list[tuple[str, str]] = []
+    for value in values:
+        source, separator, generated = value.partition("=")
+        if not separator or not source or not generated:
+            raise click.ClickException(
+                "--generated-pair must use SOURCE=GENERATED with both paths present"
+            )
+        pairs.append((source, generated))
+    return tuple(pairs)
+
+
+def _architecture_check_result(result: AnalysisResult, config: Config) -> CheckResult:
+    summary = result.summary()
+    return CheckResult(
+        diagnostics=result.diagnostics,
+        files_checked=summary["files_checked"],
+        math_blocks_checked=summary["facts"],
+        config_path=config.path,
+        version=__version__,
+        show_suppressed=config.report.show_suppressed,
+    )
 
 
 def _write_output(rendered: str, output_path: Path | None, stdout: TextIO) -> None:

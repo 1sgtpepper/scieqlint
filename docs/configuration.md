@@ -169,30 +169,33 @@ config = load_config("scieqlint.toml", preset="mechanics")
 
 ## Architecture-preview profiles
 
-The architecture-preview pipeline has named policy profiles, but they are not
-loaded from `scieqlint.toml` and the stable `scieqlint check` command does not
-yet expose a profile selector. Use the preview API when a workflow needs these
-profiles before CLI/config integration lands.
+The architecture-preview pipeline has named policy profiles. Select them with
+`scieqlint check --profile` or with the `[architecture]` table in
+`scieqlint.toml`. Architecture-profile CLI runs use the same source
+suppressions, baseline files, and `report.show_suppressed` setting as the
+stable check path.
 
 | Profile | Use | Notes |
 |---|---|---|
-| `scientific-myst` | MyST/Markdown scientific-document linting | Runs deterministic structure, generic/equation reference, and math-container rule families. |
-| `generated` | generated Markdown/MyST validation | Includes the `scientific-myst` rule families and adds source/generated preservation checks. Pass `generated_pairs` for anchor-preservation diagnostics. |
+| `scientific-myst` | MyST/Markdown scientific-document linting | Runs deterministic structure, generic/equation reference, algebra, and math-container rule families. |
+| `generated` | generated Markdown/MyST validation | Includes the `scientific-myst` rule families and adds source/generated preservation and suspicious-formula checks. Pass `generated_pairs` for anchor-preservation diagnostics. |
 | `strict-ci` | severity overlay | Remaps selected diagnostics to errors. Combine with another profile unless default-profile behavior is intended. |
 
 Example generated-output gate:
 
-```python
-from pathlib import Path
+```bash
+scieqlint check source generated \
+  --profile generated \
+  --generated-pair source/page.md=generated/page.md \
+  --format github
+```
 
-from scieqlint.api_architecture import analyze_paths_architecture
+Equivalent config:
 
-result = analyze_paths_architecture(
-    (Path("source"), Path("generated")),
-    profiles=("generated",),
-    generated_pairs=(("source/page.md", "generated/page.md"),),
-)
-raise SystemExit(1 if result.summary()["errors"] else 0)
+```toml
+[architecture]
+profiles = ["generated"]
+generated_pairs = ["source/page.md=generated/page.md"]
 ```
 
 ## Reserved config surface

@@ -23,6 +23,8 @@ def test_check_help_lists_v010_flags() -> None:
         "--inline-math",
         "--strict-unknowns",
         "--absolute-paths",
+        "--profile",
+        "--generated-pair",
     ]:
         assert option in result.output
     assert "github" in result.output
@@ -60,6 +62,256 @@ def test_json_output_for_clean_file(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
     assert result.exit_code == 0
     assert '"schema_version": "0.1"' in result.output
+
+
+def test_architecture_profile_json_reports_profile_metadata(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+            "--format",
+            "json",
+        ],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["schema_version"] == "0.2-architecture-preview"
+    assert payload["profiles"] == ["scientific-myst", "strict-ci"]
+    assert payload["diagnostics"][0]["code"] == "STR001"
+
+
+def test_generated_profile_cli_uses_source_generated_pairs(tmp_path) -> None:
+    source = tmp_path / "source.md"
+    generated = tmp_path / "generated.md"
+    source.write_text("(anchor)=\n# Source\n", encoding="utf-8")
+    generated.write_text(
+        "See {ref}`anchor`.\n\n$$\n<!-- formula-not-decoded -->\n$$\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(source),
+            str(generated),
+            "--profile",
+            "generated",
+            "--generated-pair",
+            f"{source.as_posix()}={generated.as_posix()}",
+            "--format",
+            "json",
+        ],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert {diagnostic["code"] for diagnostic in payload["diagnostics"]} >= {
+        "REF014",
+        "GEN003",
+        "GEN005",
+    }
+
+
+def test_architecture_profile_applies_source_suppressions(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text(
+        "<!-- scieqlint-disable-next-line STR001 -->\n####Title\n",
+        encoding="utf-8",
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "[architecture]",
+                'profiles = ["scientific-myst", "strict-ci"]',
+                "",
+                "[report]",
+                "show_suppressed = true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["summary"]["errors"] == 0
+    assert payload["diagnostics"][0]["code"] == "STR001"
+    assert payload["diagnostics"][0]["suppressed"] is True
+    assert payload["diagnostics"][0]["suppression_reason"] == "source comment"
+
+
+def test_architecture_profile_applies_baseline_files(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "known.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "scieqlint-baseline.json"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    baseline.write_text(
+        json.dumps(
+            {
+                "diagnostics": [
+                    {
+                        "code": "ALG001",
+                        "path": "known.md",
+                        "line": 1,
+                        "col": 3,
+                        "end_line": 2,
+                        "end_col": 20,
+                        "detail": "left - right = 2*a*b",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    config.write_text(
+        "\n".join(
+            [
+                "[architecture]",
+                'profiles = ["generated"]',
+                "",
+                "[baseline]",
+                'files = ["scieqlint-baseline.json"]',
+                "",
+                "[report]",
+                "show_suppressed = true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "known.md", "--config", "scieqlint.toml", "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 0
+    assert payload["summary"]["errors"] == 0
+    assert payload["diagnostics"][0]["code"] == "ALG001"
+    assert payload["diagnostics"][0]["suppression_reason"] == "baseline"
+
+
+def test_architecture_profile_can_be_selected_from_config(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("####Title\n", encoding="utf-8")
+    config.write_text(
+        '[architecture]\nprofiles = ["scientific-myst", "strict-ci"]\n',
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json"],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["profiles"] == ["scientific-myst", "strict-ci"]
+    assert payload["diagnostics"][0]["code"] == "STR001"
+
+
+def test_generated_profile_github_annotations(tmp_path) -> None:
+    generated = tmp_path / "generated.md"
+    generated.write_text("$$\nA t t e n t ( Q , K , V )\n$$\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(generated), "--profile", "generated", "--format", "github"],
+    )
+
+    assert result.exit_code == 1
+    assert result.output.startswith(
+        "::error title=GEN004 generated formula contains suspiciously spaced tokens"
+    )
+
+
+def test_architecture_profile_text_and_sarif_outputs(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    text_result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+        ],
+    )
+    sarif_result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+            "--format",
+            "sarif",
+        ],
+    )
+
+    assert text_result.exit_code == 1
+    assert "error STR001" in text_result.output
+    assert sarif_result.exit_code == 1
+    assert json.loads(sarif_result.output)["runs"][0]["results"][0]["ruleId"] == "STR001"
+
+
+def test_architecture_profile_writes_output_file(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    output = tmp_path / "architecture.json"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    assert json.loads(output.read_text(encoding="utf-8"))["profiles"] == ["scientific-myst"]
+
+
+def test_generated_pair_requires_source_and_generated_paths(tmp_path) -> None:
+    doc = tmp_path / "generated.md"
+    doc.write_text("# Generated\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--profile", "generated", "--generated-pair", "source.md="],
+    )
+
+    assert result.exit_code == 1
+    assert "--generated-pair must use SOURCE=GENERATED" in result.output
 
 
 def test_check_writes_output_file(tmp_path) -> None:

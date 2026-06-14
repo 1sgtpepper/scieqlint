@@ -139,6 +139,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/ir.py`
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
+- `src/scieqlint/engine/algebra.py`
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/math_container.py`
