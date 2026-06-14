@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from scieqlint.facts.reference import EquationLabelFact, GenericRefFact, TargetAnchorFact
+from scieqlint.facts.reference import (
+    EquationLabelFact,
+    EquationRefFact,
+    GenericRefFact,
+    TargetAnchorFact,
+)
 from scieqlint.facts.snapshot import FactSnapshot
 
 TargetFact = TargetAnchorFact | EquationLabelFact
@@ -27,6 +32,9 @@ class ReferenceQueryView:
     def equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return self.snapshot.equation_labels
 
+    def equation_refs(self) -> tuple[EquationRefFact, ...]:
+        return self.snapshot.equation_refs
+
     def generic_refs(self) -> tuple[GenericRefFact, ...]:
         return self.snapshot.generic_refs
 
@@ -44,6 +52,15 @@ class ReferenceQueryView:
             index[anchor.normalized_label].append(anchor)
         return {key: tuple(value) for key, value in index.items() if len(value) > 1}
 
+    def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
+        index: dict[str, list[EquationLabelFact]] = defaultdict(list)
+        for label in self.snapshot.equation_labels:
+            index[label.normalized_label].append(label)
+        return {key: tuple(value) for key, value in index.items()}
+
+    def duplicate_equation_targets(self) -> dict[str, tuple[EquationLabelFact, ...]]:
+        return {key: value for key, value in self.equation_target_index().items() if len(value) > 1}
+
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
         targets = self.target_index()
         return tuple(
@@ -55,6 +72,20 @@ class ReferenceQueryView:
         return tuple(
             ref
             for ref in self.snapshot.generic_refs
+            if len(targets.get(ref.normalized_target, ())) > 1
+        )
+
+    def unresolved_equation_refs(self) -> tuple[EquationRefFact, ...]:
+        targets = self.equation_target_index()
+        return tuple(
+            ref for ref in self.snapshot.equation_refs if ref.normalized_target not in targets
+        )
+
+    def ambiguous_equation_refs(self) -> tuple[EquationRefFact, ...]:
+        targets = self.equation_target_index()
+        return tuple(
+            ref
+            for ref in self.snapshot.equation_refs
             if len(targets.get(ref.normalized_target, ())) > 1
         )
 
