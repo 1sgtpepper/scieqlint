@@ -66,7 +66,7 @@ class FactSnapshot:
             *self.portability,
         )
 
-    def with_unknown_math(self, unknown_math: tuple[UnknownMathFact, ...]) -> "FactSnapshot":
+    def with_unknown_math(self, unknown_math: tuple[UnknownMathFact, ...]) -> FactSnapshot:
         return FactSnapshot(
             documents=self.documents,
             headings=self.headings,
