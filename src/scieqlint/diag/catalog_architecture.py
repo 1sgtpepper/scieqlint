@@ -100,6 +100,24 @@ ARCHITECTURE_CATALOG: dict[str, DiagnosticInfo] = {
         "generated document introduced or preserved unresolved reference",
         "A generated document has unresolved references after conversion/translation.",
     ),
+    "GEN004": _info(
+        "GEN004",
+        Severity.ERROR,
+        "generated formula contains suspiciously spaced tokens",
+        "A generated formula appears to have been split into character-level text.",
+    ),
+    "GEN005": _info(
+        "GEN005",
+        Severity.ERROR,
+        "generated formula contains an unresolved placeholder",
+        "A generated formula placeholder reached lint output instead of math source.",
+    ),
+    "GEN006": _info(
+        "GEN006",
+        Severity.ERROR,
+        "generated formula contains a garbled extraction marker",
+        "A generated formula includes deterministic extraction-artifact markers.",
+    ),
     "MATH020": _info(
         "MATH020",
         Severity.INFO,

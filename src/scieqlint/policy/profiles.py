@@ -36,7 +36,9 @@ _MYST_RULES = frozenset(
         "MATH021",
     }
 )
-_GENERATED_RULES = _MYST_RULES | frozenset({"REF014", "GEN002", "GEN003"})
+_GENERATED_RULES = _MYST_RULES | frozenset(
+    {"REF014", "GEN002", "GEN003", "GEN004", "GEN005", "GEN006"}
+)
 _PORTABILITY_RULES = frozenset({"PORT001", "PORT002", "MATH020", "MATH021"})
 _QUARTO_RULES = frozenset({"PROJ002", "PORT003", "PORT004", "MATH021"})
 

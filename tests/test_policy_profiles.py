@@ -53,6 +53,9 @@ def test_generated_profile_is_standalone_document_gate():
         "REF011",
         "REF014",
         "GEN003",
+        "GEN004",
+        "GEN005",
+        "GEN006",
         "MATH020",
     } <= plan.rules
     assert dict(plan.severity_overrides)["REF011"] is Severity.ERROR

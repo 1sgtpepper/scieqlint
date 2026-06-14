@@ -1,4 +1,4 @@
-"""Math facts and UnknownMath records."""
+"""Math facts and math-host classification records."""
 
 from __future__ import annotations
 
@@ -24,6 +24,11 @@ UnknownReason = Literal[
     "ambiguous_delimiter",
     "parse_limit",
 ]
+SuspiciousFormulaReason = Literal[
+    "spaced_latex_tokens",
+    "formula_placeholder",
+    "garbled_marker",
+]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -47,5 +52,13 @@ class DisplayMathFact(FactBase):
 class UnknownMathFact(FactBase):
     source_math_fact_id: str
     reason: UnknownReason
+    excerpt: str
+    classifier: str = "MathHost"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SuspiciousFormulaFact(FactBase):
+    source_math_fact_id: str
+    reason: SuspiciousFormulaReason
     excerpt: str
     classifier: str = "MathHost"

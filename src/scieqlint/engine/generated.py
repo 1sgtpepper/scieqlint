@@ -9,12 +9,13 @@ from scieqlint.query.host import QueryHost
 
 class GeneratedOutputEngine:
     name = "generated"
-    rule_codes = frozenset({"GEN002", "GEN003", "REF014"})
+    rule_codes = frozenset({"GEN002", "GEN003", "GEN004", "GEN005", "GEN006", "REF014"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
         diagnostics.extend(self._dropped_target_diagnostics(query))
         diagnostics.extend(self._generated_unresolved_ref_diagnostics(query))
+        diagnostics.extend(self._suspicious_formula_diagnostics(query))
         return tuple(diagnostics)
 
     def _dropped_target_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
@@ -39,6 +40,28 @@ class GeneratedOutputEngine:
                     profile_gated=True,
                     false_positive_risk="low",
                     related_locations=related,
+                )
+            )
+        return tuple(out)
+
+    def _suspicious_formula_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
+        generated_ids = set(query.generated.generated_document_ids())
+        out: list[DiagnosticIR] = []
+        for formula in query.math.suspicious_formulas():
+            if generated_ids and formula.document_id not in generated_ids:
+                continue
+            code, message, hint = _suspicious_formula_rule(formula.reason)
+            out.append(
+                DiagnosticIR(
+                    code=code,
+                    severity_default=Severity.ERROR,
+                    message=message,
+                    span=formula.span,
+                    detail=formula.excerpt,
+                    hint=hint,
+                    rule=f"generated.formula.{formula.reason}",
+                    profile_gated=True,
+                    false_positive_risk="medium",
                 )
             )
         return tuple(out)
@@ -73,3 +96,23 @@ class GeneratedOutputEngine:
                 )
             )
         return tuple(out)
+
+
+def _suspicious_formula_rule(reason: str) -> tuple[str, str, str]:
+    if reason == "spaced_latex_tokens":
+        return (
+            "GEN004",
+            "generated formula contains suspiciously spaced tokens",
+            "Check whether the converter split a formula into character-level text.",
+        )
+    if reason == "formula_placeholder":
+        return (
+            "GEN005",
+            "generated formula contains an unresolved placeholder",
+            "Regenerate the formula output or preserve the original math source.",
+        )
+    return (
+        "GEN006",
+        "generated formula contains a garbled extraction marker",
+        "Inspect the source converter output for font or character-map extraction failures.",
+    )
