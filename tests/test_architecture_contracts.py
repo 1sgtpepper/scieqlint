@@ -8,7 +8,12 @@ from scieqlint.diag.ir import DiagnosticIR, RelatedLocation
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.base import Engine
 from scieqlint.facts.generated import GeneratedProvenanceFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import (
+    DisplayMathFact,
+    InlineMathFact,
+    SuspiciousFormulaFact,
+    UnknownMathFact,
+)
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import EquationLabelFact, GenericRefFact, TargetAnchorFact
@@ -115,6 +120,35 @@ def test_snapshot_with_unknown_math_appends_without_mutating_original():
     assert updated.inline_math == (inline,)
     assert updated.unknown_math == (unknown,)
     assert updated.all_facts() == (inline, unknown)
+
+
+def test_snapshot_with_suspicious_formula_appends_without_mutating_original():
+    document = doc("a.md", "$$ A t t e n t $$\n")
+    display = DisplayMathFact(
+        fact_id="a.md::display-math::0",
+        document_id="a.md",
+        span=None,
+        raw="A t t e n t",
+        body="A t t e n t",
+        container="dollar-dollar",
+    )
+    suspicious = SuspiciousFormulaFact(
+        fact_id="a.md::display-math::0::suspicious::spaced_latex_tokens",
+        document_id="a.md",
+        span=None,
+        raw="A t t e n t",
+        source_math_fact_id=display.fact_id,
+        reason="spaced_latex_tokens",
+        excerpt="A t t e n t",
+    )
+
+    snapshot = FactSnapshot(documents=(document,), display_math=(display,))
+    updated = snapshot.with_suspicious_formulas((suspicious,))
+
+    assert snapshot.suspicious_formulas == ()
+    assert updated.display_math == (display,)
+    assert updated.suspicious_formulas == (suspicious,)
+    assert updated.all_facts() == (display, suspicious)
 
 
 def test_query_host_views_expose_snapshot_contracts():

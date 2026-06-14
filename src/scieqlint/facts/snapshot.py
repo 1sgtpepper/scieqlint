@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 
 from scieqlint.facts.base import FactBase
 from scieqlint.facts.generated import GeneratedProvenanceFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import (
+    DisplayMathFact,
+    InlineMathFact,
+    SuspiciousFormulaFact,
+    UnknownMathFact,
+)
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import (
@@ -40,6 +45,7 @@ class FactSnapshot:
     inline_math: tuple[InlineMathFact, ...] = ()
     display_math: tuple[DisplayMathFact, ...] = ()
     unknown_math: tuple[UnknownMathFact, ...] = ()
+    suspicious_formulas: tuple[SuspiciousFormulaFact, ...] = ()
     project_members: tuple[ProjectMemberFact, ...] = ()
     hidden_excluded: tuple[HiddenExcludedFact, ...] = ()
     generated_provenance: tuple[GeneratedProvenanceFact, ...] = ()
@@ -60,6 +66,7 @@ class FactSnapshot:
             *self.inline_math,
             *self.display_math,
             *self.unknown_math,
+            *self.suspicious_formulas,
             *self.project_members,
             *self.hidden_excluded,
             *self.generated_provenance,
@@ -81,6 +88,33 @@ class FactSnapshot:
             inline_math=self.inline_math,
             display_math=self.display_math,
             unknown_math=(*self.unknown_math, *unknown_math),
+            suspicious_formulas=self.suspicious_formulas,
+            project_members=self.project_members,
+            hidden_excluded=self.hidden_excluded,
+            generated_provenance=self.generated_provenance,
+            portability=self.portability,
+            metadata=self.metadata,
+        )
+
+    def with_suspicious_formulas(
+        self,
+        suspicious_formulas: tuple[SuspiciousFormulaFact, ...],
+    ) -> FactSnapshot:
+        return FactSnapshot(
+            documents=self.documents,
+            headings=self.headings,
+            sections=self.sections,
+            fences=self.fences,
+            directives=self.directives,
+            code_cells=self.code_cells,
+            target_anchors=self.target_anchors,
+            generic_refs=self.generic_refs,
+            equation_labels=self.equation_labels,
+            equation_refs=self.equation_refs,
+            inline_math=self.inline_math,
+            display_math=self.display_math,
+            unknown_math=self.unknown_math,
+            suspicious_formulas=(*self.suspicious_formulas, *suspicious_formulas),
             project_members=self.project_members,
             hidden_excluded=self.hidden_excluded,
             generated_provenance=self.generated_provenance,

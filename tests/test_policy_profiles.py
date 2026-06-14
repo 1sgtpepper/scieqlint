@@ -1,8 +1,16 @@
+from pathlib import PurePosixPath
+
 import pytest
 
+from scieqlint.compat.architecture_pipeline import analyze_documents_architecture
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
+from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.policy.host import PolicyHost
+
+
+def doc(text: str) -> SourceDocument:
+    return SourceDocument.from_text(PurePosixPath("lecture.md"), text, DocumentKind.MARKDOWN)
 
 
 def diagnostic(code: str, severity: Severity = Severity.WARNING) -> DiagnosticIR:
@@ -45,6 +53,9 @@ def test_generated_profile_is_standalone_document_gate():
         "REF011",
         "REF014",
         "GEN003",
+        "GEN004",
+        "GEN005",
+        "GEN006",
         "MATH020",
     } <= plan.rules
     assert dict(plan.severity_overrides)["REF011"] is Severity.ERROR
@@ -53,3 +64,19 @@ def test_generated_profile_is_standalone_document_gate():
 def test_unknown_profile_is_rejected_before_analysis():
     with pytest.raises(ValueError, match="unknown profile: typo"):
         PolicyHost().make_plan(("typo",))
+
+
+def test_architecture_pipeline_applies_strict_ci_severity():
+    result = analyze_documents_architecture(
+        (doc("####Title\n"),),
+        profiles=("scientific-myst", "strict-ci"),
+    )
+
+    diag = next(d for d in result.diagnostics if d.code == "STR001")
+    assert diag.severity.value == "error"
+
+
+def test_architecture_pipeline_default_profile_filters_heading_style():
+    result = analyze_documents_architecture((doc("####Title\n"),), profiles=("default",))
+
+    assert "STR001" not in [d.code for d in result.diagnostics]

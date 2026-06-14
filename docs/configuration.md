@@ -167,6 +167,34 @@ from scieqlint.config.load import load_config
 config = load_config("scieqlint.toml", preset="mechanics")
 ```
 
+## Architecture-preview profiles
+
+The architecture-preview pipeline has named policy profiles, but they are not
+loaded from `scieqlint.toml` and the stable `scieqlint check` command does not
+yet expose a profile selector. Use the preview API when a workflow needs these
+profiles before CLI/config integration lands.
+
+| Profile | Use | Notes |
+|---|---|---|
+| `scientific-myst` | MyST/Markdown scientific-document linting | Runs deterministic structure, generic/equation reference, and math-container rule families. |
+| `generated` | generated Markdown/MyST validation | Includes the `scientific-myst` rule families and adds source/generated preservation checks. Pass `generated_pairs` for anchor-preservation diagnostics. |
+| `strict-ci` | severity overlay | Remaps selected diagnostics to errors. Combine with another profile unless default-profile behavior is intended. |
+
+Example generated-output gate:
+
+```python
+from pathlib import Path
+
+from scieqlint.api_architecture import analyze_paths_architecture
+
+result = analyze_paths_architecture(
+    (Path("source"), Path("generated")),
+    profiles=("generated",),
+    generated_pairs=(("source/page.md", "generated/page.md"),),
+)
+raise SystemExit(1 if result.summary()["errors"] else 0)
+```
+
 ## Reserved config surface
 
 The repository-level `scieqlint.toml` may include specification placeholders such

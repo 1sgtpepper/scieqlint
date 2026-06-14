@@ -115,6 +115,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/__init__.py`
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`
+- `src/scieqlint/api_architecture.py`
 - `src/scieqlint/app.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
@@ -124,6 +125,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/check/symbols.py`
 - `src/scieqlint/cli.py`
 - `src/scieqlint/compat/__init__.py`
+- `src/scieqlint/compat/architecture_pipeline.py`
 - `src/scieqlint/compat/generated.py`
 - `src/scieqlint/config/__init__.py`
 - `src/scieqlint/config/load.py`
@@ -133,6 +135,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/__init__.py`
 - `src/scieqlint/diag/baseline.py`
 - `src/scieqlint/diag/catalog.py`
+- `src/scieqlint/diag/catalog_architecture.py`
 - `src/scieqlint/diag/ir.py`
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
@@ -206,6 +209,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
+- `src/scieqlint/schema/json_architecture.py`
 - `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
@@ -233,6 +237,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
+- `tests/golden/json/architecture_myst_bad.json`
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
@@ -244,7 +249,9 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
 - `tests/test_api.py`
+- `tests/test_api_architecture.py`
 - `tests/test_architecture_contracts.py`
+- `tests/test_architecture_quality_regressions.py`
 - `tests/test_ast_print.py`
 - `tests/test_baseline.py`
 - `tests/test_cli.py`

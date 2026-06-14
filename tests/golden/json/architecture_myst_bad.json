@@ -1,0 +1,78 @@
+{
+  "diagnostics": [
+    {
+      "code": "STR001",
+      "col": 1,
+      "detail": "####Bad heading",
+      "end_col": 4,
+      "end_line": 1,
+      "hint": "Use '# Title' rather than '#Title'.",
+      "line": 1,
+      "message": "ATX heading marker must be followed by a space",
+      "path": "tests/fixtures/bad/architecture_myst_bad.md",
+      "rule": "structure.heading_spacing",
+      "severity": "warning"
+    },
+    {
+      "code": "REF011",
+      "col": 11,
+      "detail": "{ref}`missing-target`",
+      "end_col": 24,
+      "end_line": 3,
+      "hint": "Restore the `(label)=` anchor or correct the reference target.",
+      "line": 3,
+      "message": "generic reference target not found: missing-target",
+      "path": "tests/fixtures/bad/architecture_myst_bad.md",
+      "rule": "reference.missing_generic_target",
+      "severity": "warning"
+    },
+    {
+      "code": "REF013",
+      "col": 2,
+      "detail": null,
+      "end_col": 13,
+      "end_line": 5,
+      "hint": "Move the anchor immediately before the heading or block it labels.",
+      "line": 5,
+      "message": "MyST target anchor is not attached to a following block: loose-anchor",
+      "path": "tests/fixtures/bad/architecture_myst_bad.md",
+      "rule": "reference.orphaned_anchor",
+      "severity": "warning"
+    },
+    {
+      "code": "STR002",
+      "col": 1,
+      "detail": "{math}",
+      "end_col": 10,
+      "end_line": 8,
+      "hint": "Close the block with a matching fence line.",
+      "line": 8,
+      "message": "fenced block is missing its closing delimiter",
+      "path": "tests/fixtures/bad/architecture_myst_bad.md",
+      "rule": "structure.fence_closed",
+      "severity": "warning"
+    }
+  ],
+  "facts_summary": {
+    "code_cells": 0,
+    "display_math": 1,
+    "generic_refs": 1,
+    "headings": 1,
+    "inline_math": 0,
+    "target_anchors": 1,
+    "unknown_math": 0
+  },
+  "profiles": [
+    "scientific-myst"
+  ],
+  "schema_version": "0.2-architecture-preview",
+  "summary": {
+    "diagnostics": 4,
+    "errors": 0,
+    "facts": 8,
+    "files_checked": 1,
+    "info": 0,
+    "warnings": 4
+  },
+  "tool": "scieqlint"
+}
