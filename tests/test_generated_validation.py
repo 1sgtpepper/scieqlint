@@ -62,3 +62,21 @@ def test_architecture_pipeline_surfaces_generated_errors():
     assert "REF014" in codes
     assert "GEN003" in codes
     assert any(d.severity.value == "error" for d in result.diagnostics if d.code == "REF014")
+
+
+def test_generated_profile_runs_myst_and_generated_checks_without_companion_profile():
+    source = doc("source/jax_intro.md", "(jax_at_workaround)=\n#### A Workaround\n")
+    generated = doc(
+        "generated/jax_intro.md",
+        "####变通方法\n\nSee {ref}`jax_at_workaround` and {eq}`missing-equation`.\n",
+    )
+
+    result = analyze_documents_architecture(
+        (source, generated),
+        profiles=("generated",),
+        generated_pairs=(("source/jax_intro.md", "generated/jax_intro.md"),),
+    )
+
+    codes = {diagnostic.code for diagnostic in result.diagnostics}
+    assert {"STR001", "REF002", "REF014", "GEN003"} <= codes
+    assert any(d.severity.value == "error" for d in result.diagnostics if d.code == "GEN003")

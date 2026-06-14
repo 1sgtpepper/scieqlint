@@ -109,6 +109,21 @@ not a unit database, and aliases must be listed explicitly.
 Explicit Markdown and LaTeX `scieqlint-symbol` comments can define symbols for
 the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
+## Generated output and model quality
+
+The architecture-preview `generated` profile validates deterministic document
+facts in generated Markdown/MyST output. It can report malformed supported
+structure, generic and equation reference failures, math-container issues, generated
+references that remain unresolved, and source MyST anchors missing from a paired
+generated document.
+
+The profile does not judge translation quality, prose quality, OCR confidence,
+model hallucination, image-to-math fidelity, or semantic equivalence of formulas
+whose structure is outside SciEqLint's supported facts. Those checks require a
+human, renderer, OCR-specific validator, or model-quality review. SciEqLint's
+generated-output checks are deterministic gates over the text and explicit
+source/generated pairs supplied to the architecture-preview API.
+
 ## Notebooks
 
 Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
