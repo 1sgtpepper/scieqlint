@@ -665,8 +665,7 @@ def _dollar_tail_label_facts(
     for match in _DOLLAR_TAIL_LABEL_RE.finditer(tail):
         group_name = "brace" if match.group("brace") else "paren"
         label = match.group(group_name)
-        if label is None:
-            continue
+        assert label is not None
         label_start = tail_start + match.start(group_name)
         yield EquationLabelFact(
             fact_id=f"{fact_id}::label::{label_start}",
