@@ -43,7 +43,7 @@ class SourceMap:
     document: SourceDocument
 
     @classmethod
-    def for_document(cls, document: SourceDocument) -> "SourceMap":
+    def for_document(cls, document: SourceDocument) -> SourceMap:
         return cls(
             SourceIdentity(
                 document_id=document.path.as_posix(),
