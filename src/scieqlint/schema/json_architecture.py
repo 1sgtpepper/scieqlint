@@ -11,21 +11,22 @@ JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
 
 def render_analysis_result_json(result: AnalysisResult) -> str:
+    facts_summary: dict[str, JsonValue] = {
+        "headings": len(result.snapshot.headings),
+        "target_anchors": len(result.snapshot.target_anchors),
+        "generic_refs": len(result.snapshot.generic_refs),
+        "inline_math": len(result.snapshot.inline_math),
+        "display_math": len(result.snapshot.display_math),
+        "unknown_math": len(result.snapshot.unknown_math),
+        "code_cells": len(result.snapshot.code_cells),
+    }
     payload: dict[str, JsonValue] = {
         "schema_version": result.schema_version,
         "tool": "scieqlint",
         "profiles": list(result.profiles),
         "summary": result.summary(),
         "diagnostics": [_diagnostic_json(diagnostic) for diagnostic in result.diagnostics],
-        "facts_summary": {
-            "headings": len(result.snapshot.headings),
-            "target_anchors": len(result.snapshot.target_anchors),
-            "generic_refs": len(result.snapshot.generic_refs),
-            "inline_math": len(result.snapshot.inline_math),
-            "display_math": len(result.snapshot.display_math),
-            "unknown_math": len(result.snapshot.unknown_math),
-            "code_cells": len(result.snapshot.code_cells),
-        },
+        "facts_summary": facts_summary,
     }
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 

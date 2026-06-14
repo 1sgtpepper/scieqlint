@@ -9,6 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from scieqlint.compat.generated import attach_generated_provenance
+from scieqlint.diag.ir import DiagnosticIR
+from scieqlint.engine.base import Engine
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.math_container import MathContainerEngine
 from scieqlint.engine.portability import PortabilityEngine
@@ -22,7 +24,7 @@ from scieqlint.policy.host import PolicyHost
 from scieqlint.query.host import QueryHost
 from scieqlint.schema.result import AnalysisResult
 
-_ENGINES = {
+_ENGINES: dict[str, Engine] = {
     "structure": StructureEngine(),
     "references": ReferenceEngine(),
     "generated": GeneratedOutputEngine(),
@@ -45,7 +47,7 @@ def analyze_documents_architecture(
         snapshot = attach_generated_provenance(snapshot, generated_pairs)
     snapshot = MathHost().classify(snapshot)
     query = QueryHost(snapshot)
-    diagnostics_ir = []
+    diagnostics_ir: list[DiagnosticIR] = []
     for name in sorted(plan.engines):
         engine = _ENGINES.get(name)
         if engine is None:
