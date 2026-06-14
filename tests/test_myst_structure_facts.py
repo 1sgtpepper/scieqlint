@@ -1,7 +1,13 @@
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 from scieqlint.engine.structure import StructureEngine
-from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.myst import (
+    MySTFrontend,
+    _is_immediate_attachment,
+    _myst_options,
+    _quarto_options,
+)
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 
@@ -96,6 +102,7 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
                         "$$ {#eq-tail}",
                         "",
                         "```{math}",
+                        ":name: eq-directive-name",
                         ":label: eq-directive",
                         "a=b",
                         "```",
@@ -119,7 +126,7 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
     ] == [
         ("code-cell", "python", {"label": "cell-demo", "tags": "hide-input, remove-output"}),
         ("note", None, {"class": "tip"}),
-        ("math", None, {"label": "eq-directive"}),
+        ("math", None, {"name": "eq-directive-name", "label": "eq-directive"}),
     ]
     assert [
         (anchor.label, anchor.placement, anchor.target_kind) for anchor in snapshot.target_anchors
@@ -145,3 +152,109 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
         ),
     ]
     assert [math.body for math in snapshot.inline_math] == ["x+1"]
+
+
+def test_frontend_helpers_ignore_spanless_or_bodyless_synthetic_facts():
+    source = doc(
+        "\n".join(
+            [
+                "(intro)=",
+                "# Intro",
+                "",
+                "```{note}",
+                ":class: tip",
+                "```",
+                "",
+                "```python",
+                "#| label: fig-demo",
+                "```",
+            ]
+        )
+    )
+    snapshot = MySTFrontend().lower((source,))
+
+    assert _myst_options(source, replace(snapshot.fences[0], body_span=None)) == ()
+    assert _quarto_options(source, replace(snapshot.fences[1], body_span=None)) == ()
+    assert (
+        _is_immediate_attachment(
+            source,
+            replace(snapshot.target_anchors[0], span=None),
+            snapshot.headings[0],
+        )
+        is False
+    )
+
+
+def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "###   ",
+                        "# Part One",
+                        "## Child",
+                        "# Part Two",
+                        "",
+                        "```",
+                        "[hidden](#inside) {ref}`inside` $$hidden$$",
+                        "```",
+                        "",
+                        "```python",
+                        "```",
+                        "",
+                        "```{note}",
+                        "```",
+                        "",
+                        "```{code-cell}",
+                        "print(1)",
+                        "```",
+                        "",
+                        "{ref}`Part One <#part-one>`",
+                        "$$",
+                        "no close",
+                    ]
+                )
+            ),
+            doc(
+                "\n".join(
+                    [
+                        "$$",
+                        "visible",
+                        "```",
+                        "$$",
+                        "```",
+                        "$$ {#eq-end}",
+                    ]
+                )
+            ),
+        )
+    )
+    diagnostics = StructureEngine().run(QueryHost(snapshot))
+
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [
+        (1, "Part One"),
+        (2, "Child"),
+        (1, "Part Two"),
+    ]
+    assert [(section.depth, section.parent_section_id) for section in snapshot.sections] == [
+        (1, None),
+        (2, snapshot.sections[0].fact_id),
+        (1, None),
+    ]
+    assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [
+        ("python", None),
+        (None, None),
+    ]
+    assert [(directive.name, directive.options) for directive in snapshot.directives] == [
+        ("note", ()),
+        ("code-cell", ()),
+    ]
+    assert [(ref.target, ref.normalized_target) for ref in snapshot.generic_refs] == [
+        ("#part-one", "part-one")
+    ]
+    assert [(label.label, label.label_syntax_kind) for label in snapshot.equation_labels] == [
+        ("eq-end", "dollar-tail")
+    ]
+    assert [math.body for math in snapshot.display_math] == ["visible\n```\n$$\n```"]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["STR003", "STR003", "DIR010"]
