@@ -175,7 +175,7 @@ The architecture-preview pipeline has named policy profiles. Select them with
 
 | Profile | Use | Notes |
 |---|---|---|
-| `scientific-myst` | MyST/Markdown scientific-document linting | Runs deterministic structure, generic/equation reference, and math-container rule families. |
+| `scientific-myst` | MyST/Markdown scientific-document linting | Runs deterministic structure, generic/equation reference, algebra, and math-container rule families. |
 | `generated` | generated Markdown/MyST validation | Includes the `scientific-myst` rule families and adds source/generated preservation and suspicious-formula checks. Pass `generated_pairs` for anchor-preservation diagnostics. |
 | `strict-ci` | severity overlay | Remaps selected diagnostics to errors. Combine with another profile unless default-profile behavior is intended. |
 

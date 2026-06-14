@@ -54,10 +54,10 @@ architecture-preview contracts used by `scieqlint check --profile`.
 - `analyze_documents_architecture(documents, *, profiles=("scientific-myst",), generated_pairs=())`
 
 `scientific-myst` enables deterministic MyST/Markdown structure, generic and
-equation reference, and math-container diagnostics. `generated` is a standalone
-generated-document validation profile; it includes the scientific MyST rule
-families and adds source/generated preservation plus suspicious generated
-formula checks. Generated preservation checks require explicit
+equation reference, algebra, and math-container diagnostics. `generated` is a
+standalone generated-document validation profile; it includes the scientific
+MyST rule families and adds source/generated preservation plus suspicious
+generated formula checks. Generated preservation checks require explicit
 `(source_path, generated_path)` pairs.
 
 ```python

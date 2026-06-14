@@ -127,3 +127,21 @@ def test_generated_profile_runs_myst_and_generated_checks_without_companion_prof
     codes = {diagnostic.code for diagnostic in result.diagnostics}
     assert {"STR001", "REF002", "REF014", "GEN003", "GEN005"} <= codes
     assert any(d.severity.value == "error" for d in result.diagnostics if d.code == "GEN003")
+
+
+def test_generated_profile_runs_algebra_checks():
+    generated = doc("generated/bad.md", "$$\n(a+b)^2 = a^2 + b^2\n$$\n")
+
+    result = analyze_documents_architecture((generated,), profiles=("generated",))
+
+    by_code = {diagnostic.code: diagnostic for diagnostic in result.diagnostics}
+    assert by_code["ALG001"].severity.value == "error"
+    assert by_code["ALG001"].detail == "left - right = 2*a*b"
+
+
+def test_generated_profile_accepts_valid_algebra_identity():
+    generated = doc("generated/good.md", "$$\n(a+b)^2 = a^2 + 2*a*b + b^2\n$$\n")
+
+    result = analyze_documents_architecture((generated,), profiles=("generated",))
+
+    assert "ALG001" not in {diagnostic.code for diagnostic in result.diagnostics}
