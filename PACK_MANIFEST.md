@@ -119,6 +119,8 @@
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/math_container.py`
+- `src/scieqlint/engine/portability.py`
+- `src/scieqlint/engine/project.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
