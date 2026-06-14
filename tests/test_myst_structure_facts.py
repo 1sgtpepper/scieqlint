@@ -123,9 +123,7 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
     ]
     assert [
         (anchor.label, anchor.placement, anchor.target_kind) for anchor in snapshot.target_anchors
-    ] == [
-        ("intro", "before_heading", "heading")
-    ]
+    ] == [("intro", "before_heading", "heading")]
     assert [(ref.role_kind, ref.target, ref.title) for ref in snapshot.generic_refs] == [
         ("markdown-link", "intro", None),
         ("ref", "intro", "Intro"),
