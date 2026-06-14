@@ -98,6 +98,12 @@ class ReportConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ArchitectureConfig:
+    profiles: tuple[str, ...] = ()
+    generated_pairs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
@@ -111,3 +117,4 @@ class Config:
     aliases: tuple[SymbolAlias, ...] = ()
     ignore: IgnoreConfig = field(default_factory=IgnoreConfig)
     report: ReportConfig = field(default_factory=ReportConfig)
+    architecture: ArchitectureConfig = field(default_factory=ArchitectureConfig)

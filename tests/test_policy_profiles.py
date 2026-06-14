@@ -44,8 +44,11 @@ def test_default_profile_filters_unselected_rule():
 def test_generated_profile_is_standalone_document_gate():
     plan = PolicyHost().make_plan(("generated",))
 
-    assert plan.engines == frozenset({"structure", "references", "math-container", "generated"})
+    assert plan.engines == frozenset(
+        {"algebra", "structure", "references", "math-container", "generated"}
+    )
     assert {
+        "ALG001",
         "STR001",
         "REF001",
         "REF002",

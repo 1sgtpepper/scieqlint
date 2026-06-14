@@ -21,6 +21,13 @@ class Profile:
 _DEFAULT_RULES = frozenset({"STR002", "REF010", "REF011", "REF012", "MATH020"})
 _MYST_RULES = frozenset(
     {
+        "ALG001",
+        "ALG010",
+        "ALG020",
+        "ALG030",
+        "PARSE020",
+        "PARSE021",
+        "PARSE022",
         "STR001",
         "STR002",
         "STR003",
@@ -50,12 +57,12 @@ PROFILES: dict[str, Profile] = {
     ),
     "scientific-myst": Profile(
         name="scientific-myst",
-        engines=frozenset({"structure", "references", "math-container"}),
+        engines=frozenset({"algebra", "structure", "references", "math-container"}),
         rules=_MYST_RULES,
     ),
     "generated": Profile(
         name="generated",
-        engines=frozenset({"structure", "references", "math-container", "generated"}),
+        engines=frozenset({"algebra", "structure", "references", "math-container", "generated"}),
         rules=_GENERATED_RULES,
         severities=(("REF011", Severity.ERROR),),
     ),

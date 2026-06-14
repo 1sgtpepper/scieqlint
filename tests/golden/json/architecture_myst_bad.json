@@ -11,7 +11,8 @@
       "message": "ATX heading marker must be followed by a space",
       "path": "tests/fixtures/bad/architecture_myst_bad.md",
       "rule": "structure.heading_spacing",
-      "severity": "warning"
+      "severity": "warning",
+      "suppressed": false
     },
     {
       "code": "REF011",
@@ -24,7 +25,8 @@
       "message": "generic reference target not found: missing-target",
       "path": "tests/fixtures/bad/architecture_myst_bad.md",
       "rule": "reference.missing_generic_target",
-      "severity": "warning"
+      "severity": "warning",
+      "suppressed": false
     },
     {
       "code": "REF013",
@@ -37,7 +39,8 @@
       "message": "MyST target anchor is not attached to a following block: loose-anchor",
       "path": "tests/fixtures/bad/architecture_myst_bad.md",
       "rule": "reference.orphaned_anchor",
-      "severity": "warning"
+      "severity": "warning",
+      "suppressed": false
     },
     {
       "code": "STR002",
@@ -50,7 +53,8 @@
       "message": "fenced block is missing its closing delimiter",
       "path": "tests/fixtures/bad/architecture_myst_bad.md",
       "rule": "structure.fence_closed",
-      "severity": "warning"
+      "severity": "warning",
+      "suppressed": false
     }
   ],
   "facts_summary": {

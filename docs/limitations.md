@@ -113,16 +113,18 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 The architecture-preview `generated` profile validates deterministic document
 facts in generated Markdown/MyST output. It can report malformed supported
-structure, generic and equation reference failures, math-container issues, generated
-references that remain unresolved, and source MyST anchors missing from a paired
-generated document.
+structure, generic and equation reference failures, supported algebra identity
+failures, math-container issues, generated references that remain unresolved,
+suspicious formula placeholders, spaced-token formula text, garbled extraction
+markers, and source MyST anchors missing from a paired generated document.
 
 The profile does not judge translation quality, prose quality, OCR confidence,
 model hallucination, image-to-math fidelity, or semantic equivalence of formulas
 whose structure is outside SciEqLint's supported facts. Those checks require a
 human, renderer, OCR-specific validator, or model-quality review. SciEqLint's
 generated-output checks are deterministic gates over the text and explicit
-source/generated pairs supplied to the architecture-preview API.
+source/generated pairs supplied to `check --profile generated` or to the
+architecture-preview API.
 
 ## Notebooks
 

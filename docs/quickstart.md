@@ -54,28 +54,23 @@ scieqlint graph . --output scieqlint-graph.json
 
 ## Generated-output preview
 
-Generated Markdown/MyST validation is currently available through the
-architecture-preview API, not through a stable `scieqlint check --profile` flag
-or `scieqlint.toml` key. The `generated` profile checks deterministic
-source-generated document facts and exits non-zero when error diagnostics are
-found.
+Generated Markdown/MyST validation is available through the architecture-preview
+profile path. The `generated` profile checks deterministic source-generated
+document facts and exits non-zero when error diagnostics are found.
 
-```python
-from pathlib import Path
+```bash
+scieqlint check source generated \
+  --profile generated \
+  --generated-pair source/page.md=generated/page.md \
+  --format github
+```
 
-from scieqlint.api_architecture import analyze_paths_architecture
-from scieqlint.schema.json_architecture import render_analysis_result_json
+The same profile can be selected from `scieqlint.toml`:
 
-result = analyze_paths_architecture(
-    (Path("source"), Path("generated")),
-    profiles=("generated",),
-    generated_pairs=(("source/page.md", "generated/page.md"),),
-)
-Path("scieqlint-generated.json").write_text(
-    render_analysis_result_json(result),
-    encoding="utf-8",
-)
-raise SystemExit(1 if result.summary()["errors"] else 0)
+```toml
+[architecture]
+profiles = ["generated"]
+generated_pairs = ["source/page.md=generated/page.md"]
 ```
 
 GitHub Actions can run the same preview gate after a translation, OCR, or
@@ -84,28 +79,14 @@ documentation-generation step:
 ```yaml
 - name: Validate generated scientific Markdown
   run: |
-    python - <<'PY'
-    from pathlib import Path
-
-    from scieqlint.api_architecture import analyze_paths_architecture
-    from scieqlint.schema.json_architecture import render_analysis_result_json
-
-    result = analyze_paths_architecture(
-        (Path("source"), Path("generated")),
-        profiles=("generated",),
-        generated_pairs=(("source/page.md", "generated/page.md"),),
-    )
-    Path("scieqlint-generated.json").write_text(
-        render_analysis_result_json(result),
-        encoding="utf-8",
-    )
-    raise SystemExit(1 if result.summary()["errors"] else 0)
-    PY
+    scieqlint check source generated \
+      --profile generated \
+      --generated-pair source/page.md=generated/page.md \
+      --format github
 ```
 
-The stable GitHub annotation reporter can still be run over generated files as a
-separate check, but it does not yet consume the architecture-preview generated
-profile or source/generated pairing metadata.
+Use `--profile scientific-myst --profile strict-ci` for scientific MyST
+repositories that should fail CI on profile-selected warnings.
 
 ## Demo
 
