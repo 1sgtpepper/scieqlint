@@ -137,6 +137,78 @@ def test_generated_profile_github_annotations(tmp_path) -> None:
     )
 
 
+def test_architecture_profile_text_and_sarif_outputs(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    text_result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+        ],
+    )
+    sarif_result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+            "--format",
+            "sarif",
+        ],
+    )
+
+    assert text_result.exit_code == 1
+    assert "error STR001" in text_result.output
+    assert sarif_result.exit_code == 1
+    assert json.loads(sarif_result.output)["runs"][0]["results"][0]["ruleId"] == "STR001"
+
+
+def test_architecture_profile_writes_output_file(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    output = tmp_path / "architecture.json"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == ""
+    assert json.loads(output.read_text(encoding="utf-8"))["profiles"] == ["scientific-myst"]
+
+
+def test_generated_pair_requires_source_and_generated_paths(tmp_path) -> None:
+    doc = tmp_path / "generated.md"
+    doc.write_text("# Generated\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--profile", "generated", "--generated-pair", "source.md="],
+    )
+
+    assert result.exit_code == 1
+    assert "--generated-pair must use SOURCE=GENERATED" in result.output
+
+
 def test_check_writes_output_file(tmp_path) -> None:
     doc = tmp_path / "README.md"
     output = tmp_path / "result.json"
