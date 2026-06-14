@@ -12,13 +12,7 @@ def doc(text: str) -> SourceDocument:
 
 def test_anchor_and_ref_resolve():
     snapshot = MySTFrontend().lower(
-        (
-            doc(
-                "(jax_at_workaround)=\n"
-                "#### A Workaround\n\n"
-                "See {ref}`jax_at_workaround`.\n"
-            ),
-        )
+        (doc("(jax_at_workaround)=\n#### A Workaround\n\nSee {ref}`jax_at_workaround`.\n"),)
     )
     query = QueryHost(snapshot)
     assert snapshot.target_anchors[0].placement == "before_heading"
