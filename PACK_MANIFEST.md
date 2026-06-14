@@ -230,6 +230,7 @@
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`
+- `tests/test_math_host.py`
 - `tests/test_myst_reference_view.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
