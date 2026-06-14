@@ -26,6 +26,8 @@ _MYST_RULES = frozenset(
         "STR003",
         "STR004",
         "DIR010",
+        "REF001",
+        "REF002",
         "REF010",
         "REF011",
         "REF012",
@@ -34,7 +36,7 @@ _MYST_RULES = frozenset(
         "MATH021",
     }
 )
-_GENERATED_RULES = frozenset({"REF011", "REF014", "GEN002", "GEN003"})
+_GENERATED_RULES = _MYST_RULES | frozenset({"REF014", "GEN002", "GEN003"})
 _PORTABILITY_RULES = frozenset({"PORT001", "PORT002", "MATH020", "MATH021"})
 _QUARTO_RULES = frozenset({"PROJ002", "PORT003", "PORT004", "MATH021"})
 
@@ -51,7 +53,7 @@ PROFILES: dict[str, Profile] = {
     ),
     "generated": Profile(
         name="generated",
-        engines=frozenset({"references", "generated"}),
+        engines=frozenset({"structure", "references", "math-container", "generated"}),
         rules=_GENERATED_RULES,
         severities=(("REF011", Severity.ERROR),),
     ),
