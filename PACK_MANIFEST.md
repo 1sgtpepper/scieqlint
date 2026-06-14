@@ -103,6 +103,8 @@
 - `src/scieqlint/check/suppressions.py`
 - `src/scieqlint/check/symbols.py`
 - `src/scieqlint/cli.py`
+- `src/scieqlint/compat/__init__.py`
+- `src/scieqlint/compat/generated.py`
 - `src/scieqlint/config/__init__.py`
 - `src/scieqlint/config/load.py`
 - `src/scieqlint/config/model.py`
@@ -115,6 +117,7 @@
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
