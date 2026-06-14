@@ -95,6 +95,7 @@
 - `src/scieqlint/__init__.py`
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`
+- `src/scieqlint/api_architecture.py`
 - `src/scieqlint/app.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
@@ -104,6 +105,7 @@
 - `src/scieqlint/check/symbols.py`
 - `src/scieqlint/cli.py`
 - `src/scieqlint/compat/__init__.py`
+- `src/scieqlint/compat/architecture_pipeline.py`
 - `src/scieqlint/compat/generated.py`
 - `src/scieqlint/config/__init__.py`
 - `src/scieqlint/config/load.py`
@@ -113,6 +115,7 @@
 - `src/scieqlint/diag/__init__.py`
 - `src/scieqlint/diag/baseline.py`
 - `src/scieqlint/diag/catalog.py`
+- `src/scieqlint/diag/catalog_architecture.py`
 - `src/scieqlint/diag/ir.py`
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
@@ -186,6 +189,7 @@
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
+- `src/scieqlint/schema/json_architecture.py`
 - `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
@@ -222,7 +226,9 @@
 - `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
 - `tests/test_api.py`
+- `tests/test_api_architecture.py`
 - `tests/test_architecture_contracts.py`
+- `tests/test_architecture_quality_regressions.py`
 - `tests/test_ast_print.py`
 - `tests/test_baseline.py`
 - `tests/test_cli.py`
@@ -230,6 +236,7 @@
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
+- `tests/test_generated_validation.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_json_schema.py`
@@ -242,6 +249,8 @@
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
 - `tests/test_parser.py`
+- `tests/test_policy_profiles.py`
+- `tests/test_portability_quarto.py`
 - `tests/test_pr_template.py`
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_references.py`
