@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from scieqlint.api import check_documents
+from scieqlint.api import check_documents, graph_documents
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ReferencesConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 
@@ -84,4 +84,34 @@ def test_check_documents_does_not_suppress_different_code() -> None:
     assert result.exit_code() == 1
     assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
         ("ALG001", False)
+    ]
+
+
+def test_graph_documents_scans_latex_labels() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.tex"),
+        "\\begin{equation}\n\\label{eq:tex}\na = a\n\\end{equation}\n",
+        DocumentKind.LATEX,
+    )
+
+    graph = graph_documents([document], config=Config())
+
+    assert [(node.kind, node.label) for node in graph.nodes] == [("equation", "eq:tex")]
+
+
+def test_graph_documents_scans_notebook_labels() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("notes.ipynb"),
+        (
+            '{"cells":[{"cell_type":"markdown","metadata":{},'
+            '"source":"$$\\na = a\\n$$ {#eq-nb}\\n"}],'
+            '"metadata":{},"nbformat":4,"nbformat_minor":5}'
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    graph = graph_documents([document], config=Config())
+
+    assert [(node.kind, node.label, node.span.cell, node.span.cell_line) for node in graph.nodes] == [
+        ("equation", "eq-nb", 0, 3)
     ]

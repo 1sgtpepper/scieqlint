@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 
+import click
 from click.testing import CliRunner
 
+import scieqlint.cli as cli
 from scieqlint.cli import main
 from scieqlint.config.load import load_config
 from scieqlint.config.presets import read_preset_text
@@ -163,6 +165,18 @@ def test_graph_writes_output_file(tmp_path) -> None:
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "0.3"
     assert len(payload["edges"]) == 3
+
+
+def test_graph_preserves_click_exceptions(monkeypatch) -> None:
+    def fail_write(*_args: object) -> None:
+        raise click.ClickException("graph output refused")
+
+    monkeypatch.setattr(cli, "_write_output", fail_write)
+
+    result = CliRunner().invoke(main, ["graph", "tests/fixtures/good/graph_refs.md"])
+
+    assert result.exit_code == 1
+    assert "Error: graph output refused" in result.output
 
 
 def test_sarif_output_for_bad_equation(tmp_path) -> None:

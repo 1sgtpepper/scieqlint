@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import PurePosixPath
 
 from scieqlint.config.model import Config
 from scieqlint.graph.export import build_graph
+from scieqlint.graph.json import render_graph_json
+from scieqlint.graph.model import Graph, GraphNode, GraphSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import LabelSource, ReferenceSource
 from scieqlint.scan.latex import LatexScanner
@@ -138,6 +141,35 @@ def test_graph_output_is_stably_sorted() -> None:
         ("ref:paper.md:45", "eq:paper.md:14"),
         ("ref:paper.md:57", "eq:paper.md:32"),
     ]
+
+
+def test_graph_json_includes_notebook_cell_span_fields() -> None:
+    graph = Graph(
+        schema_version="0.3",
+        nodes=(
+            GraphNode(
+                id="eq:notes.ipynb:1",
+                kind="equation",
+                label="eq-nb",
+                source=LabelSource.MARKDOWN_ANCHOR.value,
+                span=GraphSpan(
+                    path=PurePosixPath("notes.ipynb"),
+                    line=1,
+                    col=1,
+                    end_line=3,
+                    end_col=12,
+                    cell=0,
+                    cell_line=1,
+                ),
+            ),
+        ),
+        edges=(),
+    )
+
+    payload = json.loads(render_graph_json(graph))
+
+    assert payload["nodes"][0]["span"]["cell"] == 0
+    assert payload["nodes"][0]["span"]["cell_line"] == 1
 
 
 def _markdown(path: str, text: str) -> SourceDocument:
