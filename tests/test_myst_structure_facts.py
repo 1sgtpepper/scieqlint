@@ -1,9 +1,9 @@
 from pathlib import PurePosixPath
 
+from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
-from scieqlint.engine.structure import StructureEngine
 
 
 def doc(text: str) -> SourceDocument:
