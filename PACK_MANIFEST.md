@@ -52,8 +52,6 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `LICENSE`
 - `MAINTAINERS.md`
 - `PACK_MANIFEST.md`
-- `PACK_MANIFEST.md`
-- `PACK_MANIFEST.md`
 - `README.md`
 - `RELEASE_CHECKLIST.md`
 - `ROADMAP.md`
