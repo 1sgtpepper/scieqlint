@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 from scieqlint.diag.model import Diagnostic
 from scieqlint.schema.result import AnalysisResult
@@ -11,6 +12,7 @@ JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
 
 def render_analysis_result_json(result: AnalysisResult) -> str:
+    summary = cast(dict[str, JsonValue], result.summary())
     facts_summary: dict[str, JsonValue] = {
         "headings": len(result.snapshot.headings),
         "target_anchors": len(result.snapshot.target_anchors),
@@ -24,7 +26,7 @@ def render_analysis_result_json(result: AnalysisResult) -> str:
         "schema_version": result.schema_version,
         "tool": "scieqlint",
         "profiles": list(result.profiles),
-        "summary": result.summary(),
+        "summary": summary,
         "diagnostics": [_diagnostic_json(diagnostic) for diagnostic in result.diagnostics],
         "facts_summary": facts_summary,
     }
