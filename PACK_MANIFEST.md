@@ -139,6 +139,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/math_container.py`
+- `src/scieqlint/engine/portability.py`
+- `src/scieqlint/engine/project.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -265,6 +267,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_package_resources.py`
 - `tests/test_parser.py`
 - `tests/test_policy_profiles.py`
+- `tests/test_portability_quarto.py`
 - `tests/test_pr_template.py`
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_references.py`
