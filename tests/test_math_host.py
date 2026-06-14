@@ -47,6 +47,17 @@ def test_math_host_classifies_unknown_math_reasons():
     ]
 
 
+def test_math_host_leaves_known_math_classified():
+    snapshot = FactSnapshot(
+        display_math=(display_math(r"x^2 + y^2 = z^2"),),
+        inline_math=(inline_math(r"\alpha + \beta"),),
+    )
+
+    classified = MathHost().classify(snapshot)
+
+    assert classified.unknown_math == ()
+
+
 def test_math_container_engine_reports_unknown_and_multi_label_math():
     classified = MathHost().classify(
         FactSnapshot(
