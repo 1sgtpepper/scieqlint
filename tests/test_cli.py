@@ -23,6 +23,8 @@ def test_check_help_lists_v010_flags() -> None:
         "--inline-math",
         "--strict-unknowns",
         "--absolute-paths",
+        "--profile",
+        "--generated-pair",
     ]:
         assert option in result.output
     assert "github" in result.output
@@ -60,6 +62,79 @@ def test_json_output_for_clean_file(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
     assert result.exit_code == 0
     assert '"schema_version": "0.1"' in result.output
+
+
+def test_architecture_profile_json_reports_profile_metadata(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    doc.write_text("####Title\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--profile",
+            "scientific-myst",
+            "--profile",
+            "strict-ci",
+            "--format",
+            "json",
+        ],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert payload["schema_version"] == "0.2-architecture-preview"
+    assert payload["profiles"] == ["scientific-myst", "strict-ci"]
+    assert payload["diagnostics"][0]["code"] == "STR001"
+
+
+def test_generated_profile_cli_uses_source_generated_pairs(tmp_path) -> None:
+    source = tmp_path / "source.md"
+    generated = tmp_path / "generated.md"
+    source.write_text("(anchor)=\n# Source\n", encoding="utf-8")
+    generated.write_text(
+        "See {ref}`anchor`.\n\n$$\n<!-- formula-not-decoded -->\n$$\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(source),
+            str(generated),
+            "--profile",
+            "generated",
+            "--generated-pair",
+            f"{source.as_posix()}={generated.as_posix()}",
+            "--format",
+            "json",
+        ],
+    )
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert {diagnostic["code"] for diagnostic in payload["diagnostics"]} >= {
+        "REF014",
+        "GEN003",
+        "GEN005",
+    }
+
+
+def test_generated_profile_github_annotations(tmp_path) -> None:
+    generated = tmp_path / "generated.md"
+    generated.write_text("$$\nA t t e n t ( Q , K , V )\n$$\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(generated), "--profile", "generated", "--format", "github"],
+    )
+
+    assert result.exit_code == 1
+    assert result.output.startswith(
+        "::error title=GEN004 generated formula contains suspiciously spaced tokens"
+    )
 
 
 def test_check_writes_output_file(tmp_path) -> None:
