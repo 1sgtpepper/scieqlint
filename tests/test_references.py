@@ -141,6 +141,20 @@ def test_check_documents_reports_generic_ref_diagnostics_distinct_from_equation_
     ]
 
 
+def test_generated_output_with_dropped_myst_anchor_and_preserved_ref_warns() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("translated/lecture.md"),
+        "## A Workaround\n\nSee {ref}`jax_at_workaround`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [(diagnostic.code, diagnostic.detail) for diagnostic in result.diagnostics] == [
+        ("REF004", "reference text: {ref}`jax_at_workaround`")
+    ]
+
+
 def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_reference() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),

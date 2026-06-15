@@ -70,7 +70,9 @@ before a heading are treated as document-structure targets, so Markdown links su
 as `[](#label)` and `[#label](#label)` do not emit equation-reference
 diagnostics when that target exists. Orphaned `(label)=` lines are not treated as
 valid targets. MyST `{ref}` roles to missing or ambiguous generic targets use
-generic-reference diagnostics instead of equation-reference diagnostics.
+generic-reference diagnostics instead of equation-reference diagnostics. This
+also catches generated output that drops a heading anchor while preserving a
+later `{ref}` to that anchor.
 
 ## Suppression comments
 
