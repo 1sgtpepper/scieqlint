@@ -69,7 +69,8 @@ equation labels. Explicit MyST heading anchors written as `(label)=` immediately
 before a heading are treated as document-structure targets, so Markdown links such
 as `[](#label)` and `[#label](#label)` do not emit equation-reference
 diagnostics when that target exists. Orphaned `(label)=` lines are not treated as
-valid targets.
+valid targets. MyST `{ref}` roles to missing or ambiguous generic targets use
+generic-reference diagnostics instead of equation-reference diagnostics.
 
 ## Suppression comments
 

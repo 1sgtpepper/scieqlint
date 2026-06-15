@@ -15,6 +15,8 @@ class ReferenceEngine:
         diagnostics: list[DiagnosticIR] = []
         missing_info = CATALOG["REF004"]
         for ref in query.references.unresolved_generic_refs():
+            if ref.role_kind != "ref":
+                continue
             diagnostics.append(
                 DiagnosticIR(
                     code=missing_info.code,
@@ -28,6 +30,8 @@ class ReferenceEngine:
             )
         ambiguous_info = CATALOG["REF005"]
         for ref in query.references.ambiguous_generic_refs():
+            if ref.role_kind != "ref":
+                continue
             diagnostics.append(
                 DiagnosticIR(
                     code=ambiguous_info.code,

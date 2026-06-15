@@ -190,14 +190,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "missing generic reference target",
         "v1.0.0",
-        "A supported MyST or Markdown reference points to a missing generic target.",
+        "A supported MyST generic reference points to a missing target.",
     ),
     "REF005": DiagnosticInfo(
         "REF005",
         Severity.WARNING,
         "ambiguous generic reference target",
         "v1.0.0",
-        "A supported MyST or Markdown reference points to more than one generic target.",
+        "A supported MyST generic reference points to more than one target.",
     ),
     "SUP001": DiagnosticInfo(
         "SUP001",

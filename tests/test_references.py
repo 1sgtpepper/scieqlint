@@ -115,6 +115,32 @@ def test_orphaned_myst_anchor_does_not_suppress_markdown_missing_reference() -> 
     assert result.diagnostics[0].detail == "reference text: [](#loose-anchor)"
 
 
+def test_check_documents_reports_generic_ref_diagnostics_distinct_from_equation_refs() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "\n".join(
+            [
+                "(intro)=",
+                "# Introduction",
+                "",
+                "(intro)=",
+                "## Duplicate Introduction",
+                "",
+                "See {ref}`intro`, {ref}`missing`, and {eq}`eq-missing`.",
+            ]
+        ),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == [
+        "REF005",
+        "REF004",
+        "REF002",
+    ]
+
+
 def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_reference() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
