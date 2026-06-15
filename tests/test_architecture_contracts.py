@@ -19,6 +19,7 @@ from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
     SectionFact,
+    StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.ir.model import DocumentIR, FrontendResult
@@ -340,6 +341,14 @@ def test_query_host_views_expose_snapshot_contracts():
         output_profile="quarto-html",
         risk_kind="crossref-label",
     )
+    syntax_issue = StructureSyntaxIssueFact(
+        fact_id="syntax-1",
+        document_id="a.md",
+        span=span(),
+        raw="{ref}target",
+        kind="myst-role",
+        reason="malformed MyST role syntax",
+    )
 
     snapshot = FactSnapshot(
         documents=(document, generated_document),
@@ -348,6 +357,7 @@ def test_query_host_views_expose_snapshot_contracts():
         fences=(fence,),
         directives=(directive,),
         code_cells=(cell, unlabeled_cell, non_crossref_cell, prefixed_cell),
+        structure_syntax_issues=(syntax_issue,),
         target_anchors=(source_anchor, duplicate_anchor, orphaned_anchor),
         generic_refs=(ref, unresolved_ref),
         equation_labels=(equation,),
@@ -366,6 +376,7 @@ def test_query_host_views_expose_snapshot_contracts():
     assert query.structure.fences() == (fence,)
     assert query.structure.directives() == (directive,)
     assert query.structure.code_cells() == (cell, unlabeled_cell, non_crossref_cell, prefixed_cell)
+    assert query.structure.syntax_issues() == (syntax_issue,)
     assert query.structure.malformed_headings() == (heading,)
     assert query.structure.unclosed_fences() == (fence,)
     assert directive.option_dict() == {"renderings": "html", "fig-cap": "Plot"}
