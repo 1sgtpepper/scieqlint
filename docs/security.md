@@ -4,7 +4,7 @@ SciEqLint analyzes untrusted document text. Security is part of the product cont
 
 ## Supported versions
 
-Security fixes are provided for the latest released minor version during v0.x. This policy should be revisited before v1.0.0.
+Security fixes are provided for the latest released minor version.
 
 ## Reporting a vulnerability
 

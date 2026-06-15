@@ -205,7 +205,7 @@ scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format g
 ## Reserved config surface
 
 The repository-level `scieqlint.toml` may include specification placeholders such
-as `[limits]`, `[severity]`, or per-code severity keys. The v1.0.0 loader does
+as `[limits]`, `[severity]`, or per-code severity keys. The current loader does
 not apply those placeholders. Current severity-affecting behavior is limited to
 CLI/config toggles such as `--strict-unknowns`, `[parser].strict_unknowns`,
 `[checks.references].missing_label_strict`, and

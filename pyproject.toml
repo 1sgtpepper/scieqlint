@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scieqlint"
-version = "1.0.0"
-description = "Deterministic linter for exact scalar equations and equation references in scientific documents."
+version = "1.1.0"
+description = "Deterministic linter for equations, references, and MyST structure in scientific documents."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

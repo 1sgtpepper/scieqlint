@@ -1,5 +1,5 @@
 site_name: SciEqLint
-site_description: Deterministic equation and reference linting for scientific documents.
+site_description: Deterministic equation, reference, and MyST structure linting for scientific documents.
 repo_url: https://github.com/Kuhai9801/scieqlint
 repo_name: Kuhai9801/scieqlint
 strict: true
@@ -47,6 +47,7 @@ nav:
       - v1.0.0: releases/v1.0.0-checklist.md
       - v1.0.0 stabilization: releases/v1.0.0-stabilization-checklist.md
       - v1.0.0 contract readiness: releases/v1.0.0-contract-readiness.md
+      - v1.1.0: releases/v1.1.0-checklist.md
   - Security: security.md
 
 markdown_extensions:
