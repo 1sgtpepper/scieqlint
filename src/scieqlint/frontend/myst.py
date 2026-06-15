@@ -27,6 +27,7 @@ from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
     SectionFact,
+    StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
@@ -41,11 +42,13 @@ _INLINE_MATH_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)"
 _TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 _DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 _DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
+_ROLE_MARKER_RE = re.compile(r"\{(?P<role>ref|eq|numref)\}")
 _QUARTO_OPTION_RE = re.compile(r"^[ \t]*#\|[ \t]*(?P<key>[A-Za-z0-9_.-]+):[ \t]*(?P<value>.*)$")
 _MYST_OPTION_RE = re.compile(
     r"^[ \t]*:(?P<key>[A-Za-z0-9_.-]+):[ \t]*(?P<value>.*)$",
     re.MULTILINE,
 )
+_CODE_CELL_TAG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
@@ -63,6 +66,7 @@ class MySTFrontend:
             fences=_flatten(parts, "fences"),
             directives=_flatten(parts, "directives"),
             code_cells=_flatten(parts, "code_cells"),
+            structure_syntax_issues=_flatten(parts, "structure_syntax_issues"),
             target_anchors=_flatten(parts, "target_anchors"),
             generic_refs=_flatten(parts, "generic_refs"),
             equation_labels=_flatten(parts, "equation_labels"),
@@ -85,6 +89,9 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     fences = _scan_fences(document, smap, lines)
     fence_ranges = _fence_ranges(fences, document.text)
     directives, code_cells = _directive_and_code_cell_facts(document, fences)
+    structure_syntax_issues = tuple(
+        _scan_structure_syntax_issues(document, smap, fence_ranges, fences)
+    )
     headings = tuple(_scan_headings(document, smap, lines, fence_ranges))
     anchors = tuple(_scan_anchors(document, smap, lines, fence_ranges))
     target_anchors = tuple(_attach_anchors(document, anchors, headings, fences))
@@ -101,6 +108,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         fences=fences,
         directives=directives,
         code_cells=code_cells,
+        structure_syntax_issues=structure_syntax_issues,
         target_anchors=target_anchors,
         generic_refs=generic_refs,
         equation_labels=equation_labels,
@@ -316,6 +324,7 @@ def _directive_code_cell_fact(
     options = directive.options if is_myst_code_cell else _quarto_options(document, fence)
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
+    tags = _parse_code_cell_tags(option_map.get("tags", ""))
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -327,8 +336,162 @@ def _directive_code_cell_fact(
         engine=language,
         options=options,
         label=option_map.get("label") or option_map.get("name"),
-        tags=tuple(tag.strip() for tag in option_map.get("tags", "").split(",") if tag.strip()),
+        tags=tags,
     )
+
+
+def _scan_structure_syntax_issues(
+    document: SourceDocument,
+    smap: SourceMap,
+    occupied: Sequence[OffsetRange],
+    fences: Sequence[FenceFact],
+) -> Iterable[StructureSyntaxIssueFact]:
+    yield from _malformed_directive_issues(fences)
+    yield from _malformed_myst_option_issues(document, smap, fences)
+    yield from _malformed_code_cell_tag_issues(document, smap, fences)
+    yield from _malformed_role_issues(document, smap, occupied)
+
+
+def _malformed_directive_issues(fences: Sequence[FenceFact]) -> Iterable[StructureSyntaxIssueFact]:
+    for fence in fences:
+        if not fence.info_string.startswith("{"):
+            continue
+        if _DIRECTIVE_INFO_RE.match(fence.info_string) is not None:
+            continue
+        yield StructureSyntaxIssueFact(
+            fact_id=f"{fence.fact_id}::syntax::directive",
+            document_id=fence.document_id,
+            span=fence.opener_span,
+            raw=fence.info_string,
+            kind="myst-directive",
+            reason="malformed directive fence info string",
+        )
+
+
+def _malformed_myst_option_issues(
+    document: SourceDocument,
+    smap: SourceMap,
+    fences: Sequence[FenceFact],
+) -> Iterable[StructureSyntaxIssueFact]:
+    for fence in fences:
+        if _DIRECTIVE_INFO_RE.match(fence.info_string) is None:
+            continue
+        for start, end, line in _directive_option_prefix_lines(document, fence):
+            if _MYST_OPTION_RE.match(line) is not None:
+                continue
+            yield StructureSyntaxIssueFact(
+                fact_id=f"{fence.fact_id}::syntax::option::{start}",
+                document_id=fence.document_id,
+                span=smap.span(start, end),
+                raw=line,
+                kind="myst-option",
+                reason="malformed directive option line",
+            )
+
+
+def _malformed_code_cell_tag_issues(
+    document: SourceDocument,
+    smap: SourceMap,
+    fences: Sequence[FenceFact],
+) -> Iterable[StructureSyntaxIssueFact]:
+    for fence in fences:
+        directive_match = _DIRECTIVE_INFO_RE.match(fence.info_string)
+        if directive_match is None or directive_match.group("name") != "code-cell":
+            continue
+        for start, end, line in _directive_option_prefix_lines(document, fence):
+            match = _MYST_OPTION_RE.match(line)
+            if match is None or match.group("key") != "tags":
+                continue
+            if _code_cell_tags_error(match.group("value").strip()) is None:
+                continue
+            yield StructureSyntaxIssueFact(
+                fact_id=f"{fence.fact_id}::syntax::tags::{start}",
+                document_id=fence.document_id,
+                span=smap.span(start, end),
+                raw=line,
+                kind="code-cell-tags",
+                reason="malformed code-cell tags option",
+            )
+
+
+def _malformed_role_issues(
+    document: SourceDocument,
+    smap: SourceMap,
+    occupied: Sequence[OffsetRange],
+) -> Iterable[StructureSyntaxIssueFact]:
+    occupied_with_code = (*tuple(occupied), *_inline_code_ranges(document))
+    for match in _ROLE_MARKER_RE.finditer(document.text):
+        if _in_ranges(match.start(), occupied_with_code):
+            continue
+        if _ROLE_RE.match(document.text, match.start()) is not None:
+            continue
+        line_end = document.text.find("\n", match.start())
+        if line_end == -1:
+            line_end = len(document.text)
+        yield StructureSyntaxIssueFact(
+            fact_id=f"{document.path.as_posix()}::syntax::role::{match.start()}",
+            document_id=document.path.as_posix(),
+            span=smap.span(match.start(), line_end),
+            raw=document.text[match.start() : line_end],
+            kind="myst-role",
+            reason="malformed MyST role syntax",
+        )
+
+
+def _directive_option_prefix_lines(
+    document: SourceDocument,
+    fence: FenceFact,
+) -> Iterable[LineRange]:
+    if fence.body_span is None:
+        return
+    body_start = fence.body_span.start
+    body = document.text[fence.body_span.start : fence.body_span.end]
+    cursor = body_start
+    for line in body.splitlines(keepends=True):
+        end = cursor + len(line)
+        line_without_newline = line[:-1] if line.endswith("\n") else line
+        stripped = line_without_newline.strip()
+        if not stripped:
+            cursor = end
+            continue
+        if not stripped.startswith(":"):
+            break
+        yield (cursor, end, line_without_newline)
+        cursor = end
+
+
+def _parse_code_cell_tags(value: str) -> tuple[str, ...]:
+    if not value:
+        return ()
+    normalized = _strip_bracketed_tag_list(value) if value.startswith("[") else value
+    if normalized is None:
+        return ()
+    tags = [_clean_tag(tag) for tag in normalized.split(",")]
+    return tuple(tag for tag in tags if tag)
+
+
+def _code_cell_tags_error(value: str) -> str | None:
+    if not value:
+        return None
+    normalized = _strip_bracketed_tag_list(value) if value.startswith("[") else value
+    if normalized is None:
+        return "unclosed bracketed tag list"
+    tags = [_clean_tag(tag) for tag in normalized.split(",")]
+    if not tags or any(not tag for tag in tags):
+        return "empty tag entry"
+    if any(_CODE_CELL_TAG_RE.fullmatch(tag) is None for tag in tags):
+        return "tag contains unsupported characters"
+    return None
+
+
+def _strip_bracketed_tag_list(value: str) -> str | None:
+    if not value.endswith("]"):
+        return None
+    return value[1:-1]
+
+
+def _clean_tag(value: str) -> str:
+    return value.strip().strip("\"'")
 
 
 def _myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:

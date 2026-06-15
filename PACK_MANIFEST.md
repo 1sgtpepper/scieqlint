@@ -5,8 +5,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 
 ## Important distinction
 
-- `SPEC.md` defines the full release ladder through v1.0.0.
-- `src/scieqlint/` implements the v0.1.5 analyzer slice.
+- SPEC.md defines the full release ladder through v1.0.0.
+- src/scieqlint/ implements the v0.1.5 analyzer slice.
 - Later release features still need fixtures, docs, golden outputs, and release
   acceptance gates before they are claimed.
 
@@ -135,6 +135,8 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/generated.py`
+- `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`
@@ -242,6 +244,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimensions.py`
+- `tests/test_generated_output.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_json_schema.py`

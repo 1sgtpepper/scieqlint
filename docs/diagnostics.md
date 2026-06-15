@@ -14,15 +14,37 @@ codes before every code is emitted by the current analyzer.
 | `INP001` | error | File could not be read or decoded |
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
 | `SCAN010` | warning | Malformed explicit symbol directive |
+| `STR001` | warning | ATX heading marker must be followed by a space |
+| `STR002` | warning | Fenced block is missing its closing delimiter |
+| `STR003` | info | Fenced code block has no language/info string |
+| `STR004` | warning | Heading level skips an intermediate parent |
+| `STR005` | warning | Document has more than one top-level heading |
+| `DIR001` | warning | Malformed MyST directive fence |
+| `DIR002` | warning | Malformed MyST directive option |
+| `DIR010` | warning | Code-cell directive missing language |
+| `DIR011` | warning | Malformed MyST role |
+| `DIR012` | warning | Malformed code-cell tags |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |
+| `REF004` | warning | Missing generic reference target |
+| `REF005` | warning | Ambiguous generic reference target |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
+
+## Generated-output engine
+
+`GEN001` is emitted by the generated-output engine when callers provide
+source-to-generated provenance facts. The current CLI/config path does not load
+translation provenance.
+
+| Code | Default | Meaning |
+|---|---|---|
+| `GEN001` | warning | Generated output is missing a preserved source anchor |
 
 ## Reserved in catalog
 
@@ -69,6 +91,20 @@ Output:
 
 ```text
 REF002 equation reference target not found: missing
+```
+
+## Example: REF004
+
+Input:
+
+```md
+See {ref}`missing`.
+```
+
+Output:
+
+```text
+REF004 missing generic reference target: missing
 ```
 
 ## Severity controls
