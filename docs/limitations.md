@@ -74,6 +74,20 @@ generic-reference diagnostics instead of equation-reference diagnostics. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
 
+## MyST structure linting
+
+The architecture frontend lowers MyST headings, target anchors, fenced blocks,
+directives, generic roles, equation roles, and code-cell facts. The structure
+engine emits deterministic diagnostics for malformed ATX headings, unclosed
+non-math fences, skipped heading levels, repeated top-level headings, generic
+fences without an info string, malformed MyST directive openers,
+malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
+syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+
+This is a conservative lint subset, not a full MyST parser. Unknown custom
+directive names remain allowed. Valid MyST target anchors such as `(label)=`
+before headings are treated as anchors, not headings or malformed prose.
+
 ## Suppression comments
 
 SciEqLint supports narrow source suppressions for Markdown and LaTeX:

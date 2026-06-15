@@ -158,7 +158,7 @@ def test_generated_output_with_dropped_myst_anchor_and_preserved_ref_warns() -> 
 def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_reference() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
-        "```\n(code-anchor)=\n# Code heading\n```\n\nSee [](#code-anchor).\n",
+        "```text\n(code-anchor)=\n# Code heading\n```\n\nSee [](#code-anchor).\n",
         DocumentKind.MARKDOWN,
     )
 
