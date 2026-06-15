@@ -113,7 +113,7 @@ def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     assert diagnostics == ()
 
 
-def test_invalid_myst_structure_fixture_reports_heading_and_fence_diagnostics():
+def test_invalid_myst_structure_fixture_reports_heading_diagnostic_only():
     snapshot = MySTFrontend().lower((fixture_doc(BAD_FIXTURE),))
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
