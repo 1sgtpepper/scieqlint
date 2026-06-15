@@ -36,6 +36,8 @@ FENCE_RE = re.compile(
 TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
+MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
+HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+\S")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
@@ -251,8 +253,11 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
+    attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
     for match in MD_LINK_RE.finditer(document.text):
         target = _normalize_label(match.group("target"))
+        if target in attached_myst_anchors:
+            continue
         yield EquationReference(
             target=target,
             span=_span(document, match.start("target"), match.end("target")),
@@ -271,6 +276,44 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
             raw=match.group(0),
             source=source,
         )
+
+
+def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
+    occupied = _code_spans(document)
+    lines = _line_ranges(document.text)
+    targets: set[str] = set()
+    for index, (start, _end, line) in enumerate(lines):
+        if _in_ranges(start, occupied):
+            continue
+        match = MYST_ANCHOR_RE.match(line)
+        if match is None:
+            continue
+        next_index = _next_attachable_line_index(lines, index + 1)
+        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
+            targets.add(_normalize_label(match.group("label")))
+    return frozenset(targets)
+
+
+def _next_attachable_line_index(
+    lines: tuple[tuple[int, int, str], ...],
+    index: int,
+) -> int | None:
+    while index < len(lines):
+        line = lines[index][2].strip()
+        if line and not line.startswith("<!--"):
+            return index
+        index += 1
+    return None
+
+
+def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:
+    ranges: list[tuple[int, int, str]] = []
+    start = 0
+    for line in text.splitlines(keepends=True):
+        end = start + len(line)
+        ranges.append((start, end, line[:-1] if line.endswith("\n") else line))
+        start = end
+    return tuple(ranges)
 
 
 def _symbol_directives(

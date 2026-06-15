@@ -135,6 +135,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
+- `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
 - `src/scieqlint/examples/bad/__init__.py`

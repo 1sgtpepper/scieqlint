@@ -17,6 +17,8 @@ codes before every code is emitted by the current analyzer.
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |
+| `REF004` | warning | Missing generic reference target |
+| `REF005` | warning | Ambiguous generic reference target |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -69,6 +71,20 @@ Output:
 
 ```text
 REF002 equation reference target not found: missing
+```
+
+## Example: REF004
+
+Input:
+
+```md
+See {ref}`missing`.
+```
+
+Output:
+
+```text
+REF004 missing generic reference target: missing
 ```
 
 ## Severity controls

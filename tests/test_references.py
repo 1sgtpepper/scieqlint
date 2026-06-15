@@ -66,3 +66,38 @@ def test_cross_format_reference_is_quiet() -> None:
     result = check_documents([latex, markdown], config=Config())
 
     assert result.diagnostics == ()
+
+
+def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "\n".join(
+            [
+                "(intro)=",
+                "# Introduction",
+                "",
+                "(empty-link-target)=",
+                "## Empty link target",
+                "",
+                "See [](#intro) and [#empty-link-target](#empty-link-target).",
+            ]
+        ),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.diagnostics == ()
+
+
+def test_orphaned_myst_anchor_does_not_suppress_markdown_missing_reference() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "(loose-anchor)=\nThis paragraph leaves the anchor unattached.\n\nSee [](#loose-anchor).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+    assert result.diagnostics[0].detail == "reference text: [](#loose-anchor)"

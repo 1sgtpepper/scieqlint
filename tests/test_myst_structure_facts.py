@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
+from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import (
     MySTFrontend,
@@ -42,7 +43,8 @@ def test_heading_inside_code_fence_is_not_lowered():
 
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     snapshot = MySTFrontend().lower((fixture_doc(GOOD_FIXTURE),))
-    diagnostics = StructureEngine().run(QueryHost(snapshot))
+    query = QueryHost(snapshot)
+    diagnostics = (*StructureEngine().run(query), *ReferenceEngine().run(query))
 
     assert [(heading.level, heading.text, heading.valid_atx) for heading in snapshot.headings] == [
         (1, "QuantEcon lecture", True),
@@ -56,6 +58,101 @@ def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
         ("generic", "python", True),
     ]
     assert diagnostics == ()
+
+
+def test_myst_heading_anchors_resolve_markdownlint_sensitive_links():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "(intro)=",
+                        "# Introduction",
+                        "",
+                        "(empty-link-target)=",
+                        "## Empty link target",
+                        "",
+                        "See [](#intro), [#empty-link-target](#empty-link-target), "
+                        "and {ref}`Introduction <intro>`.",
+                    ]
+                )
+            ),
+        )
+    )
+    query = QueryHost(snapshot)
+    diagnostics = (*StructureEngine().run(query), *ReferenceEngine().run(query))
+
+    assert [(heading.text, heading.valid_atx) for heading in snapshot.headings] == [
+        ("Introduction", True),
+        ("Empty link target", True),
+    ]
+    assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
+        ("intro", "before_heading"),
+        ("empty-link-target", "before_heading"),
+    ]
+    assert [(ref.role_kind, ref.target) for ref in snapshot.generic_refs] == [
+        ("markdown-link", "intro"),
+        ("markdown-link", "empty-link-target"),
+        ("ref", "intro"),
+    ]
+    assert diagnostics == ()
+
+
+def test_missing_and_orphaned_generic_refs_are_diagnosed():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "See {ref}`missing-target`.",
+                        "",
+                        "(loose-anchor)=",
+                        "This paragraph leaves the anchor unattached.",
+                        "",
+                        "See {ref}`loose-anchor`.",
+                    ]
+                )
+            ),
+        )
+    )
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
+        ("loose-anchor", "orphaned")
+    ]
+    assert [(diagnostic.code, diagnostic.detail) for diagnostic in diagnostics] == [
+        ("REF004", "reference text: {ref}`missing-target`"),
+        ("REF004", "reference text: {ref}`loose-anchor`"),
+    ]
+
+
+def test_duplicate_generic_targets_are_diagnosed_distinctly_from_missing_targets():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "(intro)=",
+                        "# Introduction",
+                        "",
+                        "(intro)=",
+                        "## Duplicate Introduction",
+                        "",
+                        "See {ref}`intro`.",
+                    ]
+                )
+            ),
+        )
+    )
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
+        ("intro", "before_heading"),
+        ("intro", "before_heading"),
+    ]
+    assert [(diagnostic.code, diagnostic.detail) for diagnostic in diagnostics] == [
+        ("REF005", "reference text: {ref}`intro`")
+    ]
 
 
 def test_invalid_myst_structure_fixture_reports_heading_and_fence_diagnostics():

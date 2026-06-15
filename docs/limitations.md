@@ -62,6 +62,15 @@ Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and n
 `scieqlint graph` exports deterministic JSON graph data for supported equation
 labels and references.
 
+## Reference checks
+
+SciEqLint checks supported equation references and Markdown links to supported
+equation labels. Explicit MyST heading anchors written as `(label)=` immediately
+before a heading are treated as document-structure targets, so Markdown links such
+as `[](#label)` and `[#label](#label)` do not emit equation-reference
+diagnostics when that target exists. Orphaned `(label)=` lines are not treated as
+valid targets.
+
 ## Suppression comments
 
 SciEqLint supports narrow source suppressions for Markdown and LaTeX:

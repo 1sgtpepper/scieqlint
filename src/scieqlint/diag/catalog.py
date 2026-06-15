@@ -185,6 +185,20 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v0.1.0",
         "An equation block has no label while strict label mode is enabled.",
     ),
+    "REF004": DiagnosticInfo(
+        "REF004",
+        Severity.WARNING,
+        "missing generic reference target",
+        "v1.0.0",
+        "A supported MyST or Markdown reference points to a missing generic target.",
+    ),
+    "REF005": DiagnosticInfo(
+        "REF005",
+        Severity.WARNING,
+        "ambiguous generic reference target",
+        "v1.0.0",
+        "A supported MyST or Markdown reference points to more than one generic target.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,
