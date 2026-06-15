@@ -17,6 +17,7 @@ def test_catalog_has_core_codes() -> None:
         "DIM020",
         "SUP001",
         "SCAN010",
+        "GEN001",
         "REF004",
         "REF005",
         "STR001",

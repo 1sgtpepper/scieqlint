@@ -234,6 +234,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.0.0",
         "A symbol is used before an explicit scieqlint-symbol directive defines it.",
     ),
+    "GEN001": DiagnosticInfo(
+        "GEN001",
+        Severity.WARNING,
+        "generated output is missing preserved source anchor",
+        "v1.0.0",
+        "A source MyST target anchor expected by generated-output provenance is absent "
+        "from the generated document.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,
