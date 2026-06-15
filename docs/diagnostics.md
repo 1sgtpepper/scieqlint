@@ -14,6 +14,14 @@ codes before every code is emitted by the current analyzer.
 | `INP001` | error | File could not be read or decoded |
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
 | `SCAN010` | warning | Malformed explicit symbol directive |
+| `STR001` | warning | ATX heading marker must be followed by a space |
+| `STR002` | warning | Fenced block is missing its closing delimiter |
+| `STR003` | info | Fenced code block has no language/info string |
+| `DIR001` | warning | Malformed MyST directive fence |
+| `DIR002` | warning | Malformed MyST directive option |
+| `DIR010` | warning | Code-cell directive missing language |
+| `DIR011` | warning | Malformed MyST role |
+| `DIR012` | warning | Malformed code-cell tags |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Missing equation reference target |
 | `REF003` | info | Missing equation label in strict mode |

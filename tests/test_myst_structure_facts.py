@@ -4,6 +4,7 @@ from pathlib import Path, PurePosixPath
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import (
     MySTFrontend,
+    _directive_option_prefix_lines,
     _is_immediate_attachment,
     _myst_options,
     _quarto_options,
@@ -258,3 +259,133 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     ]
     assert [math.body for math in snapshot.display_math] == ["visible\n```\n$$\n```"]
     assert [diagnostic.code for diagnostic in diagnostics] == ["STR003", "STR003", "DIR010"]
+
+
+def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "```{note",
+                        "Broken directive opener.",
+                        "```",
+                        "",
+                        "```{note}",
+                        ":class tip",
+                        "Broken option.",
+                        "```",
+                        "",
+                        "```{code-cell} python",
+                        ":tags: [hide-input, bad tag]",
+                        "print(1)",
+                        "```",
+                        "",
+                        "See {ref}target and {eq}`missing.",
+                    ]
+                )
+            ),
+        )
+    )
+
+    diagnostics = StructureEngine().run(QueryHost(snapshot))
+
+    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
+        ("myst-directive", "malformed directive fence info string"),
+        ("myst-option", "malformed directive option line"),
+        ("code-cell-tags", "malformed code-cell tags option"),
+        ("myst-role", "malformed MyST role syntax"),
+        ("myst-role", "malformed MyST role syntax"),
+    ]
+    assert [diagnostic.code for diagnostic in diagnostics] == [
+        "DIR001",
+        "DIR002",
+        "DIR012",
+        "DIR011",
+        "DIR011",
+    ]
+
+
+def test_valid_myst_roles_options_and_bracketed_code_cell_tags_are_quiet():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "(target)=",
+                        "# Target",
+                        "",
+                        "```{code-cell} python",
+                        ":tags: [hide-input, remove-output]",
+                        "print(1)",
+                        "```",
+                        "",
+                        "See {ref}`Target <target>` and {eq}`eq-energy`.",
+                    ]
+                )
+            ),
+        )
+    )
+
+    diagnostics = StructureEngine().run(QueryHost(snapshot))
+
+    assert snapshot.structure_syntax_issues == ()
+    assert [(cell.language, cell.tags) for cell in snapshot.code_cells] == [
+        ("python", ("hide-input", "remove-output"))
+    ]
+    assert [diagnostic.code for diagnostic in diagnostics] == []
+
+
+def test_myst_syntax_negative_controls_cover_tag_list_neighbors_and_eof_role():
+    snapshot = MySTFrontend().lower(
+        (
+            doc(
+                "\n".join(
+                    [
+                        "```{code-cell} python",
+                        ":tags:",
+                        "print('empty tags are allowed')",
+                        "```",
+                        "",
+                        "```{code-cell} python",
+                        ":tags: [hide-input",
+                        "print('unclosed bracket')",
+                        "```",
+                        "",
+                        "```{code-cell} python",
+                        ":tags: hide-input,",
+                        "print('empty tag entry')",
+                        "```",
+                        "",
+                        "```python",
+                        ":tags: [not-a-code-cell]",
+                        "```",
+                        "",
+                        "See {ref}broken",
+                    ]
+                )
+            ),
+        )
+    )
+
+    diagnostics = StructureEngine().run(QueryHost(snapshot))
+
+    assert [(issue.kind, issue.raw) for issue in snapshot.structure_syntax_issues] == [
+        ("code-cell-tags", ":tags: [hide-input"),
+        ("code-cell-tags", ":tags: hide-input,"),
+        ("myst-role", "{ref}broken"),
+    ]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["DIR012", "DIR012", "DIR011"]
+
+
+def test_directive_option_prefix_lines_skip_blank_lines_and_ignore_empty_bodies():
+    source = doc("```{note}\n\n:class: tip\nContent.\n```\n")
+    snapshot = MySTFrontend().lower((source,))
+
+    assert [line[2] for line in _directive_option_prefix_lines(source, snapshot.fences[0])] == [
+        ":class: tip"
+    ]
+    assert (
+        list(_directive_option_prefix_lines(source, replace(snapshot.fences[0], body_span=None)))
+        == []
+    )

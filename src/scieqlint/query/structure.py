@@ -11,6 +11,7 @@ from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
     SectionFact,
+    StructureSyntaxIssueFact,
 )
 
 
@@ -32,6 +33,9 @@ class StructureQueryView:
 
     def code_cells(self) -> tuple[CodeCellFact, ...]:
         return self.snapshot.code_cells
+
+    def syntax_issues(self) -> tuple[StructureSyntaxIssueFact, ...]:
+        return self.snapshot.structure_syntax_issues
 
     def malformed_headings(self) -> tuple[HeadingFact, ...]:
         return tuple(heading for heading in self.snapshot.headings if not heading.valid_atx)
