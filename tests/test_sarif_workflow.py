@@ -21,7 +21,7 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     upload_step = _job_step("scieqlint-sarif", "Upload SARIF")
     quote = chr(34)
 
-    assert install_step["run"] == "python -m pip install scieqlint==1.0.0"
+    assert install_step["run"] == "python -m pip install scieqlint==1.1.0"
     assert run_step["run"] == (
         f"scieqlint check {quote}docs/**/*.md{quote} "
         f"{quote}docs/**/*.ipynb{quote} "

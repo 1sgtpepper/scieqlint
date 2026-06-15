@@ -11,7 +11,7 @@ def test_action_metadata_is_thin_cli_wrapper() -> None:
     assert "runs:\n  using: composite" in metadata
     assert inputs == {
         "python-version": '"3.11"',
-        "package-version": '"1.0.0"',
+        "package-version": '"1.1.0"',
         "args": '"check ."',
     }
     assert steps == [

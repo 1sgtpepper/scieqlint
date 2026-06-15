@@ -16,9 +16,7 @@ Release notes must use these sections:
 
 ### Added
 
-- Packaged `generated-myst` preset for generated Markdown/MyST scientific-doc
-  validation with inline math, strict parser unknowns, algebra, references, and
-  GitHub annotation workflow documentation.
+- Nothing yet.
 
 ### Changed
 
@@ -26,8 +24,48 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Nothing yet.
+
+### Deprecated
+
+- Nothing yet.
+
+### Removed
+
+- Nothing yet.
+
+### Migration notes
+
+- Nothing yet.
+
+### Known limitations
+
+- Nothing yet.
+
+## v1.1.0 - 2026-06-15
+
+### Added
+
+- MyST structure diagnostics for heading syntax, non-math fenced blocks,
+  heading hierarchy, directive openers and options, role syntax, and code-cell
+  metadata.
+- Generic MyST reference diagnostics for missing and ambiguous `{ref}` targets,
+  with support for heading anchors such as `(label)=`.
+- Generated-output anchor audit support for callers that provide
+  source-to-generated provenance facts.
+- Packaged `generated-myst` preset for generated Markdown/MyST scientific-doc
+  validation with inline math, strict parser unknowns, algebra, references, and
+  GitHub annotation workflow documentation.
+
+### Changed
+
+- README, configuration, diagnostics, and GitHub annotation documentation now
+  describe generated/MyST scientific-doc validation.
+
+### Fixed
+
 - The SARIF upload example workflow now installs the release package version
-  used by the 1.0.0 release branch.
+  used by the release branch.
 
 ### Deprecated
 

@@ -49,7 +49,7 @@ translation provenance.
 ## Reserved in catalog
 
 These codes are present in `src/scieqlint/diag/catalog.py` for stable
-documentation and reporter metadata, but the v1.0.0 analyzer does not currently
+documentation and reporter metadata, but the current analyzer does not currently
 emit them from normal checks:
 
 | Code | Default | Meaning |
@@ -109,7 +109,7 @@ REF004 missing generic reference target: missing
 
 ## Severity controls
 
-The v1.0.0 loader does not implement `[severity]` overrides. Current
+The current loader does not implement `[severity]` overrides. Current
 severity-affecting controls are exposed through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when

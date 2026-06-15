@@ -21,7 +21,7 @@ steps:
   - uses: actions/setup-python@v6
     with:
       python-version: "3.11"
-  - run: python -m pip install scieqlint==1.0.0
+  - run: python -m pip install scieqlint==1.1.0
   - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
     with:
@@ -38,7 +38,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v1.0.0
+  - uses: Kuhai9801/scieqlint@v1.1.0
     with:
       args: check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4

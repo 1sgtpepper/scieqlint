@@ -52,6 +52,16 @@ Graph JSON exports equation-label nodes and supported reference edges:
 scieqlint graph . --output scieqlint-graph.json
 ```
 
+## Generated MyST docs
+
+For generated Markdown/MyST output, materialize the packaged preset and run the
+normal checker with that config:
+
+```bash
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
+```
+
 ## Demo
 
 ```bash

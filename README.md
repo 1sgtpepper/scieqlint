@@ -10,7 +10,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 SciEqLint lints scientific Markdown, LaTeX, and notebooks for equation mistakes,
-broken references, and CI-ready diagnostics before they reach reviewers.
+broken references, MyST structure problems, and CI-ready diagnostics before they
+reach reviewers.
 
 ![SciEqLint demo](docs/assets/scieqlint-readme-demo.gif)
 
@@ -43,6 +44,18 @@ Diagnostic:
 ```text
 REF002 equation reference target not found: missing
 ```
+
+For generated or MyST-heavy scientific docs, initialize the packaged profile and
+run the same deterministic checks in CI:
+
+```bash
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
+```
+
+That profile enables stricter generated-document checks while keeping the scope
+source-based: math containers, supported equation and generic references, MyST
+anchors and directives, heading hierarchy, and parse-unknown diagnostics.
 
 ## Local development
 
@@ -80,11 +93,11 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 
 SciEqLint checks `.md`, `.markdown`, `.tex`, and `.ipynb` documents. It supports
 Markdown/MyST display math, supported LaTeX containers, notebook Markdown cells,
-labels and references, simple scalar algebra, text output, deterministic JSON output,
-SARIF, and JSON Schema validation. See `docs/limitations.md` for the exact
-scanner and grammar coverage.
+labels and references, MyST structure diagnostics, simple scalar algebra, text
+output, deterministic JSON output, SARIF, and JSON Schema validation. See
+`docs/limitations.md` for the exact scanner and grammar coverage.
 
-Current release target: v1.0.0.
+Current release target: v1.1.0.
 
 ## Pull request annotations
 
@@ -102,7 +115,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v1.0.0
+  - uses: Kuhai9801/scieqlint@v1.1.0
     with:
       args: check "docs/**/*.md" --format sarif --output scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4

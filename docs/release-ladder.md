@@ -19,6 +19,7 @@ SciEqLint grows by scoped release slices. Release order changes only for correct
 | v0.5.0 | run well on books/sites | project mode, baselines, file ordering |
 | v0.9.0 | stabilize contracts | performance, compatibility, contract candidates |
 | v1.0.0 | stable scientific CI core | frozen CLI/JSON/SARIF/config/API |
+| v1.1.0 | validate generated MyST/scientific docs | MyST structure and generic-reference diagnostics, generated-output anchor audit, generated-MyST preset |
 
 ## Scope rule
 

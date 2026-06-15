@@ -1,7 +1,8 @@
 # SciEqLint
 
-SciEqLint checks documented scientific document formats for exact scalar algebra
-mistakes and broken equation references.
+SciEqLint checks scientific Markdown, MyST, LaTeX, and notebook documents for
+exact scalar algebra mistakes, broken references, and deterministic MyST
+structure issues.
 
 Unsupported math is reported as unknown or skipped. The checker does not guess.
 
@@ -30,9 +31,17 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
+Generated or MyST-heavy docs can use the packaged profile:
+
+```bash
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
+```
+
 ## Read next
 
 - [Quickstart](quickstart.md)
+- [Configuration](configuration.md)
 - [Limitations](limitations.md)
 - [Diagnostics](diagnostics.md)
 - [Contributing](contributing/index.md)

@@ -98,6 +98,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `docs/releases/v1.0.0-checklist.md`
 - `docs/releases/v1.0.0-contract-readiness.md`
 - `docs/releases/v1.0.0-stabilization-checklist.md`
+- `docs/releases/v1.1.0-checklist.md`
 - `docs/security.md`
 - `examples/bad/famous_bad.md`
 - `examples/bad/myst_bad.md`
