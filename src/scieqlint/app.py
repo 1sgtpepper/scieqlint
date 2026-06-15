@@ -22,10 +22,13 @@ from scieqlint.diag.baseline import (
 )
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.engine.structure import StructureEngine
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
@@ -152,6 +155,14 @@ def check_documents(
                 tuple(symbol_directives),
                 path_order=path_order,
             )
+        )
+    markdown_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    if markdown_documents:
+        query = QueryHost(MySTFrontend().lower(markdown_documents))
+        diagnostics.extend(
+            diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(

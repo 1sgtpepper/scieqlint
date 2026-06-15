@@ -1,6 +1,8 @@
 from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
+from scieqlint.api import check_documents
+from scieqlint.config.model import Config
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import (
     MySTFrontend,
@@ -34,6 +36,33 @@ def test_malformed_heading_is_fact_then_engine_diagnostic():
     assert snapshot.headings[0].valid_atx is False
     diagnostics = StructureEngine().run(QueryHost(snapshot))
     assert [d.code for d in diagnostics if d.code == "STR001"] == ["STR001"]
+
+
+def test_check_documents_emits_myst_structure_diagnostics():
+    document = doc(
+        "\n".join(
+            [
+                "# Title",
+                "### Skipped",
+                "# Second title",
+                "",
+                "```{note",
+                "Broken directive.",
+                "```",
+                "",
+                "See {ref}target.",
+            ]
+        )
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == [
+        "STR004",
+        "STR005",
+        "DIR001",
+        "DIR011",
+    ]
 
 
 def test_heading_inside_code_fence_is_not_lowered():
@@ -258,7 +287,12 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
         ("eq-end", "dollar-tail")
     ]
     assert [math.body for math in snapshot.display_math] == ["visible\n```\n$$\n```"]
-    assert [diagnostic.code for diagnostic in diagnostics] == ["STR003", "STR003", "DIR010"]
+    assert [diagnostic.code for diagnostic in diagnostics] == [
+        "STR005",
+        "STR003",
+        "STR003",
+        "DIR010",
+    ]
 
 
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():

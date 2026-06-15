@@ -67,7 +67,8 @@ labels and references.
 The architecture frontend lowers MyST headings, target anchors, fenced blocks,
 directives, generic roles, equation roles, and code-cell facts. The structure
 engine emits deterministic diagnostics for malformed ATX headings, unclosed
-fences, generic fences without an info string, malformed MyST directive openers,
+fences, skipped heading levels, repeated top-level headings, generic fences
+without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
 syntax, missing code-cell language arguments, and malformed code-cell tag lists.
 

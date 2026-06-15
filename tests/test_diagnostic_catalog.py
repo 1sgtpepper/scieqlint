@@ -20,6 +20,8 @@ def test_catalog_has_core_codes() -> None:
         "STR001",
         "STR002",
         "STR003",
+        "STR004",
+        "STR005",
         "DIR001",
         "DIR002",
         "DIR010",

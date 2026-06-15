@@ -17,6 +17,8 @@ codes before every code is emitted by the current analyzer.
 | `STR001` | warning | ATX heading marker must be followed by a space |
 | `STR002` | warning | Fenced block is missing its closing delimiter |
 | `STR003` | info | Fenced code block has no language/info string |
+| `STR004` | warning | Heading level skips an intermediate parent |
+| `STR005` | warning | Document has more than one top-level heading |
 | `DIR001` | warning | Malformed MyST directive fence |
 | `DIR002` | warning | Malformed MyST directive option |
 | `DIR010` | warning | Code-cell directive missing language |

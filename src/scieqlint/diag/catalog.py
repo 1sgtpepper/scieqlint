@@ -115,6 +115,20 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.0.0",
         "A generic fenced code block omits its language or info string.",
     ),
+    "STR004": DiagnosticInfo(
+        "STR004",
+        Severity.WARNING,
+        "heading level skips an intermediate parent",
+        "v1.0.0",
+        "A Markdown/MyST heading jumps over the next parent heading level.",
+    ),
+    "STR005": DiagnosticInfo(
+        "STR005",
+        Severity.WARNING,
+        "document has more than one top-level heading",
+        "v1.0.0",
+        "A Markdown/MyST document contains multiple level-1 headings.",
+    ),
     "DIR001": DiagnosticInfo(
         "DIR001",
         Severity.WARNING,
