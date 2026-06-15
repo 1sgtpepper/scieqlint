@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
+from scieqlint.facts.structure import HeadingFact
 from scieqlint.query.host import QueryHost
 
 
@@ -53,48 +54,55 @@ class StructureEngine:
 
     def _heading_hierarchy_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
-        previous_level = 0
-        top_level_count = 0
+        headings_by_document: dict[str, list[HeadingFact]] = {}
         for heading in query.structure.headings():
-            if heading.level == 1:
-                top_level_count += 1
-                if top_level_count > 1:
+            headings_by_document.setdefault(heading.document_id, []).append(heading)
+
+        for headings in headings_by_document.values():
+            previous_level = 0
+            top_level_count = 0
+            for heading in headings:
+                if heading.level == 1:
+                    top_level_count += 1
+                    if top_level_count > 1:
+                        out.append(
+                            DiagnosticIR(
+                                code="STR005",
+                                severity_default=Severity.WARNING,
+                                message="document has more than one top-level heading",
+                                span=heading.marker_span or heading.span,
+                                detail=heading.raw,
+                                hint="Use one level-1 heading and nest later sections below it.",
+                                rule="structure.single_top_level_heading",
+                                profile_gated=True,
+                                false_positive_risk="medium",
+                            )
+                        )
+                if previous_level and heading.level > previous_level + 1:
                     out.append(
                         DiagnosticIR(
-                            code="STR005",
+                            code="STR004",
                             severity_default=Severity.WARNING,
-                            message="document has more than one top-level heading",
+                            message="heading level skips an intermediate parent",
                             span=heading.marker_span or heading.span,
                             detail=heading.raw,
-                            hint="Use one level-1 heading and nest later sections below it.",
-                            rule="structure.single_top_level_heading",
+                            hint=(
+                                f"Use a level-{previous_level + 1} heading before this "
+                                f"level-{heading.level} heading."
+                            ),
+                            rule="structure.heading_hierarchy",
                             profile_gated=True,
                             false_positive_risk="medium",
                         )
                     )
-            if previous_level and heading.level > previous_level + 1:
-                out.append(
-                    DiagnosticIR(
-                        code="STR004",
-                        severity_default=Severity.WARNING,
-                        message="heading level skips an intermediate parent",
-                        span=heading.marker_span or heading.span,
-                        detail=heading.raw,
-                        hint=(
-                            f"Use a level-{previous_level + 1} heading before this "
-                            f"level-{heading.level} heading."
-                        ),
-                        rule="structure.heading_hierarchy",
-                        profile_gated=True,
-                        false_positive_risk="medium",
-                    )
-                )
-            previous_level = heading.level
+                previous_level = heading.level
         return tuple(out)
 
     def _fence_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
         for fence in query.structure.unclosed_fences():
+            if fence.kind == "math":
+                continue
             out.append(
                 DiagnosticIR(
                     code="STR002",

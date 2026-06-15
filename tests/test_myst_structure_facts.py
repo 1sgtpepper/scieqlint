@@ -65,6 +65,31 @@ def test_check_documents_emits_myst_structure_diagnostics():
     ]
 
 
+def test_heading_hierarchy_state_is_scoped_per_document():
+    first = SourceDocument.from_text(
+        PurePosixPath("first.md"),
+        "# First\n",
+        DocumentKind.MARKDOWN,
+    )
+    second = SourceDocument.from_text(
+        PurePosixPath("second.md"),
+        "# Second\n### Local skipped child\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([first, second], config=Config())
+
+    assert [
+        (diagnostic.code, diagnostic.span.path.as_posix()) for diagnostic in result.diagnostics
+    ] == [("STR004", "second.md")]
+
+
+def test_unclosed_math_fence_keeps_existing_scan_diagnostic_without_structure_duplicate():
+    result = check_documents([doc("```math\nx = y\n")], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
 def test_heading_inside_code_fence_is_not_lowered():
     snapshot = MySTFrontend().lower((doc("```\n####Not a heading\n```\n"),))
     assert snapshot.headings == ()
@@ -98,7 +123,7 @@ def test_invalid_myst_structure_fixture_reports_heading_and_fence_diagnostics():
     assert [(fence.kind, fence.info_string, fence.is_closed) for fence in snapshot.fences] == [
         ("math", "{math}", False)
     ]
-    assert [diagnostic.code for diagnostic in diagnostics] == ["STR001", "STR002"]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["STR001"]
 
 
 def test_frontend_lowers_myst_cell_reference_and_math_facts():
