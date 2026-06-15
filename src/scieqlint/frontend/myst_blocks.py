@@ -97,7 +97,7 @@ def directive_and_code_cell_facts(
                 code_cells.append(code_cell)
             continue
 
-        directive = _directive_fact(fence, directive_match, _myst_options(document, fence))
+        directive = _directive_fact(fence, directive_match, myst_options(document, fence))
         directives.append(directive)
         code_cell = _directive_code_cell_fact(document, fence, directive, directive_match)
         if code_cell is not None:
@@ -180,7 +180,7 @@ def _make_fence_fact(
 def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCellFact | None:
     if fence.language not in {"python", "r", "julia"}:
         return None
-    options = _quarto_options(document, fence)
+    options = quarto_options(document, fence)
     label = dict(options).get("label")
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
@@ -225,7 +225,7 @@ def _directive_code_cell_fact(
     if not (is_myst_code_cell or is_quarto_code_cell):
         return None
 
-    options = directive.options if is_myst_code_cell else _quarto_options(document, fence)
+    options = directive.options if is_myst_code_cell else quarto_options(document, fence)
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
@@ -268,7 +268,7 @@ def _malformed_myst_option_issues(
     for fence in fences:
         if DIRECTIVE_INFO_RE.match(fence.info_string) is None:
             continue
-        for start, end, line in _directive_option_prefix_lines(document, fence):
+        for start, end, line in directive_option_prefix_lines(document, fence):
             if MYST_OPTION_RE.match(line) is not None:
                 continue
             yield StructureSyntaxIssueFact(
@@ -290,7 +290,7 @@ def _malformed_code_cell_tag_issues(
         directive_match = DIRECTIVE_INFO_RE.match(fence.info_string)
         if directive_match is None or directive_match.group("name") != "code-cell":
             continue
-        for start, end, line in _directive_option_prefix_lines(document, fence):
+        for start, end, line in directive_option_prefix_lines(document, fence):
             match = MYST_OPTION_RE.match(line)
             if match is None or match.group("key") != "tags":
                 continue
@@ -330,7 +330,7 @@ def _malformed_role_issues(
         )
 
 
-def _directive_option_prefix_lines(
+def directive_option_prefix_lines(
     document: SourceDocument,
     fence: FenceFact,
 ) -> Iterable[LineRange]:
@@ -386,7 +386,7 @@ def _clean_tag(value: str) -> str:
     return value.strip().strip("\"'")
 
 
-def _myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:
+def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:
     if fence.body_span is None:
         return ()
     body = document.text[fence.body_span.start : fence.body_span.end]
@@ -400,7 +400,7 @@ def _myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str
     return tuple(options)
 
 
-def _quarto_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:
+def quarto_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:
     if fence.body_span is None:
         return ()
     body = document.text[fence.body_span.start : fence.body_span.end]

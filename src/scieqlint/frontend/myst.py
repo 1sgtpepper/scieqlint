@@ -14,16 +14,18 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
 
-from . import myst_blocks as _blocks
-from . import myst_headings as _headings
 from .myst_blocks import (
     directive_and_code_cell_facts,
+    directive_option_prefix_lines,
     fence_ranges,
+    myst_options,
+    quarto_options,
     scan_fences,
     scan_structure_syntax_issues,
 )
 from .myst_headings import (
     attach_anchors,
+    is_immediate_attachment,
     scan_anchors,
     scan_headings,
     sections_for_headings,
@@ -32,10 +34,10 @@ from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math
 from .myst_refs import scan_refs
 from .myst_shared import line_ranges
 
-_directive_option_prefix_lines = _blocks._directive_option_prefix_lines
-_myst_options = _blocks._myst_options
-_quarto_options = _blocks._quarto_options
-_is_immediate_attachment = _headings._is_immediate_attachment
+_directive_option_prefix_lines = directive_option_prefix_lines
+_myst_options = myst_options
+_quarto_options = quarto_options
+_is_immediate_attachment = is_immediate_attachment
 
 
 class MySTFrontend:

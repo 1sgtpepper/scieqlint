@@ -155,6 +155,11 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/facts/structure.py`
 - `src/scieqlint/frontend/__init__.py`
 - `src/scieqlint/frontend/myst.py`
+- `src/scieqlint/frontend/myst_blocks.py`
+- `src/scieqlint/frontend/myst_headings.py`
+- `src/scieqlint/frontend/myst_math.py`
+- `src/scieqlint/frontend/myst_refs.py`
+- `src/scieqlint/frontend/myst_shared.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`

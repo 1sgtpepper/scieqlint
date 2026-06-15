@@ -105,7 +105,7 @@ def attach_anchors(
             ),
             None,
         )
-        if next_fact is None or not _is_immediate_attachment(document, anchor, next_fact):
+        if next_fact is None or not is_immediate_attachment(document, anchor, next_fact):
             yield replace(anchor, placement="orphaned")
             continue
         kind = "heading" if isinstance(next_fact, HeadingFact) else "block"
@@ -149,7 +149,7 @@ def _heading_text(body: str) -> str:
     return re.sub(r"[ \t]+#+[ \t]*$", "", stripped).strip()
 
 
-def _is_immediate_attachment(
+def is_immediate_attachment(
     document: SourceDocument,
     anchor: TargetAnchorFact,
     next_fact: HeadingFact | FenceFact,
