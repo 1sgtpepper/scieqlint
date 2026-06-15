@@ -1,0 +1,24 @@
+[scanner]
+markdown = true
+inline_math = true
+math_fences = true
+
+[parser]
+strict_unknowns = true
+
+[checks.algebra]
+enabled = true
+
+[checks.references]
+enabled = true
+missing_label_strict = false
+
+[checks.dimension]
+mode = "auto"
+unknown_variables = "warn"
+
+[checks.symbols]
+enabled = false
+
+[report]
+show_suppressed = false

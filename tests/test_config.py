@@ -136,6 +136,41 @@ def test_load_config_user_config_overrides_preset_values(tmp_path) -> None:
     )
 
 
+def test_generated_myst_preset_enables_generated_markdown_checks(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    config = load_config(preset="generated-myst")
+
+    assert config.scanner.markdown is True
+    assert config.scanner.inline_math is True
+    assert config.scanner.math_fences is True
+    assert config.parser.strict_unknowns is True
+    assert config.checks.algebra.enabled is True
+    assert config.checks.references.enabled is True
+    assert config.checks.dimension.mode == "auto"
+
+
+def test_load_config_user_config_overrides_generated_myst_strictness(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[scanner]",
+                "inline_math = false",
+                "",
+                "[parser]",
+                "strict_unknowns = false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path, preset="generated-myst")
+
+    assert config.scanner.inline_math is False
+    assert config.parser.strict_unknowns is False
+
+
 def test_load_config_rejects_unknown_preset() -> None:
     with pytest.raises(ValueError, match="unknown preset: unknown"):
         load_config(preset="unknown")
@@ -148,7 +183,8 @@ def test_load_config_rejects_invalid_preset_resource_names(preset: str) -> None:
 
 
 def test_preset_resources_are_listed_and_readable() -> None:
-    assert list_presets() == ("mechanics",)
+    assert list_presets() == ("generated-myst", "mechanics")
+    assert "[parser]" in read_preset_text("generated-myst")
     assert "[vars]" in read_preset_text("mechanics")
 
 
@@ -187,6 +223,14 @@ def test_load_config_rejects_non_bool_scanner_settings(tmp_path) -> None:
     config_path.write_text('[scanner]\nmarkdown = "yes"\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="markdown must be true or false"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_bool_parser_strict_unknowns(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[parser]\nstrict_unknowns = "yes"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="strict_unknowns must be true or false"):
         load_config(config_path)
 
 

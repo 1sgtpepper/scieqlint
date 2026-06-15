@@ -60,8 +60,10 @@ scieqlint demo
 scieqlint check [PATH_OR_GLOB...]
 scieqlint graph [PATH_OR_GLOB...] --output scieqlint-graph.json
 scieqlint init
+scieqlint init --preset generated-myst
 scieqlint init --preset mechanics
 scieqlint presets list
+scieqlint presets show generated-myst
 scieqlint presets show mechanics
 scieqlint demo
 scieqlint explain CODE

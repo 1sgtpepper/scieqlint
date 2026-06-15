@@ -16,7 +16,9 @@ Release notes must use these sections:
 
 ### Added
 
-- Nothing yet.
+- Packaged `generated-myst` preset for generated Markdown/MyST scientific-doc
+  validation with inline math, strict parser unknowns, algebra, references, and
+  GitHub annotation workflow documentation.
 
 ### Changed
 

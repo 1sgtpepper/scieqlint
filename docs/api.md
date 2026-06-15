@@ -41,5 +41,6 @@ returns `1` only when an unsuppressed error diagnostic exists.
 `code`, `severity`, `message`, `span`, `equation`, `detail`, `hint`, `rule`,
 `suppressed`, and `suppression_reason`.
 
-`load_config(path, preset="mechanics")` loads packaged preset defaults before the
-user config file, so user config values override preset values.
+`load_config(path, preset="generated-myst")` or
+`load_config(path, preset="mechanics")` loads packaged preset defaults before
+the user config file, so user config values override preset values.

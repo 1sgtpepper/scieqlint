@@ -29,6 +29,9 @@ markdown = true
 inline_math = false
 math_fences = true
 
+[parser]
+strict_unknowns = false
+
 [checks.algebra]
 enabled = true
 
@@ -65,6 +68,19 @@ show_suppressed = false
 against both their path relative to `project.root`, when possible, and their
 resolved absolute path. Explicitly passed files are still checked even when they
 match an ignore pattern.
+
+## Parser strictness
+
+```toml
+[parser]
+strict_unknowns = true
+```
+
+`strict_unknowns` escalates unsupported parser diagnostics such as `PARSE020`,
+`PARSE021`, and `PARSE022` from informational diagnostics to errors. Use it for
+generated-document gates where unsupported or garbled formula output should fail
+CI instead of being advisory. Other `[parser]` keys are reserved placeholders
+unless documented here.
 
 ## Project config
 
@@ -153,11 +169,22 @@ Invalid config fails before document analysis and reports a deterministic error.
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
-override preset values. The initial preset is `mechanics`.
+override preset values.
+
+Available presets:
+
+- `generated-myst`: validates generated Markdown/MyST scientific output with
+  Markdown/MyST math fences, inline math, algebra checks, reference checks, and
+  strict parser unknowns enabled. Dimension checks stay in `auto` mode and run
+  only when the project adds `[vars]`.
+- `mechanics`: enables mechanics dimension checks for common variables such as
+  `m`, `a`, `F`, and `E`.
 
 ```bash
 scieqlint presets list
+scieqlint presets show generated-myst
 scieqlint presets show mechanics
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint init --preset mechanics
 ```
 
@@ -167,11 +194,19 @@ from scieqlint.config.load import load_config
 config = load_config("scieqlint.toml", preset="mechanics")
 ```
 
+For a generated MyST/Markdown CI gate, materialize the preset and run GitHub
+annotations with that config:
+
+```bash
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
+```
+
 ## Reserved config surface
 
 The repository-level `scieqlint.toml` may include specification placeholders such
-as `[parser]`, `[limits]`, `[report]`, `[severity]`, or per-code severity keys.
-The v1.0.0 loader does not apply those placeholders. Current severity-affecting
-behavior is limited to CLI/config toggles such as
-`--strict-unknowns`, `[checks.references].missing_label_strict`, and
+as `[limits]`, `[severity]`, or per-code severity keys. The v1.0.0 loader does
+not apply those placeholders. Current severity-affecting behavior is limited to
+CLI/config toggles such as `--strict-unknowns`, `[parser].strict_unknowns`,
+`[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables`.

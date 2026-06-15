@@ -12,9 +12,10 @@ def test_schema_is_packaged() -> None:
     assert schema.is_file()
 
 
-def test_preset_is_packaged() -> None:
-    preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
-    assert preset.is_file()
+def test_presets_are_packaged() -> None:
+    presets = resources.files("scieqlint.presets")
+    assert presets.joinpath("generated-myst.toml").is_file()
+    assert presets.joinpath("mechanics.toml").is_file()
 
 
 def test_graph_schema_is_packaged() -> None:
