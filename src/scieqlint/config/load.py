@@ -15,6 +15,7 @@ from scieqlint.config.model import (
     DimensionMode,
     DimVector,
     IgnoreConfig,
+    ParserConfig,
     ProjectConfig,
     ReferencesConfig,
     ReportConfig,
@@ -38,7 +39,7 @@ _BASE_DIMENSIONS = {
 
 
 def load_config(path: Path | str | None = None, *, preset: str | None = None) -> Config:
-    """Load config defaults and the supported scanner options."""
+    """Load config defaults, optional preset values, and supported config options."""
     if path is None:
         config_path = _find_default_config()
     else:
@@ -48,6 +49,7 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     data = _config_data(config_path, preset=preset)
     project_data = _table(data, "project")
     baseline_data = _table(data, "baseline")
+    parser_data = _table(data, "parser")
     scanner_data = _table(data, "scanner")
     checks_data = _table(data, "checks")
     ignore_data = _table(data, "ignore")
@@ -70,6 +72,9 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
             markdown=_bool(scanner_data, "markdown", True),
             inline_math=_bool(scanner_data, "inline_math", False),
             math_fences=_bool(scanner_data, "math_fences", True),
+        ),
+        parser=ParserConfig(
+            strict_unknowns=_bool(parser_data, "strict_unknowns", False),
         ),
         checks=ChecksConfig(
             algebra=AlgebraConfig(

@@ -381,6 +381,18 @@ def test_strict_unknowns_escalates_parse_diagnostic(tmp_path) -> None:
     assert "error PARSE021" in result.output
 
 
+def test_configured_strict_unknowns_escalates_parse_diagnostic(tmp_path) -> None:
+    doc = tmp_path / "trig.md"
+    doc.write_text("$$\n\\sin(x) = x\n$$\n", encoding="utf-8")
+    config = tmp_path / "scieqlint.toml"
+    config.write_text("[parser]\nstrict_unknowns = true\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 1
+    assert "error PARSE021" in result.output
+
+
 def test_absolute_paths_render_resolved_diagnostic_path(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
@@ -694,7 +706,7 @@ def test_presets_list_reports_packaged_presets() -> None:
     result = CliRunner().invoke(main, ["presets", "list"])
 
     assert result.exit_code == 0
-    assert result.output == "mechanics\n"
+    assert result.output == "generated-myst\nmechanics\n"
 
 
 def test_presets_show_reports_packaged_preset() -> None:
@@ -721,6 +733,46 @@ def test_init_writes_packaged_preset_config(tmp_path) -> None:
     assert config.read_text(encoding="utf-8") == read_preset_text("mechanics")
     loaded = load_config(config)
     assert loaded.checks.dimension.mode == "on"
+
+
+def test_init_writes_generated_myst_preset_config(tmp_path) -> None:
+    config = tmp_path / "generated-myst.toml"
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config), "--preset", "generated-myst"])
+
+    assert result.exit_code == 0
+    assert "wrote" in result.output
+    assert config.read_text(encoding="utf-8") == read_preset_text("generated-myst")
+    loaded = load_config(config)
+    assert loaded.scanner.inline_math is True
+    assert loaded.parser.strict_unknowns is True
+
+
+def test_generated_myst_preset_emits_github_annotations(tmp_path) -> None:
+    doc = tmp_path / "generated.md"
+    doc.write_text(
+        "\n".join(
+            [
+                "# Generated",
+                "",
+                "Inline generated math can drift: $\\sin(x) = x$.",
+                "",
+                "See {eq}`missing`.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    config = tmp_path / "generated-myst.toml"
+    config.write_text(read_preset_text("generated-myst"), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "github"],
+    )
+
+    assert result.exit_code == 1
+    assert "::error title=PARSE021" in result.output
+    assert "::warning title=REF002" in result.output
 
 
 def test_init_with_preset_rejects_unknown_preset_without_writing(tmp_path) -> None:

@@ -171,6 +171,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
 - `src/scieqlint/presets/__init__.py`
+- `src/scieqlint/presets/generated-myst.toml`
 - `src/scieqlint/presets/mechanics.toml`
 - `src/scieqlint/py.typed`
 - `src/scieqlint/query/__init__.py`
@@ -204,6 +205,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/architecture_myst_bad.md`
 - `tests/fixtures/bad/famous_bad.md`
+- `tests/fixtures/bad/generated_myst_profile_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
 - `tests/fixtures/bad/preset_mechanics_bad.md`
 - `tests/fixtures/bad/references_bad.md`

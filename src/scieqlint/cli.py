@@ -27,6 +27,9 @@ markdown = true
 inline_math = false
 math_fences = true
 
+[parser]
+strict_unknowns = false
+
 [checks.algebra]
 enabled = true
 unknown = "info"

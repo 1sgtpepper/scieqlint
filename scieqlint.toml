@@ -8,6 +8,7 @@ inline_math = false
 math_fences = true
 
 [parser]
+strict_unknowns = false
 unknown_identifier_policy = "single_symbol"
 
 [checks.algebra]
