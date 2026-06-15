@@ -24,6 +24,16 @@ codes before every code is emitted by the current analyzer.
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
 
+## Generated-output engine
+
+`GEN001` is emitted by the generated-output engine when callers provide
+source-to-generated provenance facts. The current CLI/config path does not load
+translation provenance.
+
+| Code | Default | Meaning |
+|---|---|---|
+| `GEN001` | warning | Generated output is missing a preserved source anchor |
+
 ## Reserved in catalog
 
 These codes are present in `src/scieqlint/diag/catalog.py` for stable
