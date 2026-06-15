@@ -33,6 +33,8 @@ class ReferenceQueryView:
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         index: dict[str, list[TargetFact]] = defaultdict(list)
         for anchor in self.snapshot.target_anchors:
+            if anchor.placement == "orphaned":
+                continue
             index[anchor.normalized_label].append(anchor)
         for label in self.snapshot.equation_labels:
             index[label.normalized_label].append(label)

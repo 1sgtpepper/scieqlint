@@ -9,6 +9,12 @@ from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 FenceKind = Literal["generic", "math", "directive", "code-cell", "div"]
+StructureSyntaxKind = Literal[
+    "myst-directive",
+    "myst-option",
+    "myst-role",
+    "code-cell-tags",
+]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -73,3 +79,9 @@ class CodeCellFact(FactBase):
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StructureSyntaxIssueFact(FactBase):
+    kind: StructureSyntaxKind
+    reason: str

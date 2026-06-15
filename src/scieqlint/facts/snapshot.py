@@ -21,6 +21,7 @@ from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
     SectionFact,
+    StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
 
@@ -33,6 +34,7 @@ class FactSnapshot:
     fences: tuple[FenceFact, ...] = ()
     directives: tuple[DirectiveFact, ...] = ()
     code_cells: tuple[CodeCellFact, ...] = ()
+    structure_syntax_issues: tuple[StructureSyntaxIssueFact, ...] = ()
     target_anchors: tuple[TargetAnchorFact, ...] = ()
     generic_refs: tuple[GenericRefFact, ...] = ()
     equation_labels: tuple[EquationLabelFact, ...] = ()
@@ -53,6 +55,7 @@ class FactSnapshot:
             *self.fences,
             *self.directives,
             *self.code_cells,
+            *self.structure_syntax_issues,
             *self.target_anchors,
             *self.generic_refs,
             *self.equation_labels,
@@ -74,6 +77,7 @@ class FactSnapshot:
             fences=self.fences,
             directives=self.directives,
             code_cells=self.code_cells,
+            structure_syntax_issues=self.structure_syntax_issues,
             target_anchors=self.target_anchors,
             generic_refs=self.generic_refs,
             equation_labels=self.equation_labels,
