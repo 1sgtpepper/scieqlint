@@ -27,3 +27,6 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - CLI owns command-line plumbing only.
 
 Import boundaries are enforced by import-linter no later than v0.1.0.
+
+The reviewed R1 package boundary artifact is the
+[module ownership map](architecture/module-ownership.md).
