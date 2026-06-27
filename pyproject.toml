@@ -122,7 +122,7 @@ reportMissingTypeStubs = false
 root_package = "scieqlint"
 
 [[tool.importlinter.contracts]]
-name = "CLI must not import internal analysis layers directly"
+name = "Owner: architecture boundary map - CLI must not import internal analysis layers directly"
 type = "forbidden"
 source_modules = ["scieqlint.cli"]
 forbidden_modules = [
@@ -133,11 +133,33 @@ forbidden_modules = [
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Reporters must not import scanner/parser/checker layers"
+name = "Owner: architecture boundary map - Reporters render only diagnostics"
 type = "forbidden"
 source_modules = ["scieqlint.report"]
 forbidden_modules = [
+  "scieqlint.io",
+  "scieqlint.source",
   "scieqlint.scan",
   "scieqlint.parse",
   "scieqlint.check",
+  "scieqlint.frontend",
+  "scieqlint.engine",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Owner: architecture boundary map - Engines consume query facts only"
+type = "forbidden"
+source_modules = ["scieqlint.engine"]
+forbidden_modules = [
+  "scieqlint.scan",
+  "scieqlint.parse",
+  "scieqlint.compat",
+  "scieqlint.frontend",
+  "scieqlint.io",
+  "scieqlint.source",
+  "scieqlint.report",
+  "scieqlint.cli",
+  "scieqlint.app",
+  "scieqlint.api",
+]
+allow_indirect_imports = true

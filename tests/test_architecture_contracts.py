@@ -1,5 +1,9 @@
+import os
+import subprocess
+import sys
+import tomllib
 from dataclasses import FrozenInstanceError
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -27,6 +31,9 @@ from scieqlint.query.host import QueryHost
 from scieqlint.schema.result import AnalysisResult
 from scieqlint.source.maps import SourceMap
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+IMPORT_BOUNDARY_OWNER = "Owner: architecture boundary map"
+
 
 def doc(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
@@ -38,6 +45,109 @@ def mutate_inline_body(inline: Any) -> None:
 
 def engine_rule_codes(engine: Engine) -> frozenset[str]:
     return engine.rule_codes
+
+
+def import_linter_contracts() -> dict[str, dict[str, Any]]:
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    contracts = project["tool"]["importlinter"]["contracts"]
+    return {contract["name"]: contract for contract in contracts}
+
+
+def contract_by_suffix(suffix: str) -> dict[str, Any]:
+    matches = [
+        contract for name, contract in import_linter_contracts().items() if name.endswith(suffix)
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def test_import_linter_contracts_encode_release_boundary_map():
+    contracts = import_linter_contracts()
+
+    assert all(name.startswith(IMPORT_BOUNDARY_OWNER) for name in contracts)
+    assert all("ignored_imports" not in contract for contract in contracts.values())
+
+    engine_contract = contract_by_suffix("Engines consume query facts only")
+    assert engine_contract["type"] == "forbidden"
+    assert engine_contract["source_modules"] == ["scieqlint.engine"]
+    assert set(engine_contract["forbidden_modules"]) >= {
+        "scieqlint.scan",
+        "scieqlint.parse",
+        "scieqlint.compat",
+        "scieqlint.frontend",
+        "scieqlint.io",
+        "scieqlint.source",
+        "scieqlint.report",
+        "scieqlint.cli",
+        "scieqlint.app",
+        "scieqlint.api",
+    }
+    assert engine_contract["allow_indirect_imports"] is True
+
+    reporter_contract = contract_by_suffix("Reporters render only diagnostics")
+    assert reporter_contract["type"] == "forbidden"
+    assert reporter_contract["source_modules"] == ["scieqlint.report"]
+    assert set(reporter_contract["forbidden_modules"]) >= {
+        "scieqlint.io",
+        "scieqlint.source",
+        "scieqlint.scan",
+        "scieqlint.parse",
+        "scieqlint.check",
+        "scieqlint.frontend",
+        "scieqlint.engine",
+    }
+
+
+def test_import_linter_ci_gate_is_release_blocking():
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "Import boundaries (release blocking)" in workflow
+    assert "run: lint-imports --config pyproject.toml" in workflow
+    assert "lint-imports ||" not in workflow
+    assert "continue-on-error" not in workflow
+
+
+def test_import_linter_failure_names_owner_contract_and_modules(tmp_path: Path):
+    package = tmp_path / "samplepkg"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "engine.py").write_text("from samplepkg import scan\n", encoding="utf-8")
+    (package / "scan.py").write_text("", encoding="utf-8")
+    config = tmp_path / "importlinter.toml"
+    contract_name = "Owner: architecture boundary map - sample engine boundary violation"
+    config.write_text(
+        f"""
+[tool.importlinter]
+root_package = "samplepkg"
+
+[[tool.importlinter.contracts]]
+name = "{contract_name}"
+type = "forbidden"
+source_modules = ["samplepkg.engine"]
+forbidden_modules = ["samplepkg.scan"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        path for path in (str(tmp_path), env.get("PYTHONPATH", "")) if path
+    )
+    lint_imports = Path(sys.executable).with_name("lint-imports")
+    assert lint_imports.is_file()
+    result = subprocess.run(
+        [str(lint_imports), "--config", str(config), "--no-cache"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert contract_name in output
+    assert "samplepkg.engine" in output
+    assert "samplepkg.scan" in output
 
 
 def span(path: str = "a.md", *, start: int = 0, end: int = 1) -> SourceSpan:
