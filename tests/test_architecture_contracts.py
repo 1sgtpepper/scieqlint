@@ -9,9 +9,13 @@ from typing import Any
 
 import pytest
 
+from scieqlint.api import check_documents as compatibility_check_documents
+from scieqlint.config.model import Config
 from scieqlint.diag.ir import DiagnosticIR, RelatedLocation
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.base import Engine
+from scieqlint.engine.reference import ReferenceEngine
+from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
@@ -26,6 +30,7 @@ from scieqlint.facts.structure import (
     SectionFact,
     StructureSyntaxIssueFact,
 )
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.ir.model import DocumentIR, FrontendResult
 from scieqlint.query.host import QueryHost
@@ -47,6 +52,124 @@ def mutate_inline_body(inline: Any) -> None:
 
 def engine_rule_codes(engine: Engine) -> frozenset[str]:
     return engine.rule_codes
+
+
+def diagnostic_contract(diagnostic: Diagnostic) -> tuple[object, ...]:
+    span = diagnostic.span
+    return (
+        diagnostic.code,
+        diagnostic.severity.value,
+        diagnostic.message,
+        diagnostic.rule,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        (
+            span.path.as_posix(),
+            span.start,
+            span.end,
+            span.line,
+            span.col,
+            span.end_line,
+            span.end_col,
+            span.cell,
+            span.cell_line,
+        )
+        if span is not None
+        else None,
+    )
+
+
+def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
+    clean = doc(
+        "clean.md",
+        "# Clean\n\nSee {ref}`clean-target`.\n\n(clean-target)=\n## Clean Target\n",
+    )
+    edge = doc(
+        "edge.md",
+        "# Edge\n\nStandalone code is allowed at the boundary.\n\n```\nraw\n```\n",
+    )
+    violation = doc(
+        "violation.md",
+        "#Bad\n\nSee {ref}`missing` and {ref}`target`.\n\n(target)=\n# Duplicate top\n",
+    )
+    documents = (violation, edge, clean)
+
+    snapshot = MySTFrontend().lower(documents)
+    query = QueryHost(snapshot)
+    reference_diagnostics = ReferenceEngine().run(query)
+    structure_diagnostics = StructureEngine().run(query)
+    kernel_diagnostics = tuple(
+        diagnostic.to_diagnostic()
+        for diagnostic in (*reference_diagnostics, *structure_diagnostics)
+    )
+    analysis_result = AnalysisResult(
+        snapshot=snapshot,
+        diagnostics=kernel_diagnostics,
+        profiles=("scientific-myst",),
+    )
+    compatibility_result = compatibility_check_documents(documents, config=Config())
+
+    assert compatibility_result.files_checked == 3
+    assert reference_diagnostics
+    assert structure_diagnostics
+    assert engine_rule_codes(ReferenceEngine()) == frozenset({"REF004", "REF005"})
+    assert "STR005" in engine_rule_codes(StructureEngine())
+    assert analysis_result.summary() == {
+        "files_checked": 3,
+        "facts": len(snapshot.all_facts()),
+        "diagnostics": 4,
+        "errors": 0,
+        "warnings": 3,
+        "info": 1,
+    }
+    assert any(diagnostic.code == "STR003" for diagnostic in kernel_diagnostics)
+    engine_codes = engine_rule_codes(ReferenceEngine()) | engine_rule_codes(StructureEngine())
+    kernel_output = tuple(map(diagnostic_contract, kernel_diagnostics))
+    compatibility_output = tuple(
+        diagnostic_contract(diagnostic)
+        for diagnostic in compatibility_result.diagnostics
+        if diagnostic.code in engine_codes
+    )
+    assert tuple(sorted(kernel_output, key=repr)) == tuple(sorted(compatibility_output, key=repr))
+
+    shuffled_documents = tuple(reversed(documents))
+    shuffled_snapshot = MySTFrontend().lower(shuffled_documents)
+    shuffled_query = QueryHost(shuffled_snapshot)
+    shuffled_kernel_output = tuple(
+        diagnostic_contract(diagnostic.to_diagnostic())
+        for diagnostic in (
+            *ReferenceEngine().run(shuffled_query),
+            *StructureEngine().run(shuffled_query),
+        )
+    )
+    shuffled_compatibility_result = compatibility_check_documents(
+        shuffled_documents,
+        config=Config(),
+    )
+    shuffled_compatibility_output = tuple(
+        diagnostic_contract(diagnostic)
+        for diagnostic in shuffled_compatibility_result.diagnostics
+        if diagnostic.code in engine_codes
+    )
+    assert shuffled_kernel_output == kernel_output
+    assert shuffled_compatibility_output == compatibility_output
+    assert not any(
+        diagnostic.span and diagnostic.span.path.as_posix() == "clean.md"
+        for diagnostic in compatibility_result.diagnostics
+    )
+    assert any(
+        diagnostic.span and diagnostic.span.path.as_posix() == "edge.md"
+        for diagnostic in compatibility_result.diagnostics
+    )
+    assert {diagnostic.code for diagnostic in compatibility_result.diagnostics} == {
+        "REF004",
+        "STR001",
+        "STR003",
+        "STR005",
+    }
 
 
 def import_linter_contracts() -> dict[str, dict[str, Any]]:
