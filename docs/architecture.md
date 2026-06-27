@@ -2,6 +2,9 @@
 
 SciEqLint uses a functional core with adapter shells.
 
+The ratified architecture decision record is
+[ADR R1-001: Deterministic Snapshot Kernel](architecture/deterministic-snapshot-kernel-adr.md).
+
 ```text
 CLI / pre-commit / GitHub Action / editor
         |
