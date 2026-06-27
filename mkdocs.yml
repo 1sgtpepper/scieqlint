@@ -17,7 +17,9 @@ nav:
   - Limitations: limitations.md
   - Diagnostics: diagnostics.md
   - Configuration: configuration.md
-  - Architecture: architecture.md
+  - Architecture:
+      - Overview: architecture.md
+      - Module ownership: architecture/module-ownership.md
   - API: api.md
   - Release ladder: release-ladder.md
   - Integrations:
