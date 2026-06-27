@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -33,6 +34,7 @@ from scieqlint.source.maps import SourceMap
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 IMPORT_BOUNDARY_OWNER = "Owner: architecture boundary map"
+ARCHITECTURE_TERM_SCANNER = REPO_ROOT / "tools" / "architecture" / "terminology_drift.py"
 
 
 def doc(path: str, text: str) -> SourceDocument:
@@ -148,6 +150,293 @@ forbidden_modules = ["samplepkg.scan"]
     assert contract_name in output
     assert "samplepkg.engine" in output
     assert "samplepkg.scan" in output
+
+
+def run_architecture_term_scanner(
+    *args: str,
+    cwd: Path = REPO_ROOT,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ARCHITECTURE_TERM_SCANNER), *args],
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_architecture_terminology_scanner_emits_stable_machine_report():
+    first = run_architecture_term_scanner("--format", "json")
+    second = run_architecture_term_scanner("--format", "json")
+
+    assert first.returncode == 0
+    assert second.returncode == 0
+    assert first.stdout == second.stdout
+
+    report = json.loads(first.stdout)
+    assert report["schema_version"] == "architecture-terminology-drift/v1"
+    assert report["command"] == "architecture-terminology-drift"
+    assert report["owner"] == "Architecture conformance tooling"
+    assert report["terms"] == [
+        "WorkspaceHost",
+        "FrontendHost",
+        "MathHost",
+        "FactHost",
+        "QueryHost",
+        "EngineHost",
+        "PolicyHost",
+        "AnalysisResult",
+        "SchemaHost",
+        "PackHost",
+        "CompatibilityShell",
+    ]
+    assert report["summary"] == {"status": "passed", "inputs": 5, "violations": 0}
+    assert report["exit_status"] == {
+        "0": (
+            "pass: inputs are valid, no terminology drift is present, and the release gate is wired"
+        ),
+        "1": "failed: valid inputs contain terminology drift or stale release-gate evidence",
+        "2": (
+            "invalid-input: a required input is missing, malformed, absolute, "
+            "or outside the repository"
+        ),
+    }
+    assert all(Path(item["path"]).is_absolute() is False for item in report["inputs"])
+    assert '"timestamp":' not in first.stdout.lower()
+    assert str(REPO_ROOT) not in first.stdout
+
+
+def test_architecture_terminology_scanner_rejects_missing_input():
+    result = run_architecture_term_scanner(
+        "--architecture-doc",
+        "docs/architecture.md",
+        "--module-graph",
+        "missing-pyproject.toml",
+        "--ci-config",
+        ".github/workflows/ci.yml",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report["summary"]["status"] == "invalid-input"
+    assert report["violations"] == [
+        {
+            "id": "ARCH-TERM-INPUT-MISSING",
+            "kind": "module_graph",
+            "message": "required input is missing",
+            "owner": "Architecture conformance tooling",
+            "path": "missing-pyproject.toml",
+            "remediation": (
+                "Create the required evidence file or pass the correct repo-relative input path."
+            ),
+        }
+    ]
+
+
+def test_architecture_terminology_scanner_rejects_absolute_input_without_host_path():
+    result = run_architecture_term_scanner(
+        "--architecture-doc",
+        str(REPO_ROOT / "docs" / "architecture.md"),
+        "--module-graph",
+        "pyproject.toml",
+        "--ci-config",
+        ".github/workflows/ci.yml",
+        "--format",
+        "json",
+    )
+
+    assert result.returncode == 2
+    assert str(REPO_ROOT) not in result.stdout
+    report = json.loads(result.stdout)
+    assert report["summary"]["status"] == "invalid-input"
+    assert report["violations"] == [
+        {
+            "id": "ARCH-TERM-INPUT-ABSOLUTE",
+            "kind": "architecture_document",
+            "message": "absolute input paths are not deterministic",
+            "owner": "Architecture conformance tooling",
+            "path": "<absolute-path>",
+            "remediation": (
+                "Pass a repository-relative architecture document, module graph, or CI path."
+            ),
+        }
+    ]
+
+
+def test_architecture_terminology_scanner_rejects_malformed_module_graph(tmp_path: Path):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / "pyproject.toml").write_text("[tool.importlinter\n", encoding="utf-8")
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report["summary"]["status"] == "invalid-input"
+    assert report["violations"][0]["id"] == "ARCH-TERM-MODULE-GRAPH-MALFORMED"
+    assert report["violations"][0]["kind"] == "module_graph"
+    assert report["violations"][0]["path"] == "pyproject.toml"
+    assert report["violations"][0]["owner"] == "Architecture conformance tooling"
+    assert "module graph TOML is malformed" in report["violations"][0]["message"]
+    assert report["violations"][0]["remediation"] == (
+        "Fix pyproject.toml so import-linter architecture contracts can be read."
+    )
+
+
+def test_architecture_terminology_scanner_reports_drift_and_owner(tmp_path: Path):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / "docs" / "architecture.md").write_text(
+        "# Architecture\n\nThe workspace host owns path policy.\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert report["summary"]["status"] == "failed"
+    assert report["violations"] == [
+        {
+            "id": "ARCH-TERM-DRIFT",
+            "kind": "architecture_document",
+            "line": 3,
+            "message": "architecture terminology drift: use WorkspaceHost, not workspace host",
+            "observed": "workspace host",
+            "owner": "Architecture conformance tooling",
+            "path": "docs/architecture.md",
+            "remediation": (
+                "Replace workspace host with WorkspaceHost in architecture-owned evidence."
+            ),
+            "term": "WorkspaceHost",
+        }
+    ]
+
+
+def test_architecture_terminology_scanner_preserves_lines_while_ignoring_code(
+    tmp_path: Path,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / "docs" / "architecture.md").write_text(
+        "# Architecture\n\n```text\nworkspace host\n```\n\nThe query host owns views.\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert [(item["term"], item["line"]) for item in report["violations"]] == [("QueryHost", 7)]
+
+
+@pytest.mark.parametrize(
+    "ci_text",
+    [
+        (
+            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "      # run: python tools/architecture/terminology_drift.py --format json\n"
+        ),
+        (
+            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "      - continue-on-error: true\n"
+            "        run: python tools/architecture/terminology_drift.py --format json\n"
+        ),
+    ],
+)
+def test_architecture_terminology_scanner_rejects_nonblocking_gate(
+    tmp_path: Path,
+    ci_text: str,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        ci_text,
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == ["ARCH-TERM-CI-GATE-MISSING"]
+
+
+def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
+    tmp_path: Path,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\n\njobs:\n  quality:\n    steps:\n"
+        "      - run: optional-check\n"
+        "        continue-on-error: true\n"
+        "      - run: python tools/architecture/terminology_drift.py --format json\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 0
+
+
+def test_architecture_terminology_scanner_fails_when_release_gate_is_missing(
+    tmp_path: Path,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=False)
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert report["violations"] == [
+        {
+            "id": "ARCH-TERM-CI-GATE-MISSING",
+            "kind": "ci_config",
+            "message": ("release-gate CI does not run the architecture terminology drift scanner"),
+            "owner": "Architecture conformance tooling",
+            "path": ".github/workflows/ci.yml",
+            "remediation": (
+                "Add a release-blocking CI step running "
+                "`python tools/architecture/terminology_drift.py --format json`."
+            ),
+        }
+    ]
+
+
+def write_architecture_term_fixture(root: Path, *, ci_gate: bool) -> Path:
+    docs = root / "docs" / "architecture"
+    docs.mkdir(parents=True)
+    workflows = root / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (root / "docs" / "architecture.md").write_text(
+        "# Architecture\n\nWorkspaceHost\n",
+        encoding="utf-8",
+    )
+    (docs / "deterministic-snapshot-kernel-adr.md").write_text(
+        "# ADR\n\nFrontendHost MathHost FactHost QueryHost EngineHost PolicyHost AnalysisResult\n",
+        encoding="utf-8",
+    )
+    (docs / "module-ownership.md").write_text(
+        "# Module Ownership\n\nSchemaHost PackHost CompatibilityShell\n",
+        encoding="utf-8",
+    )
+    (root / "pyproject.toml").write_text(
+        """
+[tool.importlinter]
+root_package = "scieqlint"
+
+[[tool.importlinter.contracts]]
+name = "Owner: architecture boundary map - fixture"
+type = "forbidden"
+source_modules = ["scieqlint.engine"]
+forbidden_modules = ["scieqlint.scan"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    gate = "python tools/architecture/terminology_drift.py --format json" if ci_gate else "pytest"
+    (workflows / "ci.yml").write_text(
+        f"name: CI\n\njobs:\n  quality:\n    steps:\n      - run: {gate}\n",
+        encoding="utf-8",
+    )
+    return root
 
 
 def span(path: str = "a.md", *, start: int = 0, end: int = 1) -> SourceSpan:

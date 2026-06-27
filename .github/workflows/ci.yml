@@ -33,6 +33,8 @@ jobs:
         run: pyright
       - name: Import boundaries (release blocking)
         run: lint-imports --config pyproject.toml
+      - name: Architecture terminology drift (release blocking)
+        run: python tools/architecture/terminology_drift.py --format json
 
   test-matrix:
     name: test (${{ matrix.python-version }})

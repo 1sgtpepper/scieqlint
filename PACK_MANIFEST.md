@@ -276,3 +276,4 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `tests/test_source.py`
 - `tests/test_stabilization.py`
 - `tests/test_symbols.py`
+- `tools/architecture/terminology_drift.py`
