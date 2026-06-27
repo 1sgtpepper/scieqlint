@@ -67,6 +67,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `benchmarks/accuracy/references.yml`
 - `docs/api.md`
 - `docs/architecture.md`
+- `docs/architecture/deterministic-snapshot-kernel-adr.md`
 - `docs/assets/scieqlint-readme-demo.gif`
 - `docs/configuration.md`
 - `docs/contributing/architecture-map.md`
