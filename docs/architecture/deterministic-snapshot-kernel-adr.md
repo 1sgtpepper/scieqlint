@@ -99,8 +99,8 @@ retirement issues.
 - Current preview conformance is covered by
   [`tests/test_architecture_contracts.py`](https://github.com/Kuhai9801/scieqlint/blob/main/tests/test_architecture_contracts.py),
   [`tests/test_contract_readiness.py`](https://github.com/Kuhai9801/scieqlint/blob/main/tests/test_contract_readiness.py),
-  and the initial import-linter configuration in
-  [`.importlinter`](https://github.com/Kuhai9801/scieqlint/blob/main/.importlinter).
+  and the import-linter contracts in
+  [`pyproject.toml`](https://github.com/Kuhai9801/scieqlint/blob/main/pyproject.toml).
 - Missing executable gates remain planned follow-up work, especially package
   ownership and import-linter hardening ([R1-002A #134](https://github.com/Kuhai9801/scieqlint/issues/134),
   [R1-002B #135](https://github.com/Kuhai9801/scieqlint/issues/135)), raw-text

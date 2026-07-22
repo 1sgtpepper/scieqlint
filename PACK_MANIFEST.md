@@ -37,7 +37,6 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `.github/workflows/sarif-upload-example.yml`
 - `.github/workflows/scorecard.yml`
 - `.gitignore`
-- `.importlinter`
 - `.pre-commit-config.yaml`
 - `.pre-commit-hooks.yaml`
 - `AGENTS.md`

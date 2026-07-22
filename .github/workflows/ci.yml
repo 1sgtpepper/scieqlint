@@ -31,8 +31,8 @@ jobs:
         run: ruff check .
       - name: Pyright
         run: pyright
-      - name: Import boundaries
-        run: lint-imports || python -m lint_imports
+      - name: Import boundaries (release blocking)
+        run: lint-imports --config pyproject.toml
 
   test-matrix:
     name: test (${{ matrix.python-version }})
