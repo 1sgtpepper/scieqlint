@@ -17,7 +17,9 @@ nav:
   - Limitations: limitations.md
   - Diagnostics: diagnostics.md
   - Configuration: configuration.md
-  - Architecture: architecture.md
+  - Architecture:
+      - Overview: architecture.md
+      - Deterministic Snapshot Kernel ADR: architecture/deterministic-snapshot-kernel-adr.md
   - API: api.md
   - Release ladder: release-ladder.md
   - Integrations:
