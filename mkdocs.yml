@@ -20,6 +20,7 @@ nav:
   - Architecture:
       - Overview: architecture.md
       - Deterministic Snapshot Kernel ADR: architecture/deterministic-snapshot-kernel-adr.md
+      - Module ownership: architecture/module-ownership.md
   - API: api.md
   - Release ladder: release-ladder.md
   - Integrations:
