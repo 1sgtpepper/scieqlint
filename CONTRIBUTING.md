@@ -37,15 +37,15 @@ uv run pyright
 
 Every PR must state:
 
-- the release target,
-- the single layer it changes,
-- whether user-visible behavior changes,
-- whether golden output changes,
-- whether docs were updated,
-- which dependent artifacts from `docs/contributing/pr-dependency-checks.md`
-  were checked and updated.
+- the behavior changed,
+- the linked issue or why no issue applies,
+- the exact validation performed.
 
 One PR should not combine scanner, parser, checker, reporter/schema, config, docs, and CI changes unless the change is mechanical and tests prove the coupling.
+
+Bug-fix PRs must link an issue with a runnable reproduction or include the
+reproduction directly. Feature, task, documentation, and mechanical PRs do not
+require one.
 
 Do not mark a PR ready for review until required CI checks pass.
 
@@ -66,28 +66,18 @@ Before opening or taking an issue:
 1. Search open and closed issues for the same report or task.
 2. Reproduce bugs on the current `main` branch.
 3. Reproduce bugs on the newest published release.
-4. Record the exact SciEqLint version or commit, Python version, operating system, command, input, and output.
-5. Keep the reproduction small enough for another contributor to run directly.
-6. State actual behavior and expected behavior separately.
-7. Link source references, docs pages, fixtures, or diagnostics when they are already known.
-8. Keep feature and task issues narrow enough to review in one pass.
+4. Include a minimal runnable reproduction, actual behavior, expected behavior,
+   and the affected version or revision.
+5. For feature, task, and documentation issues, state the user need and expected
+   observable result; no reproduction is required.
+6. Keep the public issue short. Do not add generic scope, phased-delivery,
+   file-inventory, or policy-checklist sections.
 
 Do not open a public issue for a security vulnerability. Use `SECURITY.md`.
 
 If a bug no longer reproduces on `main`, say that in the issue and include the
 older version where it was observed. If it reproduces on `main` but not the
 newest release, mark it as unreleased behavior.
-
-Use this quick checklist before submitting:
-
-- [ ] Duplicate search done.
-- [ ] Security path checked.
-- [ ] Current `main` checked for bugs.
-- [ ] Newest release checked for bugs.
-- [ ] Exact version, command, input, and output included.
-- [ ] Actual and expected behavior are separate.
-- [ ] Source references included.
-- [ ] Issue is narrow enough for one focused PR.
 
 ## Review norms
 

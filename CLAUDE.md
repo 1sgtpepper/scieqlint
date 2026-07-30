@@ -32,12 +32,22 @@ Keep PRs narrow. Prefer one layer per PR unless a mechanical change is proven by
 tests. Do not mark a PR ready for review while required checks are pending or
 failing.
 
+Keep the public description to the behavior change, linked issue, and validation.
+Bug-fix PRs must link a runnable reproduction or include one directly. Feature,
+task, documentation, and mechanical PRs do not require a reproduction.
+
 ## Issue discipline
 
 Use the repository issue templates as the public contract for issue content.
 Before starting issue work, check for duplicates, current `main` behavior, the
 newest published release when relevant, labels, assignees, linked PRs, and the
 security reporting path in `SECURITY.md`.
+
+Every bug issue must include a minimal runnable reproduction, actual behavior,
+expected behavior, and the affected version or revision. Feature, task, and
+documentation issues do not require a reproduction. Keep public issues concise;
+do not add generic scope, phased-delivery, file-inventory, or policy-checklist
+sections.
 
 ## Validation
 

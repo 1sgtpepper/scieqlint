@@ -1,8 +1,8 @@
 name: Bug report
 description: Report reproducible incorrect behavior.
-title: "[Bug] "
+title: ""
 labels:
-  - needs reproduction
+  - bug
 body:
   - type: checkboxes
     id: checklist
@@ -13,75 +13,33 @@ body:
           required: true
         - label: This is not a security issue.
           required: true
-        - label: I reproduced this on the current `main` branch.
-          required: true
-        - label: I reproduced this on the newest release.
-          required: true
-        - label: I included command, input, and output.
-          required: true
   - type: textarea
-    id: summary
+    id: problem
     attributes:
-      label: Summary
-      description: Describe the bug and the affected SciEqLint behavior.
-    validations:
-      required: true
-  - type: textarea
-    id: affected-version
-    attributes:
-      label: Affected version
-      description: Include the SciEqLint version or commit, Python version, and operating system.
-      value: |
-        SciEqLint version or commit:
-        Python:
-        OS:
-      render: text
+      label: Problem
+      description: State the incorrect behavior directly.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
       label: Reproduction
-      description: Add the smallest command or workflow that reproduces the issue.
+      description: Include the smallest runnable command, input, and observed output.
       render: bash
-    validations:
-      required: true
-  - type: textarea
-    id: input
-    attributes:
-      label: Input
-      description: Paste the smallest document or config here if relevant.
-      render: text
-    validations:
-      required: false
-  - type: textarea
-    id: actual-behavior
-    attributes:
-      label: Actual behavior
-      description: Paste the observed output or diagnostic.
-      render: text
     validations:
       required: true
   - type: textarea
     id: expected-behavior
     attributes:
       label: Expected behavior
-      description: Paste the expected output or diagnostic.
-      render: text
+      description: State what should happen instead.
     validations:
       required: true
   - type: textarea
-    id: source-references
+    id: affected-version
     attributes:
-      label: Source references
-      description: Add files, commands, docs pages, or code paths.
+      label: Affected version
+      description: Include the SciEqLint release or commit. Add Python and OS only when relevant.
       render: text
-    validations:
-      required: true
-  - type: textarea
-    id: impact
-    attributes:
-      label: Impact
-      description: Explain the affected workflow or contract.
     validations:
       required: true
