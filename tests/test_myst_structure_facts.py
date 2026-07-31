@@ -127,7 +127,7 @@ def test_myst_heading_anchors_resolve_markdownlint_sensitive_links():
                         "(empty-link-target)=",
                         "## Empty link target",
                         "",
-                        "See [](#intro), [#empty-link-target](#empty-link-target), "
+                        "See [](#intro), [#empty-link-target](#empty-link-target), ",
                         "and {ref}`Introduction <intro>`.",
                     ]
                 )
@@ -259,7 +259,7 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
                         "a=b",
                         "```",
                         "",
-                        "See [intro](#intro), {ref}`Intro <intro>`, "
+                        "See [intro](#intro), {ref}`Intro <intro>`, ",
                         "{eq}`eq-energy`, and {numref}`eq-tail`.",
                         "Inline $x+1$ is math, but `code $not-math$` is not.",
                     ]
