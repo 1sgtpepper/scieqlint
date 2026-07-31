@@ -15,7 +15,7 @@ def test_action_metadata_is_thin_cli_wrapper() -> None:
         "args": '"check ."',
     }
     assert steps == [
-        {"name": "Set up Python", "uses": "actions/setup-python@v6"},
+        {"name": "Set up Python", "uses": "actions/setup-python@v7"},
         {
             "name": "Install SciEqLint",
             "shell": "bash",
