@@ -1128,11 +1128,13 @@ def check_paths(
     config_path: Path | str | None = None,
 ) -> CheckResult: ...
 
+
 def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
 ) -> CheckResult: ...
+
 
 def load_config(path: Path | str | None = None) -> Config: ...
 ```
@@ -1172,9 +1174,9 @@ Rules:
 
 ```python
 class DocumentKind(Enum):
-    MARKDOWN = "markdown"   # v0.1.0
-    LATEX = "latex"         # v0.1.3
-    NOTEBOOK = "notebook"   # v0.1.4
+    MARKDOWN = "markdown"  # v0.1.0
+    LATEX = "latex"  # v0.1.3
+    NOTEBOOK = "notebook"  # v0.1.4
     UNKNOWN = "unknown"
 ```
 
@@ -1262,6 +1264,7 @@ class LabelSource(Enum):
     MYST_DIRECTIVE_LABEL = "myst_directive_label"
     TEX_LABEL_IN_MARKDOWN_MATH = "tex_label_in_markdown_math"
     UNKNOWN = "unknown"
+
 
 class ReferenceSource(Enum):
     LATEX_REF = "latex_ref"
@@ -1420,10 +1423,12 @@ All AST nodes must be frozen dataclasses with slots and spans.
 ```python
 class Expr: ...
 
+
 @dataclass(frozen=True, slots=True)
 class EquationGroup:
     equations: tuple[Equation, ...]
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class Equation:
@@ -1442,11 +1447,13 @@ class Number(Expr):
     raw: str
     span: SourceSpan
 
+
 @dataclass(frozen=True, slots=True)
 class Symbol(Expr):
     name: str
     raw: str
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class UnaryOp(Expr):
@@ -1454,12 +1461,14 @@ class UnaryOp(Expr):
     operand: Expr
     span: SourceSpan
 
+
 @dataclass(frozen=True, slots=True)
 class BinaryOp(Expr):
     op: BinaryOperator
     left: Expr
     right: Expr
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class FunctionCall(Expr):
@@ -1478,9 +1487,11 @@ class BinaryOperator(Enum):
     DIV = "div"
     POW = "pow"
 
+
 class UnaryOperator(Enum):
     POS = "pos"
     NEG = "neg"
+
 
 class FunctionName(Enum):
     SQRT = "sqrt"
