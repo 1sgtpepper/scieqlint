@@ -189,6 +189,21 @@ def test_check_documents_does_not_treat_inline_code_as_math_opener() -> None:
     ]
 
 
+def test_disabled_markdown_math_does_not_break_suppression_collection() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\nx = x\n$$\n```math\ny = y\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents(
+        [document],
+        config=Config(scanner=ScannerConfig(markdown=False, math_fences=False)),
+    )
+
+    assert result.diagnostics == ()
+
+
 def test_check_documents_warns_for_unknown_suppression_code() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
