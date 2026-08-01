@@ -24,7 +24,8 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- The SARIF upload example now uploads findings even when the check exits 1,
+  while still failing for operational exit 2.
 
 ### Deprecated
 

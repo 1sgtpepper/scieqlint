@@ -22,12 +22,15 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==1.1.0
-  - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
+  - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif || test "$?" -eq 1
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
+
+The status guard allows findings (exit 1) to reach the upload step while
+preserving operational failures (exit 2).
 
 Thin Action wrapper example:
 
