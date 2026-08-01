@@ -14,7 +14,7 @@ def discover_files(paths: Iterable[Path | str]) -> tuple[Path, ...]:
     found: set[Path] = set()
     for raw in paths:
         path = Path(raw)
-        if isinstance(raw, Path) or path.exists():
+        if path.exists():
             matches = [path]
         else:
             text = str(raw)

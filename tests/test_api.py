@@ -45,6 +45,15 @@ def test_check_paths_accepts_literal_directory_with_glob_characters(tmp_path) ->
     assert result.files_checked == 1
 
 
+def test_check_paths_expands_missing_glob_pattern(tmp_path) -> None:
+    path = tmp_path / "report.md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([str(tmp_path / "*.md")])
+
+    assert result.files_checked == 1
+
+
 def test_check_documents_runs_scanner_and_checks() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
