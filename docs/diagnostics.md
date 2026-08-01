@@ -77,7 +77,7 @@ Output:
 ```text
 ALG001 algebraic identity does not hold
   equation: (a+b)^2 = a^2 + b^2
-left - right = 2*a*b
+  detail: left - right = 2*a*b
 ```
 
 ## Example: REF002

@@ -32,6 +32,8 @@ def test_demo() -> None:
     result = CliRunner().invoke(main, ["demo"])
     assert result.exit_code == 0
     assert "ALG001" in result.output
+    assert "    equation: (a+b)^2 = a^2 + b^2" in result.output
+    assert "    detail: left - right = 2*a*b" in result.output
     assert "REF002" in result.output
 
 

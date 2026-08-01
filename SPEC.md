@@ -377,7 +377,7 @@ Ships:
 Text output example:
 
 ```text
-examples/bad/famous_bad.md:5:1: error ALG001 algebraic identity does not hold
+examples/bad/famous_bad.md:4:1: error ALG001 algebraic identity does not hold
   equation: (a+b)^2 = a^2 + b^2
   detail: left - right = 2*a*b
 ```
@@ -395,7 +395,9 @@ Required demo:
 Expected diagnostic:
 
 ```text
-ALG001: algebraic identity does not hold; left - right = 2*a*b
+ALG001: algebraic identity does not hold
+  equation: (a+b)^2 = a^2 + b^2
+  detail: left - right = 2*a*b
 ```
 
 Required reference demo:
@@ -1634,7 +1636,7 @@ References are core v0.1.0. Graph and symbols come later.
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
 | `REF001` | v0.1.0 | error | Duplicate equation label |
-| `REF002` | v0.1.0 | warning | Missing equation reference target |
+| `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
 
 Rules:
@@ -1691,7 +1693,7 @@ Diagnostic codes are stable API once introduced.
 | `INP003` | warning | File exceeded configured limit |
 | `CFG001` | error | Invalid config file |
 | `REF001` | error | Duplicate equation label |
-| `REF002` | warning | Missing equation reference target |
+| `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
 
 Later codes are added only when their release starts.
