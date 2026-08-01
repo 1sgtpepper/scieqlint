@@ -24,6 +24,13 @@ def test_true_polynomial_identity_is_quiet() -> None:
     assert diagnostics == ()
 
 
+def test_line_separated_equations_are_checked_independently() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx = x\ny = y + 1\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
+    assert diagnostics[0].equation == "y = y + 1"
+
+
 def test_supported_tex_fraction_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\frac{1}{2} x = x / 2\n$$\n"))
     assert diagnostics == ()

@@ -20,37 +20,42 @@ TEX_MULTIPLY = {"\\cdot", "\\times"}
 
 def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
     text = _strip_labels(block.text)
-    sides = [part.strip() for part in text.split("=")]
-    if len(sides) < 2:
-        return ()
-
     diagnostics: list[Diagnostic] = []
-    for left_raw, right_raw in zip(sides, sides[1:], strict=False):
-        try:
-            left = _Parser(left_raw).parse()
-            right = _Parser(right_raw).parse()
-        except UnsupportedExpressionError as exc:
-            diagnostics.append(_unsupported_diagnostic(block, text, exc.code))
+    for equation in _equation_lines(text):
+        sides = [part.strip() for part in equation.split("=")]
+        if len(sides) < 2:
             continue
 
-        if _symbols(left) != _symbols(right):
-            continue
-        residual = _sub(left, right)
-        if not residual:
-            continue
-        info = CATALOG["ALG001"]
-        diagnostics.append(
-            Diagnostic(
-                code=info.code,
-                severity=info.severity,
-                message=info.message,
-                span=block.span,
-                equation=text,
-                detail=f"left - right = {_format_poly(residual)}",
-                rule="algebra",
+        for left_raw, right_raw in zip(sides, sides[1:], strict=False):
+            try:
+                left = _Parser(left_raw).parse()
+                right = _Parser(right_raw).parse()
+            except UnsupportedExpressionError as exc:
+                diagnostics.append(_unsupported_diagnostic(block, equation, exc.code))
+                continue
+
+            if _symbols(left) != _symbols(right):
+                continue
+            residual = _sub(left, right)
+            if not residual:
+                continue
+            info = CATALOG["ALG001"]
+            diagnostics.append(
+                Diagnostic(
+                    code=info.code,
+                    severity=info.severity,
+                    message=info.message,
+                    span=block.span,
+                    equation=equation,
+                    detail=f"left - right = {_format_poly(residual)}",
+                    rule="algebra",
+                )
             )
-        )
     return tuple(diagnostics)
+
+
+def _equation_lines(text: str) -> tuple[str, ...]:
+    return tuple(line.strip() for line in text.splitlines() if "=" in line)
 
 
 class UnsupportedExpressionError(ValueError):
