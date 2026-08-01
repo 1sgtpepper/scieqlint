@@ -22,7 +22,7 @@ class NotebookScanner:
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         try:
             notebook_data: object = json.loads(document.text)
-        except json.JSONDecodeError as exc:
+        except ValueError as exc:
             return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
         if not isinstance(notebook_data, Mapping):
             return ScanResult(
@@ -145,13 +145,10 @@ def _with_cell_span(span: SourceSpan, cell_index: int) -> SourceSpan:
     return replace(span, cell=cell_index, cell_line=span.line)
 
 
-def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Diagnostic:
+def _input_diagnostic(document: SourceDocument, exc: ValueError) -> Diagnostic:
     info = CATALOG["INP001"]
-    return Diagnostic(
-        code=info.code,
-        severity=info.severity,
-        message=info.message,
-        span=SourceSpan(
+    if isinstance(exc, json.JSONDecodeError):
+        span = SourceSpan(
             path=document.path,
             start=exc.pos,
             end=exc.pos,
@@ -159,8 +156,15 @@ def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Di
             col=exc.colno,
             end_line=exc.lineno,
             end_col=exc.colno,
-        ),
-        detail=exc.msg,
+        )
+    else:
+        span = _file_start_span(document)
+    return Diagnostic(
+        code=info.code,
+        severity=info.severity,
+        message=info.message,
+        span=span,
+        detail=exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc),
         rule="input",
     )
 
