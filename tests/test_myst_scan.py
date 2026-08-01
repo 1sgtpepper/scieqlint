@@ -55,6 +55,21 @@ def test_unterminated_math_fence_emits_scan_warning() -> None:
     assert result.diagnostics[0].rule == "scanner"
 
 
+def test_math_container_spans_start_at_first_nonblank_body_line() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n\nx = x\n$$\n\n```math\n\ny = y\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [(block.container, block.text, block.span.line) for block in result.blocks] == [
+        (MathContainer.MARKDOWN_DISPLAY, "x = x", 3),
+        (MathContainer.MARKDOWN_FENCE, "y = y", 8),
+    ]
+
+
 def test_late_myst_math_label_is_not_an_equation_target() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -65,6 +80,18 @@ def test_late_myst_math_label_is_not_an_equation_target() -> None:
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+
+
+def test_empty_myst_equation_role_is_not_a_reference() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "See {eq}`   `.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.references == ()
 
 
 def test_blank_line_does_not_end_myst_math_label_prefix() -> None:

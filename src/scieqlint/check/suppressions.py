@@ -103,9 +103,7 @@ def _markdown_target_lines(
     target_line: int,
 ) -> tuple[int, int]:
     for block in blocks:
-        if block.span.line == target_line:
-            return block.span.line, block.span.end_line
-        if opener_lines.get(block.block_id) == target_line:
+        if target_line in {block.span.line, opener_lines.get(block.block_id)}:
             return block.span.line, block.span.end_line
     return target_line, target_line
 
