@@ -385,11 +385,15 @@ def test_check_reports_invalid_utf8_and_continues(tmp_path) -> None:
     invalid.write_bytes(b"\xff\n")
     valid.write_text("# Valid\n", encoding="utf-8")
 
-    result = CliRunner().invoke(main, ["check", str(invalid), str(valid)])
+    result = CliRunner().invoke(
+        main,
+        ["check", str(invalid), str(valid), "--format", "json"],
+    )
+    payload = json.loads(result.output)
 
     assert result.exit_code == 1
     assert "INP001" in result.output
-    assert "files checked: 2" in result.output
+    assert payload["summary"]["files_checked"] == 2
 
 
 def test_inline_math_is_opt_in(tmp_path) -> None:
