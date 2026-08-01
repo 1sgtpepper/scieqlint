@@ -301,6 +301,11 @@ frac           : "\\frac" group group
 sqrt           : "\\sqrt" group | "\\sqrt" "(" expr ")"
 ```
 
+`line_sep` is a hard separator for the current checker. Non-empty lines are
+checked independently; an equation is not continued onto the next line. A line
+ending in `=` is therefore an incomplete equation and emits an unsupported
+syntax diagnostic.
+
 Supported aliases:
 
 - `\cdot` -> `*`
