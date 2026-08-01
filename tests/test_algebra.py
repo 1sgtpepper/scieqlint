@@ -24,6 +24,30 @@ def test_true_polynomial_identity_is_quiet() -> None:
     assert diagnostics == ()
 
 
+def test_line_separated_equations_are_checked_independently() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx = x\ny = y + 1\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
+    assert diagnostics[0].equation == "y = y + 1"
+    assert diagnostics[0].span is not None
+    assert (diagnostics[0].span.line, diagnostics[0].span.col) == (3, 1)
+
+
+def test_line_equation_span_preserves_indentation_after_label() -> None:
+    diagnostics = check_algebra(_first_block("$$\n:label: energy\n  x = x\n  y = y + 1\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
+    assert diagnostics[0].span is not None
+    assert (diagnostics[0].span.line, diagnostics[0].span.col) == (4, 3)
+
+
+def test_line_break_does_not_continue_an_incomplete_equation() -> None:
+    diagnostics = check_algebra(_first_block("$$\nx =\nx + 1\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+    assert diagnostics[0].equation == "x ="
+
+
 def test_supported_tex_fraction_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\frac{1}{2} x = x / 2\n$$\n"))
     assert diagnostics == ()

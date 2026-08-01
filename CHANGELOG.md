@@ -31,6 +31,8 @@ Release notes must use these sections:
   diagnostics and do not prevent later inputs from being checked.
 - Dimension aliases now match complete surface tokens instead of splitting
   longer configured identifiers.
+- Algebra checks now evaluate line-separated equations independently instead
+  of treating a multi-line block as one chained equality.
 
 ### Deprecated
 

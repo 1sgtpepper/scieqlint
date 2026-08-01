@@ -54,6 +54,9 @@ Configured dimension aliases match complete surface tokens and do not split a
 longer identifier. This boundary also applies when an alias ends in punctuation,
 so `v.` does not match the prefix of `v.foo`; numeric coefficients may be
 adjacent to aliases as implicit multiplication.
+Each non-empty line-separated equation in a math container is checked
+independently; line breaks do not create chained equalities. A line ending in
+`=` is treated as an incomplete equation rather than continued on the next line.
 
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
 
