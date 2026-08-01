@@ -83,12 +83,10 @@ def test_sarif_report_percent_encodes_artifact_uri() -> None:
 
     payload = json.loads(SarifReporter().render(result))
 
-    assert (
-        payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
-            "artifactLocation"
-        ]["uri"]
-        == "docs/a%20%23%C3%A9.md"
-    )
+    artifact_location = payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
+        "artifactLocation"
+    ]
+    assert artifact_location["uri"] == "docs/a%20%23%C3%A9.md"
 
 
 def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
