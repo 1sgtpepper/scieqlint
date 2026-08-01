@@ -29,6 +29,8 @@ Release notes must use these sections:
 - Package metadata now links to the repository's working documentation path.
 - Notebook JSON integer-conversion failures now produce deterministic `INP001`
   diagnostics and do not prevent later inputs from being checked.
+- Dimension aliases now match complete surface tokens instead of splitting
+  longer configured identifiers.
 
 ### Deprecated
 

@@ -50,6 +50,9 @@ E = mc^2
 | non-integer powers except `sqrt` | deferred |
 | user TeX macros | deferred |
 
+Configured dimension aliases match complete surface tokens and do not split a
+longer identifier.
+
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
 
 ## Current integration outputs

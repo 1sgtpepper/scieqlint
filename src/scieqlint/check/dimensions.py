@@ -246,10 +246,23 @@ def _is_symbol_token(token: str) -> bool:
 
 
 def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
-    alias_pattern = "|".join(re.escape(alias) for alias in sorted(aliases, key=len, reverse=True))
+    alias_pattern = "|".join(
+        _surface_alias_pattern(alias) for alias in sorted(aliases, key=len, reverse=True)
+    )
     if not alias_pattern:
         return re.compile(TOKEN_PATTERN)
     return re.compile(f"{alias_pattern}|{TOKEN_PATTERN}")
+
+
+def _surface_alias_pattern(alias: str) -> str:
+    escaped = re.escape(alias)
+    prefix = r"(?<!\w)" if _is_surface_word_char(alias[0]) else ""
+    suffix = r"(?!\w)" if _is_surface_word_char(alias[-1]) else ""
+    return f"{prefix}{escaped}{suffix}"
+
+
+def _is_surface_word_char(char: str) -> bool:
+    return char == "_" or char.isalnum()
 
 
 def _strip_labels(text: str) -> str:

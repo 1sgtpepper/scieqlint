@@ -55,6 +55,33 @@ def test_configured_aliases_normalize_before_dimension_lookup(tmp_path) -> None:
     assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
 
 
+def test_short_alias_does_not_split_a_long_identifier(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[checks.dimension]",
+                'mode = "on"',
+                "",
+                "[vars]",
+                'x = "L"',
+                'mass = "M"',
+                'ass = "M"',
+                'y = "M"',
+                "",
+                "[aliases]",
+                'x = ["m"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+
+    result = _check("$$\nmass = y\n$$\n", config)
+
+    assert _dimension_diagnostics(result) == ()
+
+
 def test_configured_unicode_alias_normalizes_before_dimension_lookup(tmp_path) -> None:
     config = _mechanics_config(tmp_path, aliases=['theta = ["θ"]'], extra_vars=['theta = "1"'])
 
