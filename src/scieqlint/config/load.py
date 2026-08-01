@@ -26,6 +26,7 @@ from scieqlint.config.model import (
     VarDimension,
 )
 from scieqlint.config.presets import read_preset_text
+from scieqlint.config.validate import validate_config
 
 _BASE_DIMENSIONS = {
     "M": 0,
@@ -47,6 +48,9 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
         if not config_path.exists():
             raise FileNotFoundError(f"config not found: {config_path}")
     data = _config_data(config_path, preset=preset)
+    errors = validate_config(data)
+    if errors:
+        raise ValueError("; ".join(errors))
     project_data = _table(data, "project")
     baseline_data = _table(data, "baseline")
     parser_data = _table(data, "parser")

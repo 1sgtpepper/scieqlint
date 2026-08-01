@@ -1699,7 +1699,11 @@ Diagnostic codes are stable API once introduced.
 
 Later codes are added only when their release starts.
 
-### Severity override
+### Planned severity override
+
+The following is future specification surface. The current fixed-schema loader
+rejects a `[severity]` table; severity-affecting behavior is limited to the
+documented CLI and config toggles.
 
 Config may override severity for selected codes:
 
@@ -1841,12 +1845,12 @@ color = "auto"
 files = ["build/**", "dist/**", ".venv/**"]
 ```
 
-The v0.1.5 loader applies only the implemented subset of this schema:
-`[scanner].markdown`, `[scanner].inline_math`, `[scanner].math_fences`,
-`[checks.algebra].enabled`, `[checks.references].enabled`,
-`[checks.references].missing_label_strict`, `[checks.dimension].mode`,
-`[checks.dimension].unknown_variables`, `[vars]`, and `[ignore].files`.
-Other tables and keys are reserved specification surface.
+This is a future schema sketch, not a complete current configuration file. The
+v1.1.0 loader accepts only the documented fixed schema: `[project]`,
+`[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
+`[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
+`[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
+`[vars]` and `[aliases]` remain dynamic mappings.
 
 v0.1.2 adds:
 
@@ -2169,7 +2173,7 @@ The checker runtime must not:
 - call SymPy text parsers on document content,
 - execute Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or editor tooling from core analysis.
 
-### Source limits
+### Planned source limits
 
 Defaults:
 
@@ -2181,7 +2185,8 @@ max_expression_nodes = 2000
 max_reported_diagnostics_per_file = 200
 ```
 
-Files over limit emit `INP003` warning and are skipped unless config explicitly allows.
+These limits are future specification surface. The current loader rejects the
+`[limits]` table and does not apply these values.
 
 ### Determinism
 

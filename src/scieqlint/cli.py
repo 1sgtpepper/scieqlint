@@ -39,13 +39,9 @@ strict_unknowns = false
 
 [checks.algebra]
 enabled = true
-unknown = "info"
-denominator_warnings = true
 
 [checks.references]
 enabled = true
-missing = "warn"
-duplicate_labels = "error"
 missing_label_strict = false
 
 [checks.dimension]

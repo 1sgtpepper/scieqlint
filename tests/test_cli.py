@@ -389,6 +389,19 @@ def test_check_reports_config_load_errors_as_operational_errors(tmp_path) -> Non
     assert "Error: config not found" in result.output
 
 
+def test_check_rejects_unknown_config_before_analysis(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    config.write_text("[checks.algebr]\nenabled = false\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 2
+    assert "Error: unknown config key" in result.output
+    assert "ALG001" not in result.output
+
+
 def test_check_rejects_missing_explicit_input(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(tmp_path / "missing.md")])
 
@@ -771,6 +784,7 @@ def test_init_writes_default_config(tmp_path) -> None:
     assert result.exit_code == 0
     assert "wrote" in result.output
     assert "[checks.dimension]" in config.read_text(encoding="utf-8")
+    load_config(config)
 
 
 def test_presets_list_reports_packaged_presets() -> None:
