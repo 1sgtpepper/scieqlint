@@ -34,9 +34,7 @@ def test_line_separated_equations_are_checked_independently() -> None:
 
 
 def test_line_equation_span_preserves_indentation_after_label() -> None:
-    diagnostics = check_algebra(
-        _first_block("$$\n:label: energy\n  x = x\n  y = y + 1\n$$\n")
-    )
+    diagnostics = check_algebra(_first_block("$$\n:label: energy\n  x = x\n  y = y + 1\n$$\n"))
 
     assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
     assert diagnostics[0].span is not None
