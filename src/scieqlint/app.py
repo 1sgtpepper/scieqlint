@@ -192,7 +192,11 @@ def graph_paths(
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
     config = load_config(config_path)
-    discovered = _discover_files(paths or [Path(".")], config.ignore.files)
+    discovered = _discover_files(
+        paths or [Path(".")],
+        config.ignore.files,
+        reject_missing_explicit=bool(paths),
+    )
     documents: list[SourceDocument] = []
     for path in discovered:
         documents.append(
