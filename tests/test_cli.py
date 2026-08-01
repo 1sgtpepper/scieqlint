@@ -327,6 +327,22 @@ def test_check_discovers_notebook_source_files(tmp_path) -> None:
     assert "notes.ipynb" in result.output
 
 
+def test_check_reports_oversized_notebook_integer_as_input_diagnostic(tmp_path) -> None:
+    doc = tmp_path / "huge.ipynb"
+    doc.write_text(
+        '{"cells":[],"metadata":{},"nbformat":' + "9" * 5000 + ',"nbformat_minor":0}',
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--format", "json"])
+    payload = json.loads(result.output)
+
+    assert result.exit_code == 1
+    assert [diagnostic["code"] for diagnostic in payload["diagnostics"]] == ["INP001"]
+    assert payload["diagnostics"][0]["detail"] == "JSON integer exceeds 4096 digits"
+    assert "Traceback" not in result.output
+
+
 def test_no_algebra_suppresses_algebra_diagnostics(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")

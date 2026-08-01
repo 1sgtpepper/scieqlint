@@ -27,6 +27,8 @@ Release notes must use these sections:
 - The development Ruff requirement now stays within the formatter version
   supported by the checked-in sources and documentation.
 - Package metadata now links to the repository's working documentation path.
+- Notebook JSON integer-conversion failures now produce deterministic `INP001`
+  diagnostics and do not prevent later inputs from being checked.
 
 ### Deprecated
 

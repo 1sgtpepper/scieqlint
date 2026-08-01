@@ -682,7 +682,8 @@ Acceptance:
 - Notebook markdown cells scanned.
 - Code cells ignored.
 - Notebook references preserve cell metadata.
-- Malformed JSON emits `INP001` and does not stop other files.
+- Malformed JSON, including decoder conversion failures such as oversized
+  integers over 4096 decimal digits, emits `INP001` and does not stop other files.
 - Schema issue emits `INP002` when cells remain readable.
 
 Hard cut list if late:

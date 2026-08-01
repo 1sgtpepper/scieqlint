@@ -139,5 +139,6 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
 cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
-or `INP002` input diagnostics for malformed notebook inputs. Code-cell variable
+or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
+4096 decimal digits are rejected with `INP001`. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.
