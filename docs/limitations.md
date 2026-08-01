@@ -86,6 +86,8 @@ Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
+Blank lines in that prefix are ignored; the prefix ends at the first nonblank
+line that is not a directive option.
 
 ## MyST structure linting
 
