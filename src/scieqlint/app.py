@@ -266,14 +266,17 @@ def _discover_files(
     discovered_inputs: list[Path | str] = []
     for raw in paths:
         path = Path(raw)
+        if path.exists():
+            if path.is_file():
+                explicit_files.append(path)
+            else:
+                discovered_inputs.append(path)
+            continue
         text = str(raw)
         has_glob = any(ch in text for ch in "*?[")
-        if reject_missing_explicit and not has_glob and not path.exists():
+        if reject_missing_explicit and not has_glob:
             raise FileNotFoundError(f"input not found: {path}")
-        if not has_glob and path.is_file():
-            explicit_files.append(path)
-        else:
-            discovered_inputs.append(raw)
+        discovered_inputs.append(raw)
 
     discovered = _filter_ignored(
         discover_files(discovered_inputs),

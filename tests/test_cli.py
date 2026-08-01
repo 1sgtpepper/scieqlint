@@ -173,6 +173,16 @@ def test_graph_rejects_missing_explicit_input(tmp_path) -> None:
     assert "Error: input not found" in result.output
 
 
+def test_check_accepts_literal_path_with_glob_characters(tmp_path) -> None:
+    path = tmp_path / "report[1].md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(path)])
+
+    assert result.exit_code == 0
+    assert "files checked: 1" in result.output
+
+
 def test_sarif_output_for_bad_equation(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")

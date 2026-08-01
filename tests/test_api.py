@@ -26,6 +26,25 @@ def test_graph_paths_rejects_missing_explicit_input(tmp_path) -> None:
         graph_paths([tmp_path / "missing.md"])
 
 
+def test_check_paths_accepts_literal_file_with_glob_characters(tmp_path) -> None:
+    path = tmp_path / "report[1].md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([path])
+
+    assert result.files_checked == 1
+
+
+def test_check_paths_accepts_literal_directory_with_glob_characters(tmp_path) -> None:
+    directory = tmp_path / "docs[old]"
+    directory.mkdir()
+    (directory / "paper.md").write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([directory])
+
+    assert result.files_checked == 1
+
+
 def test_check_documents_runs_scanner_and_checks() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
