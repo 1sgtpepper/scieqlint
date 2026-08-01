@@ -25,6 +25,7 @@ from .myst_shared import (
     ROLE_RE,
     LineRange,
     OffsetRange,
+    extract_role_target_and_title,
     in_ranges,
     inline_code_ranges,
 )
@@ -315,8 +316,11 @@ def _malformed_role_issues(
     for match in ROLE_MARKER_RE.finditer(document.text):
         if in_ranges(match.start(), occupied_with_code):
             continue
-        if ROLE_RE.match(document.text, match.start()) is not None:
-            continue
+        role_match = ROLE_RE.match(document.text, match.start())
+        if role_match is not None:
+            target, _title = extract_role_target_and_title(role_match.group("body"))
+            if target:
+                continue
         line_end = document.text.find("\n", match.start())
         if line_end == -1:
             line_end = len(document.text)

@@ -39,6 +39,13 @@ def test_malformed_heading_is_fact_then_engine_diagnostic():
     assert [d.code for d in diagnostics if d.code == "STR001"] == ["STR001"]
 
 
+def test_seven_hash_paragraph_is_not_an_atx_heading():
+    snapshot = MySTFrontend().lower((doc("####### not-heading\n"),))
+
+    assert snapshot.headings == ()
+    assert StructureEngine().run(QueryHost(snapshot)) == ()
+
+
 def test_check_documents_emits_myst_structure_diagnostics():
     document = doc(
         "\n".join(

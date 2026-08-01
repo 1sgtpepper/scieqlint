@@ -241,15 +241,27 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
 
 
 def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    for match in MYST_LABEL_RE.finditer(block.text):
-        label_start = block.span.start + match.start("label")
-        label_end = block.span.start + match.end("label")
+    offset = 0
+    for line in block.text.splitlines(keepends=True):
+        line_without_newline = line[:-1] if line.endswith("\n") else line
+        if not line_without_newline.strip():
+            offset += len(line)
+            continue
+        if not line_without_newline.lstrip().startswith(":"):
+            break
+        match = MYST_LABEL_RE.fullmatch(line_without_newline)
+        if match is None:
+            offset += len(line)
+            continue
+        label_start = block.span.start + offset + match.start("label")
+        label_end = block.span.start + offset + match.end("label")
         yield EquationLabel(
             label=_normalize_label(match.group("label")),
             span=_span(document, label_start, label_end),
             block_id=block.block_id,
             source=LabelSource.MYST_DIRECTIVE_LABEL,
         )
+        offset += len(line)
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
@@ -268,6 +280,8 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
+        if not target:
+            continue
         source = ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
         target_start = match.start("body") + body.rfind(target)
         yield EquationReference(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import LabelSource, MathContainer, ReferenceSource
@@ -51,3 +52,15 @@ def test_unterminated_math_fence_emits_scan_warning() -> None:
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
     assert result.diagnostics[0].span.line == 1
     assert result.diagnostics[0].rule == "scanner"
+
+
+def test_late_myst_math_label_is_not_an_equation_target() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```{math}\nx = x\n:label: ghost\n```\nSee {eq}`ghost`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]

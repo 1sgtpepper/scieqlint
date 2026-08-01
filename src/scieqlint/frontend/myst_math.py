@@ -10,6 +10,7 @@ from scieqlint.facts.structure import FenceFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
 
+from .myst_blocks import directive_option_prefix_lines
 from .myst_shared import (
     DOLLAR_TAIL_LABEL_RE,
     INLINE_MATH_RE,
@@ -186,12 +187,14 @@ def _myst_math_label_facts(
     fence: FenceFact,
 ) -> Iterable[EquationLabelFact]:
     assert fence.body_span is not None
-    body_text = document.text[fence.body_span.start : fence.body_span.end]
-    for match in MYST_OPTION_RE.finditer(body_text):
+    for line_start, _line_end, line in directive_option_prefix_lines(document, fence):
+        match = MYST_OPTION_RE.match(line)
+        if match is None:
+            continue
         if match.group("key") != "label":
             continue
         label = match.group("value").strip()
-        label_start = fence.body_span.start + match.start("value")
+        label_start = line_start + match.start("value")
         yield EquationLabelFact(
             fact_id=f"{fact_id}::label::{label_start}",
             document_id=document.path.as_posix(),

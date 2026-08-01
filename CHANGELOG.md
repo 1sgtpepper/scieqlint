@@ -40,6 +40,9 @@ Release notes must use these sections:
 - Strict missing-label checks no longer require labels on inline math spans.
 - Explicit missing inputs and operational/configuration failures now return controlled
   exit status 2; invalid UTF-8 files report `INP001` without stopping later inputs.
+- Markdown suppressions now stay on the adjacent source line; MyST labels and
+  roles respect their syntax boundaries, and seven-hash paragraph lines remain
+  ordinary text.
 
 ### Deprecated
 
