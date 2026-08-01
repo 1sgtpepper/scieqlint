@@ -1910,7 +1910,8 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==0.1.5
-  - run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
+  - run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif || test "$?" -eq 1
+  - run: test -s scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif

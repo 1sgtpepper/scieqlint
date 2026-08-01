@@ -23,6 +23,7 @@ steps:
       python-version: "3.11"
   - run: python -m pip install scieqlint==1.1.0
   - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif || test "$?" -eq 1
+  - run: test -s scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif
@@ -30,7 +31,8 @@ steps:
 ```
 
 The status guard allows findings (exit 1) to reach the upload step while
-preserving operational failures (exit 2).
+preserving operational failures (exit 2). The non-empty-file check prevents an
+operational failure that produced no report from reaching the uploader.
 
 Thin Action wrapper example:
 
@@ -44,6 +46,7 @@ steps:
   - uses: Kuhai9801/scieqlint@v1.1.0
     with:
       args: check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
+  - run: test -s scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif

@@ -37,6 +37,12 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     }
 
 
+def test_sarif_upload_example_requires_a_nonempty_artifact() -> None:
+    verify_step = _job_step("scieqlint-sarif", "Verify SARIF output")
+
+    assert verify_step["run"] == "test -s scieqlint.sarif"
+
+
 def _top_level_mapping(name: str) -> dict[str, str]:
     section = _section_lines(f"{name}:", indent=0)
     return _parse_mapping(section, indent=2)
