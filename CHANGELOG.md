@@ -24,7 +24,8 @@ Release notes must use these sections:
 
 ### Fixed
 
-- Nothing yet.
+- The development Ruff requirement now stays within the formatter version
+  supported by the checked-in sources and documentation.
 
 ### Deprecated
 
