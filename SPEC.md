@@ -722,11 +722,12 @@ SARIF must include:
 - `runs`,
 - tool driver name,
 - semantic version,
+- `columnKind = "unicodeCodePoints"`,
 - one rule per diagnostic code,
 - result `ruleId`,
 - result `level`,
 - message text,
-- repo-relative POSIX artifact URI,
+- repo-relative POSIX artifact URI with URI percent-encoding,
 - region when span exists,
 - deterministic partial fingerprint.
 
