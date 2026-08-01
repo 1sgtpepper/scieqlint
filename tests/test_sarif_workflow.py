@@ -25,7 +25,7 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     assert run_step["run"] == (
         f"scieqlint check {quote}docs/**/*.md{quote} "
         f"{quote}docs/**/*.ipynb{quote} "
-        "--format sarif --output scieqlint.sarif || test \"$?\" -eq 1"
+        '--format sarif --output scieqlint.sarif || test "$?" -eq 1'
     )
     assert re.fullmatch(
         r"github/codeql-action/upload-sarif@[0-9a-f]{40}",
