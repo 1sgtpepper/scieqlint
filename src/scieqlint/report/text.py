@@ -32,6 +32,8 @@ class TextReporter:
                 f"{location}:{status} {diagnostic.severity.value} "
                 f"{diagnostic.code} {diagnostic.message}"
             )
+            if diagnostic.equation:
+                lines.append(f"  equation: {diagnostic.equation}")
             if diagnostic.detail:
                 lines.append(f"  detail: {diagnostic.detail}")
         return "\n".join(lines) + "\n"

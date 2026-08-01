@@ -24,6 +24,7 @@ def test_missing_reference_is_warning() -> None:
     diagnostics = check_references(scan.labels, scan.references)
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF002"]
     assert diagnostics[0].severity is Severity.WARNING
+    assert diagnostics[0].message == "equation reference target not found: missing"
 
 
 def test_duplicate_label_is_error() -> None:
