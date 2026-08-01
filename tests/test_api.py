@@ -135,9 +135,7 @@ def test_check_documents_marks_markdown_next_line_suppression() -> None:
 def test_check_documents_keeps_next_line_suppression_on_the_adjacent_line() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "ordinary prose\n"
-        "$$x=x+1$$\n",
+        "<!-- scieqlint-disable-next-line ALG001 -->\nordinary prose\n$$x=x+1$$\n",
         DocumentKind.MARKDOWN,
     )
 

@@ -37,7 +37,7 @@ TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+\S")
+HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(

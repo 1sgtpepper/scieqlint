@@ -78,9 +78,7 @@ def _markdown_suppressions(
                 match.group("codes"),
             )
             warnings.extend(unknown)
-            target_start, target_end = _markdown_target_lines(
-                document, blocks, line_number + 1
-            )
+            target_start, target_end = _markdown_target_lines(document, blocks, line_number + 1)
             suppressions.extend(
                 _Suppression(
                     code=code,
