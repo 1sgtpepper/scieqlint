@@ -1644,6 +1644,7 @@ Rules:
 - Duplicate labels emit `REF001`.
 - Missing supported reference targets emit `REF002`.
 - Strict mode may emit `REF003`.
+- Strict missing-label checks apply to display and fenced equation blocks, not inline math.
 - Reference checking must be deterministic and zero-config.
 - Natural-language references are not extracted in v0.x.
 

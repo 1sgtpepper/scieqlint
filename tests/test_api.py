@@ -48,6 +48,19 @@ def test_check_documents_honors_strict_missing_label_config() -> None:
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF003"]
 
 
+def test_strict_missing_label_check_keeps_fenced_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```math\nx = x\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)))
+
+    result = check_documents([document], config=config)
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF003"]
+
+
 def test_strict_missing_label_check_ignores_inline_math() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
