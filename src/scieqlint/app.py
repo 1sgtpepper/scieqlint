@@ -57,6 +57,7 @@ def check_paths(
         _input_paths(paths, config, project_root),
         config.ignore.files,
         config.project.order,
+        reject_missing_explicit=bool(paths),
         project_root=project_root,
     )
     documents: list[SourceDocument] = []
@@ -65,7 +66,7 @@ def check_paths(
     for path in discovered:
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeError) as exc:
             info = CATALOG["INP001"]
             diagnostics.append(
                 Diagnostic(
@@ -254,6 +255,7 @@ def _discover_files(
     ignore_patterns: tuple[str, ...],
     order_patterns: tuple[str, ...] = (),
     *,
+    reject_missing_explicit: bool = False,
     project_root: Path | None = None,
 ) -> tuple[Path, ...]:
     explicit_files: list[Path] = []
@@ -261,7 +263,10 @@ def _discover_files(
     for raw in paths:
         path = Path(raw)
         text = str(raw)
-        if not any(ch in text for ch in "*?[") and path.is_file():
+        has_glob = any(ch in text for ch in "*?[")
+        if reject_missing_explicit and not has_glob and not path.exists():
+            raise FileNotFoundError(f"input not found: {path}")
+        if not has_glob and path.is_file():
             explicit_files.append(path)
         else:
             discovered_inputs.append(raw)

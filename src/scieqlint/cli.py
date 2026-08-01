@@ -18,6 +18,13 @@ from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
+
+class _OperationalError(click.ClickException):
+    """A controlled CLI failure unrelated to lint findings."""
+
+    exit_code = 2
+
+
 DEFAULT_CONFIG = """[project]
 root = "."
 order = []
@@ -125,7 +132,7 @@ def check(
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        raise click.ClickException(str(exc)) from exc
+        raise _OperationalError(str(exc)) from exc
 
 
 @main.command()
@@ -144,7 +151,10 @@ def init(config_path: Path, preset: str | None) -> None:
         content = DEFAULT_CONFIG if preset is None else _preset_text(preset)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
-    config_path.write_text(content, encoding="utf-8")
+    try:
+        config_path.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        raise _OperationalError(str(exc)) from exc
     click.echo(f"wrote {config_path}")
 
 
@@ -186,7 +196,7 @@ def graph(
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        raise click.ClickException(str(exc)) from exc
+        raise _OperationalError(str(exc)) from exc
 
 
 @main.command()

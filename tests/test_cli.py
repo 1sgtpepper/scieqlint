@@ -368,8 +368,28 @@ def test_check_reports_config_load_errors_as_click_errors(tmp_path) -> None:
 
     result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "Error: config not found" in result.output
+
+
+def test_check_rejects_missing_explicit_input(tmp_path) -> None:
+    result = CliRunner().invoke(main, ["check", str(tmp_path / "missing.md")])
+
+    assert result.exit_code == 2
+    assert "Error: input not found" in result.output
+
+
+def test_check_reports_invalid_utf8_and_continues(tmp_path) -> None:
+    invalid = tmp_path / "invalid.md"
+    valid = tmp_path / "valid.md"
+    invalid.write_bytes(b"\xff\n")
+    valid.write_text("# Valid\n", encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["check", str(invalid), str(valid)])
+
+    assert result.exit_code == 1
+    assert "INP001" in result.output
+    assert "files checked: 2" in result.output
 
 
 def test_inline_math_is_opt_in(tmp_path) -> None:
@@ -654,8 +674,20 @@ def test_invalid_baseline_file_reports_cli_error(tmp_path, monkeypatch) -> None:
 
     result = CliRunner().invoke(main, ["check", "README.md", "--config", "scieqlint.toml"])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "Error: baseline diagnostic line must be an integer or null" in result.output
+
+
+def test_check_reports_output_failures_as_operational_errors(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    output = tmp_path / "output-directory"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.mkdir()
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--output", str(output)])
+
+    assert result.exit_code == 2
+    assert "Error:" in result.output
 
 
 def test_project_absolute_root_controls_default_paths(tmp_path) -> None:
@@ -811,6 +843,16 @@ def test_init_refuses_to_overwrite_existing_config(tmp_path) -> None:
 
     assert result.exit_code == 1
     assert "config already exists" in result.output
+
+
+def test_init_reports_output_failures_as_operational_errors(tmp_path) -> None:
+    config = tmp_path / "missing" / "scieqlint.toml"
+
+    result = CliRunner().invoke(main, ["init", "--path", str(config)])
+
+    assert result.exit_code == 2
+    assert "Error:" in result.output
+    assert "Traceback" not in result.output
 
 
 def test_init_with_preset_refuses_to_overwrite_existing_config(tmp_path) -> None:
