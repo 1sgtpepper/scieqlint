@@ -158,7 +158,7 @@ def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
         )
 
 
-def _math_container_opener_lines(
+def math_container_opener_lines(
     document: SourceDocument,
     blocks: Iterable[MathBlock],
 ) -> dict[str, int]:

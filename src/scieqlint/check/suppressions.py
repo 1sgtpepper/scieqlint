@@ -10,7 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import MathBlock
-from scieqlint.scan.markdown import _math_container_opener_lines
+from scieqlint.scan.markdown import math_container_opener_lines
 
 _MARKDOWN_RE = re.compile(
     r"<!--\s*scieqlint-disable-next-line\b\s*(?P<codes>[A-Za-z0-9_, \t-]*?)\s*-->"
@@ -69,7 +69,7 @@ def _markdown_suppressions(
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
-    opener_lines = _math_container_opener_lines(document, blocks)
+    opener_lines = math_container_opener_lines(document, blocks)
     for line_start, line_end in _line_ranges(document.text):
         line = document.text[line_start:line_end]
         for match in _MARKDOWN_RE.finditer(line):
