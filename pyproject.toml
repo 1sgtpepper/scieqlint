@@ -58,7 +58,7 @@ notebook = [
 Homepage = "https://github.com/Kuhai9801/scieqlint"
 Repository = "https://github.com/Kuhai9801/scieqlint"
 Issues = "https://github.com/Kuhai9801/scieqlint/issues"
-Documentation = "https://Kuhai9801.github.io/scieqlint"
+Documentation = "https://github.com/1sgtpepper/scieqlint/tree/main/docs"
 
 [project.scripts]
 scieqlint = "scieqlint.cli:main"
