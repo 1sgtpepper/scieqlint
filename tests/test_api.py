@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from scieqlint.api import check_documents
+import pytest
+
+from scieqlint.api import check_documents, check_paths, graph_paths
 from scieqlint.config.model import (
     AlgebraConfig,
     BaselineConfig,
@@ -12,6 +14,44 @@ from scieqlint.config.model import (
     ScannerConfig,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument
+
+
+def test_check_paths_rejects_missing_explicit_input(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError, match="input not found"):
+        check_paths([tmp_path / "missing.md"])
+
+
+def test_graph_paths_rejects_missing_explicit_input(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError, match="input not found"):
+        graph_paths([tmp_path / "missing.md"])
+
+
+def test_check_paths_accepts_literal_file_with_glob_characters(tmp_path) -> None:
+    path = tmp_path / "report[1].md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([path])
+
+    assert result.files_checked == 1
+
+
+def test_check_paths_accepts_literal_directory_with_glob_characters(tmp_path) -> None:
+    directory = tmp_path / "docs[old]"
+    directory.mkdir()
+    (directory / "paper.md").write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([directory])
+
+    assert result.files_checked == 1
+
+
+def test_check_paths_expands_missing_glob_pattern(tmp_path) -> None:
+    path = tmp_path / "report.md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    result = check_paths([str(tmp_path / "*.md")])
+
+    assert result.files_checked == 1
 
 
 def test_check_documents_runs_scanner_and_checks() -> None:

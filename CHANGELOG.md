@@ -38,6 +38,8 @@ Release notes must use these sections:
 - Text diagnostics now include the equation that produced a finding, and the
   DIM002 and REF002 messages match their documented wording.
 - Strict missing-label checks no longer require labels on inline math spans.
+- Explicit missing inputs and operational/configuration failures now return controlled
+  exit status 2; invalid UTF-8 files report `INP001` without stopping later inputs.
 
 ### Deprecated
 
