@@ -14,6 +14,8 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, ScanResult
 from scieqlint.scan.markdown import MarkdownScanner
 
+_MAX_JSON_INTEGER_DIGITS = 4096
+
 
 class NotebookScanner:
     def __init__(self) -> None:
@@ -21,7 +23,7 @@ class NotebookScanner:
 
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         try:
-            notebook_data: object = json.loads(document.text)
+            notebook_data: object = json.loads(document.text, parse_int=_parse_json_integer)
         except ValueError as exc:
             return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
         if not isinstance(notebook_data, Mapping):
@@ -93,6 +95,16 @@ def _cell_source(source: object) -> str | None:
         if all(isinstance(part, str) for part in parts):
             return "".join(cast(list[str], parts))
     return None
+
+
+def _parse_json_integer(text: str) -> int:
+    digits = text[1:] if text.startswith("-") else text
+    if len(digits) > _MAX_JSON_INTEGER_DIGITS:
+        raise ValueError(f"JSON integer exceeds {_MAX_JSON_INTEGER_DIGITS} digits")
+    value = 0
+    for digit in digits:
+        value = value * 10 + ord(digit) - ord("0")
+    return -value if text.startswith("-") else value
 
 
 def _notebook_schema_diagnostics(

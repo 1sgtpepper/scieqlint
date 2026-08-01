@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import PurePosixPath
 
 from scieqlint.api import check_documents
@@ -67,6 +68,24 @@ def test_oversized_notebook_integer_emits_input_diagnostic_and_continues() -> No
     assert result.diagnostics[0].detail
     assert result.diagnostics[0].span is not None
     assert result.diagnostics[0].span.path == PurePosixPath("huge.ipynb")
+
+
+def test_oversized_notebook_integer_ignores_interpreter_digit_limit() -> None:
+    previous_limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(0)
+    try:
+        document = SourceDocument.from_text(
+            PurePosixPath("huge.ipynb"),
+            '{"cells":[],"metadata":{},"nbformat":' + "9" * 5000 + ',"nbformat_minor":0}',
+            DocumentKind.NOTEBOOK,
+        )
+
+        result = check_documents([document], config=Config())
+    finally:
+        sys.set_int_max_str_digits(previous_limit)
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
+    assert result.diagnostics[0].detail == "JSON integer exceeds 4096 digits"
 
 
 def test_notebook_root_schema_issue_is_deterministic() -> None:

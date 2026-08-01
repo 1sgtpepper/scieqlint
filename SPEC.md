@@ -683,7 +683,7 @@ Acceptance:
 - Code cells ignored.
 - Notebook references preserve cell metadata.
 - Malformed JSON, including decoder conversion failures such as oversized
-  integers, emits `INP001` and does not stop other files.
+  integers over 4096 decimal digits, emits `INP001` and does not stop other files.
 - Schema issue emits `INP002` when cells remain readable.
 
 Hard cut list if late:

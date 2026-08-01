@@ -339,6 +339,7 @@ def test_check_reports_oversized_notebook_integer_as_input_diagnostic(tmp_path) 
 
     assert result.exit_code == 1
     assert [diagnostic["code"] for diagnostic in payload["diagnostics"]] == ["INP001"]
+    assert payload["diagnostics"][0]["detail"] == "JSON integer exceeds 4096 digits"
     assert "Traceback" not in result.output
 
 
