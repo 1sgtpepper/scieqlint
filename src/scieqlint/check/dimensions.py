@@ -255,7 +255,9 @@ def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
 
 
 def _surface_alias_pattern(alias: str) -> str:
-    return rf"(?<!\w){re.escape(alias)}(?!\w)"
+    # A digit may precede a symbol as implicit multiplication; identifier
+    # characters may not be split to reach a shorter alias.
+    return rf"(?<![^\W\d]){re.escape(alias)}(?!\w)"
 
 
 def _strip_labels(text: str) -> str:

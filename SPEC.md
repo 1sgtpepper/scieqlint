@@ -809,7 +809,8 @@ theta = ["\\theta", "θ"]
 ```
 
 Alias spellings match complete surface tokens. A punctuation-ended alias such
-as `v.` must not match the prefix of a longer token such as `v.foo`.
+as `v.` must not match the prefix of a longer token such as `v.foo`; a numeric
+coefficient may be adjacent to an alias as implicit multiplication.
 
 Alias conflicts are config errors.
 

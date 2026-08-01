@@ -100,6 +100,26 @@ def test_configured_punctuation_alias_normalizes_before_dimension_lookup(tmp_pat
     assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
 
 
+def test_punctuation_alias_allows_coefficient_adjacency(tmp_path) -> None:
+    config = _mechanics_config(
+        tmp_path,
+        aliases=['speed = ["v."]'],
+        extra_vars=['speed = "L T^-1"'],
+    )
+
+    result = _check("$$\n2v. = 2v.\n$$\n", config)
+
+    assert _dimension_diagnostics(result) == ()
+
+
+def test_unicode_alias_allows_coefficient_adjacency(tmp_path) -> None:
+    config = _mechanics_config(tmp_path, aliases=['theta = ["θ"]'], extra_vars=['theta = "1"'])
+
+    result = _check("$$\n2θ = 2theta\n$$\n", config)
+
+    assert _dimension_diagnostics(result) == ()
+
+
 def test_punctuation_ended_alias_does_not_split_a_surface_token(tmp_path) -> None:
     config = _mechanics_config(
         tmp_path,
