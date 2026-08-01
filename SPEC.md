@@ -395,7 +395,7 @@ Required demo:
 Expected diagnostic:
 
 ```text
-examples/bad/famous_bad.md:4:1: error ALG001 algebraic identity does not hold
+ALG001: algebraic identity does not hold
   equation: (a+b)^2 = a^2 + b^2
   detail: left - right = 2*a*b
 ```
