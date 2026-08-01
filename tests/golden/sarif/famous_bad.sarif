@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-  "runs": [
+    "runs": [
     {
+      "columnKind": "unicodeCodePoints",
       "results": [
         {
           "level": "error",

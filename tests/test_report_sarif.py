@@ -15,6 +15,7 @@ def test_sarif_report_has_stable_top_level_shape_and_rule_metadata() -> None:
     assert payload["$schema"] == "https://json.schemastore.org/sarif-2.1.0.json"
     assert payload["version"] == "2.1.0"
     run = payload["runs"][0]
+    assert run["columnKind"] == "unicodeCodePoints"
     assert run["tool"]["driver"]["name"] == "SciEqLint"
     assert run["tool"]["driver"]["semanticVersion"] == "0.1.0"
     assert run["tool"]["driver"]["rules"][0]["id"] == "ALG001"
@@ -29,6 +30,7 @@ def test_sarif_report_emits_locations_and_partial_fingerprints() -> None:
     assert sarif_result["message"]["text"] == (
         "algebraic identity does not hold: left - right = 2*a*b"
     )
+
     assert sarif_result["locations"][0]["physicalLocation"] == {
         "artifactLocation": {
             "uri": "examples/bad/famous_bad.md",
@@ -48,6 +50,44 @@ def test_sarif_report_emits_locations_and_partial_fingerprints() -> None:
         == json.loads(SarifReporter().render(_result()))["runs"][0]["results"][0][
             "partialFingerprints"
         ]["primaryLocationLineHash"]
+    )
+
+
+def test_sarif_report_percent_encodes_artifact_uri() -> None:
+    result = _result()
+    diagnostic = result.diagnostics[0]
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code=diagnostic.code,
+                severity=diagnostic.severity,
+                message=diagnostic.message,
+                span=SourceSpan(
+                    path=PurePosixPath("docs/a #é.md"),
+                    start=diagnostic.span.start if diagnostic.span is not None else 0,
+                    end=diagnostic.span.end if diagnostic.span is not None else 1,
+                    line=4,
+                    col=1,
+                    end_line=4,
+                    end_col=19,
+                ),
+                equation=diagnostic.equation,
+                detail=diagnostic.detail,
+            ),
+        ),
+        files_checked=result.files_checked,
+        math_blocks_checked=result.math_blocks_checked,
+        config_path=result.config_path,
+        version=result.version,
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    assert (
+        payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
+            "artifactLocation"
+        ]["uri"]
+        == "docs/a%20%23%C3%A9.md"
     )
 
 

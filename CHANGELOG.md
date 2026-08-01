@@ -33,6 +33,8 @@ Release notes must use these sections:
   longer configured identifiers.
 - Algebra checks now evaluate line-separated equations independently instead
   of treating a multi-line block as one chained equality.
+- SARIF artifact paths are URI-encoded and runs declare their Unicode code-point
+  column convention.
 
 ### Deprecated
 

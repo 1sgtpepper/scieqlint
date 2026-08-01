@@ -6,8 +6,9 @@ SARIF starts in v0.1.5. It is a reporter and must not change analysis behavior.
 scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
 ```
 
-SARIF output fails deterministically if a result would exceed the reporter's result
-limit. Split the input set or fix broad warning sources before upload.
+SARIF output uses URI-encoded artifact paths and declares columns as Unicode code
+points. It also fails deterministically if a result would exceed the reporter's
+result limit; split the input set or fix broad warning sources before upload.
 
 GitHub upload example:
 
