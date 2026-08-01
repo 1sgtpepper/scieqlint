@@ -37,6 +37,12 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     }
 
 
+def test_sarif_upload_example_removes_stale_artifact() -> None:
+    cleanup_step = _job_step("scieqlint-sarif", "Remove stale SARIF output")
+
+    assert cleanup_step["run"] == "rm -f scieqlint.sarif"
+
+
 def test_sarif_upload_example_requires_a_nonempty_artifact() -> None:
     verify_step = _job_step("scieqlint-sarif", "Verify SARIF output")
 

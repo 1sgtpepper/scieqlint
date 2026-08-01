@@ -19,6 +19,8 @@ jobs:
           python-version: "3.11"
       - name: Install SciEqLint
         run: python -m pip install scieqlint==1.1.0
+      - name: Remove stale SARIF output
+        run: rm -f scieqlint.sarif
       - name: Run SciEqLint SARIF
         run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif || test "$?" -eq 1
       - name: Verify SARIF output

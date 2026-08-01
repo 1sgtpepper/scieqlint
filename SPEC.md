@@ -1910,6 +1910,7 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==0.1.5
+  - run: rm -f scieqlint.sarif
   - run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif || test "$?" -eq 1
   - run: test -s scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
@@ -1917,6 +1918,9 @@ steps:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
+
+The pinned package must provide the CLI exit contract `0` for clean, `1` for
+findings, and `2` for operational failure.
 
 SARIF is a reporter. It must not change analysis.
 

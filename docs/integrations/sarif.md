@@ -22,6 +22,7 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==1.1.0
+  - run: rm -f scieqlint.sarif
   - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif || test "$?" -eq 1
   - run: test -s scieqlint.sarif
   - uses: github/codeql-action/upload-sarif@v4
@@ -32,26 +33,10 @@ steps:
 
 The status guard allows findings (exit 1) to reach the upload step while
 preserving operational failures (exit 2). The non-empty-file check prevents an
-operational failure that produced no report from reaching the uploader.
+operational failure that produced no report from reaching the uploader. Pin a
+SciEqLint release that provides this `0`/`1`/`2` exit-code contract; the
+historical `1.1.0` release does not.
 
-Thin Action wrapper example:
-
-```yaml
-permissions:
-  contents: read
-  security-events: write
-
-steps:
-  - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v1.1.0
-    with:
-      args: check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
-  - run: test -s scieqlint.sarif
-  - uses: github/codeql-action/upload-sarif@v4
-    with:
-      sarif_file: scieqlint.sarif
-      category: scieqlint-docs
-```
-
-The wrapper is intentionally thin: it sets up Python, installs SciEqLint, and runs
-the CLI arguments from `args`. SARIF upload stays in `github/codeql-action/upload-sarif`.
+The thin GitHub Action runs the CLI directly and does not normalize a findings
+exit code. It is therefore not a SARIF-upload wrapper: use the direct workflow
+above when findings must still reach the upload step.
