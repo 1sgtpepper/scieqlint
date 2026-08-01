@@ -35,6 +35,8 @@ Release notes must use these sections:
   of treating a multi-line block as one chained equality.
 - SARIF artifact paths are URI-encoded and runs declare their Unicode code-point
   column convention.
+- Text diagnostics now include the equation that produced a finding, and the
+  DIM002 and REF002 messages match their documented wording.
 
 ### Deprecated
 

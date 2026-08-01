@@ -193,6 +193,9 @@ def test_configured_addition_dimension_mismatch_reports_dim002(tmp_path) -> None
     result = _check("$$\nx + t = x\n$$\n", config)
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["DIM002"]
+    assert result.diagnostics[0].message == (
+        "addition or subtraction combines incompatible dimensions"
+    )
 
 
 def test_unknown_symbol_warns_only_when_policy_warns(tmp_path) -> None:

@@ -209,7 +209,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "DIM002": DiagnosticInfo(
         "DIM002",
         Severity.ERROR,
-        "addition combines incompatible dimensions",
+        "addition or subtraction combines incompatible dimensions",
         "v0.1.2",
         "Addition or subtraction combines terms with incompatible configured dimensions.",
     ),
@@ -252,7 +252,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "REF002": DiagnosticInfo(
         "REF002",
         Severity.WARNING,
-        "missing equation reference target",
+        "equation reference target not found",
         "v0.1.0",
         "A supported equation reference points to a missing target.",
     ),

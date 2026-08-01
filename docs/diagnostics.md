@@ -25,7 +25,7 @@ codes before every code is emitted by the current analyzer.
 | `DIR011` | warning | Malformed MyST role |
 | `DIR012` | warning | Malformed code-cell tags |
 | `REF001` | error | Duplicate equation label |
-| `REF002` | warning | Missing equation reference target |
+| `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
 | `REF004` | warning | Missing generic reference target |
 | `REF005` | warning | Ambiguous generic reference target |
@@ -76,6 +76,7 @@ Output:
 
 ```text
 ALG001 algebraic identity does not hold
+  equation: (a+b)^2 = a^2 + b^2
 left - right = 2*a*b
 ```
 
