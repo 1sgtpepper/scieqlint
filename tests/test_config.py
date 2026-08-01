@@ -237,7 +237,7 @@ def test_load_config_rejects_unknown_fixed_schema_entries(
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text(contents, encoding="utf-8")
 
-    with pytest.raises(ValueError, match=message) as exc_info:
+    with pytest.raises(ValueError, match=r".+") as exc_info:
         load_config(config_path)
     assert message in str(exc_info.value)
 

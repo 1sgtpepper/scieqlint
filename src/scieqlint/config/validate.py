@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 _TABLES: dict[str, frozenset[str]] = {
     "": frozenset(
@@ -59,5 +59,5 @@ def _nested_table(data: Mapping[str, Any], table_name: str) -> Mapping[str, Any]
     for component in table_name.split("."):
         if not isinstance(current, Mapping):
             return None
-        current = current.get(component)
-    return current if isinstance(current, Mapping) else None
+        current = cast(Mapping[str, Any], current).get(component)
+    return cast(Mapping[str, Any], current) if isinstance(current, Mapping) else None
