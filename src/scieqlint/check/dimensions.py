@@ -255,14 +255,7 @@ def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
 
 
 def _surface_alias_pattern(alias: str) -> str:
-    escaped = re.escape(alias)
-    prefix = r"(?<!\w)" if _is_surface_word_char(alias[0]) else ""
-    suffix = r"(?!\w)" if _is_surface_word_char(alias[-1]) else ""
-    return f"{prefix}{escaped}{suffix}"
-
-
-def _is_surface_word_char(char: str) -> bool:
-    return char == "_" or char.isalnum()
+    return rf"(?<!\w){re.escape(alias)}(?!\w)"
 
 
 def _strip_labels(text: str) -> str:

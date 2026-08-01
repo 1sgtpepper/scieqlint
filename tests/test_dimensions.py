@@ -100,6 +100,22 @@ def test_configured_punctuation_alias_normalizes_before_dimension_lookup(tmp_pat
     assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == []
 
 
+def test_punctuation_ended_alias_does_not_split_a_surface_token(tmp_path) -> None:
+    config = _mechanics_config(
+        tmp_path,
+        unknown_variables="ignore",
+        aliases=['speed = ["v."]'],
+        extra_vars=['speed = "L T^-1"'],
+    )
+
+    result = _check("$$\nv.foo = v.foo\n$$\n", config)
+
+    assert [diagnostic.code for diagnostic in _dimension_diagnostics(result)] == [
+        "DIM020",
+        "DIM020",
+    ]
+
+
 def test_unaliased_tex_command_keeps_skipped_dimension_behavior(tmp_path) -> None:
     config = _mechanics_config(tmp_path)
 
