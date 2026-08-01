@@ -89,6 +89,40 @@ def test_sarif_report_percent_encodes_artifact_uri() -> None:
     assert artifact_location["uri"] == "docs/a%20%23%C3%A9.md"
 
 
+def test_sarif_report_uses_code_point_columns_after_non_bmp_character() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("emoji.md"),
+                    start=1,
+                    end=2,
+                    line=1,
+                    col=2,
+                    end_line=1,
+                    end_col=2,
+                ),
+                equation="😀x = x",
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+    run = payload["runs"][0]
+    region = run["results"][0]["locations"][0]["physicalLocation"]["region"]
+
+    assert run["columnKind"] == "unicodeCodePoints"
+    assert region["startColumn"] == 2
+    assert region["endColumn"] == 3
+
+
 def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:
     result = CheckResult(
         diagnostics=(
