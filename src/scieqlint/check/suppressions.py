@@ -9,7 +9,8 @@ from dataclasses import dataclass, replace
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import MathBlock, MathContainer
+from scieqlint.scan.base import MathBlock
+from scieqlint.scan.markdown import _math_container_opener_lines
 
 _MARKDOWN_RE = re.compile(
     r"<!--\s*scieqlint-disable-next-line\b\s*(?P<codes>[A-Za-z0-9_, \t-]*?)\s*-->"
@@ -68,6 +69,7 @@ def _markdown_suppressions(
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
+    opener_lines = _math_container_opener_lines(document, blocks)
     for line_start, line_end in _line_ranges(document.text):
         line = document.text[line_start:line_end]
         for match in _MARKDOWN_RE.finditer(line):
@@ -78,7 +80,11 @@ def _markdown_suppressions(
                 match.group("codes"),
             )
             warnings.extend(unknown)
-            target_start, target_end = _markdown_target_lines(document, blocks, line_number + 1)
+            target_start, target_end = _markdown_target_lines(
+                blocks,
+                opener_lines,
+                line_number + 1,
+            )
             suppressions.extend(
                 _Suppression(
                     code=code,
@@ -92,34 +98,16 @@ def _markdown_suppressions(
 
 
 def _markdown_target_lines(
-    document: SourceDocument,
     blocks: Sequence[MathBlock],
+    opener_lines: dict[str, int],
     target_line: int,
 ) -> tuple[int, int]:
     for block in blocks:
         if block.span.line == target_line:
             return block.span.line, block.span.end_line
-        if block.span.line != target_line + 1:
-            continue
-        line = _source_line(document, target_line)
-        if _starts_math_container(line, block.container):
+        if opener_lines.get(block.block_id) == target_line:
             return block.span.line, block.span.end_line
     return target_line, target_line
-
-
-def _source_line(document: SourceDocument, line_number: int) -> str:
-    lines = document.text.splitlines()
-    if 1 <= line_number <= len(lines):
-        return lines[line_number - 1]
-    return ""
-
-
-def _starts_math_container(line: str, container: MathContainer) -> bool:
-    if container is MathContainer.MARKDOWN_DISPLAY:
-        return "$$" in line
-    if container is MathContainer.MARKDOWN_FENCE:
-        return re.match(r"^[ \t]{0,3}```(?:math|\{math\})[ \t]*$", line) is not None
-    return False
 
 
 def _latex_suppressions(

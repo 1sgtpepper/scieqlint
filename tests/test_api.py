@@ -132,6 +132,20 @@ def test_check_documents_marks_markdown_next_line_suppression() -> None:
     ]
 
 
+def test_check_documents_suppresses_adjacent_math_after_blank_body_line() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n\n(a+b)^2 = a^2 + b^2\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("ALG001", True)
+    ]
+
+
 def test_check_documents_keeps_next_line_suppression_on_the_adjacent_line() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -142,6 +156,20 @@ def test_check_documents_keeps_next_line_suppression_on_the_adjacent_line() -> N
     result = check_documents([document], config=Config())
 
     assert result.exit_code() == 1
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("ALG001", False)
+    ]
+
+
+def test_check_documents_does_not_treat_inline_code_as_math_opener() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n`$$`\n$$x=x+1$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
     assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
         ("ALG001", False)
     ]

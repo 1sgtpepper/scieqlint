@@ -190,7 +190,7 @@ def _myst_math_label_facts(
     for line_start, _line_end, line in directive_option_prefix_lines(document, fence):
         match = MYST_OPTION_RE.match(line)
         if match is None:
-            continue
+            break
         if match.group("key") != "label":
             continue
         label = match.group("value").strip()

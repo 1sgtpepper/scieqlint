@@ -353,6 +353,8 @@ def directive_option_prefix_lines(
         if not stripped.startswith(":"):
             break
         yield (cursor, end, line_without_newline)
+        if MYST_OPTION_RE.match(line_without_newline) is None:
+            break
         cursor = end
 
 

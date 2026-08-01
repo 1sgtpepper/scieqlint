@@ -4,6 +4,7 @@ from pathlib import PurePosixPath
 
 from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import LabelSource, MathContainer, ReferenceSource
 from scieqlint.scan.markdown import MarkdownScanner
@@ -64,3 +65,17 @@ def test_late_myst_math_label_is_not_an_equation_target() -> None:
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+
+
+def test_malformed_myst_option_ends_the_math_label_prefix() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```{math}\n:not-an-option\n:label: ghost\nx = x\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert legacy.labels == ()
+    assert frontend.equation_labels == ()
