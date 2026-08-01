@@ -79,8 +79,8 @@ strict_unknowns = true
 `strict_unknowns` escalates unsupported parser diagnostics such as `PARSE020`,
 `PARSE021`, and `PARSE022` from informational diagnostics to errors. Use it for
 generated-document gates where unsupported or garbled formula output should fail
-CI instead of being advisory. Other `[parser]` keys are reserved placeholders
-unless documented here.
+CI instead of being advisory. It is currently the only accepted key under
+`[parser]`.
 
 ## Project config
 
@@ -202,11 +202,18 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-## Reserved config surface
+## Config schema
 
-The repository-level `scieqlint.toml` may include specification placeholders such
-as `[limits]`, `[severity]`, or per-code severity keys. The current loader does
-not apply those placeholders. Current severity-affecting behavior is limited to
-CLI/config toggles such as `--strict-unknowns`, `[parser].strict_unknowns`,
-`[checks.references].missing_label_strict`, and
-`[checks.dimension].unknown_variables`.
+The loader validates a fixed schema before document analysis. The currently
+accepted tables are `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+`[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
+`[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
+keys documented on this page. Unknown tables and keys are configuration errors.
+`[vars]` and `[aliases]` are dynamic mappings; their entries are validated as
+dimension names and aliases rather than as fixed option names.
+
+The severity overrides and resource limits shown in `SPEC.md` are future
+specification surface, not accepted settings in the current loader. Use
+documented CLI/config toggles such as `--strict-unknowns`,
+`[parser].strict_unknowns`, `[checks.references].missing_label_strict`, and
+`[checks.dimension].unknown_variables` for current behavior.
