@@ -9,6 +9,7 @@ from scieqlint.config.model import (
     ChecksConfig,
     Config,
     ReferencesConfig,
+    ScannerConfig,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument
 
@@ -45,6 +46,22 @@ def test_check_documents_honors_strict_missing_label_config() -> None:
     config = Config(checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)))
     result = check_documents([document], config=config)
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF003"]
+
+
+def test_strict_missing_label_check_ignores_inline_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $x=x$.\n",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(
+        scanner=ScannerConfig(inline_math=True),
+        checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)),
+    )
+
+    result = check_documents([document], config=config)
+
+    assert result.diagnostics == ()
 
 
 def test_check_documents_marks_markdown_next_line_suppression() -> None:

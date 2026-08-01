@@ -37,6 +37,7 @@ Release notes must use these sections:
   column convention.
 - Text diagnostics now include the equation that produced a finding, and the
   DIM002 and REF002 messages match their documented wording.
+- Strict missing-label checks no longer require labels on inline math spans.
 
 ### Deprecated
 

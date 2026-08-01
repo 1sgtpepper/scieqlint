@@ -82,6 +82,9 @@ generic-reference diagnostics instead of equation-reference diagnostics. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
 
+Strict missing-label checks apply to display and fenced equation blocks, not
+inline math spans.
+
 ## MyST structure linting
 
 The architecture frontend lowers MyST headings, target anchors, fenced blocks,

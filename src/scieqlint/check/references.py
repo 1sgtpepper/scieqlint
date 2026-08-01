@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock
+from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, MathContainer
 
 
 def check_references(
@@ -55,6 +55,8 @@ def check_references(
     if strict_missing_labels:
         labeled_blocks = {label.block_id for label in labels if label.block_id is not None}
         for block in blocks:
+            if block.container is MathContainer.MARKDOWN_INLINE:
+                continue
             if block.block_id in labeled_blocks:
                 continue
             info = CATALOG["REF003"]
