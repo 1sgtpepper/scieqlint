@@ -146,6 +146,20 @@ def test_check_documents_suppresses_adjacent_math_after_blank_body_line() -> Non
     ]
 
 
+def test_check_documents_suppresses_adjacent_fenced_math_after_blank_body_line() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<!-- scieqlint-disable-next-line ALG001 -->\n```math\n\n(a+b)^2 = a^2 + b^2\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [
+        ("ALG001", True)
+    ]
+
+
 def test_check_documents_keeps_next_line_suppression_on_the_adjacent_line() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

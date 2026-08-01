@@ -67,6 +67,18 @@ def test_late_myst_math_label_is_not_an_equation_target() -> None:
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
 
 
+def test_blank_line_does_not_end_myst_math_label_prefix() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```{math}\n:label: first\n\n:label: second\nx = x\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [label.label for label in result.labels] == ["first", "second"]
+
+
 def test_malformed_myst_option_ends_the_math_label_prefix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
