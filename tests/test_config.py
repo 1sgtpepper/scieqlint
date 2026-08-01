@@ -218,6 +218,43 @@ def test_load_config_rejects_non_table_sections(tmp_path) -> None:
         load_config(config_path)
 
 
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    [
+        ("[checks.algebr]\nenabled = false\n", "unknown config key: [checks].algebr"),
+        (
+            "[checks.algebra]\nenabeld = false\n",
+            "unknown config key: [checks.algebra].enabeld",
+        ),
+        ("unknown = true\n", "unknown config key: unknown"),
+    ],
+)
+def test_load_config_rejects_unknown_fixed_schema_entries(
+    tmp_path,
+    contents: str,
+    message: str,
+) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        load_config(config_path)
+    assert message in str(exc_info.value)
+
+
+def test_load_config_keeps_dynamic_variable_and_alias_names(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[vars]\ncustom = "M"\n[aliases]\ncustom = ["\\\\custom"]\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.vars[0].name == "custom"
+    assert config.aliases[0].alias == "\\custom"
+
+
 def test_load_config_rejects_non_bool_scanner_settings(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[scanner]\nmarkdown = "yes"\n', encoding="utf-8")

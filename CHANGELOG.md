@@ -43,6 +43,8 @@ Release notes must use these sections:
 - Markdown suppressions now stay on the adjacent source line; MyST labels and
   roles respect their syntax boundaries, and seven-hash paragraph lines remain
   ordinary text.
+- `scieqlint init` now emits only supported configuration keys, and unknown keys in
+  fixed-schema configuration tables are rejected instead of being ignored.
 
 ### Deprecated
 

@@ -771,6 +771,7 @@ def test_init_writes_default_config(tmp_path) -> None:
     assert result.exit_code == 0
     assert "wrote" in result.output
     assert "[checks.dimension]" in config.read_text(encoding="utf-8")
+    load_config(config)
 
 
 def test_presets_list_reports_packaged_presets() -> None:
