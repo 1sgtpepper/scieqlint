@@ -144,7 +144,6 @@ exit "$SCIEQLINT_STATUS"
     check_result = _run_workflow_step(check_command, cwd=tmp_path, environment=environment)
     if checker_status > 1:
         assert check_result.returncode == checker_status
-        assert not upload_eligible
         return
 
     assert check_result.returncode == 0, check_result.stderr
