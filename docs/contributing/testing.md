@@ -12,6 +12,7 @@ Tests protect documented behavior, not just code coverage.
 - Package-resource tests for installed wheels.
 - Pre-commit integration tests build a temporary hook repository from the source
   under test, so they do not depend on the checkout's Git revision.
+- Source-distribution tests remain runnable without Git metadata.
 
 ## Local loop
 

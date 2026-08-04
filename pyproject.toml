@@ -81,6 +81,7 @@ include = [
   "schemas",
   "README.md",
   ".pre-commit-hooks.yaml",
+  "PACK_MANIFEST.md",
   "SPEC.md",
   "LICENSE",
   "pyproject.toml",

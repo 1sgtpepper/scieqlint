@@ -90,6 +90,8 @@ Release notes must use these sections:
 - Compact rational factors adjacent to implicit products are now parsed
   consistently with explicit division, with zero denominators and oversized
   literals reported as unsupported syntax.
+- The source distribution now includes its pack manifest, and the manifest test no
+  longer requires Git metadata when run from an extracted archive.
 
 ### Deprecated
 
