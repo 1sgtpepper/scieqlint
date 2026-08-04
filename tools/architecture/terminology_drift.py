@@ -44,6 +44,13 @@ DEFAULT_ARCHITECTURE_DOCS = (
 )
 DEFAULT_MODULE_GRAPH = "pyproject.toml"
 DEFAULT_CI_CONFIGS = (".github/workflows/ci.yml",)
+FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[^\n]*$")
+FENCE_CLOSE_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[ \t]*$")
+INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+DISABLED_STEP_RE = re.compile(
+    r"^[ \t]*if:[ \t]*(?:\$\{\{[ \t]*)?false(?:[ \t]*\}\})?[ \t]*(?:#.*)?$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -381,7 +388,11 @@ def has_blocking_release_gate(text: str) -> bool:
             if candidate_indent == step_indent and candidate.lstrip().startswith("- "):
                 break
             end += 1
-        if not any(nonblocking.fullmatch(candidate) for candidate in lines[max(start, 0) : end]):
+        step_lines = lines[max(start, 0) : end]
+        if not any(
+            nonblocking.fullmatch(candidate) or DISABLED_STEP_RE.fullmatch(candidate)
+            for candidate in step_lines
+        ):
             return True
     return False
 
@@ -400,12 +411,40 @@ def drift_spellings(term: str) -> tuple[str, ...]:
 
 
 def strip_markdown_code(text: str) -> str:
-    fenced_code = re.compile(r"(?ms)^(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^(?P=fence)[ \t]*$")
-    without_fences = fenced_code.sub(
-        lambda match: "\n" * match.group(0).count("\n"),
-        text,
-    )
-    return re.sub(r"`[^`\n]+`", "", without_fences)
+    masked_lines: list[str] = []
+    fenced_lines: list[str] = []
+    fence_char: str | None = None
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        content = line.rstrip("\r\n")
+        if fence_char is None:
+            opening = FENCE_OPEN_RE.fullmatch(content)
+            if opening is None:
+                masked_lines.append(line)
+                continue
+            marker = opening.group("marker")
+            fence_char = marker[0]
+            fence_length = len(marker)
+            fenced_lines = [line]
+            continue
+
+        fenced_lines.append(line)
+        closing = FENCE_CLOSE_RE.fullmatch(content)
+        if (
+            closing is not None
+            and closing.group("marker")[0] == fence_char
+            and len(closing.group("marker")) >= fence_length
+        ):
+            masked_lines.extend("\n" * item.count("\n") for item in fenced_lines)
+            fenced_lines = []
+            fence_char = None
+            fence_length = 0
+
+    if fenced_lines:
+        masked_lines.extend(fenced_lines)
+
+    without_fences = "".join(masked_lines)
+    return INLINE_CODE_RE.sub("", without_fences)
 
 
 def base_report(
