@@ -13,7 +13,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 ## Validation Performed
 
 - Python compile smoke passed.
-- Pytest passed for the v1.1.0 implementation.
+- Pytest is part of the v1.1.0 CI validation.
 - Ruff and Pyright are configured in CI; run them where the full dev environment is
   available.
 
