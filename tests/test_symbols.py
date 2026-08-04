@@ -74,6 +74,21 @@ def test_symbol_check_ignores_label_text_and_tex_operators() -> None:
     assert result.diagnostics == ()
 
 
+def test_symbol_check_ignores_unsupported_tex_function_names() -> None:
+    result = check_documents(
+        [
+            _document(
+                "paper.md",
+                "<!-- scieqlint-symbol: x = quantity -->\n"
+                "$$\n\\sin(x) = x\n$$\n",
+            )
+        ],
+        config=_symbols_config(enabled=True),
+    )
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"]
+
+
 def test_symbol_check_reports_multiline_symbol_columns() -> None:
     result = check_documents(
         [_document("paper.md", "$$\nA = B\nC = D\n$$\n")],

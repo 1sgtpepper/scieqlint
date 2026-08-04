@@ -11,7 +11,18 @@ from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.scan.base import MathBlock, SymbolDirective
 
 SYMBOL_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*")
-TEX_NON_SYMBOLS = {"\\cdot", "\\frac", "\\sqrt", "\\times"}
+TEX_NON_SYMBOLS = {
+    "\\cdot",
+    "\\frac",
+    "\\sqrt",
+    "\\times",
+    "\\sin",
+    "\\cos",
+    "\\tan",
+    "\\log",
+    "\\ln",
+    "\\exp",
+}
 
 
 def check_symbols(
