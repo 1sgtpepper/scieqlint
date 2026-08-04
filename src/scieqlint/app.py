@@ -46,6 +46,27 @@ def check_paths(
     absolute_paths: bool = False,
 ) -> CheckResult:
     """Load supported files and check them."""
+    result, _protected_paths = _check_paths_with_inputs(
+        paths,
+        config_path=config_path,
+        no_algebra=no_algebra,
+        inline_math=inline_math,
+        strict_unknowns=strict_unknowns,
+        absolute_paths=absolute_paths,
+    )
+    return result
+
+
+def _check_paths_with_inputs(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+    no_algebra: bool = False,
+    inline_math: bool = False,
+    strict_unknowns: bool = False,
+    absolute_paths: bool = False,
+) -> tuple[CheckResult, tuple[Path, ...]]:
+    """Load supported files, check them, and retain the consumed paths for CLI safety."""
     config = _apply_overrides(
         load_config(config_path),
         no_algebra=no_algebra,
@@ -89,13 +110,16 @@ def check_paths(
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
     diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, project_root))
-    return CheckResult(
-        diagnostics=diagnostics_result,
-        files_checked=len(discovered),
-        math_blocks_checked=result.math_blocks_checked,
-        config_path=config.path,
-        version=__version__,
-        show_suppressed=config.report.show_suppressed,
+    return (
+        CheckResult(
+            diagnostics=diagnostics_result,
+            files_checked=len(discovered),
+            math_blocks_checked=result.math_blocks_checked,
+            config_path=config.path,
+            version=__version__,
+            show_suppressed=config.report.show_suppressed,
+        ),
+        _protected_paths(discovered, config, project_root),
     )
 
 
@@ -191,6 +215,16 @@ def graph_paths(
     config_path: Path | str | None = None,
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
+    graph, _protected_paths = _graph_paths_with_inputs(paths, config_path=config_path)
+    return graph
+
+
+def _graph_paths_with_inputs(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+) -> tuple[Graph, tuple[Path, ...]]:
+    """Load files, build the graph, and retain consumed paths for CLI safety."""
     config = load_config(config_path)
     discovered = _discover_files(
         paths or [Path(".")],
@@ -206,7 +240,11 @@ def graph_paths(
                 _document_kind(path),
             )
         )
-    return graph_documents(documents, config=config)
+    return graph_documents(documents, config=config), _protected_paths(
+        discovered,
+        config,
+        _project_root(config),
+    )
 
 
 def graph_documents(
@@ -364,12 +402,28 @@ def _project_relative_path(path: Path, project_root: Path | None) -> str:
 
 def _load_baselines(config: Config, project_root: Path) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
+    for path in _baseline_paths(config, project_root):
+        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
+    return frozenset(identities)
+
+
+def _baseline_paths(config: Config, project_root: Path) -> tuple[Path, ...]:
+    paths: list[Path] = []
     for raw in config.baseline.files:
         path = Path(raw)
         if not path.is_absolute():
             path = project_root / path
-        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
-    return frozenset(identities)
+        paths.append(path)
+    return tuple(paths)
+
+
+def _protected_paths(
+    discovered: tuple[Path, ...],
+    config: Config,
+    project_root: Path,
+) -> tuple[Path, ...]:
+    configured = () if config.path is None else (Path(config.path.as_posix()),)
+    return (*discovered, *configured, *_baseline_paths(config, project_root))
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:

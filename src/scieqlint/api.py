@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+from scieqlint.app import _check_paths_with_inputs as _app_check_paths_with_inputs
+from scieqlint.app import _graph_paths_with_inputs as _app_graph_paths_with_inputs
 from scieqlint.app import check_documents as _check_documents
 from scieqlint.app import check_paths as _check_paths
 from scieqlint.app import graph_documents as _graph_documents
@@ -54,6 +56,33 @@ def graph_paths(
 ) -> Graph:
     """Build graph data from paths."""
     return _graph_paths(paths, config_path=config_path)
+
+
+def _check_paths_with_inputs(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+    no_algebra: bool = False,
+    inline_math: bool = False,
+    strict_unknowns: bool = False,
+    absolute_paths: bool = False,
+) -> tuple[CheckResult, tuple[Path, ...]]:
+    return _app_check_paths_with_inputs(
+        paths,
+        config_path=config_path,
+        no_algebra=no_algebra,
+        inline_math=inline_math,
+        strict_unknowns=strict_unknowns,
+        absolute_paths=absolute_paths,
+    )
+
+
+def _graph_paths_with_inputs(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+) -> tuple[Graph, tuple[Path, ...]]:
+    return _app_graph_paths_with_inputs(paths, config_path=config_path)
 
 
 def graph_documents(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from click.testing import CliRunner
 
@@ -79,6 +80,88 @@ def test_check_writes_output_file(tmp_path) -> None:
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["diagnostics"] == []
     assert payload["summary"]["errors"] == 0
+
+
+def test_check_refuses_to_overwrite_input(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    (tmp_path / "alias").mkdir()
+    output = tmp_path / "alias" / ".." / "bad.md"
+    original = "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+    doc.write_text(original, encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
+
+
+def test_graph_refuses_symlink_output_alias(tmp_path) -> None:
+    doc = tmp_path / "graph.md"
+    output = tmp_path / "graph.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    output.symlink_to(doc)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == "$$\na = a\n$$ {#energy}\n"
+
+
+def test_check_refuses_hardlink_output_alias(tmp_path) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    os.link(doc, output)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(main, ["check", "README.md", "--output", "scieqlint.toml"])
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
+
+
+def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "README.md", "--config", "scieqlint.toml", "--output", "baseline.json"],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert baseline.read_text(encoding="utf-8") == '{"diagnostics": []}\n'
 
 
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:

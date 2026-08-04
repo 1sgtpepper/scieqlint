@@ -9,7 +9,10 @@ from typing import TextIO
 import click
 
 from scieqlint import __version__
-from scieqlint.api import check_paths, graph_paths
+from scieqlint.api import (
+    _check_paths_with_inputs,
+    _graph_paths_with_inputs,
+)
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.graph.json import render_graph_json
@@ -107,7 +110,7 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
-        result = check_paths(
+        result, protected_paths = _check_paths_with_inputs(
             paths,
             config_path=config_path,
             no_algebra=no_algebra,
@@ -123,7 +126,7 @@ def check(
             rendered = SarifReporter().render(result)
         else:
             rendered = TextReporter(quiet=quiet).render(result)
-        _write_output(rendered, output_path, sys.stdout)
+        _write_output(rendered, output_path, sys.stdout, protected_paths=protected_paths)
         raise SystemExit(result.exit_code())
     except click.ClickException:
         raise
@@ -187,8 +190,9 @@ def graph(
 ) -> None:
     """Build a graph JSON export."""
     try:
-        rendered = render_graph_json(graph_paths(paths, config_path=config_path))
-        _write_output(rendered, output_path, sys.stdout)
+        graph, protected_paths = _graph_paths_with_inputs(paths, config_path=config_path)
+        rendered = render_graph_json(graph)
+        _write_output(rendered, output_path, sys.stdout, protected_paths=protected_paths)
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
@@ -228,11 +232,29 @@ def _preset_text(name: str) -> str:
     return text if text.endswith("\n") else f"{text}\n"
 
 
-def _write_output(rendered: str, output_path: Path | None, stdout: TextIO) -> None:
+def _write_output(
+    rendered: str,
+    output_path: Path | None,
+    stdout: TextIO,
+    *,
+    protected_paths: tuple[Path, ...] = (),
+) -> None:
     if output_path is None:
         if rendered:
             stdout.write(rendered)
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
-    output_path.write_text(rendered, encoding="utf-8")
+    if any(_same_file(output_path, path) for path in protected_paths):
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+    try:
+        output_path.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        raise _OperationalError(str(exc)) from exc
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    try:
+        return left.samefile(right)
+    except (OSError, ValueError):
+        return left.absolute() == right.absolute()
