@@ -38,8 +38,6 @@ def scan_headings(
         hashes = match.group("hashes")
         body = match.group("body")
         text = _heading_text(body)
-        if not text:
-            continue
 
         indent = len(line) - len(line.lstrip(" \t"))
         space = match.group("space")
@@ -54,8 +52,12 @@ def scan_headings(
             slug_candidate=slug(text),
             marker_span=smap.span(start + indent, start + indent + len(hashes)),
             text_span=smap.span(text_start, text_start + len(body.lstrip())) if body else None,
-            valid_atx=space is not None,
-            malformation=None if space is not None else "missing_space_after_atx_marker",
+            valid_atx=space is not None or not body,
+            malformation=(
+                None
+                if space is not None or not body
+                else "missing_space_after_atx_marker"
+            ),
         )
 
 
@@ -93,7 +95,10 @@ def attach_anchors(
     headings: Sequence[HeadingFact],
     fences: Sequence[FenceFact],
 ) -> Iterable[TargetAnchorFact]:
-    attachable = sorted((*headings, *fences), key=lambda fact: fact.span.start if fact.span else 0)
+    attachable = sorted(
+        (*tuple(heading for heading in headings if heading.valid_atx), *fences),
+        key=lambda fact: fact.span.start if fact.span else 0,
+    )
     for anchor in anchors:
         next_fact = next(
             (
@@ -122,6 +127,8 @@ def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFa
     stack: list[tuple[int, str]] = []
     counters = [0] * 7
     for heading in headings:
+        if not heading.valid_atx:
+            continue
         level = heading.level
         counters[level] += 1
         for idx in range(level + 1, 7):

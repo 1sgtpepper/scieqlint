@@ -62,6 +62,8 @@ class StructureEngine:
             previous_level = 0
             top_level_count = 0
             for heading in headings:
+                if not heading.valid_atx:
+                    continue
                 if heading.level == 1:
                     top_level_count += 1
                     if top_level_count > 1:

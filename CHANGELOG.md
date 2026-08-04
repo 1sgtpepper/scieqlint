@@ -52,6 +52,8 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
+- MyST targets now attach to valid bare ATX headings, while malformed ATX
+  candidates remain diagnostics without participating in heading semantics.
 
 ### Deprecated
 

@@ -54,6 +54,38 @@ def test_six_hash_line_remains_an_atx_heading():
     ]
 
 
+def test_bare_atx_heading_accepts_an_attached_target() -> None:
+    snapshot = MySTFrontend().lower((doc("(empty)=\n#\n\nSee {ref}`empty`.\n"),))
+
+    assert [(heading.level, heading.text, heading.valid_atx) for heading in snapshot.headings] == [
+        (1, "", True)
+    ]
+    assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
+        ("empty", "before_heading")
+    ]
+    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+
+
+def test_malformed_atx_candidates_do_not_affect_heading_semantics() -> None:
+    snapshot = MySTFrontend().lower((doc("#Bad\n### Child\n\n(bad)=\n#AlsoBad\n"),))
+
+    assert [(heading.raw, heading.valid_atx) for heading in snapshot.headings] == [
+        ("#Bad", False),
+        ("### Child", True),
+        ("#AlsoBad", False),
+    ]
+    assert [section.heading_fact_id for section in snapshot.sections] == [
+        snapshot.headings[1].fact_id
+    ]
+    assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
+        ("bad", "orphaned")
+    ]
+    assert [diagnostic.code for diagnostic in StructureEngine().run(QueryHost(snapshot))] == [
+        "STR001",
+        "STR001",
+    ]
+
+
 def test_check_documents_emits_myst_structure_diagnostics():
     document = doc(
         "\n".join(
