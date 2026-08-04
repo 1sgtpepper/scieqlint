@@ -2,6 +2,8 @@
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
   entry: scieqlint check
+  args: ["--"]
   language: python
-  files: '\.(md|markdown|tex|ipynb)$'
+  files: '(?i)\.(md|markdown|tex|ipynb)$'
+  pass_filenames: false
   require_serial: true
