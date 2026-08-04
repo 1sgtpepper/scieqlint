@@ -33,7 +33,7 @@ The checker runtime must not:
 - write files except explicit `--output` or `init`,
 - follow symlinks outside the project root by default,
 - read ignored files unless explicitly passed,
-- call SymPy text parsers on document content.
+- call SymPy text parsers on document content,
 - overwrite a consumed source, configuration, or baseline file through `--output`,
   including hardlink and symlink aliases.
 
