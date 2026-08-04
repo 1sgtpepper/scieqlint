@@ -99,14 +99,12 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
     closed = {(start, end) for start, _body_start, _body_end, end in _display_ranges(document)}
     occupied = _code_spans(document)
-    for match in re.finditer(r"\$\$", document.text):
-        if any(start <= match.start() < end for start, end in closed):
+    for start in _display_opener_positions(document, occupied):
+        if any(open_start <= start < end for open_start, end in closed):
             continue
-        if any(start <= match.start() < end for start, end in occupied):
-            continue
-        next_close = _find_display_close(document, match.end(), occupied)
+        next_close = _find_display_close(document, start + 2, occupied)
         if next_close == -1:
-            yield _scan_diagnostic(document, match.start(), match.end())
+            yield _scan_diagnostic(document, start, start + 2)
 
 
 def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
@@ -116,7 +114,11 @@ def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, i
         start = document.text.find("$$", cursor)
         if start == -1:
             return
-        if _in_ranges(start, occupied):
+        if (
+            _in_ranges(start, occupied)
+            or _is_escaped(document.text, start)
+            or not _is_display_opener(document.text, start)
+        ):
             cursor = start + 2
             continue
         close = _find_display_close(document, start + 2, occupied)
@@ -137,9 +139,86 @@ def _find_display_close(
         close = document.text.find("$$", cursor)
         if close == -1:
             return -1
-        if not _in_ranges(close, occupied):
+        if not _in_ranges(close, occupied) and not _is_escaped(document.text, close):
             return close
         cursor = close + 2
+
+
+def _display_opener_positions(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[int]:
+    cursor = 0
+    while True:
+        start = document.text.find("$$", cursor)
+        if start == -1:
+            return
+        if (
+            not _in_ranges(start, occupied)
+            and not _is_escaped(document.text, start)
+            and _is_display_opener(document.text, start)
+        ):
+            yield start
+        cursor = start + 2
+
+
+def _is_display_opener(text: str, start: int) -> bool:
+    line_start = text.rfind("\n", 0, start) + 1
+    prefix = text[line_start:start]
+    return prefix == prefix.lstrip(" ") and len(prefix) <= 3
+
+
+def _inline_ranges(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[tuple[int, int, int, int]]:
+    cursor = 0
+    while True:
+        start = document.text.find("$", cursor)
+        if start == -1:
+            return
+        if (
+            _in_ranges(start, occupied)
+            or _is_escaped(document.text, start)
+            or _is_adjacent_to_dollar(document.text, start)
+        ):
+            cursor = start + 1
+            continue
+        candidate = start + 1
+        found = False
+        while True:
+            close = document.text.find("$", candidate)
+            if close == -1 or "\n" in document.text[start + 1 : close]:
+                break
+            if (
+                not _in_ranges(close, occupied)
+                and not _is_escaped(document.text, close)
+                and not _is_adjacent_to_dollar(document.text, close)
+            ):
+                if close > start + 1:
+                    yield (start, start + 1, close, close + 1)
+                    cursor = close + 1
+                    found = True
+                break
+            candidate = close + 1
+        if not found:
+            cursor = start + 1
+
+
+def _is_adjacent_to_dollar(text: str, index: int) -> bool:
+    return (
+        (index > 0 and text[index - 1] == "$")
+        or (index + 1 < len(text) and text[index + 1] == "$")
+    )
+
+
+def _is_escaped(text: str, index: int) -> bool:
+    slash_count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        slash_count += 1
+        cursor -= 1
+    return slash_count % 2 == 1
 
 
 def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
@@ -213,19 +292,11 @@ def _inline_blocks(
         *((block.span.start, block.span.end) for block in existing_blocks),
         *_code_spans(document),
     )
-    for match in INLINE_RE.finditer(document.text):
-        body_start = match.start("body")
-        if any(start <= body_start < end for start, end in occupied):
-            continue
-        body = match.group("body")
-        text = body.strip()
-        if not text:
-            continue
-        span_start = body_start + len(body) - len(body.lstrip())
-        span_end = body_start + len(body.rstrip())
-        span = _span(document, span_start, span_end)
+    for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
+        body = document.text[body_start:body_end]
+        span = _span(document, body_start, body_end)
         yield MathBlock(
-            text=text,
+            text=body.strip(),
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
             container=MathContainer.MARKDOWN_INLINE,
@@ -264,20 +335,25 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
     if line_end == -1:
         line_end = len(document.text)
     tail = document.text[tail_start:line_end]
-    for match in DOLLAR_LABEL_RE.finditer(tail):
-        raw = match.group(1) or match.group(2)
-        if raw is None:
-            continue
-        label_start = tail_start + match.start(1 if match.group(1) else 2)
-        label_end = tail_start + match.end(1 if match.group(1) else 2)
-        yield EquationLabel(
-            label=_normalize_label(raw),
-            span=_span(document, label_start, label_end),
-            block_id=block.block_id,
-            source=(
-                LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
-            ),
-        )
+    leading = len(tail) - len(tail.lstrip(" \t"))
+    trailing = len(tail.rstrip(" \t"))
+    candidate = tail[leading:trailing]
+    match = DOLLAR_LABEL_RE.fullmatch(candidate)
+    if match is None:
+        return
+    group_name = 1 if match.group(1) else 2
+    raw = match.group(group_name)
+    assert raw is not None
+    label_start = tail_start + leading + match.start(group_name)
+    label_end = tail_start + leading + match.end(group_name)
+    yield EquationLabel(
+        label=_normalize_label(raw),
+        span=_span(document, label_start, label_end),
+        block_id=block.block_id,
+        source=(
+            LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
+        ),
+    )
 
 
 def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:

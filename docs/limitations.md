@@ -33,6 +33,10 @@ E = mc^2
 ```
 ````
 
+Dollar math follows line/block delimiter boundaries: escaped dollars remain
+prose, display `$$` starts at a block position, and only a complete label suffix
+immediately after a display block is recognized.
+
 ## Core grammar subset
 
 | Construct | Status |

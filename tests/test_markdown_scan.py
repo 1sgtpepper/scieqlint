@@ -157,6 +157,49 @@ def test_closed_display_math_does_not_emit_scan_warning() -> None:
     assert result.diagnostics == ()
 
 
+def test_dollar_math_respects_escape_and_block_boundaries() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        r"Literal \$x=x+1$." + "\n" + "Prose $$x=x+1$$ tail.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+    assert result.diagnostics == ()
+
+
+def test_inline_dollar_math_skips_escaped_closers_and_keeps_even_slashes_active() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        r"$x=\$3=x$ and \\$y$.",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == [r"x=\$3=x", "y"]
+
+
+def test_dollar_tail_accepts_only_a_complete_label_suffix() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\nx = x\n$$ prose (ghost)\n\n$$\ny = y\n$$ {#real}\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [label.label for label in result.labels] == ["real"]
+
+
 def test_display_delimiter_in_inline_code_does_not_emit_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

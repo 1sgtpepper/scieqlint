@@ -55,6 +55,31 @@ def test_unterminated_math_fence_emits_scan_warning() -> None:
     assert result.diagnostics[0].rule == "scanner"
 
 
+def test_myst_dollar_math_respects_escape_and_block_boundaries() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Literal \\$x=x+1$.\nProse $$x=x+1$$ tail.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert snapshot.display_math == ()
+    assert snapshot.inline_math == ()
+
+
+def test_myst_dollar_tail_requires_a_complete_label_suffix() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\nx = x\n$$ prose (ghost)\n\n$$\ny = y\n$$ {#real}\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [label.label for label in snapshot.equation_labels] == ["real"]
+
+
 def test_math_container_spans_start_at_first_nonblank_body_line() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

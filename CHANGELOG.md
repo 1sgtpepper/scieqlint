@@ -96,6 +96,8 @@ Release notes must use these sections:
   literals reported as unsupported syntax.
 - Source distributions now include the files required by their shipped test suite,
   and CI executes that suite from an extracted archive.
+- Dollar math now honors escaped delimiters, block placement, and complete label
+  suffixes.
 
 ### Deprecated
 
