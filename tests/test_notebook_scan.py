@@ -5,7 +5,7 @@ import sys
 from pathlib import PurePosixPath
 
 from scieqlint.api import check_documents
-from scieqlint.config.model import Config
+from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.notebook import NotebookScanner
 
@@ -226,6 +226,28 @@ def test_notebook_references_preserve_cell_metadata() -> None:
     assert result.diagnostics[0].span is not None
     assert result.diagnostics[0].span.cell == 1
     assert result.diagnostics[0].span.cell_line == 1
+
+
+def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
+    document = _notebook(
+        [
+            _markdown_cell(
+                "<!-- scieqlint-symbol: x = variable -->\n$$\nx = x\n$$\n"
+            )
+        ]
+    )
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+
+    assert result.diagnostics == ()
+    scan = NotebookScanner().scan(document, Config())
+    assert [
+        (directive.symbol, directive.span.cell, directive.span.cell_line)
+        for directive in scan.symbol_directives
+    ] == [("x", 0, 1)]
 
 
 def test_notebook_scanner_preserves_label_cell_metadata() -> None:

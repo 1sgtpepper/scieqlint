@@ -11,7 +11,13 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, ScanResult
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    MathBlock,
+    ScanResult,
+    SymbolDirective,
+)
 from scieqlint.scan.markdown import MarkdownScanner
 
 _MAX_JSON_INTEGER_DIGITS = 4096
@@ -44,6 +50,7 @@ class NotebookScanner:
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         references: list[EquationReference] = []
+        symbol_directives: list[SymbolDirective] = []
         diagnostics = list(_notebook_schema_diagnostics(document, notebook))
 
         for cell_index, raw_cell in enumerate(cells):
@@ -75,6 +82,10 @@ class NotebookScanner:
             references.extend(
                 _with_cell_reference(reference, cell_index) for reference in scan.references
             )
+            symbol_directives.extend(
+                _with_cell_symbol_directive(directive, cell_index)
+                for directive in scan.symbol_directives
+            )
             diagnostics.extend(
                 _with_cell_diagnostic(diagnostic, cell_index) for diagnostic in scan.diagnostics
             )
@@ -83,6 +94,7 @@ class NotebookScanner:
             blocks=tuple(blocks),
             labels=tuple(labels),
             references=tuple(references),
+            symbol_directives=tuple(symbol_directives),
             diagnostics=tuple(diagnostics),
         )
 
@@ -145,6 +157,13 @@ def _with_cell_label(label: EquationLabel, cell_index: int) -> EquationLabel:
 
 def _with_cell_reference(reference: EquationReference, cell_index: int) -> EquationReference:
     return replace(reference, span=_with_cell_span(reference.span, cell_index))
+
+
+def _with_cell_symbol_directive(
+    directive: SymbolDirective,
+    cell_index: int,
+) -> SymbolDirective:
+    return replace(directive, span=_with_cell_span(directive.span, cell_index))
 
 
 def _with_cell_diagnostic(diagnostic: Diagnostic, cell_index: int) -> Diagnostic:

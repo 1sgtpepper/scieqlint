@@ -49,6 +49,8 @@ Release notes must use these sections:
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
 - Unsupported TeX function names no longer trigger undefined-symbol warnings.
+- Notebook Markdown scans now preserve explicit symbol directives and their cell
+  locations for symbol checks.
 
 ### Deprecated
 
