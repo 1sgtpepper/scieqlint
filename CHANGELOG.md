@@ -45,6 +45,8 @@ Release notes must use these sections:
   ordinary text.
 - `scieqlint init` now emits only supported configuration keys, and unknown keys in
   fixed-schema configuration tables are rejected instead of being ignored.
+- The SARIF upload example now allows finding exits to reach upload and rejects
+  missing, empty, or invalid JSON report files before upload.
 
 ### Deprecated
 

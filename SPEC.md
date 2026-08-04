@@ -1939,12 +1939,17 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==0.1.5
-  - run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
+  - run: rm -f scieqlint.sarif
+  - run: set +e; scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
+  - run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
+
+The status guard admits the findings exit while preserving other failures. The
+artifact check must reject a missing, empty, or invalid JSON report before upload.
 
 SARIF is a reporter. It must not change analysis.
 

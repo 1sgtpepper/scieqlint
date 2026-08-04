@@ -19,8 +19,12 @@ jobs:
           python-version: "3.11"
       - name: Install SciEqLint
         run: python -m pip install scieqlint==1.1.0
+      - name: Remove stale SARIF output
+        run: rm -f scieqlint.sarif
       - name: Run SciEqLint SARIF
-        run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
+        run: set +e; scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
+      - name: Verify SARIF output
+        run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
         with:

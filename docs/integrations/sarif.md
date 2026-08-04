@@ -23,30 +23,21 @@ steps:
     with:
       python-version: "3.11"
   - run: python -m pip install scieqlint==1.1.0
-  - run: scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
+  - run: rm -f scieqlint.sarif
+  - run: set +e; scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
+  - run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
 
-Thin Action wrapper example:
+The status guard allows findings (exit 1) to reach the upload step while
+preserving other exit statuses. The artifact check rejects missing, empty, or
+invalid JSON reports before the uploader runs. The example pins the published
+`1.1.0` release; releases with the distinct operational exit-2 contract retain
+that status through the guard.
 
-```yaml
-permissions:
-  contents: read
-  security-events: write
-
-steps:
-  - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v1.1.0
-    with:
-      args: check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif
-  - uses: github/codeql-action/upload-sarif@v4
-    with:
-      sarif_file: scieqlint.sarif
-      category: scieqlint-docs
-```
-
-The wrapper is intentionally thin: it sets up Python, installs SciEqLint, and runs
-the CLI arguments from `args`. SARIF upload stays in `github/codeql-action/upload-sarif`.
+The thin GitHub Action runs the CLI directly and does not normalize a findings
+exit code, so use the direct workflow above when findings must still reach the
+upload step.
