@@ -79,8 +79,7 @@ def test_symbol_check_ignores_unsupported_tex_function_names() -> None:
         [
             _document(
                 "paper.md",
-                "<!-- scieqlint-symbol: x = quantity -->\n"
-                "$$\n\\sin(x) = x\n$$\n",
+                "<!-- scieqlint-symbol: x = quantity -->\n$$\n\\sin(x) = x\n$$\n",
             )
         ],
         config=_symbols_config(enabled=True),
