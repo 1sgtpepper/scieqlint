@@ -52,6 +52,8 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
+- Release metadata and implementation-status documents now identify the stable
+  v1.1.0 implementation and its shipped capabilities.
 
 ### Deprecated
 

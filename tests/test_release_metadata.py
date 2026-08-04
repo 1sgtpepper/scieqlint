@@ -12,6 +12,7 @@ def test_release_version_metadata_is_consistent() -> None:
     citation = Path("CITATION.cff").read_text(encoding="utf-8")
 
     assert project["version"] == "1.1.0"
+    assert "Development Status :: 5 - Production/Stable" in project["classifiers"]
     assert _assigned_string(init_tree, "__version__") == project["version"]
     assert f"version: {project['version']}" in citation
 
