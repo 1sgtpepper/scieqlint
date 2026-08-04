@@ -37,7 +37,7 @@ TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+\S")
+HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
@@ -85,10 +85,8 @@ class MarkdownScanner:
 
 def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
     for _start, body_start, body_end, _end in _display_ranges(document):
-        body = document.text[body_start:body_end]
-        text = body.strip()
-        span_start = body_start + len(body) - len(body.lstrip())
-        span_end = body_start + len(body.rstrip())
+        span_start, span_end = _trimmed_body_range(document, body_start, body_end)
+        text = document.text[span_start:span_end]
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
@@ -146,17 +144,55 @@ def _find_display_close(
 
 def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
     for match in FENCE_RE.finditer(document.text):
-        body = match.group("body")
-        text = body.strip()
-        body_start = match.start("body") + len(body) - len(body.lstrip())
-        body_end = match.start("body") + len(body.rstrip())
-        span = _span(document, body_start, body_end)
+        span_start, span_end = _trimmed_body_range(
+            document,
+            match.start("body"),
+            match.end("body"),
+        )
+        span = _span(document, span_start, span_end)
         yield MathBlock(
-            text=text,
+            text=document.text[span_start:span_end],
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_FENCE),
             container=MathContainer.MARKDOWN_FENCE,
         )
+
+
+def math_container_opener_lines(
+    document: SourceDocument,
+    blocks: Iterable[MathBlock],
+) -> dict[str, int]:
+    block_ids = {
+        (block.container, block.span.start, block.span.end): block.block_id for block in blocks
+    }
+    opener_lines: dict[str, int] = {}
+    for opener_start, body_start, body_end, _end in _display_ranges(document):
+        span_start, span_end = _trimmed_body_range(document, body_start, body_end)
+        block_id = block_ids.get((MathContainer.MARKDOWN_DISPLAY, span_start, span_end))
+        if block_id is not None:
+            opener_lines[block_id] = document.line_index.position(opener_start)[0]
+    for match in FENCE_RE.finditer(document.text):
+        span_start, span_end = _trimmed_body_range(
+            document,
+            match.start("body"),
+            match.end("body"),
+        )
+        block_id = block_ids.get((MathContainer.MARKDOWN_FENCE, span_start, span_end))
+        if block_id is not None:
+            opener_lines[block_id] = document.line_index.position(match.start())[0]
+    return opener_lines
+
+
+def _trimmed_body_range(
+    document: SourceDocument,
+    body_start: int,
+    body_end: int,
+) -> tuple[int, int]:
+    body = document.text[body_start:body_end]
+    return (
+        body_start + len(body) - len(body.lstrip()),
+        body_start + len(body.rstrip()),
+    )
 
 
 def _unterminated_fence_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
@@ -241,15 +277,26 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
 
 
 def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    for match in MYST_LABEL_RE.finditer(block.text):
-        label_start = block.span.start + match.start("label")
-        label_end = block.span.start + match.end("label")
+    offset = 0
+    for line in block.text.splitlines(keepends=True):
+        line_without_newline = line[:-1] if line.endswith("\n") else line
+        if not line_without_newline.strip():
+            offset += len(line)
+            continue
+        if not line_without_newline.lstrip().startswith(":"):
+            break
+        match = MYST_LABEL_RE.fullmatch(line_without_newline)
+        if match is None:
+            break
+        label_start = block.span.start + offset + match.start("label")
+        label_end = block.span.start + offset + match.end("label")
         yield EquationLabel(
             label=_normalize_label(match.group("label")),
             span=_span(document, label_start, label_end),
             block_id=block.block_id,
             source=LabelSource.MYST_DIRECTIVE_LABEL,
         )
+        offset += len(line)
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
@@ -268,6 +315,8 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
+        if not target:
+            continue
         source = ReferenceSource.MYST_EQ_ROLE if role == "eq" else ReferenceSource.MYST_NUMREF_ROLE
         target_start = match.start("body") + body.rfind(target)
         yield EquationReference(

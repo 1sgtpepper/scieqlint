@@ -35,6 +35,31 @@ def test_text_report_marks_suppressed_diagnostics_when_enabled() -> None:
     assert "paper.md:1:1: suppressed error ALG001" in TextReporter().render(result)
 
 
+def test_text_report_includes_equation_before_detail() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=None,
+                equation="left = right",
+                detail="left - right = 1",
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    assert TextReporter().render(result).splitlines() == [
+        "<unknown>: error ALG001 algebraic identity does not hold",
+        "  equation: left = right",
+        "  detail: left - right = 1",
+    ]
+
+
 def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
     return CheckResult(
         diagnostics=(

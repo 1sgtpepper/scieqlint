@@ -30,7 +30,8 @@ Diagnostic:
 
 ```text
 ALG001 algebraic identity does not hold
-left - right = 2*a*b
+  equation: (a+b)^2 = a^2 + b^2
+  detail: left - right = 2*a*b
 ```
 
 It also catches supported broken equation references:
@@ -115,9 +116,13 @@ permissions:
 
 steps:
   - uses: actions/checkout@v6
-  - uses: Kuhai9801/scieqlint@v1.1.0
+  - uses: actions/setup-python@v6
     with:
-      args: check "docs/**/*.md" --format sarif --output scieqlint.sarif
+      python-version: "3.11"
+  - run: python -m pip install scieqlint==1.1.0
+  - run: rm -f scieqlint.sarif
+  - run: set +e; scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
+  - run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif

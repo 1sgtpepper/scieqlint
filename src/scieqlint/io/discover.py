@@ -13,12 +13,16 @@ def discover_files(paths: Iterable[Path | str]) -> tuple[Path, ...]:
     """Discover supported files deterministically."""
     found: set[Path] = set()
     for raw in paths:
-        text = str(raw)
-        matches = (
-            [Path(p) for p in glob.glob(text, recursive=True)]
-            if any(ch in text for ch in "*?[")
-            else [Path(raw)]
-        )
+        path = Path(raw)
+        if path.exists():
+            matches = [path]
+        else:
+            text = str(raw)
+            matches = (
+                [Path(p) for p in glob.glob(text, recursive=True)]
+                if any(ch in text for ch in "*?[")
+                else [Path(raw)]
+            )
         for path in matches:
             if path.is_dir():
                 found.update(

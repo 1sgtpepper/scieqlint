@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from urllib.parse import quote
 
 from scieqlint import __version__
 from scieqlint.diag.catalog import CATALOG
@@ -45,6 +46,7 @@ class SarifReporter:
                             "rules": _rules(diagnostics),
                         }
                     },
+                    "columnKind": "unicodeCodePoints",
                     "results": [_result(diagnostic) for diagnostic in diagnostics],
                 }
             ],
@@ -96,7 +98,7 @@ def _location(span: SourceSpan) -> JsonValue:
     location: dict[str, JsonValue] = {
         "physicalLocation": {
             "artifactLocation": {
-                "uri": span.path.as_posix(),
+                "uri": quote(span.path.as_posix(), safe="/"),
                 "uriBaseId": "%SRCROOT%",
             },
             "region": {

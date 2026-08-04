@@ -23,9 +23,10 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
 
     assert install_step["run"] == "python -m pip install scieqlint==1.1.0"
     assert run_step["run"] == (
-        f"scieqlint check {quote}docs/**/*.md{quote} "
+        f"set +e; scieqlint check {quote}docs/**/*.md{quote} "
         f"{quote}docs/**/*.ipynb{quote} "
-        '--format sarif --output scieqlint.sarif || test "$?" -eq 1'
+        '--format sarif --output scieqlint.sarif; status=$?; '
+        'test "$status" -le 1 || exit "$status"'
     )
     assert re.fullmatch(
         r"github/codeql-action/upload-sarif@[0-9a-f]{40}",
@@ -43,10 +44,27 @@ def test_sarif_upload_example_removes_stale_artifact() -> None:
     assert cleanup_step["run"] == "rm -f scieqlint.sarif"
 
 
-def test_sarif_upload_example_requires_a_nonempty_artifact() -> None:
+def test_sarif_upload_example_requires_a_valid_artifact() -> None:
     verify_step = _job_step("scieqlint-sarif", "Verify SARIF output")
 
-    assert verify_step["run"] == "test -s scieqlint.sarif"
+    assert verify_step["run"] == (
+        "test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null"
+    )
+
+
+def test_readme_code_scanning_example_uses_guarded_cli() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    section = readme.split("## Code scanning\n", 1)[1].split("## For contributors\n", 1)[0]
+
+    assert "uses: Kuhai9801/scieqlint@v1.1.0" not in section
+    assert (
+        'run: set +e; scieqlint check "docs/**/*.md" --format sarif '
+        '--output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"'
+    ) in section
+    assert (
+        "run: test -s scieqlint.sarif && python -m json.tool "
+        "scieqlint.sarif >/dev/null"
+    ) in section
 
 
 def _top_level_mapping(name: str) -> dict[str, str]:

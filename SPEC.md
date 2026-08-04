@@ -301,6 +301,11 @@ frac           : "\\frac" group group
 sqrt           : "\\sqrt" group | "\\sqrt" "(" expr ")"
 ```
 
+`line_sep` is a hard separator for the current checker. Non-empty lines are
+checked independently; an equation is not continued onto the next line. A line
+ending in `=` is therefore an incomplete equation and emits an unsupported
+syntax diagnostic.
+
 Supported aliases:
 
 - `\cdot` -> `*`
@@ -372,7 +377,7 @@ Ships:
 Text output example:
 
 ```text
-examples/bad/famous_bad.md:5:1: error ALG001 algebraic identity does not hold
+examples/bad/famous_bad.md:4:1: error ALG001 algebraic identity does not hold
   equation: (a+b)^2 = a^2 + b^2
   detail: left - right = 2*a*b
 ```
@@ -390,7 +395,9 @@ Required demo:
 Expected diagnostic:
 
 ```text
-ALG001: algebraic identity does not hold; left - right = 2*a*b
+ALG001: algebraic identity does not hold
+  equation: (a+b)^2 = a^2 + b^2
+  detail: left - right = 2*a*b
 ```
 
 Required reference demo:
@@ -682,7 +689,8 @@ Acceptance:
 - Notebook markdown cells scanned.
 - Code cells ignored.
 - Notebook references preserve cell metadata.
-- Malformed JSON emits `INP001` and does not stop other files.
+- Malformed JSON, including decoder conversion failures such as oversized
+  integers over 4096 decimal digits, emits `INP001` and does not stop other files.
 - Schema issue emits `INP002` when cells remain readable.
 
 Hard cut list if late:
@@ -716,11 +724,12 @@ SARIF must include:
 - `runs`,
 - tool driver name,
 - semantic version,
+- `columnKind = "unicodeCodePoints"`,
 - one rule per diagnostic code,
 - result `ruleId`,
 - result `level`,
 - message text,
-- repo-relative POSIX artifact URI,
+- repo-relative POSIX artifact URI with URI percent-encoding,
 - region when span exists,
 - deterministic partial fingerprint.
 
@@ -806,6 +815,10 @@ Config:
 rho = ["\\rho", "ρ"]
 theta = ["\\theta", "θ"]
 ```
+
+Alias spellings match complete surface tokens. A punctuation-ended alias such
+as `v.` must not match the prefix of a longer token such as `v.foo`; a numeric
+coefficient may be adjacent to an alias as implicit multiplication.
 
 Alias conflicts are config errors.
 
@@ -1128,11 +1141,13 @@ def check_paths(
     config_path: Path | str | None = None,
 ) -> CheckResult: ...
 
+
 def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
 ) -> CheckResult: ...
+
 
 def load_config(path: Path | str | None = None) -> Config: ...
 ```
@@ -1172,9 +1187,9 @@ Rules:
 
 ```python
 class DocumentKind(Enum):
-    MARKDOWN = "markdown"   # v0.1.0
-    LATEX = "latex"         # v0.1.3
-    NOTEBOOK = "notebook"   # v0.1.4
+    MARKDOWN = "markdown"  # v0.1.0
+    LATEX = "latex"  # v0.1.3
+    NOTEBOOK = "notebook"  # v0.1.4
     UNKNOWN = "unknown"
 ```
 
@@ -1262,6 +1277,7 @@ class LabelSource(Enum):
     MYST_DIRECTIVE_LABEL = "myst_directive_label"
     TEX_LABEL_IN_MARKDOWN_MATH = "tex_label_in_markdown_math"
     UNKNOWN = "unknown"
+
 
 class ReferenceSource(Enum):
     LATEX_REF = "latex_ref"
@@ -1420,10 +1436,12 @@ All AST nodes must be frozen dataclasses with slots and spans.
 ```python
 class Expr: ...
 
+
 @dataclass(frozen=True, slots=True)
 class EquationGroup:
     equations: tuple[Equation, ...]
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class Equation:
@@ -1442,11 +1460,13 @@ class Number(Expr):
     raw: str
     span: SourceSpan
 
+
 @dataclass(frozen=True, slots=True)
 class Symbol(Expr):
     name: str
     raw: str
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class UnaryOp(Expr):
@@ -1454,12 +1474,14 @@ class UnaryOp(Expr):
     operand: Expr
     span: SourceSpan
 
+
 @dataclass(frozen=True, slots=True)
 class BinaryOp(Expr):
     op: BinaryOperator
     left: Expr
     right: Expr
     span: SourceSpan
+
 
 @dataclass(frozen=True, slots=True)
 class FunctionCall(Expr):
@@ -1478,9 +1500,11 @@ class BinaryOperator(Enum):
     DIV = "div"
     POW = "pow"
 
+
 class UnaryOperator(Enum):
     POS = "pos"
     NEG = "neg"
+
 
 class FunctionName(Enum):
     SQRT = "sqrt"
@@ -1612,7 +1636,7 @@ References are core v0.1.0. Graph and symbols come later.
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
 | `REF001` | v0.1.0 | error | Duplicate equation label |
-| `REF002` | v0.1.0 | warning | Missing equation reference target |
+| `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
 
 Rules:
@@ -1620,6 +1644,7 @@ Rules:
 - Duplicate labels emit `REF001`.
 - Missing supported reference targets emit `REF002`.
 - Strict mode may emit `REF003`.
+- Strict missing-label checks apply to display and fenced equation blocks, not inline math.
 - Reference checking must be deterministic and zero-config.
 - Natural-language references are not extracted in v0.x.
 
@@ -1669,12 +1694,16 @@ Diagnostic codes are stable API once introduced.
 | `INP003` | warning | File exceeded configured limit |
 | `CFG001` | error | Invalid config file |
 | `REF001` | error | Duplicate equation label |
-| `REF002` | warning | Missing equation reference target |
+| `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
 
 Later codes are added only when their release starts.
 
-### Severity override
+### Planned severity override
+
+The following is future specification surface. The current fixed-schema loader
+rejects a `[severity]` table; severity-affecting behavior is limited to the
+documented CLI and config toggles.
 
 Config may override severity for selected codes:
 
@@ -1816,12 +1845,12 @@ color = "auto"
 files = ["build/**", "dist/**", ".venv/**"]
 ```
 
-The v0.1.5 loader applies only the implemented subset of this schema:
-`[scanner].markdown`, `[scanner].inline_math`, `[scanner].math_fences`,
-`[checks.algebra].enabled`, `[checks.references].enabled`,
-`[checks.references].missing_label_strict`, `[checks.dimension].mode`,
-`[checks.dimension].unknown_variables`, `[vars]`, and `[ignore].files`.
-Other tables and keys are reserved specification surface.
+This is a future schema sketch, not a complete current configuration file. The
+v1.1.0 loader accepts only the documented fixed schema: `[project]`,
+`[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
+`[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
+`[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
+`[vars]` and `[aliases]` remain dynamic mappings.
 
 v0.1.2 adds:
 
@@ -1911,16 +1940,16 @@ steps:
       python-version: "3.11"
   - run: python -m pip install scieqlint==0.1.5
   - run: rm -f scieqlint.sarif
-  - run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif || test "$?" -eq 1
-  - run: test -s scieqlint.sarif
+  - run: set +e; scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
+  - run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
   - uses: github/codeql-action/upload-sarif@v4
     with:
       sarif_file: scieqlint.sarif
       category: scieqlint-docs
 ```
 
-The pinned package must provide the CLI exit contract `0` for clean, `1` for
-findings, and `2` for operational failure.
+The status guard admits the findings exit while preserving other failures. The
+artifact check must reject a missing, empty, or invalid JSON report before upload.
 
 SARIF is a reporter. It must not change analysis.
 
@@ -2149,7 +2178,7 @@ The checker runtime must not:
 - call SymPy text parsers on document content,
 - execute Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or editor tooling from core analysis.
 
-### Source limits
+### Planned source limits
 
 Defaults:
 
@@ -2161,7 +2190,8 @@ max_expression_nodes = 2000
 max_reported_diagnostics_per_file = 200
 ```
 
-Files over limit emit `INP003` warning and are skipped unless config explicitly allows.
+These limits are future specification surface. The current loader rejects the
+`[limits]` table and does not apply these values.
 
 ### Determinism
 

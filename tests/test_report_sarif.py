@@ -15,6 +15,7 @@ def test_sarif_report_has_stable_top_level_shape_and_rule_metadata() -> None:
     assert payload["$schema"] == "https://json.schemastore.org/sarif-2.1.0.json"
     assert payload["version"] == "2.1.0"
     run = payload["runs"][0]
+    assert run["columnKind"] == "unicodeCodePoints"
     assert run["tool"]["driver"]["name"] == "SciEqLint"
     assert run["tool"]["driver"]["semanticVersion"] == "0.1.0"
     assert run["tool"]["driver"]["rules"][0]["id"] == "ALG001"
@@ -29,6 +30,7 @@ def test_sarif_report_emits_locations_and_partial_fingerprints() -> None:
     assert sarif_result["message"]["text"] == (
         "algebraic identity does not hold: left - right = 2*a*b"
     )
+
     assert sarif_result["locations"][0]["physicalLocation"] == {
         "artifactLocation": {
             "uri": "examples/bad/famous_bad.md",
@@ -49,6 +51,76 @@ def test_sarif_report_emits_locations_and_partial_fingerprints() -> None:
             "partialFingerprints"
         ]["primaryLocationLineHash"]
     )
+
+
+def test_sarif_report_percent_encodes_artifact_uri() -> None:
+    result = _result()
+    diagnostic = result.diagnostics[0]
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code=diagnostic.code,
+                severity=diagnostic.severity,
+                message=diagnostic.message,
+                span=SourceSpan(
+                    path=PurePosixPath("docs/a #é.md"),
+                    start=diagnostic.span.start if diagnostic.span is not None else 0,
+                    end=diagnostic.span.end if diagnostic.span is not None else 1,
+                    line=4,
+                    col=1,
+                    end_line=4,
+                    end_col=19,
+                ),
+                equation=diagnostic.equation,
+                detail=diagnostic.detail,
+            ),
+        ),
+        files_checked=result.files_checked,
+        math_blocks_checked=result.math_blocks_checked,
+        config_path=result.config_path,
+        version=result.version,
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+
+    artifact_location = payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"][
+        "artifactLocation"
+    ]
+    assert artifact_location["uri"] == "docs/a%20%23%C3%A9.md"
+
+
+def test_sarif_report_uses_code_point_columns_after_non_bmp_character() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="ALG001",
+                severity=Severity.ERROR,
+                message="algebraic identity does not hold",
+                span=SourceSpan(
+                    path=PurePosixPath("emoji.md"),
+                    start=1,
+                    end=2,
+                    line=1,
+                    col=2,
+                    end_line=1,
+                    end_col=2,
+                ),
+                equation="😀x = x",
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=1,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    payload = json.loads(SarifReporter().render(result))
+    run = payload["runs"][0]
+    region = run["results"][0]["locations"][0]["physicalLocation"]["region"]
+
+    assert run["columnKind"] == "unicodeCodePoints"
+    assert region["startColumn"] == 2
+    assert region["endColumn"] == 3
 
 
 def test_sarif_report_preserves_notebook_cell_location_metadata() -> None:

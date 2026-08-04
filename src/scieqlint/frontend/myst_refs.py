@@ -38,6 +38,8 @@ def scan_refs(
         role = match.group("role")
         body = match.group("body")
         target, title = extract_role_target_and_title(body)
+        if not target:
+            continue
         target_start = match.start("body") + body.rfind(target)
         if role == "ref":
             generic.append(

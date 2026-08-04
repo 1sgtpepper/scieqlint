@@ -14,6 +14,8 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, ScanResult
 from scieqlint.scan.markdown import MarkdownScanner
 
+_MAX_JSON_INTEGER_DIGITS = 4096
+
 
 class NotebookScanner:
     def __init__(self) -> None:
@@ -21,8 +23,8 @@ class NotebookScanner:
 
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         try:
-            notebook_data: object = json.loads(document.text)
-        except json.JSONDecodeError as exc:
+            notebook_data: object = json.loads(document.text, parse_int=_parse_json_integer)
+        except ValueError as exc:
             return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
         if not isinstance(notebook_data, Mapping):
             return ScanResult(
@@ -95,6 +97,16 @@ def _cell_source(source: object) -> str | None:
     return None
 
 
+def _parse_json_integer(text: str) -> int:
+    digits = text[1:] if text.startswith("-") else text
+    if len(digits) > _MAX_JSON_INTEGER_DIGITS:
+        raise ValueError(f"JSON integer exceeds {_MAX_JSON_INTEGER_DIGITS} digits")
+    value = 0
+    for digit in digits:
+        value = value * 10 + ord(digit) - ord("0")
+    return -value if text.startswith("-") else value
+
+
 def _notebook_schema_diagnostics(
     document: SourceDocument,
     notebook: Mapping[str, object],
@@ -145,13 +157,10 @@ def _with_cell_span(span: SourceSpan, cell_index: int) -> SourceSpan:
     return replace(span, cell=cell_index, cell_line=span.line)
 
 
-def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Diagnostic:
+def _input_diagnostic(document: SourceDocument, exc: ValueError) -> Diagnostic:
     info = CATALOG["INP001"]
-    return Diagnostic(
-        code=info.code,
-        severity=info.severity,
-        message=info.message,
-        span=SourceSpan(
+    if isinstance(exc, json.JSONDecodeError):
+        span = SourceSpan(
             path=document.path,
             start=exc.pos,
             end=exc.pos,
@@ -159,8 +168,15 @@ def _input_diagnostic(document: SourceDocument, exc: json.JSONDecodeError) -> Di
             col=exc.colno,
             end_line=exc.lineno,
             end_col=exc.colno,
-        ),
-        detail=exc.msg,
+        )
+    else:
+        span = _file_start_span(document)
+    return Diagnostic(
+        code=info.code,
+        severity=info.severity,
+        message=info.message,
+        span=span,
+        detail=exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc),
         rule="input",
     )
 

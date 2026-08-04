@@ -16,6 +16,14 @@ def test_release_version_metadata_is_consistent() -> None:
     assert f"version: {project['version']}" in citation
 
 
+def test_documentation_url_points_to_current_repository_docs() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+
+    assert project["urls"]["Documentation"] == (
+        "https://github.com/1sgtpepper/scieqlint/tree/main/docs"
+    )
+
+
 def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
 

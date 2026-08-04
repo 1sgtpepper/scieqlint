@@ -13,8 +13,8 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.11"
       - name: Install SciEqLint
@@ -22,11 +22,11 @@ jobs:
       - name: Remove stale SARIF output
         run: rm -f scieqlint.sarif
       - name: Run SciEqLint SARIF
-        run: scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif || test "$?" -eq 1
+        run: set +e; scieqlint check "docs/**/*.md" "docs/**/*.ipynb" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
       - name: Verify SARIF output
-        run: test -s scieqlint.sarif
+        run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
         with:
           sarif_file: scieqlint.sarif
           category: scieqlint-docs

@@ -24,6 +24,7 @@ def test_missing_reference_is_warning() -> None:
     diagnostics = check_references(scan.labels, scan.references)
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF002"]
     assert diagnostics[0].severity is Severity.WARNING
+    assert diagnostics[0].message == "equation reference target not found: missing"
 
 
 def test_duplicate_label_is_error() -> None:
@@ -175,3 +176,15 @@ def test_lone_myst_anchor_has_no_attached_heading_target() -> None:
     )
 
     assert _attached_myst_heading_anchor_targets(document) == frozenset()
+
+
+def test_empty_myst_role_is_malformed_syntax() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "{ref}`   `\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["DIR011"]

@@ -10,6 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import MathBlock
+from scieqlint.scan.markdown import math_container_opener_lines
 
 _MARKDOWN_RE = re.compile(
     r"<!--\s*scieqlint-disable-next-line\b\s*(?P<codes>[A-Za-z0-9_, \t-]*?)\s*-->"
@@ -68,6 +69,7 @@ def _markdown_suppressions(
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
+    opener_lines = math_container_opener_lines(document, blocks)
     for line_start, line_end in _line_ranges(document.text):
         line = document.text[line_start:line_end]
         for match in _MARKDOWN_RE.finditer(line):
@@ -78,7 +80,11 @@ def _markdown_suppressions(
                 match.group("codes"),
             )
             warnings.extend(unknown)
-            target_start, target_end = _markdown_target_lines(blocks, line_number + 1)
+            target_start, target_end = _markdown_target_lines(
+                blocks,
+                opener_lines,
+                line_number + 1,
+            )
             suppressions.extend(
                 _Suppression(
                     code=code,
@@ -91,9 +97,13 @@ def _markdown_suppressions(
     return tuple(suppressions), tuple(warnings)
 
 
-def _markdown_target_lines(blocks: Sequence[MathBlock], target_line: int) -> tuple[int, int]:
+def _markdown_target_lines(
+    blocks: Sequence[MathBlock],
+    opener_lines: dict[str, int],
+    target_line: int,
+) -> tuple[int, int]:
     for block in blocks:
-        if block.span.line in {target_line, target_line + 1}:
+        if target_line in {block.span.line, opener_lines.get(block.block_id)}:
             return block.span.line, block.span.end_line
     return target_line, target_line
 

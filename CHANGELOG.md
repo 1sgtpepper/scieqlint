@@ -24,8 +24,29 @@ Release notes must use these sections:
 
 ### Fixed
 
-- The SARIF upload example now uploads findings even when the check exits 1,
-  while still failing for operational exit 2.
+- The development Ruff requirement now stays within the formatter version
+  supported by the checked-in sources and documentation.
+- Package metadata now links to the repository's working documentation path.
+- Notebook JSON integer-conversion failures now produce deterministic `INP001`
+  diagnostics and do not prevent later inputs from being checked.
+- Dimension aliases now match complete surface tokens instead of splitting
+  longer configured identifiers.
+- Algebra checks now evaluate line-separated equations independently instead
+  of treating a multi-line block as one chained equality.
+- SARIF artifact paths are URI-encoded and runs declare their Unicode code-point
+  column convention.
+- Text diagnostics now include the equation that produced a finding, and the
+  DIM002 and REF002 messages match their documented wording.
+- Strict missing-label checks no longer require labels on inline math spans.
+- Explicit missing inputs and operational/configuration failures now return controlled
+  exit status 2; invalid UTF-8 files report `INP001` without stopping later inputs.
+- Markdown suppressions now stay on the adjacent source line; MyST labels and
+  roles respect their syntax boundaries, and seven-hash paragraph lines remain
+  ordinary text.
+- `scieqlint init` now emits only supported configuration keys, and unknown keys in
+  fixed-schema configuration tables are rejected instead of being ignored.
+- The SARIF upload example now allows finding exits to reach upload and rejects
+  missing, empty, or invalid JSON report files before upload.
 
 ### Deprecated
 

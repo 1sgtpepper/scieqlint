@@ -50,6 +50,14 @@ E = mc^2
 | non-integer powers except `sqrt` | deferred |
 | user TeX macros | deferred |
 
+Configured dimension aliases match complete surface tokens and do not split a
+longer identifier. This boundary also applies when an alias ends in punctuation,
+so `v.` does not match the prefix of `v.foo`; numeric coefficients may be
+adjacent to aliases as implicit multiplication.
+Each non-empty line-separated equation in a math container is checked
+independently; line breaks do not create chained equalities. A line ending in
+`=` is treated as an incomplete equation rather than continued on the next line.
+
 Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
 
 ## Current integration outputs
@@ -74,6 +82,13 @@ generic-reference diagnostics instead of equation-reference diagnostics. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
 
+Strict missing-label checks apply to display and fenced equation blocks, not
+inline math spans.
+MyST math labels are read only from the directive's leading option prefix.
+An empty MyST role target is reported as malformed syntax.
+Blank lines in that prefix are ignored; the prefix ends at the first nonblank
+line that is not a directive option.
+
 ## MyST structure linting
 
 The architecture frontend lowers MyST headings, target anchors, fenced blocks,
@@ -95,6 +110,9 @@ SciEqLint supports narrow source suppressions for Markdown and LaTeX:
 ```md
 <!-- scieqlint-disable-next-line ALG001 -->
 ```
+
+The Markdown next-line form applies only to math syntax on the immediately
+following source line.
 
 ```tex
 % scieqlint-disable-current-block ALG001
@@ -139,5 +157,6 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
 cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
-or `INP002` input diagnostics for malformed notebook inputs. Code-cell variable
+or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
+4096 decimal digits are rejected with `INP001`. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.

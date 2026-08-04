@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 from math import isqrt
 
 from scieqlint.diag.catalog import CATALOG
-from scieqlint.diag.model import Diagnostic
+from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.scan.base import MathBlock
 
 Monomial = tuple[tuple[str, int], ...]
@@ -18,39 +18,61 @@ TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^
 TEX_MULTIPLY = {"\\cdot", "\\times"}
 
 
+@dataclass(frozen=True, slots=True)
+class _EquationLine:
+    text: str
+    start: int
+    end: int
+
+
 def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
-    text = _strip_labels(block.text)
-    sides = [part.strip() for part in text.split("=")]
-    if len(sides) < 2:
-        return ()
-
     diagnostics: list[Diagnostic] = []
-    for left_raw, right_raw in zip(sides, sides[1:], strict=False):
-        try:
-            left = _Parser(left_raw).parse()
-            right = _Parser(right_raw).parse()
-        except UnsupportedExpressionError as exc:
-            diagnostics.append(_unsupported_diagnostic(block, text, exc.code))
-            continue
+    for equation in _equation_lines(block.text):
+        sides = [part.strip() for part in equation.text.split("=")]
+        span = _equation_span(block, equation)
 
-        if _symbols(left) != _symbols(right):
-            continue
-        residual = _sub(left, right)
-        if not residual:
-            continue
-        info = CATALOG["ALG001"]
-        diagnostics.append(
-            Diagnostic(
-                code=info.code,
-                severity=info.severity,
-                message=info.message,
-                span=block.span,
-                equation=text,
-                detail=f"left - right = {_format_poly(residual)}",
-                rule="algebra",
+        for left_raw, right_raw in zip(sides, sides[1:], strict=False):
+            try:
+                left = _Parser(left_raw).parse()
+                right = _Parser(right_raw).parse()
+            except UnsupportedExpressionError as exc:
+                diagnostics.append(_unsupported_diagnostic(span, equation.text, exc.code))
+                continue
+
+            if _symbols(left) != _symbols(right):
+                continue
+            residual = _sub(left, right)
+            if not residual:
+                continue
+            info = CATALOG["ALG001"]
+            diagnostics.append(
+                Diagnostic(
+                    code=info.code,
+                    severity=info.severity,
+                    message=info.message,
+                    span=span,
+                    equation=equation.text,
+                    detail=f"left - right = {_format_poly(residual)}",
+                    rule="algebra",
+                )
             )
-        )
     return tuple(diagnostics)
+
+
+def _equation_lines(text: str) -> tuple[_EquationLine, ...]:
+    masked = _mask_labels(text)
+    equations: list[_EquationLine] = []
+    offset = 0
+    for line in masked.splitlines(keepends=True):
+        line_end = offset + len(line)
+        content_end = line_end - (1 if line.endswith("\n") else 0)
+        content = masked[offset:content_end]
+        start = offset + len(content) - len(content.lstrip())
+        end = offset + len(content.rstrip())
+        if "=" in content[start - offset : end - offset]:
+            equations.append(_EquationLine(masked[start:end], start, end))
+        offset = line_end
+    return tuple(equations)
 
 
 class UnsupportedExpressionError(ValueError):
@@ -197,18 +219,51 @@ def _is_atom_start(token: str) -> bool:
 UNSUPPORTED_FUNCTIONS = {"\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp"}
 
 
-def _strip_labels(text: str) -> str:
-    stripped = re.sub(r"^[ \t]*:label:[^\n]*\n?", "", text, flags=re.MULTILINE)
-    return re.sub(r"\\label\{[^{}]+}", "", stripped).strip()
+def _mask_labels(text: str) -> str:
+    masked = re.sub(
+        r"^[ \t]*:label:[^\n]*(?:\n|$)",
+        _spaces_for_match,
+        text,
+        flags=re.MULTILINE,
+    )
+    return re.sub(r"\\label\{[^{}]+}", _spaces_for_match, masked)
 
 
-def _unsupported_diagnostic(block: MathBlock, equation: str, code: str) -> Diagnostic:
+def _spaces_for_match(match: re.Match[str]) -> str:
+    return "".join("\n" if char == "\n" else " " for char in match.group(0))
+
+
+def _equation_span(block: MathBlock, equation: _EquationLine) -> SourceSpan:
+    if block.span.end - block.span.start != len(block.text):
+        return block.span
+
+    start_line, start_col = _relative_position(block, equation.start)
+    end_line, end_col = _relative_position(block, max(equation.start, equation.end - 1))
+    return replace(
+        block.span,
+        start=block.span.start + equation.start,
+        end=block.span.start + equation.end,
+        line=start_line,
+        col=start_col,
+        end_line=end_line,
+        end_col=end_col,
+    )
+
+
+def _relative_position(block: MathBlock, offset: int) -> tuple[int, int]:
+    prefix = block.text[:offset]
+    if "\n" in prefix:
+        return block.span.line + prefix.count("\n"), len(prefix.rsplit("\n", 1)[-1]) + 1
+    return block.span.line, block.span.col + len(prefix)
+
+
+def _unsupported_diagnostic(span: SourceSpan, equation: str, code: str) -> Diagnostic:
     info = CATALOG[code]
     return Diagnostic(
         code=info.code,
         severity=info.severity,
         message=info.message,
-        span=block.span,
+        span=span,
         equation=equation,
         rule="parser",
     )
