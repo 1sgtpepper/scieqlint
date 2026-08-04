@@ -82,6 +82,12 @@ def test_unary_sign_can_wrap_a_power() -> None:
     assert diagnostics == ()
 
 
+def test_unary_plus_is_applied_before_power() -> None:
+    diagnostics = check_algebra(_first_block("$$\n+x^2 = x^2\n$$\n"))
+
+    assert diagnostics == ()
+
+
 def test_supported_sqrt_constant_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{4} = 2\n$$\n"))
     assert diagnostics == ()
@@ -103,6 +109,13 @@ def test_sqrt_grouped_difference_square_is_skipped_without_sign_assumptions() ->
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x-1)^2} = x - 1\n$$\n"))
 
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_sqrt_non_square_and_binomial_forms_are_skipped() -> None:
+    for equation in ("\\sqrt{2} = 1", "\\sqrt{x + y} = x + y"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
 def test_tex_fraction_requires_grouped_operands() -> None:
