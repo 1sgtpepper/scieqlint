@@ -25,7 +25,7 @@ def test_sarif_upload_example_uses_cli_and_category() -> None:
     assert run_step["run"] == (
         f"set +e; scieqlint check {quote}docs/**/*.md{quote} "
         f"{quote}docs/**/*.ipynb{quote} "
-        '--format sarif --output scieqlint.sarif; status=$?; '
+        "--format sarif --output scieqlint.sarif; status=$?; "
         'test "$status" -le 1 || exit "$status"'
     )
     assert re.fullmatch(
@@ -62,8 +62,7 @@ def test_readme_code_scanning_example_uses_guarded_cli() -> None:
         '--output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"'
     ) in section
     assert (
-        "run: test -s scieqlint.sarif && python -m json.tool "
-        "scieqlint.sarif >/dev/null"
+        "run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null"
     ) in section
 
 
