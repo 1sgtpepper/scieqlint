@@ -112,20 +112,29 @@ class _Parser:
         return value
 
     def _term(self) -> Polynomial:
-        value = self._power()
+        value = self._unary()
         while True:
             peek = self._peek_value()
             if peek == "*" or peek in TEX_MULTIPLY:
                 self._take()
-                value = _mul(value, self._power())
+                value = _mul(value, self._unary())
             elif peek == "/":
                 self._take()
-                denominator = self._power()
+                denominator = self._unary()
                 value = _div(value, denominator)
             elif peek is not None and (peek == "(" or _is_atom_start(peek)):
-                value = _mul(value, self._power())
+                value = _mul(value, self._unary())
             else:
                 return value
+
+    def _unary(self) -> Polynomial:
+        if self._peek_value() == "+":
+            self._take()
+            return self._unary()
+        if self._peek_value() == "-":
+            self._take()
+            return _neg(self._unary())
+        return self._power()
 
     def _power(self) -> Polynomial:
         value = self._atom()
@@ -137,10 +146,6 @@ class _Parser:
     def _atom(self) -> Polynomial:
         token = self._take()
         value = token.value
-        if value == "+":
-            return self._atom()
-        if value == "-":
-            return _neg(self._atom())
         if value == "(":
             expression = self._expr()
             if self._peek_value() != ")":
@@ -212,7 +217,9 @@ class _Parser:
 
 def _is_atom_start(token: str) -> bool:
     return token not in TEX_MULTIPLY and (
-        token.startswith("\\") or token.isdigit() or token[0].isalpha()
+        token.startswith("\\")
+        or re.fullmatch(r"\d+(?:/\d+)?", token) is not None
+        or token[0].isalpha()
     )
 
 
@@ -325,39 +332,14 @@ def _sqrt(value: Polynomial) -> Polynomial:
 
 def _square_root(value: Polynomial) -> Polynomial | None:
     if len(value) != 1:
-        return _binomial_square_root(value)
+        return None
     monomial, coefficient = next(iter(value.items()))
+    if monomial:
+        return None
     root = _integer_sqrt(coefficient)
     if root is None:
         return None
-    factors: list[tuple[str, int]] = []
-    for name, power in monomial:
-        if power % 2:
-            return None
-        factors.append((name, power // 2))
-    return {tuple(factors): root}
-
-
-def _binomial_square_root(value: Polynomial) -> Polynomial | None:
-    if len(value) != 3:
-        return None
-    for monomial, coefficient in value.items():
-        if coefficient <= 0:
-            continue
-        first = _square_root({monomial: coefficient})
-        if first is None:
-            continue
-        remaining = _sub(value, _pow(first, 2))
-        for other_monomial, other_coefficient in remaining.items():
-            if other_coefficient <= 0:
-                continue
-            second = _square_root({other_monomial: other_coefficient})
-            if second is None:
-                continue
-            for root in (_add(first, second), _sub(first, second)):
-                if _clean(_sub(_pow(root, 2), value)) == {}:
-                    return root
-    return None
+    return {(): root}
 
 
 def _integer_sqrt(value: Fraction) -> Fraction | None:
