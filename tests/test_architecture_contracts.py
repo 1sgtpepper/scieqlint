@@ -457,8 +457,7 @@ def test_architecture_terminology_scanner_accepts_longer_commonmark_closer(
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / "docs" / "architecture.md").write_text(
-        "# Architecture\n\n```text\nworkspace host\n````\n\n"
-        "The query host owns views.\n",
+        "# Architecture\n\n```text\nworkspace host\n````\n\nThe query host owns views.\n",
         encoding="utf-8",
     )
 

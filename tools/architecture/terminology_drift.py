@@ -48,7 +48,8 @@ FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[^\n]*$")
 FENCE_CLOSE_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[ \t]*$")
 INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 DISABLED_STEP_RE = re.compile(
-    r"^[ \t]*if:[ \t]*(?:\$\{\{[ \t]*)?false(?:[ \t]*\}\})?[ \t]*(?:#.*)?$",
+    r"^[ \t]*(?:-[ \t]+)?if:[ \t]*(?:\$\{\{[ \t]*)?false"
+    r"(?:[ \t]*\}\})?[ \t]*(?:#.*)?$",
     re.IGNORECASE,
 )
 
