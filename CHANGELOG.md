@@ -51,6 +51,7 @@ Release notes must use these sections:
 - Unsupported TeX function names no longer trigger undefined-symbol warnings.
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
+- Inline Markdown math spans now retain source offsets for the trimmed math body.
 
 ### Deprecated
 

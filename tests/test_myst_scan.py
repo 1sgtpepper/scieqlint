@@ -94,6 +94,20 @@ def test_empty_myst_equation_role_is_not_a_reference() -> None:
     assert result.references == ()
 
 
+def test_frontend_inline_math_span_tracks_trimmed_source_body() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    fact = MySTFrontend().lower((document,)).inline_math[0]
+
+    assert fact.body == "x = y"
+    assert fact.span.col == 9
+    assert document.text[fact.span.start : fact.span.end] == "x = y"
+
+
 def test_blank_line_does_not_end_myst_math_label_prefix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

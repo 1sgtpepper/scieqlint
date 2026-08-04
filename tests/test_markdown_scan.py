@@ -43,6 +43,24 @@ def test_inline_math_scans_only_when_enabled() -> None:
     assert result.blocks[0].container is MathContainer.MARKDOWN_INLINE
 
 
+def test_inline_math_span_tracks_trimmed_source_body() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    block = result.blocks[0]
+    assert block.text == "x = y"
+    assert block.span.col == 9
+    assert document.text[block.span.start : block.span.end] == "x = y"
+
+
 def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
