@@ -36,7 +36,7 @@ dev = [
   "pyright>=1.1.390",
   "pytest>=8.3",
   "pytest-cov>=6.0",
-  "ruff>=0.8,<0.16",
+  "ruff>=0.8,<0.17",
   "twine>=5.1",
 ]
 docs = [
