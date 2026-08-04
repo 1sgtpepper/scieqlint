@@ -112,6 +112,8 @@ MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
+Only parsed Markdown links and MyST roles create reference facts; escaped text,
+images, and link destinations or titles remain metadata rather than references.
 
 ## MyST structure linting
 

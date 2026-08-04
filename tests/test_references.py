@@ -6,7 +6,10 @@ from scieqlint.api import check_documents
 from scieqlint.check.references import check_references
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Severity
+from scieqlint.engine.reference import ReferenceEngine
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_heading_anchor_targets
 
 
@@ -89,6 +92,45 @@ def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
     result = check_documents([document], config=Config())
 
     assert result.diagnostics == ()
+
+
+def test_fenced_myst_anchor_resolves_markdown_link() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "(tip)=\n```{note}\nKeep this note.\n```\n\n"
+        "See {ref}`tip` and [the note](#tip).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.diagnostics == ()
+
+
+def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "Literal \\{eq}`escaped-role`.\n"
+        "Literal \\[Eq.](#escaped-link).\n"
+        "![equation](#image-target)\n"
+        "[site](https://example.invalid/{eq}`destination-target`)\n"
+        "[site](https://example.invalid/ \"{eq}`title-target`\")\n"
+        "[See {eq}`active-label`](https://example.invalid/)\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert snapshot.generic_refs == ()
+    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [
+        ("eq", "active-label")
+    ]
+    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+
+    scan = MarkdownScanner().scan(document, Config())
+    assert [(ref.source.value, ref.target) for ref in scan.references] == [
+        ("myst_eq_role", "active-label")
+    ]
 
 
 def test_markdown_links_to_comment_bridged_myst_heading_anchors_are_not_equation_refs() -> None:

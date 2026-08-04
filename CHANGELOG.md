@@ -113,6 +113,8 @@ Release notes must use these sections:
   math use the same control-sequence boundary. Same-line transitions between
   verbatim content and comments now retain their lexical ownership. Overlapping
   escaped dollar candidates no longer hide an adjacent live display block.
+- Markdown links and MyST roles now respect escapes, image syntax, and link metadata
+  when creating reference facts.
 
 ### Deprecated
 

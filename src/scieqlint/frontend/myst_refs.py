@@ -19,6 +19,10 @@ from .myst_shared import (
     normalize_label,
 )
 
+_MARKDOWN_LINK_RE = re.compile(
+    r"(?P<image>!?)(?:\[(?P<label>(?:\\.|[^]\n])*)\]\((?P<body>[^)\n]*)\))"
+)
+
 
 def scan_refs(
     document: SourceDocument,
@@ -28,12 +32,22 @@ def scan_refs(
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
     occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
+    link_metadata = _link_metadata_ranges(document.text)
     for match in MD_LINK_RE.finditer(document.text):
-        if in_ranges(match.start(), occupied_with_code):
+        if (
+            in_ranges(match.start(), occupied_with_code)
+            or in_ranges(match.start(), link_metadata)
+            or _is_escaped(document.text, match.start())
+            or (match.start() > 0 and document.text[match.start() - 1] == "!")
+        ):
             continue
         generic.append(_markdown_link_ref_fact(document, smap, match))
     for match in ROLE_RE.finditer(document.text):
-        if in_ranges(match.start(), occupied_with_code):
+        if (
+            in_ranges(match.start(), occupied_with_code)
+            or in_ranges(match.start(), link_metadata)
+            or _is_escaped(document.text, match.start())
+        ):
             continue
         role = match.group("role")
         body = match.group("body")
@@ -50,6 +64,25 @@ def scan_refs(
                 _equation_role_ref_fact(document, smap, match, role, target, target_start)
             )
     return tuple(generic), tuple(equation)
+
+
+def _link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
+    ranges: list[OffsetRange] = []
+    for match in _MARKDOWN_LINK_RE.finditer(text):
+        if match.group("image"):
+            ranges.append((match.start(), match.end()))
+        else:
+            ranges.append((match.start("body"), match.end()))
+    return tuple(ranges)
+
+
+def _is_escaped(text: str, index: int) -> bool:
+    slash_count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        slash_count += 1
+        cursor -= 1
+    return slash_count % 2 == 1
 
 
 def _markdown_link_ref_fact(

@@ -38,6 +38,10 @@ MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
+LINK_METADATA_RE = re.compile(
+    r"(?P<image>!?)(?:\[(?P<label>(?:\\.|[^]\n])*)\]\((?P<body>[^)\n]*)\))"
+)
+FENCE_TARGET_RE = re.compile(r"^[ \t]{0,3}(?:`{3,}|~{3,})")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -300,7 +304,14 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
     attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
+    link_metadata = _link_metadata_ranges(document.text)
     for match in MD_LINK_RE.finditer(document.text):
+        if (
+            _in_ranges(match.start(), link_metadata)
+            or _is_escaped(document.text, match.start())
+            or (match.start() > 0 and document.text[match.start() - 1] == "!")
+        ):
+            continue
         target = _normalize_label(match.group("target"))
         if target in attached_myst_anchors:
             continue
@@ -311,6 +322,10 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
+        if _in_ranges(match.start(), link_metadata) or _is_escaped(
+            document.text, match.start()
+        ):
+            continue
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
@@ -337,7 +352,10 @@ def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset
         if match is None:
             continue
         next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
+        if next_index is not None and (
+            HEADING_RE.match(lines[next_index][2]) is not None
+            or FENCE_TARGET_RE.match(lines[next_index][2]) is not None
+        ):
             targets.add(_normalize_label(match.group("label")))
     return frozenset(targets)
 
@@ -352,6 +370,25 @@ def _next_attachable_line_index(
             return index
         index += 1
     return None
+
+
+def _link_metadata_ranges(text: str) -> tuple[tuple[int, int], ...]:
+    ranges: list[tuple[int, int]] = []
+    for match in LINK_METADATA_RE.finditer(text):
+        if match.group("image"):
+            ranges.append((match.start(), match.end()))
+        else:
+            ranges.append((match.start("body"), match.end()))
+    return tuple(ranges)
+
+
+def _is_escaped(text: str, index: int) -> bool:
+    slash_count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        slash_count += 1
+        cursor -= 1
+    return slash_count % 2 == 1
 
 
 def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:
