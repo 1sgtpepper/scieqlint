@@ -119,7 +119,7 @@ def _check_paths_with_inputs(
             version=__version__,
             show_suppressed=config.report.show_suppressed,
         ),
-        _protected_paths(discovered, config, project_root),
+        _check_protected_paths(discovered, config, project_root),
     )
 
 
@@ -240,11 +240,7 @@ def _graph_paths_with_inputs(
                 _document_kind(path),
             )
         )
-    return graph_documents(documents, config=config), _protected_paths(
-        discovered,
-        config,
-        _project_root(config),
-    )
+    return graph_documents(documents, config=config), _protected_paths(discovered, config)
 
 
 def graph_documents(
@@ -420,10 +416,20 @@ def _baseline_paths(config: Config, project_root: Path) -> tuple[Path, ...]:
 def _protected_paths(
     discovered: tuple[Path, ...],
     config: Config,
-    project_root: Path,
 ) -> tuple[Path, ...]:
     configured = () if config.path is None else (Path(config.path.as_posix()),)
-    return (*discovered, *configured, *_baseline_paths(config, project_root))
+    return (*discovered, *configured)
+
+
+def _check_protected_paths(
+    discovered: tuple[Path, ...],
+    config: Config,
+    project_root: Path,
+) -> tuple[Path, ...]:
+    return (
+        *_protected_paths(discovered, config),
+        *_baseline_paths(config, project_root),
+    )
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:

@@ -34,7 +34,9 @@ The checker runtime must not:
 - follow symlinks outside the project root by default,
 - read ignored files unless explicitly passed,
 - call SymPy text parsers on document content,
-- overwrite a consumed source, configuration, or baseline file through `--output`,
+- overwrite a consumed source, configuration, or baseline file through `check
+  --output`, including hardlink and symlink aliases;
+- overwrite a consumed source or configuration file through `graph --output`,
   including hardlink and symlink aliases.
 
 ## Dependency updates
