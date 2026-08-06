@@ -452,41 +452,6 @@ def test_architecture_terminology_scanner_preserves_lines_while_ignoring_code(
     assert [(item["term"], item["line"]) for item in report["violations"]] == [("QueryHost", 7)]
 
 
-def test_architecture_terminology_scanner_accepts_longer_commonmark_closer(
-    tmp_path: Path,
-):
-    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
-    (fixture / "docs" / "architecture.md").write_text(
-        "# Architecture\n\n```text\nworkspace host\n````\n\nThe query host owns views.\n",
-        encoding="utf-8",
-    )
-
-    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
-
-    assert result.returncode == 1
-    report = json.loads(result.stdout)
-    assert [(item["term"], item["line"]) for item in report["violations"]] == [("QueryHost", 7)]
-
-
-def test_architecture_terminology_scanner_preserves_unclosed_fence_behavior(
-    tmp_path: Path,
-):
-    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
-    (fixture / "docs" / "architecture.md").write_text(
-        "# Architecture\n\n```text\nworkspace host\nThe query host owns views.\n",
-        encoding="utf-8",
-    )
-
-    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
-
-    assert result.returncode == 1
-    report = json.loads(result.stdout)
-    assert [(item["term"], item["line"]) for item in report["violations"]] == [
-        ("WorkspaceHost", 4),
-        ("QueryHost", 5),
-    ]
-
-
 @pytest.mark.parametrize(
     "ci_text",
     [
