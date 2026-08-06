@@ -145,6 +145,30 @@ def test_check_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
     assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
 
 
+def test_graph_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "graph",
+            "README.md",
+            "--config",
+            "scieqlint.toml",
+            "--output",
+            "scieqlint.toml",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
+
+
 def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "README.md"
     config = tmp_path / "scieqlint.toml"
