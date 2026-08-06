@@ -61,6 +61,38 @@ def test_inline_math_span_tracks_trimmed_source_body() -> None:
     assert document.text[block.span.start : block.span.end] == "x = y"
 
 
+def test_inline_math_span_preserves_tabs_and_combining_unicode() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $\t x\u0301 = y \t $ after.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    block = result.blocks[0]
+    assert block.text == "x\u0301 = y"
+    assert document.text[block.span.start : block.span.end] == block.text
+
+
+def test_inline_math_whitespace_only_body_is_not_a_fact() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $ \t $ after.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+
+
 def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
