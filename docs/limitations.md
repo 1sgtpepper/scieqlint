@@ -43,7 +43,7 @@ E = mc^2
 | implicit multiplication | supported within documented parser rules |
 | integer powers | supported |
 | `\frac{a}{b}` | supported |
-| `\sqrt{x}` | supported for exact numeric roots; symbolic roots need sign assumptions |
+| `\sqrt{x}` | supported when exact handling is possible |
 | trig/log/exp | deferred |
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |

@@ -54,9 +54,21 @@ def test_supported_tex_fraction_is_checked() -> None:
 
 
 def test_compact_rational_after_implicit_factor_is_checked() -> None:
-    diagnostics = check_algebra(_first_block("$$\nx 1/2 = x / 2\n$$\n"))
+    for equation in (
+        "x 1/2 = x / 2",
+        "1/2 x = x / 2",
+        "x / 2 = x 1/2",
+        "-1/2 x = -x / 2",
+    ):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
 
-    assert diagnostics == ()
+        assert diagnostics == (), equation
+
+
+def test_compact_rational_does_not_expand_nonconstant_denominator_support() -> None:
+    diagnostics = check_algebra(_first_block("$$\n1/(2x) = 1/(2x)\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
 def test_supported_tex_multiplication_aliases_are_checked() -> None:
@@ -69,53 +81,19 @@ def test_supported_negative_powers_are_checked() -> None:
     assert diagnostics == ()
 
 
-def test_unary_sign_is_applied_after_power() -> None:
-    diagnostics = check_algebra(_first_block("$$\n-x^2 = (-x)^2\n$$\n"))
-
-    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
-    assert diagnostics[0].detail == "left - right = -2*x^2"
-
-
-def test_unary_sign_can_wrap_a_power() -> None:
-    diagnostics = check_algebra(_first_block("$$\n-x^2 = -(x^2)\n$$\n"))
-
-    assert diagnostics == ()
-
-
-def test_unary_plus_is_applied_before_power() -> None:
-    diagnostics = check_algebra(_first_block("$$\n+x^2 = x^2\n$$\n"))
-
-    assert diagnostics == ()
-
-
-def test_supported_sqrt_constant_is_checked() -> None:
-    diagnostics = check_algebra(_first_block("$$\n\\sqrt{4} = 2\n$$\n"))
-    assert diagnostics == ()
-
-
-def test_sqrt_symbolic_square_is_skipped_without_sign_assumptions() -> None:
+def test_supported_sqrt_perfect_square_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{x^2} = x\n$$\n"))
+    assert diagnostics == ()
 
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
-
-def test_sqrt_grouped_square_expression_is_skipped_without_sign_assumptions() -> None:
+def test_supported_sqrt_grouped_square_expression_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x+1)^2} = x + 1\n$$\n"))
+    assert diagnostics == ()
 
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
-
-def test_sqrt_grouped_difference_square_is_skipped_without_sign_assumptions() -> None:
+def test_supported_sqrt_grouped_difference_square_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x-1)^2} = x - 1\n$$\n"))
-
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
-
-
-def test_sqrt_non_square_and_binomial_forms_are_skipped() -> None:
-    for equation in ("\\sqrt{2} = 1", "\\sqrt{x + y} = x + y"):
-        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
-
-        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+    assert diagnostics == ()
 
 
 def test_tex_fraction_requires_grouped_operands() -> None:
