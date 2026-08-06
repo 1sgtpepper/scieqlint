@@ -41,7 +41,6 @@ EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
 LINK_METADATA_RE = re.compile(
     r"(?P<image>!?)(?:\[(?P<label>(?:\\.|[^]\n])*)\]\((?P<body>[^)\n]*)\))"
 )
-FENCE_TARGET_RE = re.compile(r"^[ \t]{0,3}(?:`{3,}|~{3,})")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -352,10 +351,7 @@ def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset
         if match is None:
             continue
         next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and (
-            HEADING_RE.match(lines[next_index][2]) is not None
-            or FENCE_TARGET_RE.match(lines[next_index][2]) is not None
-        ):
+        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
             targets.add(_normalize_label(match.group("label")))
     return frozenset(targets)
 

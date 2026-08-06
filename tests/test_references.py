@@ -94,19 +94,6 @@ def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
     assert result.diagnostics == ()
 
 
-def test_fenced_myst_anchor_resolves_markdown_link() -> None:
-    document = SourceDocument.from_text(
-        PurePosixPath("lecture.md"),
-        "(tip)=\n```{note}\nKeep this note.\n```\n\n"
-        "See {ref}`tip` and [the note](#tip).\n",
-        DocumentKind.MARKDOWN,
-    )
-
-    result = check_documents([document], config=Config())
-
-    assert result.diagnostics == ()
-
-
 def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
