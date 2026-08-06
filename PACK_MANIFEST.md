@@ -1,19 +1,19 @@
 # Pack Manifest
 
-This repository contains the SciEqLint v1.1.0 stable implementation handoff, public
+This repository contains the SciEqLint v1.1.0 implementation handoff, public
 docs, examples, tests, schemas, CI templates, and release checks.
 
 ## Important distinction
 
 - SPEC.md defines the core implementation and release contracts.
 - src/scieqlint/ implements the v1.1.0 analyzer and graph/API surfaces.
-- `docs/releases/v1.1.0-checklist.md` records the shipped v1.1.0 scope and
-  acceptance checks.
+- `docs/releases/v1.1.0-checklist.md` records the v1.1.0 scope and acceptance
+  checks.
 
-## Validation Performed
+## Validation
 
-- Python compile smoke passed.
-- Pytest is part of the v1.1.0 CI validation.
+- CI defines the authoritative compile, test, lint, and type-check validation for
+  each revision.
 - Ruff and Pyright are configured in CI; run them where the full dev environment is
   available.
 

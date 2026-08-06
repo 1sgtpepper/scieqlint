@@ -1,7 +1,6 @@
 # Implementation Status
 
-This repository contains the v1.1.0 stable analyzer and its complete implementation
-status.
+This repository contains the current v1.1.0 analyzer and its implementation status.
 
 The included Python package is a v1.1.0 implementation. It can:
 
