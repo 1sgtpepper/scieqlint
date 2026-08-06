@@ -171,9 +171,16 @@ def test_configured_dimensions_support_tex_multiply_and_implicit_products(tmp_pa
 def test_configured_dimensions_accept_compact_rational_factors(tmp_path) -> None:
     config = _mechanics_config(tmp_path)
 
-    result = _check("$$\nx 1/2 = x / 2\n$$\n", config)
+    for expression in (
+        "x\t1/2 = x/2",
+        "x 1/2 = x / 2",
+        "1/2 x = x / 2",
+        "x / 2 = x 1/2",
+        "-1/2 x = -x / 2",
+    ):
+        result = _check(f"$$\n{expression}\n$$\n", config)
 
-    assert _dimension_diagnostics(result) == ()
+        assert _dimension_diagnostics(result) == (), expression
 
 
 def test_configured_dimensions_support_division_fraction_and_square_root(tmp_path) -> None:
