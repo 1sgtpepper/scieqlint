@@ -52,6 +52,8 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
+- Disabling the Markdown scanner now also disables Markdown frontend diagnostics
+  and cross-document reference/structure analysis.
 
 ### Deprecated
 
