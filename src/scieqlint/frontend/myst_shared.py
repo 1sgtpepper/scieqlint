@@ -77,36 +77,24 @@ def dollar_inline_ranges(
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[int, int, int, int], ...]:
     ranges: list[tuple[int, int, int, int]] = []
-    cursor = 0
-    while True:
-        start = text.find("$", cursor)
-        if start == -1:
-            break
-        if (
-            in_ranges(start, occupied)
-            or not _is_inline_opening(text, start)
-        ):
-            cursor = start + 1
-            continue
-
-        candidate = start + 1
-        found = False
-        while True:
-            close = text.find("$", candidate)
-            if close == -1 or "\n" in text[start + 1 : close]:
-                break
-            if (
-                not in_ranges(close, occupied)
-                and _is_inline_closing(text, close)
-            ):
-                if close > start + 1:
-                    ranges.append((start, start + 1, close, close + 1))
-                    cursor = close + 1
-                    found = True
-                break
-            candidate = close + 1
-        if not found:
-            cursor = start + 1
+    line_start = 0
+    while line_start < len(text):
+        line_end = text.find("\n", line_start)
+        if line_end == -1:
+            line_end = len(text)
+        opening: int | None = None
+        for index in range(line_start, line_end):
+            if text[index] != "$" or in_ranges(index, occupied):
+                continue
+            if opening is None:
+                if _is_inline_opening(text, index):
+                    opening = index
+                continue
+            if _is_inline_closing(text, index):
+                if index > opening + 1:
+                    ranges.append((opening, opening + 1, index, index + 1))
+                opening = None
+        line_start = line_end + 1
     return tuple(ranges)
 
 

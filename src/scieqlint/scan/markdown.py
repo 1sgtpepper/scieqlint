@@ -180,35 +180,24 @@ def _inline_ranges(
     document: SourceDocument,
     occupied: tuple[tuple[int, int], ...],
 ) -> Iterable[tuple[int, int, int, int]]:
-    cursor = 0
-    while True:
-        start = document.text.find("$", cursor)
-        if start == -1:
-            return
-        if (
-            _in_ranges(start, occupied)
-            or not _is_inline_opening(document.text, start)
-        ):
-            cursor = start + 1
-            continue
-        candidate = start + 1
-        found = False
-        while True:
-            close = document.text.find("$", candidate)
-            if close == -1 or "\n" in document.text[start + 1 : close]:
-                break
-            if (
-                not _in_ranges(close, occupied)
-                and _is_inline_closing(document.text, close)
-            ):
-                if close > start + 1:
-                    yield (start, start + 1, close, close + 1)
-                    cursor = close + 1
-                    found = True
-                break
-            candidate = close + 1
-        if not found:
-            cursor = start + 1
+    line_start = 0
+    while line_start < len(document.text):
+        line_end = document.text.find("\n", line_start)
+        if line_end == -1:
+            line_end = len(document.text)
+        opening: int | None = None
+        for index in range(line_start, line_end):
+            if document.text[index] != "$" or _in_ranges(index, occupied):
+                continue
+            if opening is None:
+                if _is_inline_opening(document.text, index):
+                    opening = index
+                continue
+            if _is_inline_closing(document.text, index):
+                if index > opening + 1:
+                    yield (opening, opening + 1, index, index + 1)
+                opening = None
+        line_start = line_end + 1
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:
