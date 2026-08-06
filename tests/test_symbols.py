@@ -88,6 +88,25 @@ def test_symbol_check_ignores_unsupported_tex_function_names() -> None:
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"]
 
 
+def test_symbol_check_does_not_ignore_user_macro_with_function_prefix() -> None:
+    result = check_documents(
+        [
+            _document(
+                "paper.md",
+                "<!-- scieqlint-symbol: x = quantity -->\n"
+                "$$\n\\sincustom(x) = x\n$$\n",
+            )
+        ],
+        config=_symbols_config(enabled=True),
+    )
+
+    assert [
+        diagnostic.detail
+        for diagnostic in result.diagnostics
+        if diagnostic.code == "SYM001"
+    ] == ["\\sincustom"]
+
+
 def test_symbol_check_reports_multiline_symbol_columns() -> None:
     result = check_documents(
         [_document("paper.md", "$$\nA = B\nC = D\n$$\n")],
