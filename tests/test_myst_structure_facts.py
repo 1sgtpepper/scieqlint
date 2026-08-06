@@ -31,12 +31,24 @@ def fixture_doc(path: Path) -> SourceDocument:
     )
 
 
-def test_malformed_heading_is_fact_then_engine_diagnostic():
+def test_malformed_heading_is_issue_only():
     snapshot = MySTFrontend().lower((doc("####Title\n\n```python\nprint(1)\n```\n"),))
-    assert len(snapshot.headings) == 1
-    assert snapshot.headings[0].valid_atx is False
+    assert snapshot.headings == ()
+    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
+        ("atx-heading", "missing_space_after_atx_marker")
+    ]
     diagnostics = StructureEngine().run(QueryHost(snapshot))
     assert [d.code for d in diagnostics if d.code == "STR001"] == ["STR001"]
+
+
+def test_malformed_heading_keeps_heading_diagnostic_order_and_span():
+    snapshot = MySTFrontend().lower((doc("# Good\n### Skipped\n#Bad\n"),))
+
+    diagnostics = StructureEngine().run(QueryHost(snapshot))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["STR001", "STR004"]
+    assert diagnostics[0].span is not None
+    assert (diagnostics[0].span.line, diagnostics[0].span.col) == (3, 1)
 
 
 def test_seven_hash_paragraph_is_not_an_atx_heading():
@@ -49,17 +61,13 @@ def test_seven_hash_paragraph_is_not_an_atx_heading():
 def test_six_hash_line_remains_an_atx_heading():
     snapshot = MySTFrontend().lower((doc("###### heading\n"),))
 
-    assert [(heading.level, heading.text, heading.valid_atx) for heading in snapshot.headings] == [
-        (6, "heading", True)
-    ]
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [(6, "heading")]
 
 
 def test_bare_atx_heading_accepts_an_attached_target() -> None:
     snapshot = MySTFrontend().lower((doc("(empty)=\n#\n\nSee {ref}`empty`.\n"),))
 
-    assert [(heading.level, heading.text, heading.valid_atx) for heading in snapshot.headings] == [
-        (1, "", True)
-    ]
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [(1, "")]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("empty", "before_heading")
     ]
@@ -69,13 +77,9 @@ def test_bare_atx_heading_accepts_an_attached_target() -> None:
 def test_malformed_atx_candidates_do_not_affect_heading_semantics() -> None:
     snapshot = MySTFrontend().lower((doc("#Bad\n### Child\n\n(bad)=\n#AlsoBad\n"),))
 
-    assert [(heading.raw, heading.valid_atx) for heading in snapshot.headings] == [
-        ("#Bad", False),
-        ("### Child", True),
-        ("#AlsoBad", False),
-    ]
+    assert [heading.raw for heading in snapshot.headings] == ["### Child"]
     assert [section.heading_fact_id for section in snapshot.sections] == [
-        snapshot.headings[1].fact_id
+        snapshot.headings[0].fact_id
     ]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("bad", "orphaned")
@@ -148,9 +152,9 @@ def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     query = QueryHost(snapshot)
     diagnostics = (*StructureEngine().run(query), *ReferenceEngine().run(query))
 
-    assert [(heading.level, heading.text, heading.valid_atx) for heading in snapshot.headings] == [
-        (1, "QuantEcon lecture", True),
-        (2, "A Workaround", True),
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [
+        (1, "QuantEcon lecture"),
+        (2, "A Workaround"),
     ]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("qe-workaround", "before_heading")
@@ -184,9 +188,9 @@ def test_myst_heading_anchors_resolve_markdownlint_sensitive_links():
     query = QueryHost(snapshot)
     diagnostics = (*StructureEngine().run(query), *ReferenceEngine().run(query))
 
-    assert [(heading.text, heading.valid_atx) for heading in snapshot.headings] == [
-        ("Introduction", True),
-        ("Empty link target", True),
+    assert [heading.text for heading in snapshot.headings] == [
+        "Introduction",
+        "Empty link target",
     ]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("intro", "before_heading"),
@@ -261,9 +265,8 @@ def test_invalid_myst_structure_fixture_reports_heading_diagnostic_only():
     snapshot = MySTFrontend().lower((fixture_doc(BAD_FIXTURE),))
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
-    assert [(heading.text, heading.valid_atx) for heading in snapshot.headings] == [
-        ("Bad heading", False)
-    ]
+    assert snapshot.headings == ()
+    assert [issue.kind for issue in snapshot.structure_syntax_issues] == ["atx-heading"]
     assert [(fence.kind, fence.info_string, fence.is_closed) for fence in snapshot.fences] == [
         ("math", "{math}", False)
     ]

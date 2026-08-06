@@ -647,12 +647,10 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="heading-1",
         document_id="a.md",
         span=span(),
-        raw="####Title",
-        level=4,
+        raw="# Title",
+        level=1,
         text="Title",
         slug_candidate="title",
-        valid_atx=False,
-        malformation="missing-space-after-marker",
     )
     section = SectionFact(
         fact_id="section-1",
@@ -899,7 +897,6 @@ def test_query_host_views_expose_snapshot_contracts():
     assert query.structure.directives() == (directive,)
     assert query.structure.code_cells() == (cell, unlabeled_cell, non_crossref_cell, prefixed_cell)
     assert query.structure.syntax_issues() == (syntax_issue,)
-    assert query.structure.malformed_headings() == (heading,)
     assert query.structure.unclosed_fences() == (fence,)
     assert directive.option_dict() == {"renderings": "html", "fig-cap": "Plot"}
     assert cell.option_dict() == directive.option_dict()

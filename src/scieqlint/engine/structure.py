@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
-from scieqlint.facts.structure import HeadingFact
+from scieqlint.facts.structure import HeadingFact, StructureSyntaxIssueFact
 from scieqlint.query.host import QueryHost
 
 
@@ -27,30 +27,33 @@ class StructureEngine:
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
-        diagnostics.extend(self._heading_diagnostics(query))
+        diagnostics.extend(self._heading_syntax_diagnostics(query))
         diagnostics.extend(self._heading_hierarchy_diagnostics(query))
         diagnostics.extend(self._fence_diagnostics(query))
         diagnostics.extend(self._code_cell_diagnostics(query))
         diagnostics.extend(self._syntax_diagnostics(query))
         return tuple(diagnostics)
 
-    def _heading_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
-        out: list[DiagnosticIR] = []
-        for heading in query.structure.malformed_headings():
-            out.append(
-                DiagnosticIR(
-                    code="STR001",
-                    severity_default=Severity.WARNING,
-                    message="ATX heading marker must be followed by a space",
-                    span=heading.marker_span or heading.span,
-                    detail=heading.raw,
-                    hint="Use '# Title' rather than '#Title'.",
-                    rule="structure.heading_spacing",
-                    profile_gated=True,
-                    false_positive_risk="low",
-                )
-            )
-        return tuple(out)
+    def _heading_syntax_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
+        return tuple(
+            self._heading_syntax_diagnostic(issue)
+            for issue in query.structure.syntax_issues()
+            if issue.kind == "atx-heading"
+        )
+
+    @staticmethod
+    def _heading_syntax_diagnostic(issue: StructureSyntaxIssueFact) -> DiagnosticIR:
+        return DiagnosticIR(
+            code="STR001",
+            severity_default=Severity.WARNING,
+            message="ATX heading marker must be followed by a space",
+            span=issue.span,
+            detail=issue.raw,
+            hint="Use '# Title' rather than '#Title'.",
+            rule="structure.heading_spacing",
+            profile_gated=True,
+            false_positive_risk="low",
+        )
 
     def _heading_hierarchy_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
@@ -62,8 +65,6 @@ class StructureEngine:
             previous_level = 0
             top_level_count = 0
             for heading in headings:
-                if not heading.valid_atx:
-                    continue
                 if heading.level == 1:
                     top_level_count += 1
                     if top_level_count > 1:

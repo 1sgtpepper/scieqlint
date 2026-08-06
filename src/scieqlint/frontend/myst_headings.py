@@ -7,7 +7,12 @@ from collections.abc import Iterable, Sequence
 from dataclasses import replace
 
 from scieqlint.facts.reference import TargetAnchorFact
-from scieqlint.facts.structure import FenceFact, HeadingFact, SectionFact
+from scieqlint.facts.structure import (
+    FenceFact,
+    HeadingFact,
+    SectionFact,
+    StructureSyntaxIssueFact,
+)
 from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
 
@@ -37,10 +42,12 @@ def scan_headings(
 
         hashes = match.group("hashes")
         body = match.group("body")
+        space = match.group("space")
+        if space is None and body:
+            continue
         text = _heading_text(body)
 
         indent = len(line) - len(line.lstrip(" \t"))
-        space = match.group("space")
         text_start = start + indent + len(hashes) + (len(space) if space else 0)
         yield HeadingFact(
             fact_id=f"{document.path.as_posix()}::heading::{start}",
@@ -52,12 +59,31 @@ def scan_headings(
             slug_candidate=slug(text),
             marker_span=smap.span(start + indent, start + indent + len(hashes)),
             text_span=smap.span(text_start, text_start + len(body.lstrip())) if body else None,
-            valid_atx=space is not None or not body,
-            malformation=(
-                None
-                if space is not None or not body
-                else "missing_space_after_atx_marker"
+        )
+
+
+def scan_heading_syntax_issues(
+    document: SourceDocument,
+    smap: SourceMap,
+    lines: Sequence[LineRange],
+    occupied: Sequence[OffsetRange],
+) -> Iterable[StructureSyntaxIssueFact]:
+    for start, end, line in lines:
+        if in_ranges(start, occupied):
+            continue
+        match = HEADING_RE.match(line)
+        if match is None or match.group("space") is not None or not match.group("body"):
+            continue
+        yield StructureSyntaxIssueFact(
+            fact_id=f"{document.path.as_posix()}::heading-issue::{start}",
+            document_id=document.path.as_posix(),
+            span=smap.span(
+                start + len(line) - len(line.lstrip(" \t")),
+                start + len(line) - len(line.lstrip(" \t")) + len(match.group("hashes")),
             ),
+            raw=line,
+            kind="atx-heading",
+            reason="missing_space_after_atx_marker",
         )
 
 
@@ -96,7 +122,7 @@ def attach_anchors(
     fences: Sequence[FenceFact],
 ) -> Iterable[TargetAnchorFact]:
     attachable = sorted(
-        (*tuple(heading for heading in headings if heading.valid_atx), *fences),
+        (*headings, *fences),
         key=lambda fact: fact.span.start if fact.span else 0,
     )
     for anchor in anchors:
@@ -127,8 +153,6 @@ def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFa
     stack: list[tuple[int, str]] = []
     counters = [0] * 7
     for heading in headings:
-        if not heading.valid_atx:
-            continue
         level = heading.level
         counters[level] += 1
         for idx in range(level + 1, 7):
