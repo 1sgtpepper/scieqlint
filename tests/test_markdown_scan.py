@@ -173,6 +173,34 @@ def test_dollar_math_respects_escape_and_block_boundaries() -> None:
     assert result.diagnostics == ()
 
 
+def test_display_dollar_math_requires_a_line_boundary_and_allows_indent() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "  $$\nx = x\n  $$\n\nprose $$y = y$$\n\n$$$z = z$$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["x = x"]
+    assert result.diagnostics == ()
+
+
+def test_inline_dollar_math_requires_outer_text_boundaries() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "word$x = x$ and $x = x$word\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+
+
 def test_inline_dollar_math_skips_escaped_closers_and_keeps_even_slashes_active() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

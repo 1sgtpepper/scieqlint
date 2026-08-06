@@ -33,9 +33,11 @@ E = mc^2
 ```
 ````
 
-Dollar math follows line/block delimiter boundaries: escaped dollars remain
-prose, display `$$` starts at a block position, and only a complete label suffix
-immediately after a display block is recognized.
+Dollar math follows a bounded delimiter profile: escaped dollars and borrowed
+`$$$` delimiters remain prose; display `$$` starts after zero to three leading
+ASCII spaces at the start of a line; inline `$` delimiters require outer text
+boundaries; and only a complete label suffix immediately after a display block
+is recognized.
 
 ## Core grammar subset
 

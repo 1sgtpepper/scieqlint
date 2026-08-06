@@ -68,6 +68,18 @@ def test_myst_dollar_math_respects_escape_and_block_boundaries() -> None:
     assert snapshot.inline_math == ()
 
 
+def test_myst_display_dollar_math_accepts_indentation_but_not_prose_prefix() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "  $$\nx = x\n  $$\n\nprose $$y = y$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [fact.body for fact in snapshot.display_math] == ["x = x"]
+
+
 def test_myst_dollar_tail_requires_a_complete_label_suffix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

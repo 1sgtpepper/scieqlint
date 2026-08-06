@@ -23,7 +23,6 @@ from scieqlint.scan.base import (
 from scieqlint.scan.symbols import parse_symbol_directive
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
-INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
 INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
 CODE_FENCE_RE = re.compile(
     r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
@@ -139,7 +138,12 @@ def _find_display_close(
         close = document.text.find("$$", cursor)
         if close == -1:
             return -1
-        if not _in_ranges(close, occupied) and not _is_escaped(document.text, close):
+        if (
+            not _in_ranges(close, occupied)
+            and not _is_escaped(document.text, close)
+            and (close == 0 or document.text[close - 1] != "$")
+            and (close + 2 == len(document.text) or document.text[close + 2] != "$")
+        ):
             return close
         cursor = close + 2
 
@@ -165,7 +169,11 @@ def _display_opener_positions(
 def _is_display_opener(text: str, start: int) -> bool:
     line_start = text.rfind("\n", 0, start) + 1
     prefix = text[line_start:start]
-    return prefix == prefix.lstrip(" ") and len(prefix) <= 3
+    return (
+        len(prefix) <= 3
+        and not prefix.strip(" ")
+        and (start + 2 == len(text) or text[start + 2] != "$")
+    )
 
 
 def _inline_ranges(
@@ -179,8 +187,7 @@ def _inline_ranges(
             return
         if (
             _in_ranges(start, occupied)
-            or _is_escaped(document.text, start)
-            or _is_adjacent_to_dollar(document.text, start)
+            or not _is_inline_opening(document.text, start)
         ):
             cursor = start + 1
             continue
@@ -192,8 +199,7 @@ def _inline_ranges(
                 break
             if (
                 not _in_ranges(close, occupied)
-                and not _is_escaped(document.text, close)
-                and not _is_adjacent_to_dollar(document.text, close)
+                and _is_inline_closing(document.text, close)
             ):
                 if close > start + 1:
                     yield (start, start + 1, close, close + 1)
@@ -209,6 +215,20 @@ def _is_adjacent_to_dollar(text: str, index: int) -> bool:
     return (
         (index > 0 and text[index - 1] == "$")
         or (index + 1 < len(text) and text[index + 1] == "$")
+    )
+
+
+def _is_inline_opening(text: str, index: int) -> bool:
+    if _is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
+        return False
+    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")
+
+
+def _is_inline_closing(text: str, index: int) -> bool:
+    if _is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
+        return False
+    return index + 1 == len(text) or not (
+        text[index + 1].isalnum() or text[index + 1] == "_"
     )
 
 

@@ -84,8 +84,7 @@ def dollar_inline_ranges(
             break
         if (
             in_ranges(start, occupied)
-            or is_escaped(text, start)
-            or _is_adjacent_to_dollar(text, start)
+            or not _is_inline_opening(text, start)
         ):
             cursor = start + 1
             continue
@@ -98,8 +97,7 @@ def dollar_inline_ranges(
                 break
             if (
                 not in_ranges(close, occupied)
-                and not is_escaped(text, close)
-                and not _is_adjacent_to_dollar(text, close)
+                and _is_inline_closing(text, close)
             ):
                 if close > start + 1:
                     ranges.append((start, start + 1, close, close + 1))
@@ -124,7 +122,11 @@ def is_escaped(text: str, index: int) -> bool:
 def _is_display_opener(text: str, start: int) -> bool:
     line_start = text.rfind("\n", 0, start) + 1
     prefix = text[line_start:start]
-    return prefix == prefix.lstrip(" ") and len(prefix) <= 3
+    return (
+        len(prefix) <= 3
+        and not prefix.strip(" ")
+        and (start + 2 == len(text) or text[start + 2] != "$")
+    )
 
 
 def _find_dollar_close(
@@ -137,7 +139,12 @@ def _find_dollar_close(
         close = text.find("$$", cursor)
         if close == -1:
             return -1
-        if not in_ranges(close, occupied) and not is_escaped(text, close):
+        if (
+            not in_ranges(close, occupied)
+            and not is_escaped(text, close)
+            and (close == 0 or text[close - 1] != "$")
+            and (close + 2 == len(text) or text[close + 2] != "$")
+        ):
             return close
         cursor = close + 2
 
@@ -146,6 +153,20 @@ def _is_adjacent_to_dollar(text: str, index: int) -> bool:
     return (
         (index > 0 and text[index - 1] == "$")
         or (index + 1 < len(text) and text[index + 1] == "$")
+    )
+
+
+def _is_inline_opening(text: str, index: int) -> bool:
+    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
+        return False
+    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")
+
+
+def _is_inline_closing(text: str, index: int) -> bool:
+    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
+        return False
+    return index + 1 == len(text) or not (
+        text[index + 1].isalnum() or text[index + 1] == "_"
     )
 
 
