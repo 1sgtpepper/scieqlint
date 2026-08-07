@@ -120,6 +120,19 @@ def test_scanner_markdown_gate_disables_frontend_diagnostics() -> None:
     assert result.diagnostics == ()
 
 
+def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None:
+    document = doc("See {ref}`missing-target`.\n")
+
+    enabled = check_documents([document], config=Config())
+    disabled = check_documents(
+        [document],
+        config=Config(scanner=ScannerConfig(markdown=False)),
+    )
+
+    assert [diagnostic.code for diagnostic in enabled.diagnostics] == ["REF004"]
+    assert disabled.diagnostics == ()
+
+
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     snapshot = MySTFrontend().lower((fixture_doc(GOOD_FIXTURE),))
     query = QueryHost(snapshot)
