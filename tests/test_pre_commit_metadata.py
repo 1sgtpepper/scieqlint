@@ -68,7 +68,7 @@ def test_pre_commit_hook_checks_unstaged_project_context(tmp_path: Path) -> None
     )
     (project / "--quiet.MD").write_text("# Option-shaped source\n", encoding="utf-8")
     (project / "spaced μ-source.TeX").write_text("% Unicode source path\n", encoding="utf-8")
-    git("add", "chapter.MD", "--quiet.MD", "spaced μ-source.TeX")
+    git("add", "--", "chapter.MD", "--quiet.MD", "spaced μ-source.TeX")
 
     result = subprocess.run(
         ["pre-commit", "run", "scieqlint"],
