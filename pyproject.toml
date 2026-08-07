@@ -73,14 +73,21 @@ packages = ["src/scieqlint"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+  ".github",
+  ".pre-commit-hooks.yaml",
+  "AGENTS.md",
+  "action.yml",
+  "CITATION.cff",
+  "CLAUDE.md",
+  "mkdocs.yml",
   "src/scieqlint",
   "tests",
+  "tools/architecture",
   "docs",
   "examples",
   "benchmarks",
   "schemas",
   "README.md",
-  ".pre-commit-hooks.yaml",
   "PACK_MANIFEST.md",
   "SPEC.md",
   "LICENSE",
