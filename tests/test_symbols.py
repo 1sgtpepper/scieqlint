@@ -75,17 +75,18 @@ def test_symbol_check_ignores_label_text_and_tex_operators() -> None:
 
 
 def test_symbol_check_ignores_unsupported_tex_function_names() -> None:
-    result = check_documents(
-        [
-            _document(
-                "paper.md",
-                "<!-- scieqlint-symbol: x = quantity -->\n$$\n\\sin(x) = x\n$$\n",
-            )
-        ],
-        config=_symbols_config(enabled=True),
-    )
+    for function in ("sin", "cos", "tan", "log", "ln", "exp"):
+        result = check_documents(
+            [
+                _document(
+                    "paper.md",
+                    f"<!-- scieqlint-symbol: x = quantity -->\n$$\n\\{function}(x) = x\n$$\n",
+                )
+            ],
+            config=_symbols_config(enabled=True),
+        )
 
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"]
+        assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"], function
 
 
 def test_symbol_check_does_not_ignore_user_macro_with_function_prefix() -> None:
@@ -93,17 +94,14 @@ def test_symbol_check_does_not_ignore_user_macro_with_function_prefix() -> None:
         [
             _document(
                 "paper.md",
-                "<!-- scieqlint-symbol: x = quantity -->\n"
-                "$$\n\\sincustom(x) = x\n$$\n",
+                "<!-- scieqlint-symbol: x = quantity -->\n$$\n\\sincustom(x) = x\n$$\n",
             )
         ],
         config=_symbols_config(enabled=True),
     )
 
     assert [
-        diagnostic.detail
-        for diagnostic in result.diagnostics
-        if diagnostic.code == "SYM001"
+        diagnostic.detail for diagnostic in result.diagnostics if diagnostic.code == "SYM001"
     ] == ["\\sincustom"]
 
 
