@@ -102,6 +102,13 @@ def test_unary_negation_binds_after_exponentiation() -> None:
     assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
 
 
+def test_unary_signs_preserve_grouping_and_parity() -> None:
+    for equation in ("+x^2 = x^2", "--x^2 = x^2", "(-x)^2 = x^2"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert diagnostics == (), equation
+
+
 def test_numeric_sqrt_perfect_square_remains_supported() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{4} = 2\n$$\n"))
 
