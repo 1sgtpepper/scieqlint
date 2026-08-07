@@ -128,19 +128,19 @@ class _Parser:
                 return value
 
     def _power(self) -> Polynomial:
+        sign = 1
+        while self._peek_value() in {"+", "-"}:
+            if self._take().value == "-":
+                sign = -sign
         value = self._atom()
         if self._peek_value() == "^":
             self._take()
             value = _pow(value, self._signed_integer())
-        return value
+        return _neg(value) if sign == -1 else value
 
     def _atom(self) -> Polynomial:
         token = self._take()
         value = token.value
-        if value == "+":
-            return self._atom()
-        if value == "-":
-            return _neg(self._atom())
         if value == "(":
             expression = self._expr()
             if self._peek_value() != ")":
@@ -303,6 +303,8 @@ def _div(left: Polynomial, right: Polynomial) -> Polynomial:
     monomial, denominator = next(iter(right.items()))
     if denominator == 0:
         raise UnsupportedExpressionError("division by zero")
+    if monomial and denominator not in {Fraction(1), Fraction(-1)}:
+        raise UnsupportedExpressionError("division by non-constant expression")
     divisor = tuple((name, -power) for name, power in monomial)
     return {
         _merge_monomials(left_monomial, divisor): coefficient / denominator
@@ -319,47 +321,15 @@ def _pow(value: Polynomial, exponent: int) -> Polynomial:
 
 
 def _sqrt(value: Polynomial) -> Polynomial:
-    square_root = _square_root(value)
-    if square_root is not None:
-        return square_root
-    raise UnsupportedExpressionError("sqrt of non-square expression")
-
-
-def _square_root(value: Polynomial) -> Polynomial | None:
     if len(value) != 1:
-        return _binomial_square_root(value)
+        raise UnsupportedExpressionError("sqrt of non-constant expression")
     monomial, coefficient = next(iter(value.items()))
+    if monomial:
+        raise UnsupportedExpressionError("sqrt of non-constant expression")
     root = _integer_sqrt(coefficient)
     if root is None:
-        return None
-    factors: list[tuple[str, int]] = []
-    for name, power in monomial:
-        if power % 2:
-            return None
-        factors.append((name, power // 2))
-    return {tuple(factors): root}
-
-
-def _binomial_square_root(value: Polynomial) -> Polynomial | None:
-    if len(value) != 3:
-        return None
-    for monomial, coefficient in value.items():
-        if coefficient <= 0:
-            continue
-        first = _square_root({monomial: coefficient})
-        if first is None:
-            continue
-        remaining = _sub(value, _pow(first, 2))
-        for other_monomial, other_coefficient in remaining.items():
-            if other_coefficient <= 0:
-                continue
-            second = _square_root({other_monomial: other_coefficient})
-            if second is None:
-                continue
-            for root in (_add(first, second), _sub(first, second)):
-                if _clean(_sub(_pow(root, 2), value)) == {}:
-                    return root
-    return None
+        raise UnsupportedExpressionError("sqrt of non-square constant")
+    return {(): root}
 
 
 def _integer_sqrt(value: Fraction) -> Fraction | None:

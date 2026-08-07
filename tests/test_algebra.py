@@ -81,18 +81,30 @@ def test_supported_negative_powers_are_checked() -> None:
     assert diagnostics == ()
 
 
-def test_supported_sqrt_perfect_square_is_checked() -> None:
+def test_symbolic_sqrt_requires_a_sign_or_domain_assumption() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{x^2} = x\n$$\n"))
-    assert diagnostics == ()
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
-def test_supported_sqrt_grouped_square_expression_is_checked() -> None:
+def test_grouped_symbolic_sqrt_is_not_simplified() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x+1)^2} = x + 1\n$$\n"))
-    assert diagnostics == ()
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
-def test_supported_sqrt_grouped_difference_square_is_checked() -> None:
+def test_grouped_symbolic_difference_sqrt_is_not_simplified() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x-1)^2} = x - 1\n$$\n"))
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_unary_negation_binds_after_exponentiation() -> None:
+    diagnostics = check_algebra(_first_block("$$\n-x^2 = x^2\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
+
+
+def test_numeric_sqrt_perfect_square_remains_supported() -> None:
+    diagnostics = check_algebra(_first_block("$$\n\\sqrt{4} = 2\n$$\n"))
+
     assert diagnostics == ()
 
 
