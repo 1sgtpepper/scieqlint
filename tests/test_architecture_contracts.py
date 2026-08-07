@@ -168,7 +168,6 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
         "REF004",
         "STR001",
         "STR003",
-        "STR005",
     }
 
 
