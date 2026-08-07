@@ -109,7 +109,7 @@ def test_compact_rational_after_implicit_factor_is_checked() -> None:
 
 
 def test_compact_rational_preserves_unequal_and_symbolic_denominator_cases() -> None:
-    for equation in ("1/2 x = 1/2", "x 2 = x"):
+    for equation in ("1/2 x = x", "x 2 = x"):
         diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
 
         assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"], equation
