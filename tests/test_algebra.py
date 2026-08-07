@@ -115,6 +115,12 @@ def test_numeric_sqrt_perfect_square_remains_supported() -> None:
     assert diagnostics == ()
 
 
+def test_numeric_sqrt_non_square_is_rejected() -> None:
+    diagnostics = check_algebra(_first_block("$$\n\\sqrt{2} = 2\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
 def test_tex_fraction_requires_grouped_operands() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\frac 1 2 = 1/2\n$$\n"))
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
