@@ -46,7 +46,7 @@ def check_paths(
     absolute_paths: bool = False,
 ) -> CheckResult:
     """Load supported files and check them."""
-    result, _protected_paths = _check_paths_with_inputs(
+    result, _protected_paths = check_paths_with_inputs(
         paths,
         config_path=config_path,
         no_algebra=no_algebra,
@@ -57,7 +57,7 @@ def check_paths(
     return result
 
 
-def _check_paths_with_inputs(
+def check_paths_with_inputs(
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
@@ -215,11 +215,11 @@ def graph_paths(
     config_path: Path | str | None = None,
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
-    graph, _protected_paths = _graph_paths_with_inputs(paths, config_path=config_path)
+    graph, _protected_paths = graph_paths_with_inputs(paths, config_path=config_path)
     return graph
 
 
-def _graph_paths_with_inputs(
+def graph_paths_with_inputs(
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,

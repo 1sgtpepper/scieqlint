@@ -10,8 +10,8 @@ import click
 
 from scieqlint import __version__
 from scieqlint.api import (
-    _check_paths_with_inputs,
-    _graph_paths_with_inputs,
+    check_paths_with_inputs,
+    graph_paths_with_inputs,
 )
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
@@ -110,7 +110,7 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
-        result, protected_paths = _check_paths_with_inputs(
+        result, protected_paths = check_paths_with_inputs(
             paths,
             config_path=config_path,
             no_algebra=no_algebra,
@@ -190,7 +190,7 @@ def graph(
 ) -> None:
     """Build a graph JSON export."""
     try:
-        graph, protected_paths = _graph_paths_with_inputs(paths, config_path=config_path)
+        graph, protected_paths = graph_paths_with_inputs(paths, config_path=config_path)
         rendered = render_graph_json(graph)
         _write_output(rendered, output_path, sys.stdout, protected_paths=protected_paths)
     except click.ClickException:
