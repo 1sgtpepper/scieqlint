@@ -10,17 +10,16 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
-    MD_LINK_RE,
     ROLE_RE,
+    MarkdownLinkToken,
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
     inline_code_ranges,
+    is_escaped,
+    markdown_link_metadata_ranges,
+    markdown_link_tokens,
     normalize_label,
-)
-
-_MARKDOWN_LINK_RE = re.compile(
-    r"(?P<image>!?)(?:\[(?P<label>(?:\\.|[^]\n])*)\]\((?P<body>[^)\n]*)\))"
 )
 
 
@@ -32,21 +31,21 @@ def scan_refs(
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
     occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
-    link_metadata = _link_metadata_ranges(document.text)
-    for match in MD_LINK_RE.finditer(document.text):
+    link_metadata = markdown_link_metadata_ranges(document.text)
+    for token in markdown_link_tokens(document.text):
+        if token.is_image or in_ranges(token.start, occupied_with_code):
+            continue
         if (
-            in_ranges(match.start(), occupied_with_code)
-            or in_ranges(match.start(), link_metadata)
-            or _is_escaped(document.text, match.start())
-            or (match.start() > 0 and document.text[match.start() - 1] == "!")
+            token.destination_start == token.destination_end
+            or document.text[token.destination_start] != "#"
         ):
             continue
-        generic.append(_markdown_link_ref_fact(document, smap, match))
+        generic.append(_markdown_link_ref_fact(document, smap, token))
     for match in ROLE_RE.finditer(document.text):
         if (
             in_ranges(match.start(), occupied_with_code)
             or in_ranges(match.start(), link_metadata)
-            or _is_escaped(document.text, match.start())
+            or is_escaped(document.text, match.start())
         ):
             continue
         role = match.group("role")
@@ -66,41 +65,23 @@ def scan_refs(
     return tuple(generic), tuple(equation)
 
 
-def _link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
-    ranges: list[OffsetRange] = []
-    for match in _MARKDOWN_LINK_RE.finditer(text):
-        if match.group("image"):
-            ranges.append((match.start(), match.end()))
-        else:
-            ranges.append((match.start("body"), match.end()))
-    return tuple(ranges)
-
-
-def _is_escaped(text: str, index: int) -> bool:
-    slash_count = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        slash_count += 1
-        cursor -= 1
-    return slash_count % 2 == 1
-
-
 def _markdown_link_ref_fact(
     document: SourceDocument,
     smap: SourceMap,
-    match: re.Match[str],
+    token: MarkdownLinkToken,
 ) -> GenericRefFact:
-    target = match.group("target")
+    target_start = token.destination_start + 1
+    target = document.text[target_start : token.destination_end]
     return GenericRefFact(
-        fact_id=f"{document.path.as_posix()}::md-ref::{match.start('target')}",
+        fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
         document_id=document.path.as_posix(),
-        span=smap.span(match.start(), match.end()),
-        raw=match.group(0),
+        span=smap.span(token.start, token.end),
+        raw=document.text[token.start : token.end],
         role_kind="markdown-link",
         target=target,
         normalized_target=normalize_label(target),
-        role_span=smap.span(match.start(), match.end()),
-        target_span=smap.span(match.start("target"), match.end("target")),
+        role_span=smap.span(token.start, token.end),
+        target_span=smap.span(target_start, token.destination_end),
     )
 
 

@@ -8,6 +8,14 @@ from collections.abc import Iterable
 from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
+from scieqlint.frontend.myst_shared import (
+    FENCE_RE as MYST_FENCE_RE,
+)
+from scieqlint.frontend.myst_shared import (
+    is_escaped,
+    markdown_link_metadata_ranges,
+    markdown_link_tokens,
+)
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
@@ -36,11 +44,7 @@ DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
-MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
-LINK_METADATA_RE = re.compile(
-    r"(?P<image>!?)(?:\[(?P<label>(?:\\.|[^]\n])*)\]\((?P<body>[^)\n]*)\))"
-)
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -302,28 +306,29 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
-    link_metadata = _link_metadata_ranges(document.text)
-    for match in MD_LINK_RE.finditer(document.text):
+    attached_myst_anchors = _attached_myst_anchor_targets(document)
+    link_metadata = markdown_link_metadata_ranges(document.text)
+    occupied = _code_spans(document)
+    for token in markdown_link_tokens(document.text):
+        if token.is_image or _in_ranges(token.start, occupied):
+            continue
         if (
-            _in_ranges(match.start(), link_metadata)
-            or _is_escaped(document.text, match.start())
-            or (match.start() > 0 and document.text[match.start() - 1] == "!")
+            token.destination_start == token.destination_end
+            or document.text[token.destination_start] != "#"
         ):
             continue
-        target = _normalize_label(match.group("target"))
+        target_start = token.destination_start + 1
+        target = _normalize_label(document.text[target_start : token.destination_end])
         if target in attached_myst_anchors:
             continue
         yield EquationReference(
             target=target,
-            span=_span(document, match.start("target"), match.end("target")),
-            raw=match.group(0),
+            span=_span(document, target_start, token.destination_end),
+            raw=document.text[token.start : token.end],
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
-        if _in_ranges(match.start(), link_metadata) or _is_escaped(
-            document.text, match.start()
-        ):
+        if _in_ranges(match.start(), link_metadata) or is_escaped(document.text, match.start()):
             continue
         role = match.group("role")
         body = match.group("body")
@@ -340,8 +345,9 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         )
 
 
-def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
-    occupied = _code_spans(document)
+def _attached_myst_anchor_targets(document: SourceDocument) -> frozenset[str]:
+    fence_ranges = _fence_ranges(document)
+    occupied = (*_code_spans(document), *fence_ranges)
     lines = _line_ranges(document.text)
     targets: set[str] = set()
     for index, (start, _end, line) in enumerate(lines):
@@ -351,7 +357,10 @@ def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset
         if match is None:
             continue
         next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
+        if next_index is not None and (
+            HEADING_RE.match(lines[next_index][2]) is not None
+            or _in_ranges(lines[next_index][0], fence_ranges)
+        ):
             targets.add(_normalize_label(match.group("label")))
     return frozenset(targets)
 
@@ -368,23 +377,36 @@ def _next_attachable_line_index(
     return None
 
 
-def _link_metadata_ranges(text: str) -> tuple[tuple[int, int], ...]:
+def _fence_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
+    lines = _line_ranges(document.text)
     ranges: list[tuple[int, int]] = []
-    for match in LINK_METADATA_RE.finditer(text):
-        if match.group("image"):
-            ranges.append((match.start(), match.end()))
-        else:
-            ranges.append((match.start("body"), match.end()))
+    index = 0
+    while index < len(lines):
+        start, _end, line = lines[index]
+        match = MYST_FENCE_RE.match(line)
+        if match is None:
+            index += 1
+            continue
+        marker = match.group("marker")
+        close_index = _fence_close_index(lines, index, marker)
+        range_end = lines[close_index][1] if close_index is not None else len(document.text)
+        ranges.append((start, range_end))
+        index = close_index + 1 if close_index is not None else len(lines)
     return tuple(ranges)
 
 
-def _is_escaped(text: str, index: int) -> bool:
-    slash_count = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        slash_count += 1
-        cursor -= 1
-    return slash_count % 2 == 1
+def _fence_close_index(
+    lines: tuple[tuple[int, int, str], ...],
+    opener_index: int,
+    marker: str,
+) -> int | None:
+    fence_char = marker[0]
+    fence_length = len(marker)
+    for index in range(opener_index + 1, len(lines)):
+        stripped = lines[index][2].strip()
+        if stripped.startswith(fence_char * fence_length) and set(stripped) <= {fence_char}:
+            return index
+    return None
 
 
 def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:

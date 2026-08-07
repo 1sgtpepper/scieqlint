@@ -10,7 +10,7 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_heading_anchor_targets
+from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_anchor_targets
 
 
 def _scan(text: str):
@@ -101,7 +101,7 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
         "Literal \\[Eq.](#escaped-link).\n"
         "![equation](#image-target)\n"
         "[site](https://example.invalid/{eq}`destination-target`)\n"
-        "[site](https://example.invalid/ \"{eq}`title-target`\")\n"
+        '[site](https://example.invalid/ "{eq}`title-target`")\n'
         "[See {eq}`active-label`](https://example.invalid/)\n",
         DocumentKind.MARKDOWN,
     )
@@ -118,6 +118,51 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
     assert [(ref.source.value, ref.target) for ref in scan.references] == [
         ("myst_eq_role", "active-label")
     ]
+
+
+def test_link_metadata_uses_balanced_destinations_and_escaped_image_markers() -> None:
+    tick = chr(96)
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "[site](https://example.test/a(b){eq}"
+        + tick
+        + "ghost"
+        + tick
+        + ")"
+        + "\n"
+        + "\\![See {eq}"
+        + tick
+        + "active"
+        + tick
+        + "](#dest)\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [(ref.role_kind, ref.target) for ref in snapshot.generic_refs] == [
+        ("markdown-link", "dest")
+    ]
+    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [("eq", "active")]
+
+    scan = MarkdownScanner().scan(document, Config())
+    assert [(ref.source.value, ref.target) for ref in scan.references] == [
+        ("markdown_anchor", "dest"),
+        ("myst_eq_role", "active"),
+    ]
+
+
+def test_markdown_links_to_fenced_block_anchors_are_not_equation_refs() -> None:
+    fence = chr(96) * 3
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "(tip)=\n" + fence + "{note}\ncontent\n" + fence + "\n\nSee [the note](#tip).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.diagnostics == ()
 
 
 def test_markdown_links_to_comment_bridged_myst_heading_anchors_are_not_equation_refs() -> None:
@@ -204,7 +249,7 @@ def test_lone_myst_anchor_has_no_attached_heading_target() -> None:
         DocumentKind.MARKDOWN,
     )
 
-    assert _attached_myst_heading_anchor_targets(document) == frozenset()
+    assert _attached_myst_anchor_targets(document) == frozenset()
 
 
 def test_empty_myst_role_is_malformed_syntax() -> None:
