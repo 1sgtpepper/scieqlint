@@ -27,8 +27,8 @@ from .myst_headings import (
     attach_anchors,
     is_immediate_attachment,
     scan_anchors,
-    scan_headings,
     scan_heading_syntax_issues,
+    scan_headings,
     sections_for_headings,
 )
 from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math

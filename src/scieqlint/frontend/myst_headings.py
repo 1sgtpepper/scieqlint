@@ -68,7 +68,7 @@ def scan_heading_syntax_issues(
     lines: Sequence[LineRange],
     occupied: Sequence[OffsetRange],
 ) -> Iterable[StructureSyntaxIssueFact]:
-    for start, end, line in lines:
+    for start, _end, line in lines:
         if in_ranges(start, occupied):
             continue
         match = HEADING_RE.match(line)
