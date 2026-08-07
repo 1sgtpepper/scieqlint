@@ -231,9 +231,8 @@ def test_notebook_references_preserve_cell_metadata() -> None:
 def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
     document = _notebook(
         [
-            _markdown_cell(
-                "<!-- scieqlint-symbol: x = variable -->\n$$\nx = x\n$$\n"
-            )
+            _markdown_cell("introductory text\n"),
+            _markdown_cell("<!-- scieqlint-symbol: x = variable -->\n$$\nx = x\n$$\n"),
         ]
     )
 
@@ -247,7 +246,7 @@ def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
     assert [
         (directive.symbol, directive.span.cell, directive.span.cell_line)
         for directive in scan.symbol_directives
-    ] == [("x", 0, 1)]
+    ] == [("x", 1, 1)]
 
 
 def test_notebook_scanner_preserves_label_cell_metadata() -> None:
