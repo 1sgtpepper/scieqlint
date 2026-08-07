@@ -53,22 +53,10 @@ def test_supported_tex_fraction_is_checked() -> None:
     assert diagnostics == ()
 
 
-def test_compact_rational_after_implicit_factor_is_checked() -> None:
-    for equation in (
-        "x 1/2 = x / 2",
-        "1/2 x = x / 2",
-        "x / 2 = x 1/2",
-        "-1/2 x = -x / 2",
-    ):
-        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
-
-        assert diagnostics == (), equation
-
-
-def test_compact_rational_does_not_expand_nonconstant_denominator_support() -> None:
+def test_symbolic_monomial_denominator_remains_supported() -> None:
     diagnostics = check_algebra(_first_block("$$\n1/(2x) = 1/(2x)\n$$\n"))
 
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+    assert diagnostics == ()
 
 
 def test_supported_tex_multiplication_aliases_are_checked() -> None:
@@ -110,15 +98,17 @@ def test_unary_signs_preserve_grouping_and_parity() -> None:
 
 
 def test_numeric_sqrt_perfect_square_remains_supported() -> None:
-    diagnostics = check_algebra(_first_block("$$\n\\sqrt{4} = 2\n$$\n"))
+    for equation in ("\\sqrt{0} = 0", "\\sqrt{4} = 2", "\\sqrt{9/4} = 3/2"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
 
-    assert diagnostics == ()
+        assert diagnostics == (), equation
 
 
 def test_numeric_sqrt_non_square_is_rejected() -> None:
-    diagnostics = check_algebra(_first_block("$$\n\\sqrt{2} = 2\n$$\n"))
+    for equation in ("\\sqrt{2} = 2", "\\sqrt{-4} = 2"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
 
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], equation
 
 
 def test_tex_fraction_requires_grouped_operands() -> None:

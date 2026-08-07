@@ -212,9 +212,7 @@ class _Parser:
 
 def _is_atom_start(token: str) -> bool:
     return token not in TEX_MULTIPLY and (
-        token.startswith("\\")
-        or re.fullmatch(r"\d+(?:/\d+)?", token) is not None
-        or token[0].isalpha()
+        token.startswith("\\") or token.isdigit() or token[0].isalpha()
     )
 
 
@@ -303,8 +301,6 @@ def _div(left: Polynomial, right: Polynomial) -> Polynomial:
     monomial, denominator = next(iter(right.items()))
     if denominator == 0:
         raise UnsupportedExpressionError("division by zero")
-    if monomial and denominator not in {Fraction(1), Fraction(-1)}:
-        raise UnsupportedExpressionError("division by non-constant expression")
     divisor = tuple((name, -power) for name, power in monomial)
     return {
         _merge_monomials(left_monomial, divisor): coefficient / denominator

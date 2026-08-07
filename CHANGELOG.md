@@ -54,8 +54,6 @@ Release notes must use these sections:
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
 - Algebraic parsing now applies exponentiation before unary signs and keeps
   symbolic square roots conservative.
-- Compact rational factors adjacent to implicit products are now parsed
-  consistently with explicit division.
 
 ### Deprecated
 
