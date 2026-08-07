@@ -8,6 +8,7 @@ from scieqlint.config.model import Config
 from scieqlint.diag.model import Severity
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.myst_shared import markdown_link_metadata_ranges, markdown_link_tokens
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_anchor_targets
@@ -163,6 +164,56 @@ def test_markdown_links_to_fenced_block_anchors_are_not_equation_refs() -> None:
     result = check_documents([document], config=Config())
 
     assert result.diagnostics == ()
+
+
+def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
+    valid = (
+        "[x](#target)",
+        "![alt](#target)",
+        '[x]( <https://example.test/a\\>b> "title" )',
+        "[x](https://example.test/a(b(c)) 'title')",
+        '[x](#target "ti\\"tle")',
+        "[x](#target (ti(tle)))",
+        "[x](#target (ti\\)tle))",
+        "[x](https://example.test/a\\(b)",
+        "[See [the] note](#target)",
+        "[See \\] note](#target)",
+        "\\![See {eq}`active`](#target)",
+    )
+    for text in valid:
+        tokens = markdown_link_tokens(text)
+
+        assert len(tokens) == 1, text
+        token = tokens[0]
+        expected = text[2:] if text.startswith("\\!") else text
+        assert text[token.start : token.end] == expected, text
+        assert token.destination_start < token.destination_end, text
+
+    image = markdown_link_tokens("![alt](#target)")[0]
+    normal = markdown_link_tokens("[x](#target)")[0]
+    assert image.is_image is True
+    assert normal.is_image is False
+    assert markdown_link_metadata_ranges("![alt](#target)") == ((0, 15),)
+    assert markdown_link_metadata_ranges("[x](#target)") == ((4, 12),)
+
+    invalid = (
+        "[x] #target",
+        "[x](#target",
+        "[x](#target(",
+        "[x\ny](#target)",
+        "[x(#target)",
+        "[x](<target\n>)",
+        "[x](<target)",
+        "[x](<target>",
+        '[x](#target "title)',
+        '[x](#target "title\n)',
+        '[x](#target "title"',
+        "[x](#target (title",
+        "[x](#target [title])",
+        "\\[x](#target)",
+    )
+    for text in invalid:
+        assert markdown_link_tokens(text) == (), text
 
 
 def test_markdown_links_to_comment_bridged_myst_heading_anchors_are_not_equation_refs() -> None:
