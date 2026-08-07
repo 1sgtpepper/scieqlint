@@ -249,6 +249,25 @@ def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
     ] == [("x", 1, 1)]
 
 
+def test_duplicate_notebook_symbol_directives_keep_each_cell_identity() -> None:
+    document = _notebook(
+        [
+            _markdown_cell("<!-- scieqlint-symbol: x = first -->\n"),
+            _markdown_cell("intro\n<!-- scieqlint-symbol: x = second -->\n"),
+        ]
+    )
+
+    scan = NotebookScanner().scan(document, Config())
+
+    assert [
+        (directive.symbol, directive.span.cell, directive.span.cell_line)
+        for directive in scan.symbol_directives
+    ] == [
+        ("x", 0, 1),
+        ("x", 1, 2),
+    ]
+
+
 def test_notebook_scanner_preserves_label_cell_metadata() -> None:
     document = _notebook([_markdown_cell("$$\nE = m c^2\n$$ {#energy}\n")])
 
