@@ -67,7 +67,9 @@ def test_six_hash_line_remains_an_atx_heading():
 def test_bare_atx_heading_accepts_an_attached_target() -> None:
     snapshot = MySTFrontend().lower((doc("(empty)=\n#\n\nSee {ref}`empty`.\n"),))
 
-    assert [(heading.level, heading.text) for heading in snapshot.headings] == [(1, "")]
+    assert [
+        (heading.level, heading.text, heading.slug_candidate) for heading in snapshot.headings
+    ] == [(1, "", "")]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("empty", "before_heading")
     ]
