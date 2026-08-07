@@ -388,10 +388,33 @@ def has_blocking_release_gate(text: str) -> bool:
             end += 1
         step_lines = lines[max(start, 0) : end]
         if not any(
-            nonblocking.fullmatch(candidate) or DISABLED_STEP_RE.fullmatch(candidate)
+            len(candidate) - len(candidate.lstrip()) in {step_indent, step_indent + 2}
+            and (nonblocking.fullmatch(candidate) or DISABLED_STEP_RE.fullmatch(candidate))
             for candidate in step_lines
         ):
-            return True
+            job_property_indent = step_indent - 2
+            job_indent = job_property_indent - 2
+            job_key = re.compile(r"^[ \t]*[^#\s][^:]*:[ \t]*(?:#.*)?$")
+            job_start = index
+            while job_start >= 0:
+                candidate = lines[job_start]
+                candidate_indent = len(candidate) - len(candidate.lstrip())
+                if candidate_indent == job_indent and job_key.fullmatch(candidate):
+                    break
+                job_start -= 1
+            job_end = index + 1
+            while job_end < len(lines):
+                candidate = lines[job_end]
+                candidate_indent = len(candidate) - len(candidate.lstrip())
+                if candidate_indent == job_indent and job_key.fullmatch(candidate):
+                    break
+                job_end += 1
+            if not any(
+                len(candidate) - len(candidate.lstrip()) == job_property_indent
+                and DISABLED_STEP_RE.fullmatch(candidate)
+                for candidate in lines[max(job_start, 0) : job_end]
+            ):
+                return True
     return False
 
 

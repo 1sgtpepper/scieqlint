@@ -469,6 +469,11 @@ def test_architecture_terminology_scanner_preserves_lines_while_ignoring_code(
             "      - if: ${{ false }}\n"
             "        run: python tools/architecture/terminology_drift.py --format json\n"
         ),
+        (
+            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "      - if: false\n"
+            "        run: python tools/architecture/terminology_drift.py --format json\n"
+        ),
     ],
 )
 def test_architecture_terminology_scanner_rejects_nonblocking_gate(
@@ -503,6 +508,49 @@ def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
     result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
 
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize(
+    "nested_property",
+    [
+        "if: false",
+        "continue-on-error: true",
+    ],
+)
+def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
+    tmp_path: Path,
+    nested_property: str,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\n\njobs:\n  quality:\n    steps:\n"
+        "      - name: architecture gate\n"
+        "        with:\n"
+        f"          {nested_property}\n"
+        "        run: python tools/architecture/terminology_drift.py --format json\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 0
+
+
+def test_architecture_terminology_scanner_rejects_disabled_parent_job(
+    tmp_path: Path,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\n\njobs:\n  quality:\n    if: false\n    steps:\n"
+        "      - run: python tools/architecture/terminology_drift.py --format json\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == ["ARCH-TERM-CI-GATE-MISSING"]
 
 
 def test_architecture_terminology_scanner_fails_when_release_gate_is_missing(
