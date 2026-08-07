@@ -163,9 +163,7 @@ def test_even_backslashes_reactivate_markdown_links_and_myst_roles() -> None:
     snapshot = MySTFrontend().lower((document,))
     scan = MarkdownScanner().scan(document, Config())
 
-    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [
-        ("eq", "active-role")
-    ]
+    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [("eq", "active-role")]
     assert [(ref.role_kind, ref.target) for ref in snapshot.generic_refs] == [
         ("markdown-link", "active-link")
     ]
