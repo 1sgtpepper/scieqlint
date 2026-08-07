@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.api import check_documents
+from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import (
     MathContainer,
@@ -91,6 +92,28 @@ def test_inline_math_whitespace_only_body_is_not_a_fact() -> None:
     )
 
     assert result.blocks == ()
+
+
+def test_inline_math_symbol_diagnostics_use_trimmed_source_columns() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents(
+        [document],
+        config=Config(
+            scanner=ScannerConfig(inline_math=True),
+            checks=ChecksConfig(symbols=SymbolsConfig(enabled=True)),
+        ),
+    )
+
+    assert [
+        (diagnostic.code, diagnostic.detail, diagnostic.span.col)
+        for diagnostic in result.diagnostics
+        if diagnostic.span is not None
+    ] == [("SYM001", "x", 9), ("SYM001", "y", 13)]
 
 
 def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:

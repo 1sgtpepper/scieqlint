@@ -215,7 +215,6 @@ def _inline_blocks(
     )
     for match in INLINE_RE.finditer(document.text):
         body_start = match.start("body")
-        body_end = match.end("body")
         if any(start <= body_start < end for start, end in occupied):
             continue
         body = match.group("body")
