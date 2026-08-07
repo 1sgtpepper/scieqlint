@@ -201,9 +201,8 @@ def _inline_ranges(
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:
-    return (
-        (index > 0 and text[index - 1] == "$")
-        or (index + 1 < len(text) and text[index + 1] == "$")
+    return (index > 0 and text[index - 1] == "$") or (
+        index + 1 < len(text) and text[index + 1] == "$"
     )
 
 
@@ -216,9 +215,7 @@ def _is_inline_opening(text: str, index: int) -> bool:
 def _is_inline_closing(text: str, index: int) -> bool:
     if _is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
         return False
-    return index + 1 == len(text) or not (
-        text[index + 1].isalnum() or text[index + 1] == "_"
-    )
+    return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
 
 
 def _is_escaped(text: str, index: int) -> bool:
@@ -303,9 +300,14 @@ def _inline_blocks(
     )
     for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
         body = document.text[body_start:body_end]
-        span = _span(document, body_start, body_end)
+        text = body.strip()
+        if not text:
+            continue
+        span_start = body_start + len(body) - len(body.lstrip())
+        span_end = body_start + len(body.rstrip())
+        span = _span(document, span_start, span_end)
         yield MathBlock(
-            text=body.strip(),
+            text=text,
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
             container=MathContainer.MARKDOWN_INLINE,
@@ -359,9 +361,7 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
         label=_normalize_label(raw),
         span=_span(document, label_start, label_end),
         block_id=block.block_id,
-        source=(
-            LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
-        ),
+        source=(LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR),
     )
 
 

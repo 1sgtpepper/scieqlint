@@ -40,6 +40,43 @@ def test_math_fence_scanning_can_be_disabled() -> None:
     assert result.labels == ()
 
 
+def test_myst_inline_dollar_math_span_tracks_trimmed_source_body() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    fact = MySTFrontend().lower((document,)).inline_math[0]
+
+    assert fact.body == "x = y"
+    assert fact.span.col == 9
+    assert document.text[fact.span.start : fact.span.end] == fact.body
+
+
+def test_myst_inline_dollar_math_span_preserves_tabs_and_combining_unicode() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $\t x\u0301 = y \t $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    fact = MySTFrontend().lower((document,)).inline_math[0]
+
+    assert fact.body == "x\u0301 = y"
+    assert document.text[fact.span.start : fact.span.end] == fact.body
+
+
+def test_myst_inline_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $ \t $ after.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    assert MySTFrontend().lower((document,)).inline_math == ()
+
+
 def test_unterminated_math_fence_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

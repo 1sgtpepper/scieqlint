@@ -138,9 +138,8 @@ def _find_dollar_close(
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:
-    return (
-        (index > 0 and text[index - 1] == "$")
-        or (index + 1 < len(text) and text[index + 1] == "$")
+    return (index > 0 and text[index - 1] == "$") or (
+        index + 1 < len(text) and text[index + 1] == "$"
     )
 
 
@@ -153,9 +152,7 @@ def _is_inline_opening(text: str, index: int) -> bool:
 def _is_inline_closing(text: str, index: int) -> bool:
     if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
         return False
-    return index + 1 == len(text) or not (
-        text[index + 1].isalnum() or text[index + 1] == "_"
-    )
+    return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
 
 
 def extract_role_target_and_title(body: str) -> tuple[str, str | None]:

@@ -44,7 +44,7 @@ def test_inline_math_scans_only_when_enabled() -> None:
     assert result.blocks[0].container is MathContainer.MARKDOWN_INLINE
 
 
-def test_inline_math_span_tracks_trimmed_source_body() -> None:
+def test_inline_dollar_math_span_tracks_trimmed_source_body() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "Text $  x = y  $.\n",
@@ -59,13 +59,13 @@ def test_inline_math_span_tracks_trimmed_source_body() -> None:
     block = result.blocks[0]
     assert block.text == "x = y"
     assert block.span.col == 9
-    assert document.text[block.span.start : block.span.end] == "x = y"
+    assert document.text[block.span.start : block.span.end] == block.text
 
 
-def test_inline_math_span_preserves_tabs_and_combining_unicode() -> None:
+def test_inline_dollar_math_span_preserves_tabs_and_combining_unicode() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "Text $\t x\u0301 = y \t $ after.\n",
+        "Text $\t x\u0301 = y \t $.\n",
         DocumentKind.MARKDOWN,
     )
 
@@ -79,7 +79,7 @@ def test_inline_math_span_preserves_tabs_and_combining_unicode() -> None:
     assert document.text[block.span.start : block.span.end] == block.text
 
 
-def test_inline_math_whitespace_only_body_is_not_a_fact() -> None:
+def test_inline_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "Text $ \t $ after.\n",
@@ -94,7 +94,7 @@ def test_inline_math_whitespace_only_body_is_not_a_fact() -> None:
     assert result.blocks == ()
 
 
-def test_inline_math_symbol_diagnostics_use_trimmed_source_columns() -> None:
+def test_inline_dollar_math_symbol_diagnostics_use_trimmed_source_columns() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "Text $  x = y  $.\n",

@@ -65,12 +65,17 @@ def scan_inline_math(
         occupied_with_code,
     ):
         body = document.text[body_start:body_end]
+        text = body.strip()
+        if not text:
+            continue
+        span_start = body_start + len(body) - len(body.lstrip())
+        span_end = body_start + len(body.rstrip())
         yield InlineMathFact(
             fact_id=f"{document.path.as_posix()}::inline-math::{start}",
             document_id=document.path.as_posix(),
-            span=smap.span(body_start, body_end),
+            span=smap.span(span_start, span_end),
             raw=document.text[start:end],
-            body=body,
+            body=text,
             delimiter_kind="dollar",
             context="paragraph",
         )
