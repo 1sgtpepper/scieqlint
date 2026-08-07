@@ -12,6 +12,6 @@ repos:
 
 The hook is triggered by `.md`, `.markdown`, `.tex`, and `.ipynb` files, including
 uppercase suffixes. It runs one project-context check rather than passing only
-the staged filenames, so configuration, includes, baselines, and cross-file
-references remain available. The explicit `--` also keeps option-shaped paths
-from being interpreted as CLI options.
+the staged filenames, so configuration, ignore rules, baselines, project ordering,
+and cross-file references remain available. The explicit `--` also keeps
+option-shaped paths from being interpreted as CLI options.
