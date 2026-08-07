@@ -108,6 +108,16 @@ def test_frontend_inline_math_span_tracks_trimmed_source_body() -> None:
     assert document.text[fact.span.start : fact.span.end] == "x = y"
 
 
+def test_frontend_inline_math_whitespace_only_body_is_not_a_fact() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $ \t $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    assert MySTFrontend().lower((document,)).inline_math == ()
+
+
 def test_blank_line_does_not_end_myst_math_label_prefix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
