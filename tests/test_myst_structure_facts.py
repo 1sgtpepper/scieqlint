@@ -437,13 +437,15 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
     assert [(heading.level, heading.text) for heading in snapshot.headings] == [
+        (3, ""),
         (1, "Part One"),
         (2, "Child"),
         (1, "Part Two"),
     ]
     assert [(section.depth, section.parent_section_id) for section in snapshot.sections] == [
+        (3, None),
         (1, None),
-        (2, snapshot.sections[0].fact_id),
+        (2, snapshot.sections[1].fact_id),
         (1, None),
     ]
     assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [

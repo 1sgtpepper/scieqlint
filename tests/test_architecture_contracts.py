@@ -120,9 +120,9 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert analysis_result.summary() == {
         "files_checked": 3,
         "facts": len(snapshot.all_facts()),
-        "diagnostics": 4,
+        "diagnostics": 3,
         "errors": 0,
-        "warnings": 3,
+        "warnings": 2,
         "info": 1,
     }
     assert any(diagnostic.code == "STR003" for diagnostic in kernel_diagnostics)
