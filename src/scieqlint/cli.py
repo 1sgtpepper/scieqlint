@@ -254,7 +254,11 @@ def _write_output(
 
 
 def _same_file(left: Path, right: Path) -> bool:
+    if left.absolute() == right.absolute():
+        return True
     try:
         return left.samefile(right)
-    except (OSError, ValueError):
-        return left.absolute() == right.absolute()
+    except FileNotFoundError:
+        return False
+    except (OSError, ValueError) as exc:
+        raise _OperationalError(f"refusing to overwrite analysis input: {left}") from exc

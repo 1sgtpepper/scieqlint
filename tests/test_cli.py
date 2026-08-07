@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 from click.testing import CliRunner
 
@@ -186,6 +187,28 @@ def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert baseline.read_text(encoding="utf-8") == '{"diagnostics": []}\n'
+
+
+def test_check_refuses_when_output_alias_check_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+
+    def deny_samefile(_path: Path, _other: Path) -> bool:
+        raise PermissionError("platform detail must not escape")
+
+    monkeypatch.setattr(Path, "samefile", deny_samefile)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "platform detail" not in result.output
+    assert not output.exists()
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
 
 
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:
