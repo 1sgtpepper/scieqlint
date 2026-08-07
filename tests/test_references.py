@@ -153,6 +153,28 @@ def test_link_metadata_uses_balanced_destinations_and_escaped_image_markers() ->
     ]
 
 
+def test_even_backslashes_reactivate_markdown_links_and_myst_roles() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "\\\\{eq}`active-role` and \\\\[Eq.](#active-link).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+    scan = MarkdownScanner().scan(document, Config())
+
+    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [
+        ("eq", "active-role")
+    ]
+    assert [(ref.role_kind, ref.target) for ref in snapshot.generic_refs] == [
+        ("markdown-link", "active-link")
+    ]
+    assert [(ref.source.value, ref.target) for ref in scan.references] == [
+        ("markdown_anchor", "active-link"),
+        ("myst_eq_role", "active-role"),
+    ]
+
+
 def test_markdown_links_to_fenced_block_anchors_are_not_equation_refs() -> None:
     fence = chr(96) * 3
     document = SourceDocument.from_text(
