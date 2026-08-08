@@ -92,6 +92,9 @@ Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
+Display-dollar delimiters inside inline code are treated as literal code by both
+the legacy scanner and the architecture frontend; their trimmed bodies and spans
+therefore agree.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank

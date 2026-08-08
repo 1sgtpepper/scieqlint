@@ -9,6 +9,12 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import (
+    dollar_display_opener_positions,
+    dollar_display_ranges,
+    dollar_inline_ranges,
+    inline_code_ranges,
+)
 from scieqlint.scan.base import (
     EquationLabel,
     EquationReference,
@@ -23,7 +29,6 @@ from scieqlint.scan.base import (
 from scieqlint.scan.symbols import parse_symbol_directive
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
-INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
 CODE_FENCE_RE = re.compile(
     r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
     re.MULTILINE | re.DOTALL,
@@ -98,133 +103,22 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
     closed = {(start, end) for start, _body_start, _body_end, end in _display_ranges(document)}
     occupied = _code_spans(document)
-    for start in _display_opener_positions(document, occupied):
+    for start in dollar_display_opener_positions(document.text, occupied):
         if any(open_start <= start < end for open_start, end in closed):
             continue
-        next_close = _find_display_close(document, start + 2, occupied)
-        if next_close == -1:
-            yield _scan_diagnostic(document, start, start + 2)
+        yield _scan_diagnostic(document, start, start + 2)
 
 
 def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
     occupied = _code_spans(document)
-    cursor = 0
-    while True:
-        start = document.text.find("$$", cursor)
-        if start == -1:
-            return
-        if (
-            _in_ranges(start, occupied)
-            or _is_escaped(document.text, start)
-            or not _is_display_opener(document.text, start)
-        ):
-            cursor = start + 2
-            continue
-        close = _find_display_close(document, start + 2, occupied)
-        if close == -1:
-            cursor = start + 2
-            continue
-        yield (start, start + 2, close, close + 2)
-        cursor = close + 2
-
-
-def _find_display_close(
-    document: SourceDocument,
-    start: int,
-    occupied: tuple[tuple[int, int], ...],
-) -> int:
-    cursor = start
-    while True:
-        close = document.text.find("$$", cursor)
-        if close == -1:
-            return -1
-        if (
-            not _in_ranges(close, occupied)
-            and not _is_escaped(document.text, close)
-            and (close == 0 or document.text[close - 1] != "$")
-            and (close + 2 == len(document.text) or document.text[close + 2] != "$")
-        ):
-            return close
-        cursor = close + 2
-
-
-def _display_opener_positions(
-    document: SourceDocument,
-    occupied: tuple[tuple[int, int], ...],
-) -> Iterable[int]:
-    cursor = 0
-    while True:
-        start = document.text.find("$$", cursor)
-        if start == -1:
-            return
-        if (
-            not _in_ranges(start, occupied)
-            and not _is_escaped(document.text, start)
-            and _is_display_opener(document.text, start)
-        ):
-            yield start
-        cursor = start + 2
-
-
-def _is_display_opener(text: str, start: int) -> bool:
-    line_start = text.rfind("\n", 0, start) + 1
-    prefix = text[line_start:start]
-    return (
-        len(prefix) <= 3
-        and not prefix.strip(" ")
-        and (start + 2 == len(text) or text[start + 2] != "$")
-    )
+    return iter(dollar_display_ranges(document.text, occupied))
 
 
 def _inline_ranges(
     document: SourceDocument,
     occupied: tuple[tuple[int, int], ...],
 ) -> Iterable[tuple[int, int, int, int]]:
-    line_start = 0
-    while line_start < len(document.text):
-        line_end = document.text.find("\n", line_start)
-        if line_end == -1:
-            line_end = len(document.text)
-        opening: int | None = None
-        for index in range(line_start, line_end):
-            if document.text[index] != "$" or _in_ranges(index, occupied):
-                continue
-            if opening is None:
-                if _is_inline_opening(document.text, index):
-                    opening = index
-                continue
-            if _is_inline_closing(document.text, index):
-                if index > opening + 1:
-                    yield (opening, opening + 1, index, index + 1)
-                opening = None
-        line_start = line_end + 1
-
-
-def _is_adjacent_to_dollar(text: str, index: int) -> bool:
-    return (index > 0 and text[index - 1] == "$") or (
-        index + 1 < len(text) and text[index + 1] == "$"
-    )
-
-
-def _is_inline_opening(text: str, index: int) -> bool:
-    if _is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")
-
-
-def _is_inline_closing(text: str, index: int) -> bool:
-    if _is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
-
-
-def _is_escaped(text: str, index: int) -> bool:
-    slash_count = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        slash_count += 1
-        cursor -= 1
-    return slash_count % 2 == 1
+    return iter(dollar_inline_ranges(document.text, occupied))
 
 
 def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
@@ -316,7 +210,7 @@ def _inline_blocks(
 
 def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
     return (
-        *((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text)),
+        *inline_code_ranges(document.text),
         *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
     )
 

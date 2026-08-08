@@ -48,7 +48,8 @@ def scan_display_math(
         display.append(math_fact)
         labels.extend(label_facts)
 
-    dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied)
+    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
+    dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied_with_code)
     display.extend(dollar_display)
     labels.extend(dollar_labels)
     return tuple(display), tuple(labels)
@@ -120,6 +121,8 @@ def _dollar_display_math(
     ):
         fact_id = f"{document.path.as_posix()}::display-math::{start}"
         body_text = document.text[body_start:body_end]
+        span_start = body_start + len(body_text) - len(body_text.lstrip())
+        span_end = body_start + len(body_text.rstrip())
         label_facts = list(_tex_label_facts(document, smap, fact_id, body_start, body_text))
         label_facts.extend(_dollar_tail_label_facts(document, smap, fact_id, body_end))
         labels.extend(label_facts)
@@ -127,7 +130,7 @@ def _dollar_display_math(
             DisplayMathFact(
                 fact_id=fact_id,
                 document_id=document.path.as_posix(),
-                span=smap.span(body_start, body_end),
+                span=smap.span(span_start, span_end),
                 raw=body_text.strip(),
                 body=body_text.strip(),
                 container="dollar-dollar",

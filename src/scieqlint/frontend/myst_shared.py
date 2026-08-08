@@ -6,6 +6,18 @@ import re
 from collections.abc import Sequence
 
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import (
+    dollar_display_opener_positions as _dollar_display_opener_positions,
+)
+from scieqlint.markdown import (
+    dollar_display_ranges as _dollar_display_ranges,
+)
+from scieqlint.markdown import (
+    dollar_inline_ranges as _dollar_inline_ranges,
+)
+from scieqlint.markdown import (
+    inline_code_ranges as _inline_code_ranges,
+)
 
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
@@ -15,7 +27,6 @@ ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 FENCE_RE = re.compile(r"^(?P<indent>[ \t]{0,3})(?P<marker>`{3,}|~{3,})(?P<info>[^\n]*)$")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`]+)`")
-INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
 TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
@@ -43,116 +54,28 @@ def in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
 
 
 def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
-    return tuple((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text))
+    return _inline_code_ranges(document.text)
 
 
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[int, int, int, int], ...]:
-    ranges: list[tuple[int, int, int, int]] = []
-    cursor = 0
-    while True:
-        start = text.find("$$", cursor)
-        if start == -1:
-            break
-        if (
-            in_ranges(start, occupied)
-            or is_escaped(text, start)
-            or not _is_display_opener(text, start)
-        ):
-            cursor = start + 2
-            continue
-        close = _find_dollar_close(text, start + 2, occupied)
-        if close == -1:
-            cursor = start + 2
-            continue
-        ranges.append((start, start + 2, close, close + 2))
-        cursor = close + 2
-    return tuple(ranges)
+    return _dollar_display_ranges(text, occupied)
+
+
+def dollar_display_opener_positions(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> tuple[int, ...]:
+    return _dollar_display_opener_positions(text, occupied)
 
 
 def dollar_inline_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[int, int, int, int], ...]:
-    ranges: list[tuple[int, int, int, int]] = []
-    line_start = 0
-    while line_start < len(text):
-        line_end = text.find("\n", line_start)
-        if line_end == -1:
-            line_end = len(text)
-        opening: int | None = None
-        for index in range(line_start, line_end):
-            if text[index] != "$" or in_ranges(index, occupied):
-                continue
-            if opening is None:
-                if _is_inline_opening(text, index):
-                    opening = index
-                continue
-            if _is_inline_closing(text, index):
-                if index > opening + 1:
-                    ranges.append((opening, opening + 1, index, index + 1))
-                opening = None
-        line_start = line_end + 1
-    return tuple(ranges)
-
-
-def is_escaped(text: str, index: int) -> bool:
-    slash_count = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        slash_count += 1
-        cursor -= 1
-    return slash_count % 2 == 1
-
-
-def _is_display_opener(text: str, start: int) -> bool:
-    line_start = text.rfind("\n", 0, start) + 1
-    prefix = text[line_start:start]
-    return (
-        len(prefix) <= 3
-        and not prefix.strip(" ")
-        and (start + 2 == len(text) or text[start + 2] != "$")
-    )
-
-
-def _find_dollar_close(
-    text: str,
-    start: int,
-    occupied: Sequence[OffsetRange],
-) -> int:
-    cursor = start
-    while True:
-        close = text.find("$$", cursor)
-        if close == -1:
-            return -1
-        if (
-            not in_ranges(close, occupied)
-            and not is_escaped(text, close)
-            and (close == 0 or text[close - 1] != "$")
-            and (close + 2 == len(text) or text[close + 2] != "$")
-        ):
-            return close
-        cursor = close + 2
-
-
-def _is_adjacent_to_dollar(text: str, index: int) -> bool:
-    return (index > 0 and text[index - 1] == "$") or (
-        index + 1 < len(text) and text[index + 1] == "$"
-    )
-
-
-def _is_inline_opening(text: str, index: int) -> bool:
-    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")
-
-
-def _is_inline_closing(text: str, index: int) -> bool:
-    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
+    return _dollar_inline_ranges(text, occupied)
 
 
 def extract_role_target_and_title(body: str) -> tuple[str, str | None]:

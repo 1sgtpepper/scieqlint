@@ -4,6 +4,7 @@ from pathlib import Path, PurePosixPath
 
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import (
     MathContainer,
@@ -265,6 +266,23 @@ def test_display_math_is_not_closed_by_delimiter_in_inline_code() -> None:
 
     assert result.blocks == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+def test_legacy_and_frontend_display_math_ignore_inline_code_delimiters() -> None:
+    text = "$$\nleft\n`$$`\nright\n$$\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [block.text for block in legacy.blocks] == ["left\n`$$`\nright"]
+    assert [math.body for math in frontend.display_math] == ["left\n`$$`\nright"]
+    assert frontend.display_math[0].span is not None
+    assert (legacy.blocks[0].span.start, legacy.blocks[0].span.end) == (
+        frontend.display_math[0].span.start,
+        frontend.display_math[0].span.end,
+    )
+    assert legacy.diagnostics == ()
 
 
 def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None:
