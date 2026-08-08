@@ -173,6 +173,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/ir/__init__.py`
 - `src/scieqlint/ir/model.py`
+- `src/scieqlint/markdown.py`
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
