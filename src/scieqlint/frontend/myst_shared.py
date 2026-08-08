@@ -7,6 +7,9 @@ from collections.abc import Sequence
 
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
+    code_fence_ranges as _code_fence_ranges,
+)
+from scieqlint.markdown import (
     dollar_display_opener_positions as _dollar_display_opener_positions,
 )
 from scieqlint.markdown import (
@@ -55,6 +58,10 @@ def in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
 
 def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
     return _inline_code_ranges(document.text)
+
+
+def code_fence_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
+    return _code_fence_ranges(document.text)
 
 
 def dollar_display_ranges(

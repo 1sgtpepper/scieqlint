@@ -285,6 +285,23 @@ def test_legacy_and_frontend_display_math_ignore_inline_code_delimiters() -> Non
     assert legacy.diagnostics == ()
 
 
+def test_legacy_and_frontend_display_math_ignore_tilde_fence_delimiters() -> None:
+    text = "~~~\n$$\ninside = inside\n$$\n~~~\n\n$$\noutside = outside\n$$\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [block.text for block in legacy.blocks] == ["outside = outside"]
+    assert [math.body for math in frontend.display_math] == ["outside = outside"]
+    assert frontend.display_math[0].span is not None
+    assert (legacy.blocks[0].span.start, legacy.blocks[0].span.end) == (
+        frontend.display_math[0].span.start,
+        frontend.display_math[0].span.end,
+    )
+    assert legacy.diagnostics == ()
+
+
 def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

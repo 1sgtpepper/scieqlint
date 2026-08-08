@@ -9,10 +9,35 @@ OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
 
 INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
+CODE_FENCE_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[^\n]*$")
 
 
 def inline_code_ranges(text: str) -> tuple[OffsetRange, ...]:
     return tuple((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(text))
+
+
+def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
+    lines: list[tuple[int, int, str]] = []
+    start = 0
+    for line in text.splitlines(keepends=True):
+        end = start + len(line)
+        lines.append((start, end, line[:-1] if line.endswith("\n") else line))
+        start = end
+
+    ranges: list[OffsetRange] = []
+    index = 0
+    while index < len(lines):
+        opener_start, _opener_end, opener_line = lines[index]
+        match = CODE_FENCE_RE.match(opener_line)
+        if match is None:
+            index += 1
+            continue
+        marker = match.group("marker")
+        close_index = _fence_close_index(lines, index, marker)
+        range_end = lines[close_index][1] if close_index is not None else len(text)
+        ranges.append((opener_start, range_end))
+        index = close_index + 1 if close_index is not None else len(lines)
+    return tuple(ranges)
 
 
 def dollar_display_ranges(
@@ -98,6 +123,20 @@ def is_escaped(text: str, index: int) -> bool:
 
 def _in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
     return any(start <= position < end for start, end in ranges)
+
+
+def _fence_close_index(
+    lines: Sequence[tuple[int, int, str]],
+    opener_index: int,
+    marker: str,
+) -> int | None:
+    fence_char = marker[0]
+    fence_length = len(marker)
+    for index in range(opener_index + 1, len(lines)):
+        stripped = lines[index][2].strip()
+        if stripped.startswith(fence_char * fence_length) and set(stripped) <= {fence_char}:
+            return index
+    return None
 
 
 def _is_display_opener(text: str, start: int) -> bool:

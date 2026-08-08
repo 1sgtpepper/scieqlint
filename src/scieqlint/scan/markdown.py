@@ -10,6 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
+    code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
     dollar_inline_ranges,
@@ -29,10 +30,6 @@ from scieqlint.scan.base import (
 from scieqlint.scan.symbols import parse_symbol_directive
 
 DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
-CODE_FENCE_RE = re.compile(
-    r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
-    re.MULTILINE | re.DOTALL,
-)
 FENCE_RE = re.compile(
     r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
     re.MULTILINE | re.DOTALL,
@@ -211,7 +208,7 @@ def _inline_blocks(
 def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
     return (
         *inline_code_ranges(document.text),
-        *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
+        *code_fence_ranges(document.text),
     )
 
 
