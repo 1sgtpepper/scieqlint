@@ -62,6 +62,7 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
     "text",
     [
         "<div>\n{eq}`block-html`",
+        "<div>\n{eq}`block-html`\n</div>",
         "<script>\n{eq}`script-html`",
         "<!DOCTYPE html {eq}`declaration`",
         "<?xml {eq}`processing-instruction`",
@@ -76,6 +77,17 @@ def test_equation_roles_are_opaque_in_unclosed_raw_html_constructs(text: str) ->
 
     assert legacy.references == ()
     assert frontend.equation_refs == ()
+
+
+def test_unclosed_block_html_ends_at_a_blank_line() -> None:
+    text = "<div>\n{eq}`hidden`\n\nSee {eq}`active`."
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == ["active"]
+    assert [reference.target for reference in frontend.equation_refs] == ["active"]
 
 
 def test_duplicate_label_is_error() -> None:
