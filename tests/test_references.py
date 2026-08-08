@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+import pytest
+
 from scieqlint.api import check_documents
 from scieqlint.check.references import check_references
 from scieqlint.config.model import Config
@@ -54,6 +56,26 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
     assert [
         diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
     ] == ["REF002"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "<div>\n{eq}`block-html`",
+        "<script>\n{eq}`script-html`",
+        "<!DOCTYPE html {eq}`declaration`",
+        "<?xml {eq}`processing-instruction`",
+        "<![CDATA[{eq}`cdata`",
+    ],
+)
+def test_equation_roles_are_opaque_in_unclosed_raw_html_constructs(text: str) -> None:
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert legacy.references == ()
+    assert frontend.equation_refs == ()
 
 
 def test_duplicate_label_is_error() -> None:

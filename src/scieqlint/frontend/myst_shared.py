@@ -25,11 +25,23 @@ ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`]+)`")
 HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
+HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOTALL)
+HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
+HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?(?:\]\]>|$)", re.DOTALL)
 HTML_ELEMENT_RE = re.compile(
     r"<(?P<tag>[A-Za-z][A-Za-z0-9:-]*)\b[^>]*>.*?</(?P=tag)[ \t]*>",
     re.IGNORECASE | re.DOTALL,
 )
 HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
+HTML_BLOCK_OPEN_RE = re.compile(
+    r"^[ \t]{0,3}<(?P<tag>address|article|aside|base|basefont|blockquote|body|caption|"
+    r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|"
+    r"footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|"
+    r"nav|ol|p|pre|script|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
+    r"track|ul)(?:[ \t/>]|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
@@ -266,7 +278,13 @@ def opaque_markdown_ranges(
         if not in_ranges(start, ranges)
     )
     ranges.extend((match.start(), match.end()) for match in HTML_COMMENT_RE.finditer(text))
+    ranges.extend((match.start(), match.end()) for match in HTML_DECLARATION_RE.finditer(text))
+    ranges.extend(
+        (match.start(), match.end()) for match in HTML_PROCESSING_INSTRUCTION_RE.finditer(text)
+    )
+    ranges.extend((match.start(), match.end()) for match in HTML_CDATA_RE.finditer(text))
     ranges.extend((match.start(), match.end()) for match in HTML_ELEMENT_RE.finditer(text))
+    ranges.extend(_html_block_ranges(text))
     ranges.extend((match.start(), match.end()) for match in HTML_TAG_RE.finditer(text))
     return tuple(ranges)
 
@@ -289,3 +307,20 @@ def normalize_label(value: str) -> str:
 def slug(text: str) -> str:
     candidate = re.sub(r"[^A-Za-z0-9 _.-]+", "", text).strip().lower()
     return re.sub(r"[\s_]+", "-", candidate)
+
+
+def _html_block_ranges(text: str) -> tuple[OffsetRange, ...]:
+    ranges: list[OffsetRange] = []
+    for match in HTML_BLOCK_OPEN_RE.finditer(text):
+        tag = match.group("tag").lower()
+        closing = re.search(rf"</[ \t]*{re.escape(tag)}[ \t]*>", text[match.end() :], re.IGNORECASE)
+        if closing is not None:
+            ranges.append((match.start(), match.end() + closing.end()))
+            continue
+        if tag in HTML_RAWTEXT_TAGS:
+            ranges.append((match.start(), len(text)))
+            continue
+        blank_line = re.search(r"\n[ \t]*\n", text[match.end() :])
+        end = len(text) if blank_line is None else match.end() + blank_line.start() + 1
+        ranges.append((match.start(), end))
+    return tuple(ranges)
