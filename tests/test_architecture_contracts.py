@@ -514,9 +514,13 @@ def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
     "nested_property",
     [
         "if: false",
+        "if: false # disabled",
         'if: "false"',
+        'if: "false" # disabled',
         "if: 'false'",
+        "if: 'false' # disabled",
         'if: "${{ false }}"',
+        'if: "${{ false }}" # disabled',
         "continue-on-error: true",
     ],
 )
@@ -543,9 +547,13 @@ def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
     "disabled_condition",
     [
         "if: false",
+        "if: false # disabled",
         'if: "false"',
+        'if: "false" # disabled',
         "if: 'false'",
+        "if: 'false' # disabled",
         'if: "${{ false }}"',
+        'if: "${{ false }}" # disabled',
     ],
 )
 def test_architecture_terminology_scanner_rejects_disabled_parent_job(
@@ -566,6 +574,34 @@ def test_architecture_terminology_scanner_rejects_disabled_parent_job(
     assert result.returncode == 1
     report = json.loads(result.stdout)
     assert [item["id"] for item in report["violations"]] == ["ARCH-TERM-CI-GATE-MISSING"]
+
+
+@pytest.mark.parametrize(
+    "enabled_condition",
+    [
+        "if: true",
+        'if: "true"',
+        "if: 'true'",
+        'if: "${{ true }}"',
+        "if: true # enabled",
+    ],
+)
+def test_architecture_terminology_scanner_keeps_enabled_conditions_blocking(
+    tmp_path: Path,
+    enabled_condition: str,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\n\njobs:\n  quality:\n    steps:\n"
+        "      - name: architecture gate\n"
+        f"        {enabled_condition}\n"
+        "        run: python tools/architecture/terminology_drift.py --format json\n",
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == 0
 
 
 def test_architecture_terminology_scanner_fails_when_release_gate_is_missing(
