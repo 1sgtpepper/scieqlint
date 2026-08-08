@@ -6,6 +6,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
+from scieqlint import cli as cli_module
 from scieqlint.cli import main
 from scieqlint.config.load import load_config
 from scieqlint.config.presets import read_preset_text
@@ -209,6 +210,36 @@ def test_check_refuses_when_output_alias_check_is_indeterminate(tmp_path, monkey
     assert "platform detail" not in result.output
     assert not output.exists()
     assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_refuses_output_swapped_to_input_after_alias_check(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "bad.md"
+    output = tmp_path / "result.json"
+    original = "ORIGINAL\n"
+    doc.write_text(original, encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    checked = False
+    real_same_file = cli_module._same_file
+
+    def swap_after_alias_check(left: Path, right: Path) -> bool:
+        nonlocal checked
+        same = real_same_file(left, right)
+        if left == output and not checked:
+            output.unlink()
+            output.symlink_to(doc)
+            checked = True
+        return same
+
+    monkeypatch.setattr(cli_module, "_same_file", swap_after_alias_check)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
 
 
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:

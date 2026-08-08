@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import TextIO
@@ -247,10 +248,34 @@ def _write_output(
         return
     if any(_same_file(output_path, path) for path in protected_paths):
         raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+    descriptor: int | None = None
     try:
-        output_path.write_text(rendered, encoding="utf-8")
+        descriptor = os.open(output_path, os.O_RDWR | os.O_CREAT, 0o666)
+        output_stat = os.fstat(descriptor)
+        for protected_path in protected_paths:
+            try:
+                if os.path.samestat(output_stat, os.stat(protected_path)):
+                    raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+            except FileNotFoundError as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+            except (OSError, ValueError) as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+        with os.fdopen(descriptor, "r+", encoding="utf-8") as output:
+            descriptor = None
+            output.seek(0)
+            output.truncate()
+            output.write(rendered)
+    except _OperationalError:
+        raise
     except OSError as exc:
         raise _OperationalError(str(exc)) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def _same_file(left: Path, right: Path) -> bool:
