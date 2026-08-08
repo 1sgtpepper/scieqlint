@@ -58,7 +58,7 @@ def scan_headings(
             text=text,
             slug_candidate=slug(text),
             marker_span=smap.span(start + indent, start + indent + len(hashes)),
-            text_span=smap.span(text_start, text_start + len(body.lstrip())) if body else None,
+            text_span=smap.span(text_start, text_start + len(body.lstrip())) if text else None,
         )
 
 
@@ -177,6 +177,8 @@ def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFa
 
 def _heading_text(body: str) -> str:
     stripped = body.strip()
+    if re.fullmatch(r"#+", stripped):
+        return ""
     return re.sub(r"[ \t]+#+[ \t]*$", "", stripped).strip()
 
 

@@ -76,6 +76,16 @@ def test_bare_atx_heading_accepts_an_attached_target() -> None:
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
 
+def test_closing_only_atx_heading_is_empty_without_a_text_span() -> None:
+    snapshot = MySTFrontend().lower((doc("# #\n## ##\n### ###\n"),))
+
+    assert [(heading.raw, heading.text, heading.text_span) for heading in snapshot.headings] == [
+        ("# #", "", None),
+        ("## ##", "", None),
+        ("### ###", "", None),
+    ]
+
+
 def test_malformed_atx_candidates_do_not_affect_heading_semantics() -> None:
     snapshot = MySTFrontend().lower((doc("#Bad\n### Child\n\n(bad)=\n#AlsoBad\n"),))
 
