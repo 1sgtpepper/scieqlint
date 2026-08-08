@@ -44,9 +44,8 @@ DEFAULT_ARCHITECTURE_DOCS = (
 )
 DEFAULT_MODULE_GRAPH = "pyproject.toml"
 DEFAULT_CI_CONFIGS = (".github/workflows/ci.yml",)
-DISABLED_STEP_RE = re.compile(
-    r"^[ \t]*(?:-[ \t]+)?if:[ \t]*(?:\$\{\{[ \t]*)?false"
-    r"(?:[ \t]*\}\})?[ \t]*(?:#.*)?$",
+IF_LINE_RE = re.compile(
+    r"^[ \t]*(?:-[ \t]+)?if:[ \t]*(?P<value>.*)$",
     re.IGNORECASE,
 )
 
@@ -389,7 +388,7 @@ def has_blocking_release_gate(text: str) -> bool:
         step_lines = lines[max(start, 0) : end]
         if not any(
             len(candidate) - len(candidate.lstrip()) in {step_indent, step_indent + 2}
-            and (nonblocking.fullmatch(candidate) or DISABLED_STEP_RE.fullmatch(candidate))
+            and (nonblocking.fullmatch(candidate) or _is_disabled_if_line(candidate))
             for candidate in step_lines
         ):
             job_property_indent = step_indent - 2
@@ -411,11 +410,47 @@ def has_blocking_release_gate(text: str) -> bool:
                 job_end += 1
             if not any(
                 len(candidate) - len(candidate.lstrip()) == job_property_indent
-                and DISABLED_STEP_RE.fullmatch(candidate)
+                and _is_disabled_if_line(candidate)
                 for candidate in lines[max(job_start, 0) : job_end]
             ):
                 return True
     return False
+
+
+def _is_disabled_if_line(line: str) -> bool:
+    match = IF_LINE_RE.fullmatch(line)
+    if match is None:
+        return False
+    value = _strip_yaml_comment(match.group("value")).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1].strip()
+    if value.startswith("${{") and value.endswith("}}"):
+        value = value[3:-2].strip()
+    return value.casefold() == "false"
+
+
+def _strip_yaml_comment(value: str) -> str:
+    quote: str | None = None
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if character in {"'", '"'}:
+                quote = character
+            elif character == "#" and (index == 0 or value[index - 1].isspace()):
+                return value[:index].rstrip()
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    return value.strip()
 
 
 def drift_spellings(term: str) -> tuple[str, ...]:

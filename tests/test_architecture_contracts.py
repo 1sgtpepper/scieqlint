@@ -514,6 +514,9 @@ def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
     "nested_property",
     [
         "if: false",
+        'if: "false"',
+        "if: 'false'",
+        'if: "${{ false }}"',
         "continue-on-error: true",
     ],
 )
@@ -536,12 +539,24 @@ def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
     assert result.returncode == 0
 
 
+@pytest.mark.parametrize(
+    "disabled_condition",
+    [
+        "if: false",
+        'if: "false"',
+        "if: 'false'",
+        'if: "${{ false }}"',
+    ],
+)
 def test_architecture_terminology_scanner_rejects_disabled_parent_job(
     tmp_path: Path,
+    disabled_condition: str,
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    if: false\n    steps:\n"
+        "name: CI\n\njobs:\n  quality:\n    "
+        f"{disabled_condition}\n"
+        "    steps:\n"
         "      - run: python tools/architecture/terminology_drift.py --format json\n",
         encoding="utf-8",
     )
