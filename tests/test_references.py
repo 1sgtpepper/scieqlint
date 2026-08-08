@@ -31,6 +31,31 @@ def test_missing_reference_is_warning() -> None:
     assert diagnostics[0].message == "equation reference target not found: missing"
 
 
+def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
+    text = "\n".join(
+        [
+            "`{eq}`code`",
+            "$ {eq}`inline-math` $",
+            "$$",
+            "{eq}`display-math`",
+            "$$",
+            "<!-- {eq}`comment` -->",
+            "<span>{eq}`raw-html`</span>",
+            "See {eq}`missing`.",
+        ]
+    )
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == ["missing"]
+    assert [reference.target for reference in frontend.equation_refs] == ["missing"]
+    assert [
+        diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
+    ] == ["REF002"]
+
+
 def test_duplicate_label_is_error() -> None:
     scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n")
     diagnostics = check_references(scan.labels, scan.references)

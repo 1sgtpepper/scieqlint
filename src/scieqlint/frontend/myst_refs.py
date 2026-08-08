@@ -15,11 +15,11 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
-    inline_code_ranges,
     is_escaped,
     markdown_link_metadata_ranges,
     markdown_link_tokens,
     normalize_label,
+    opaque_markdown_ranges,
 )
 
 
@@ -30,7 +30,7 @@ def scan_refs(
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
-    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
+    occupied_with_code = opaque_markdown_ranges(document.text, occupied)
     link_metadata = markdown_link_metadata_ranges(document.text)
     for token in markdown_link_tokens(document.text):
         if token.is_image or in_ranges(token.start, occupied_with_code):

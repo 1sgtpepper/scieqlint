@@ -15,6 +15,7 @@ from scieqlint.frontend.myst_shared import (
     is_escaped,
     markdown_link_metadata_ranges,
     markdown_link_tokens,
+    opaque_markdown_ranges,
 )
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
@@ -308,7 +309,7 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
     attached_myst_anchors = _attached_myst_anchor_targets(document)
     link_metadata = markdown_link_metadata_ranges(document.text)
-    occupied = _code_spans(document)
+    occupied = opaque_markdown_ranges(document.text, _code_spans(document))
     for token in markdown_link_tokens(document.text):
         if token.is_image or _in_ranges(token.start, occupied):
             continue
@@ -328,7 +329,11 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
-        if _in_ranges(match.start(), link_metadata) or is_escaped(document.text, match.start()):
+        if (
+            _in_ranges(match.start(), occupied)
+            or _in_ranges(match.start(), link_metadata)
+            or is_escaped(document.text, match.start())
+        ):
             continue
         role = match.group("role")
         body = match.group("body")

@@ -24,6 +24,12 @@ HEADING_RE = re.compile(r"^[ \t]{0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?
 ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
 ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`]+)`")
+HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
+HTML_ELEMENT_RE = re.compile(
+    r"<(?P<tag>[A-Za-z][A-Za-z0-9:-]*)\b[^>]*>.*?</(?P=tag)[ \t]*>",
+    re.IGNORECASE | re.DOTALL,
+)
+HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
 TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
@@ -242,6 +248,27 @@ def dollar_inline_ranges(
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[int, int, int, int], ...]:
     return _dollar_inline_ranges(text, occupied)
+
+
+def opaque_markdown_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
+    ranges = [*occupied, *_inline_code_ranges(text), *_code_fence_ranges(text)]
+    ranges.extend(
+        (start, close_end)
+        for start, _body_start, _body_end, close_end in _dollar_display_ranges(text, ranges)
+        if not in_ranges(start, ranges)
+    )
+    ranges.extend(
+        (start, close_end)
+        for start, _body_start, _body_end, close_end in _dollar_inline_ranges(text, ranges)
+        if not in_ranges(start, ranges)
+    )
+    ranges.extend((match.start(), match.end()) for match in HTML_COMMENT_RE.finditer(text))
+    ranges.extend((match.start(), match.end()) for match in HTML_ELEMENT_RE.finditer(text))
+    ranges.extend((match.start(), match.end()) for match in HTML_TAG_RE.finditer(text))
+    return tuple(ranges)
 
 
 def extract_role_target_and_title(body: str) -> tuple[str, str | None]:

@@ -114,6 +114,8 @@ Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
 Only parsed Markdown links and MyST roles create reference facts; escaped text,
 images, and link destinations or titles remain metadata rather than references.
+Role-like text inside inline code, inline or display math, HTML comments, and raw
+HTML is opaque and does not create reference facts.
 
 ## MyST structure linting
 
