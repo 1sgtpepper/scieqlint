@@ -128,6 +128,33 @@ def test_check_refuses_replaced_exact_input_path(tmp_path, monkeypatch) -> None:
     assert doc.read_text(encoding="utf-8") == replacement
 
 
+def test_check_refuses_replaced_ordinary_lexical_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    alias_directory = tmp_path / "alias"
+    output = alias_directory / ".." / "source.md"
+    replacement = "# replacement\n"
+    alias_directory.mkdir()
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+
+
 def test_check_allows_distinct_output_after_symlink_parent_input(tmp_path) -> None:
     root = tmp_path / "root"
     target_directory = root / "external" / "dir"

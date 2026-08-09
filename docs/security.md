@@ -47,7 +47,9 @@ destination when a consumed input's object identity is unavailable.
 The lexical-role check follows the host path implementation. On a case-insensitive
 POSIX filesystem, a case-only alias to a pathname whose object was replaced cannot be
 inferred from POSIX spelling alone; the descriptor identity still protects aliases to
-the object that was actually consumed.
+the object that was actually consumed. Ordinary `.` and `..` aliases are protected
+when their traversed components are not symlinks; parent segments after a symlink
+remain part of the raw caller role so distinct physical targets are not conflated.
 
 ## Dependency updates
 

@@ -28,10 +28,16 @@ class ConsumedInput:
     """The lexical input role and object identity observed during consumption."""
 
     path_key: str
+    normalized_path_key: str | None
     identity: FileIdentity | None
 
     def matches_path(self, path: Path) -> bool:
-        return self.path_key == _lexical_path_key(path)
+        if self.path_key == _lexical_path_key(path):
+            return True
+        return (
+            self.normalized_path_key is not None
+            and self.normalized_path_key == _normalized_path_key(path)
+        )
 
     def matches_identity(self, stat_result: os.stat_result) -> bool:
         return self.identity is not None and self.identity.matches(stat_result)
@@ -43,6 +49,22 @@ def _lexical_path_key(path: Path) -> str:
     # os.path.abspath() here would apply normpath() and could make an output
     # path for a different file look like the consumed caller path.
     return os.path.normcase(path.absolute().as_posix())
+
+
+def _normalized_path_key(path: Path) -> str | None:
+    """Normalize aliases only when no traversed component is a symlink."""
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts:
+        if part == absolute.anchor:
+            continue
+        if part == "..":
+            current = current.parent
+            continue
+        current /= part
+        if current.is_symlink():
+            return None
+    return os.path.normcase(os.path.normpath(absolute.as_posix()))
 
 
 @contextmanager
@@ -60,7 +82,11 @@ def open_text(
         stream = os.fdopen(descriptor, "r", encoding=encoding)
         descriptor = None
         try:
-            yield stream, ConsumedInput(_lexical_path_key(path), identity)
+            yield stream, ConsumedInput(
+                _lexical_path_key(path),
+                _normalized_path_key(path),
+                identity,
+            )
         finally:
             stream.close()
     finally:
