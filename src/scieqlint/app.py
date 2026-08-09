@@ -29,7 +29,7 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
-from scieqlint.io.identity import FileIdentity, open_text
+from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
@@ -45,7 +45,7 @@ class _AnalysisRun(Generic[_ResultT]):
     """An analysis result paired with identities captured while its inputs were read."""
 
     result: _ResultT
-    consumed_identities: tuple[FileIdentity, ...]
+    consumed_inputs: tuple[ConsumedInput, ...]
     input_identities_complete: bool = True
 
 
@@ -79,7 +79,7 @@ def _run_check_paths(
     absolute_paths: bool = False,
 ) -> _AnalysisRun[CheckResult]:
     """Load supported files, check them, and retain their consumed identities."""
-    config, config_identities = _load_config_with_inputs(config_path)
+    config, config_inputs = _load_config_with_inputs(config_path)
     config = _apply_overrides(
         config,
         no_algebra=no_algebra,
@@ -96,15 +96,17 @@ def _run_check_paths(
     )
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
-    consumed_identities = list(config_identities)
-    input_identities_complete = True
+    consumed_inputs = list(config_inputs)
+    input_identities_complete = all(item.identity is not None for item in consumed_inputs)
 
     for path in discovered:
         opened = False
         try:
-            with open_text(path, encoding="utf-8") as (stream, identity):
+            with open_text(path, encoding="utf-8") as (stream, consumed_input):
                 opened = True
-                consumed_identities.append(identity)
+                consumed_inputs.append(consumed_input)
+                if consumed_input.identity is None:
+                    input_identities_complete = False
                 text = stream.read()
         except (OSError, UnicodeError) as exc:
             if not opened:
@@ -130,9 +132,13 @@ def _run_check_paths(
 
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
+    baselines = _load_baselines(config, project_root, consumed_inputs)
+    input_identities_complete = input_identities_complete and all(
+        item.identity is not None for item in consumed_inputs
+    )
     diagnostics_result = apply_baseline(
         diagnostics_result,
-        _load_baselines(config, project_root, consumed_identities),
+        baselines,
     )
     return _AnalysisRun(
         CheckResult(
@@ -143,7 +149,7 @@ def _run_check_paths(
             version=__version__,
             show_suppressed=config.report.show_suppressed,
         ),
-        tuple(consumed_identities),
+        tuple(consumed_inputs),
         input_identities_complete,
     )
 
@@ -249,17 +255,20 @@ def _run_graph_paths(
     config_path: Path | str | None = None,
 ) -> _AnalysisRun[Graph]:
     """Load files, build the graph, and retain their consumed identities."""
-    config, config_identities = _load_config_with_inputs(config_path)
+    config, config_inputs = _load_config_with_inputs(config_path)
     discovered = _discover_files(
         paths or [Path(".")],
         config.ignore.files,
         reject_missing_explicit=bool(paths),
     )
     documents: list[SourceDocument] = []
-    consumed_identities = list(config_identities)
+    consumed_inputs = list(config_inputs)
+    input_identities_complete = all(item.identity is not None for item in consumed_inputs)
     for path in discovered:
-        with open_text(path, encoding="utf-8") as (stream, identity):
-            consumed_identities.append(identity)
+        with open_text(path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
+            if consumed_input.identity is None:
+                input_identities_complete = False
             documents.append(
                 SourceDocument.from_text(
                     _display_path(path, absolute_paths=False),
@@ -267,7 +276,11 @@ def _run_graph_paths(
                     _document_kind(path),
                 )
             )
-    return _AnalysisRun(graph_documents(documents, config=config), tuple(consumed_identities))
+    return _AnalysisRun(
+        graph_documents(documents, config=config),
+        tuple(consumed_inputs),
+        input_identities_complete,
+    )
 
 
 def graph_documents(
@@ -426,12 +439,12 @@ def _project_relative_path(path: Path, project_root: Path | None) -> str:
 def _load_baselines(
     config: Config,
     project_root: Path,
-    consumed_identities: list[FileIdentity],
+    consumed_inputs: list[ConsumedInput],
 ) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
     for path in _baseline_paths(config, project_root):
-        with open_text(path, encoding="utf-8") as (stream, identity):
-            consumed_identities.append(identity)
+        with open_text(path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
             identities.update(baseline_identities_from_json(stream.read()))
     return frozenset(identities)
 

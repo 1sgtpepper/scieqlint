@@ -32,7 +32,8 @@ class _OperationalError(click.ClickException):
 class _ConsumedIdentity(Protocol):
     """Writer-side contract for an identity captured by the analysis owner."""
 
-    def matches(self, stat_result: os.stat_result) -> bool: ...
+    def matches_path(self, path: Path) -> bool: ...
+    def matches_identity(self, stat_result: os.stat_result) -> bool: ...
 
 
 DEFAULT_CONFIG = """[project]
@@ -142,7 +143,7 @@ def check(
             rendered,
             output_path,
             sys.stdout,
-            consumed_identities=run.consumed_identities,
+            consumed_inputs=run.consumed_inputs,
             input_identities_complete=run.input_identities_complete,
         )
         raise SystemExit(run.result.exit_code())
@@ -219,7 +220,7 @@ def graph(
             rendered,
             output_path,
             sys.stdout,
-            consumed_identities=run.consumed_identities,
+            consumed_inputs=run.consumed_inputs,
             input_identities_complete=run.input_identities_complete,
         )
     except click.ClickException:
@@ -266,7 +267,7 @@ def _write_output(
     output_path: Path | None,
     stdout: TextIO,
     *,
-    consumed_identities: tuple[_ConsumedIdentity, ...] = (),
+    consumed_inputs: tuple[_ConsumedIdentity, ...] = (),
     input_identities_complete: bool = True,
 ) -> None:
     if output_path is None:
@@ -275,6 +276,8 @@ def _write_output(
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
+    if any(item.matches_path(output_path) for item in consumed_inputs):
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
     if not input_identities_complete:
         raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
     descriptor: int | None = None
@@ -289,10 +292,13 @@ def _write_output(
             created = True
         except FileExistsError:
             descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT, 0o666)
-        output_stat = os.fstat(descriptor)
+        try:
+            output_stat = os.fstat(descriptor)
+        except OSError as exc:
+            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
         # A newly created directory entry cannot alias a consumed input, even if
         # the filesystem immediately reuses its device/inode tuple after unlink.
-        if not created and any(identity.matches(output_stat) for identity in consumed_identities):
+        if not created and any(item.matches_identity(output_stat) for item in consumed_inputs):
             raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             descriptor = None

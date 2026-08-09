@@ -27,7 +27,7 @@ from scieqlint.config.model import (
 )
 from scieqlint.config.presets import read_preset_text
 from scieqlint.config.validate import validate_config
-from scieqlint.io.identity import FileIdentity, open_text
+from scieqlint.io.identity import ConsumedInput, open_text
 
 _BASE_DIMENSIONS = {
     "M": 0,
@@ -42,7 +42,7 @@ _BASE_DIMENSIONS = {
 
 def load_config(path: Path | str | None = None, *, preset: str | None = None) -> Config:
     """Load config defaults, optional preset values, and supported config options."""
-    config, _consumed_identities = _load_config_with_inputs(path, preset=preset)
+    config, _consumed_inputs = _load_config_with_inputs(path, preset=preset)
     return config
 
 
@@ -50,15 +50,15 @@ def _load_config_with_inputs(
     path: Path | str | None = None,
     *,
     preset: str | None = None,
-) -> tuple[Config, tuple[FileIdentity, ...]]:
-    consumed_identities: list[FileIdentity] = []
+) -> tuple[Config, tuple[ConsumedInput, ...]]:
+    consumed_inputs: list[ConsumedInput] = []
     if path is None:
         config_path = _find_default_config()
     else:
         config_path = Path(path)
         if not config_path.exists():
             raise FileNotFoundError(f"config not found: {config_path}")
-    data = _config_data(config_path, preset=preset, consumed_identities=consumed_identities)
+    data = _config_data(config_path, preset=preset, consumed_inputs=consumed_inputs)
     errors = validate_config(data)
     if errors:
         raise ValueError("; ".join(errors))
@@ -116,21 +116,21 @@ def _load_config_with_inputs(
         ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
         report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
     )
-    return config, tuple(consumed_identities)
+    return config, tuple(consumed_inputs)
 
 
 def _config_data(
     config_path: Path | None,
     *,
     preset: str | None,
-    consumed_identities: list[FileIdentity],
+    consumed_inputs: list[ConsumedInput],
 ) -> dict[str, Any]:
     data: dict[str, Any] = {}
     if preset is not None:
         data = _merge_tables(data, tomllib.loads(read_preset_text(preset)))
     if config_path is not None:
-        with open_text(config_path, encoding="utf-8") as (stream, identity):
-            consumed_identities.append(identity)
+        with open_text(config_path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
             data = _merge_tables(data, tomllib.loads(stream.read()))
     return data
 

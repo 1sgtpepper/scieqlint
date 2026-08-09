@@ -103,6 +103,31 @@ def test_check_refuses_to_overwrite_input(tmp_path) -> None:
     assert doc.read_text(encoding="utf-8") == original
 
 
+def test_check_refuses_replaced_exact_input_path(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    original = "# consumed source\n"
+    replacement = "# replacement\n"
+    doc.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(doc)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+
+
 def test_graph_refuses_symlink_output_alias(tmp_path) -> None:
     doc = tmp_path / "graph.md"
     output = tmp_path / "graph.json"
@@ -274,6 +299,122 @@ def test_check_refuses_when_input_identity_is_indeterminate(tmp_path, monkeypatc
     assert "platform detail" not in result.output
     assert not output.exists()
     assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_stdout_remains_available_when_input_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    doc.write_text("# clean\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("platform detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "platform detail" not in result.output
+
+
+def test_check_refuses_when_config_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "config identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_check_refuses_when_baseline_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_baseline_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise PermissionError("baseline identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_baseline_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "baseline identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_graph_refuses_when_source_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "graph.md"
+    output = tmp_path / "result.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("graph identity detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc), "--output", str(output)])
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "graph identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_graph_stdout_remains_available_when_source_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "graph.md"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("graph identity detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc)])
+
+    assert result.exit_code == 0
+    assert '"schema_version": "0.3"' in result.output
+    assert "graph identity detail" not in result.output
 
 
 def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch) -> None:

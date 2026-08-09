@@ -35,9 +35,14 @@ The checker runtime must not:
 - read ignored files unless explicitly passed,
 - call SymPy text parsers on document content,
 - overwrite a consumed source, configuration, or baseline file through `check
-  --output`, including hardlink and symlink aliases;
+  --output`, including exact and lexical path aliases plus hardlink and symlink
+  aliases;
 - overwrite a consumed source or configuration file through `graph --output`,
-  including hardlink and symlink aliases.
+  including exact and lexical path aliases plus hardlink and symlink aliases.
+
+Identity capture failures do not change stdout or already-loaded-document API
+analysis, but any file-output operation refuses before creating or modifying its
+destination when a consumed input's object identity is unavailable.
 
 ## Dependency updates
 

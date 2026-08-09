@@ -13,6 +13,7 @@ from scieqlint.config.model import (
     ReferencesConfig,
     ScannerConfig,
 )
+from scieqlint.io import identity as identity_module
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -24,6 +25,24 @@ def test_check_paths_rejects_missing_explicit_input(tmp_path) -> None:
 def test_graph_paths_rejects_missing_explicit_input(tmp_path) -> None:
     with pytest.raises(FileNotFoundError, match="input not found"):
         graph_paths([tmp_path / "missing.md"])
+
+
+def test_check_paths_returns_result_when_input_identity_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    path = tmp_path / "paper.md"
+    path.write_text("# clean\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("identity detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = check_paths([path])
+
+    assert result.files_checked == 1
+    assert result.diagnostics == ()
 
 
 def test_check_paths_accepts_literal_file_with_glob_characters(tmp_path) -> None:
