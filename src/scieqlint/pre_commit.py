@@ -43,7 +43,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 2
 
     return subprocess.run(
-        [sys.executable, "-m", "scieqlint", "check", *check_args, "--"],
+        [sys.executable, "-P", "-m", "scieqlint", "check", *check_args, "--"],
         check=False,
     ).returncode
 

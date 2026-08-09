@@ -1,7 +1,7 @@
 - id: scieqlint
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
-  entry: python -m scieqlint.pre_commit
+  entry: python -P -m scieqlint.pre_commit
   args: ["--"]
   language: python
   stages: [pre-commit]

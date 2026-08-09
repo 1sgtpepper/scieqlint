@@ -57,6 +57,8 @@ Release notes must use these sections:
   seeing untracked supported files; `--all-files` and `--files` observe the
   current worktree. The hook is limited to the pre-commit stage and requires
   pre-commit 3.2.0 or newer.
+- Pre-commit launches now use Python safe-path mode so consumer-side modules
+  cannot shadow the installed SciEqLint package.
 - Source distributions now include the pre-commit hook manifest so integration
   fixtures can run without repository Git metadata.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.

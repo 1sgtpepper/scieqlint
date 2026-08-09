@@ -122,7 +122,7 @@ def test_pre_commit_hook_metadata_targets_supported_sources() -> None:
     metadata = Path(".pre-commit-hooks.yaml").read_text(encoding="utf-8")
 
     assert "- id: scieqlint" in metadata
-    assert "entry: python -m scieqlint.pre_commit" in metadata
+    assert "entry: python -P -m scieqlint.pre_commit" in metadata
     assert 'args: ["--"]' in metadata
     assert "language: python" in metadata
     assert "stages: [pre-commit]" in metadata
@@ -154,7 +154,7 @@ def test_pre_commit_adapter_runs_one_project_check(
     assert pre_commit.main(("--",)) == 7
     assert calls == [
         (
-            [pre_commit.sys.executable, "-m", "scieqlint", "check", "--"],
+            [pre_commit.sys.executable, "-P", "-m", "scieqlint", "check", "--"],
             {"check": False},
         )
     ]
@@ -175,6 +175,7 @@ def test_pre_commit_adapter_forwards_checker_options(
     assert calls == [
         [
             pre_commit.sys.executable,
+            "-P",
             "-m",
             "scieqlint",
             "check",
@@ -230,7 +231,7 @@ def test_pre_commit_adapter_module_entrypoint(
         runpy.run_path(str(Path(pre_commit.__file__)), run_name="__main__")
 
     assert raised.value.code == 0
-    assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
+    assert calls == [[pre_commit.sys.executable, "-P", "-m", "scieqlint", "check", "--"]]
 
 
 @pytest.mark.parametrize(("filename", "source"), _BOUNDARY_CASES)
@@ -262,6 +263,31 @@ def test_pre_commit_hook_checks_unchanged_project_context(
     output = result.stdout + result.stderr
     assert "REF001" in output
     assert "No such option" not in output
+
+
+def test_pre_commit_hook_ignores_consumer_package_shadowing(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
+    project = tmp_path / "project"
+    _init_project(project, repository, revision, {"existing.md": "plain text\n"})
+    shadow_package = project / "scieqlint"
+    shadow_package.mkdir()
+    (shadow_package / "__init__.py").write_text(
+        "raise RuntimeError('consumer package imported')\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "consumer package imported" not in result.stdout + result.stderr
 
 
 def test_pre_commit_hook_scans_untracked_supported_files(
