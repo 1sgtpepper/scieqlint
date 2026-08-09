@@ -382,6 +382,19 @@ def test_latex_symbol_directive_fixture_is_extracted() -> None:
     assert result.diagnostics == ()
 
 
+def test_latex_verbatim_transition_fixture_keeps_only_live_equation() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tests/fixtures/good/verbatim_transitions.tex"),
+        Path("tests/fixtures/good/verbatim_transitions.tex").read_text(encoding="utf-8"),
+        DocumentKind.LATEX,
+    )
+
+    result = LatexScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["E = m c^2"]
+    assert result.diagnostics == ()
+
+
 def test_malformed_latex_symbol_directive_warns_and_verbatim_is_ignored() -> None:
     result = LatexScanner().scan(
         _document(

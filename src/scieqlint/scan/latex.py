@@ -141,10 +141,15 @@ def _align_rows(
 ) -> Iterable[tuple[int, int]]:
     row_start = start
     cursor = start
+    ignored_index = 0
     while cursor < end:
-        if _in_ranges(cursor, ignored):
-            cursor += 1
-            continue
+        while ignored_index < len(ignored) and ignored[ignored_index][1] <= cursor:
+            ignored_index += 1
+        if ignored_index < len(ignored):
+            ignored_start, ignored_end = ignored[ignored_index]
+            if ignored_start <= cursor < ignored_end:
+                cursor = min(ignored_end, end)
+                continue
         if text.startswith(r"\\", cursor) and not _is_escaped(text, cursor):
             yield _trim_span(text, row_start, cursor)
             row_start = _row_break_end(text, cursor + 2, end)
