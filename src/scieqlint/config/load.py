@@ -76,49 +76,47 @@ def _load_config_with_inputs(
     dimension_data = _table(checks_data, "dimension")
     symbols_data = _table(checks_data, "symbols")
     vars_config = _vars_config(vars_data)
-    return (
-        Config(
-            path=None if config_path is None else PurePosixPath(config_path.as_posix()),
-            project=ProjectConfig(
-                root=_posix_path(project_data, "root", PurePosixPath(".")),
-                order=_str_tuple(project_data, "order"),
-            ),
-            baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
-            scanner=ScannerConfig(
-                markdown=_bool(scanner_data, "markdown", True),
-                inline_math=_bool(scanner_data, "inline_math", False),
-                math_fences=_bool(scanner_data, "math_fences", True),
-            ),
-            parser=ParserConfig(
-                strict_unknowns=_bool(parser_data, "strict_unknowns", False),
-            ),
-            checks=ChecksConfig(
-                algebra=AlgebraConfig(
-                    enabled=_bool(algebra_data, "enabled", True),
-                ),
-                references=ReferencesConfig(
-                    enabled=_bool(references_data, "enabled", True),
-                    missing_label_strict=_bool(references_data, "missing_label_strict", False),
-                ),
-                dimension=DimensionConfig(
-                    mode=_dimension_mode(dimension_data, "mode", "auto"),
-                    unknown_variables=_unknown_variable_policy(
-                        dimension_data,
-                        "unknown_variables",
-                        "warn",
-                    ),
-                ),
-                symbols=SymbolsConfig(
-                    enabled=_bool(symbols_data, "enabled", False),
-                ),
-            ),
-            vars=vars_config,
-            aliases=_aliases_config(aliases_data, vars_config),
-            ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
-            report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
+    config = Config(
+        path=None if config_path is None else PurePosixPath(config_path.as_posix()),
+        project=ProjectConfig(
+            root=_posix_path(project_data, "root", PurePosixPath(".")),
+            order=_str_tuple(project_data, "order"),
         ),
-        tuple(consumed_identities),
+        baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
+        scanner=ScannerConfig(
+            markdown=_bool(scanner_data, "markdown", True),
+            inline_math=_bool(scanner_data, "inline_math", False),
+            math_fences=_bool(scanner_data, "math_fences", True),
+        ),
+        parser=ParserConfig(
+            strict_unknowns=_bool(parser_data, "strict_unknowns", False),
+        ),
+        checks=ChecksConfig(
+            algebra=AlgebraConfig(
+                enabled=_bool(algebra_data, "enabled", True),
+            ),
+            references=ReferencesConfig(
+                enabled=_bool(references_data, "enabled", True),
+                missing_label_strict=_bool(references_data, "missing_label_strict", False),
+            ),
+            dimension=DimensionConfig(
+                mode=_dimension_mode(dimension_data, "mode", "auto"),
+                unknown_variables=_unknown_variable_policy(
+                    dimension_data,
+                    "unknown_variables",
+                    "warn",
+                ),
+            ),
+            symbols=SymbolsConfig(
+                enabled=_bool(symbols_data, "enabled", False),
+            ),
+        ),
+        vars=vars_config,
+        aliases=_aliases_config(aliases_data, vars_config),
+        ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
+        report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
     )
+    return config, tuple(consumed_identities)
 
 
 def _config_data(
