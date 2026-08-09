@@ -751,6 +751,214 @@ def test_architecture_terminology_scanner_resolves_step_and_parent_job_scope(
 
 
 @pytest.mark.parametrize(
+    ("case_name", "ci_text", "expected_gate_violation"),
+    [
+        (
+            "unknown job if expression",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: ${{ 1 == 2 }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unknown step if expression",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ 1 == 2 }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "static true job if expression",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: ${{ true }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "job expression continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: ${{ true }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "step expression continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - continue-on-error: ${{ true }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "job false expression continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "step false expression continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - continue-on-error: ${{ false }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "alias continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: optional-check
+        continue-on-error: &optional true
+      - run: python tools/architecture/terminology_drift.py --format json
+        continue-on-error: *optional
+""",
+            True,
+        ),
+        (
+            "alias if condition",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: &enabled true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted job boundary",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: false
+    runs-on: ubuntu-latest
+    name: "x
+  fake:
+    y"
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted step boundary",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - id: gate
+        if: false
+        name: "x
+      - fake:
+        y"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "skipped needs dependency",
+            """name: CI
+on: [push]
+
+jobs:
+  setup:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo setup
+  quality:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+    ],
+)
+def test_architecture_terminology_scanner_requires_static_blocking_gate(
+    tmp_path: Path,
+    case_name: str,
+    ci_text: str,
+    expected_gate_violation: bool,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        ci_text,
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == int(expected_gate_violation), case_name
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == (
+        ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
+    ), case_name
+
+
+@pytest.mark.parametrize(
     "disabled_condition",
     [
         "if: false",

@@ -44,10 +44,6 @@ DEFAULT_ARCHITECTURE_DOCS = (
 )
 DEFAULT_MODULE_GRAPH = "pyproject.toml"
 DEFAULT_CI_CONFIGS = (".github/workflows/ci.yml",)
-IF_LINE_RE = re.compile(
-    r"^[ \t]*(?:-[ \t]+)?if:[ \t]*(?P<value>.*)$",
-    re.IGNORECASE,
-)
 
 
 @dataclass(frozen=True)
@@ -361,11 +357,8 @@ def has_blocking_release_gate(text: str) -> bool:
         rf"^[ \t]*(?:-[ \t]+)?run:[ \t]*[\"']?"
         rf"{re.escape(CI_GATE_COMMAND)}[\"']?[ \t]*(?:#.*)?$"
     )
-    nonblocking = re.compile(
-        r"^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*true[ \t]*(?:#.*)?$",
-        re.IGNORECASE,
-    )
-    mapping_line = re.compile(r"^[ \t]*(?!-[ \t]+)[^#\s][^:]*:[ \t]*.*$")
+    status_line = re.compile(r"^[ \t]*(?:-[ \t]+)?(?P<key>[^#\s][^:]*):[ \t]*(?P<value>.*)$")
+    mapping_line = re.compile(r"^[ \t]*(?!-[ \t]+)(?P<key>[^#\s][^:]*):[ \t]*(?P<value>.*)$")
     mapping_key = re.compile(r"^[ \t]*(?!-[ \t]+)(?P<key>[^#\s][^:]*):[ \t]*(?:#.*)?$")
     list_item_line = re.compile(r"^[ \t]*-(?:[ \t]+.*)?$")
     block_scalar_header = re.compile(
@@ -401,12 +394,10 @@ def has_blocking_release_gate(text: str) -> bool:
         if value.startswith(("'", '"')):
             quoted_scalar_quote = _yaml_quote_state(value)
 
+    # Scalar and quoted continuations are values, never YAML structure.
+    ignored_structure_lines = scalar_content_lines | quoted_content_lines
     for index, line in enumerate(lines):
-        if (
-            index in scalar_content_lines
-            or index in quoted_content_lines
-            or gate_line.fullmatch(line) is None
-        ):
+        if index in ignored_structure_lines or gate_line.fullmatch(line) is None:
             continue
         # Derive the containing step and job from their mapping boundaries; YAML
         # nesting is valid with widths other than the repository's usual two spaces.
@@ -418,7 +409,7 @@ def has_blocking_release_gate(text: str) -> bool:
             step_start = -1
             for candidate_index in range(index - 1, -1, -1):
                 candidate = lines[candidate_index]
-                if candidate_index in scalar_content_lines:
+                if candidate_index in ignored_structure_lines:
                     continue
                 candidate_indent = len(candidate) - len(candidate.lstrip())
                 if candidate_indent < gate_indent and list_item_line.fullmatch(candidate):
@@ -431,6 +422,8 @@ def has_blocking_release_gate(text: str) -> bool:
         steps_start = -1
         steps_indent = -1
         for candidate_index in range(step_start, -1, -1):
+            if candidate_index in ignored_structure_lines:
+                continue
             candidate_match = mapping_key.fullmatch(lines[candidate_index])
             if candidate_match is None or candidate_match.group("key").strip() != "steps":
                 continue
@@ -445,6 +438,8 @@ def has_blocking_release_gate(text: str) -> bool:
         job_start = -1
         job_indent = -1
         for candidate_index in range(steps_start - 1, -1, -1):
+            if candidate_index in ignored_structure_lines:
+                continue
             candidate_match = mapping_key.fullmatch(lines[candidate_index])
             if candidate_match is None:
                 continue
@@ -459,6 +454,8 @@ def has_blocking_release_gate(text: str) -> bool:
         jobs_start = -1
         jobs_indent = -1
         for candidate_index in range(job_start - 1, -1, -1):
+            if candidate_index in ignored_structure_lines:
+                continue
             candidate_match = mapping_key.fullmatch(lines[candidate_index])
             if candidate_match is None:
                 continue
@@ -472,6 +469,8 @@ def has_blocking_release_gate(text: str) -> bool:
             continue
 
         for candidate_index in range(jobs_start - 1, -1, -1):
+            if candidate_index in ignored_structure_lines:
+                continue
             candidate_match = mapping_key.fullmatch(lines[candidate_index])
             if candidate_match is None:
                 continue
@@ -484,7 +483,7 @@ def has_blocking_release_gate(text: str) -> bool:
 
         direct_step_indent = -1
         for candidate_index in range(steps_start + 1, index + 1):
-            if candidate_index in scalar_content_lines:
+            if candidate_index in ignored_structure_lines:
                 continue
             candidate = lines[candidate_index]
             if not candidate.strip() or candidate.lstrip().startswith("#"):
@@ -500,6 +499,9 @@ def has_blocking_release_gate(text: str) -> bool:
 
         end = index + 1
         while end < len(lines):
+            if end in ignored_structure_lines:
+                end += 1
+                continue
             candidate = lines[end]
             candidate_indent = len(candidate) - len(candidate.lstrip())
             if candidate_indent == step_indent and list_item_line.fullmatch(candidate):
@@ -509,7 +511,7 @@ def has_blocking_release_gate(text: str) -> bool:
         direct_property_indents = {
             len(candidate) - len(candidate.lstrip())
             for candidate_index, candidate in enumerate(step_lines, start=step_start)
-            if candidate_index not in scalar_content_lines
+            if candidate_index not in ignored_structure_lines
             and len(candidate) - len(candidate.lstrip()) > step_indent
             and mapping_line.fullmatch(candidate)
         }
@@ -519,15 +521,21 @@ def has_blocking_release_gate(text: str) -> bool:
         step_property_indents = {step_indent}
         if direct_property_indent >= 0:
             step_property_indents.add(direct_property_indent)
-        if any(
-            len(candidate) - len(candidate.lstrip()) in step_property_indents
-            and (nonblocking.fullmatch(candidate) or _is_disabled_if_line(candidate))
-            for candidate in step_lines
+        if not _scope_is_proven_blocking(
+            lines=lines,
+            ignored_structure_lines=ignored_structure_lines,
+            start=step_start,
+            end=end,
+            property_indents=step_property_indents,
+            status_line=status_line,
+            reject_needs=False,
         ):
             continue
 
         job_end = len(lines)
         for candidate_index in range(job_start + 1, len(lines)):
+            if candidate_index in ignored_structure_lines:
+                continue
             candidate_match = mapping_key.fullmatch(lines[candidate_index])
             if candidate_match is None:
                 continue
@@ -535,26 +543,75 @@ def has_blocking_release_gate(text: str) -> bool:
             if candidate_indent == job_indent:
                 job_end = candidate_index
                 break
-        if any(
-            len(candidate) - len(candidate.lstrip()) == steps_indent
-            and (nonblocking.fullmatch(candidate) or _is_disabled_if_line(candidate))
-            for candidate in lines[job_start + 1 : job_end]
+        if not _scope_is_proven_blocking(
+            lines=lines,
+            ignored_structure_lines=ignored_structure_lines,
+            start=job_start + 1,
+            end=job_end,
+            property_indents={steps_indent},
+            status_line=status_line,
+            reject_needs=True,
         ):
             continue
         return True
     return False
 
 
-def _is_disabled_if_line(line: str) -> bool:
-    match = IF_LINE_RE.fullmatch(line)
-    if match is None:
-        return False
-    value = _strip_yaml_comment(match.group("value")).strip()
+def _scope_is_proven_blocking(
+    *,
+    lines: list[str],
+    ignored_structure_lines: set[int],
+    start: int,
+    end: int,
+    property_indents: set[int],
+    status_line: re.Pattern[str],
+    reject_needs: bool,
+) -> bool:
+    seen_status_keys: set[str] = set()
+    for index in range(start, end):
+        if index in ignored_structure_lines:
+            continue
+        line = lines[index]
+        if len(line) - len(line.lstrip()) not in property_indents:
+            continue
+        match = status_line.fullmatch(line)
+        if match is None:
+            continue
+        key = match.group("key").strip()
+        if len(key) >= 2 and key[0] == key[-1] and key[0] in {"'", '"'}:
+            key = key[1:-1].strip()
+        key = key.casefold()
+        if key in seen_status_keys:
+            return False
+        if key == "needs" and reject_needs:
+            # Reachability through skipped dependencies is not proven here.
+            return False
+        if key not in {"if", "continue-on-error"}:
+            continue
+        seen_status_keys.add(key)
+        static_bool = _static_workflow_bool(match.group("value"))
+        if key == "if" and static_bool is not True:
+            return False
+        if key == "continue-on-error" and static_bool is not False:
+            return False
+    return True
+
+
+def _static_workflow_bool(value: str) -> bool | None:
+    value = _strip_yaml_comment(value).strip()
+    # Anchors and aliases require YAML resolution; unknown values fail closed.
+    if not value or value.startswith(("&", "*")):
+        return None
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         value = value[1:-1].strip()
     if value.startswith("${{") and value.endswith("}}"):
         value = value[3:-2].strip()
-    return value.casefold() == "false"
+    normalized = value.casefold()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    return None
 
 
 def _yaml_quote_state(value: str, quote: str | None = None) -> str | None:
