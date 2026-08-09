@@ -13,7 +13,7 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import markdown_link_metadata_ranges, markdown_link_tokens
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_anchor_targets
+from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_heading_anchor_targets
 
 
 def _scan(text: str):
@@ -287,19 +287,6 @@ def test_even_backslashes_reactivate_markdown_links_and_myst_roles() -> None:
     ]
 
 
-def test_markdown_links_to_fenced_block_anchors_are_not_equation_refs() -> None:
-    fence = chr(96) * 3
-    document = SourceDocument.from_text(
-        PurePosixPath("lecture.md"),
-        "(tip)=\n" + fence + "{note}\ncontent\n" + fence + "\n\nSee [the note](#tip).\n",
-        DocumentKind.MARKDOWN,
-    )
-
-    result = check_documents([document], config=Config())
-
-    assert result.diagnostics == ()
-
-
 def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     valid = (
         "[x](#target)",
@@ -434,7 +421,7 @@ def test_lone_myst_anchor_has_no_attached_heading_target() -> None:
         DocumentKind.MARKDOWN,
     )
 
-    assert _attached_myst_anchor_targets(document) == frozenset()
+    assert _attached_myst_heading_anchor_targets(document) == frozenset()
 
 
 def test_empty_myst_role_is_malformed_syntax() -> None:

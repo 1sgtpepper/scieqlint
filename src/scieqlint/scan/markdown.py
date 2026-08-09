@@ -302,7 +302,7 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    attached_myst_anchors = _attached_myst_anchor_targets(document)
+    attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
     link_metadata = markdown_link_metadata_ranges(document.text)
     occupied = opaque_markdown_ranges(document.text, _code_spans(document))
     for token in markdown_link_tokens(document.text):
@@ -345,9 +345,8 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         )
 
 
-def _attached_myst_anchor_targets(document: SourceDocument) -> frozenset[str]:
-    fence_ranges = _fence_ranges(document)
-    occupied = (*_code_spans(document), *fence_ranges)
+def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
+    occupied = _code_spans(document)
     lines = _line_ranges(document.text)
     targets: set[str] = set()
     for index, (start, _end, line) in enumerate(lines):
@@ -357,10 +356,7 @@ def _attached_myst_anchor_targets(document: SourceDocument) -> frozenset[str]:
         if match is None:
             continue
         next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and (
-            HEADING_RE.match(lines[next_index][2]) is not None
-            or _in_ranges(lines[next_index][0], fence_ranges)
-        ):
+        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
             targets.add(_normalize_label(match.group("label")))
     return frozenset(targets)
 
@@ -375,10 +371,6 @@ def _next_attachable_line_index(
             return index
         index += 1
     return None
-
-
-def _fence_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    return code_fence_ranges(document.text)
 
 
 def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:
