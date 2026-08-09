@@ -7,19 +7,21 @@ from collections.abc import Sequence
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import (
+    MarkdownLinkToken,
+    OffsetRange,
+    is_escaped,
+    markdown_link_metadata_ranges,
+    markdown_link_tokens,
+    opaque_markdown_ranges,
+)
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
     ROLE_RE,
-    MarkdownLinkToken,
-    OffsetRange,
     extract_role_target_and_title,
     in_ranges,
-    is_escaped,
-    markdown_link_metadata_ranges,
-    markdown_link_tokens,
     normalize_label,
-    opaque_markdown_ranges,
 )
 
 

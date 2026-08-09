@@ -10,8 +10,8 @@ from scieqlint.config.model import Config
 from scieqlint.diag.model import Severity
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.myst_shared import markdown_link_metadata_ranges, markdown_link_tokens
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.markdown import markdown_link_metadata_ranges, markdown_link_tokens
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_anchor_targets
 
@@ -56,6 +56,61 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
     assert [
         diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
     ] == ["REF002"]
+
+
+def test_equation_roles_follow_equal_length_and_multiline_code_spans() -> None:
+    text = "``{eq}`hidden` ``\nUse ``foo\n{eq}`also-hidden`\nbar`` end.\nSee {eq}`active`."
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == ["active"]
+    assert [reference.target for reference in frontend.equation_refs] == ["active"]
+
+
+def test_escaped_dollar_does_not_make_an_adjacent_role_opaque() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        r"\$ {eq}`active` $ and {eq}`outside`.",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == ["active", "outside"]
+    assert [reference.target for reference in frontend.equation_refs] == ["active", "outside"]
+
+
+def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
+    assert markdown_link_tokens("[x](#dest\n\n)") == ()
+    assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
+    assert len(markdown_link_tokens('[x](#dest\n "title")')) == 1
+    assert markdown_link_tokens("[x](#dest with-space)") == ()
+    assert markdown_link_tokens("[x](#dest\x01)") == ()
+
+
+def test_roles_in_valid_link_titles_are_opaque_but_invalid_links_are_not() -> None:
+    valid = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        '[x](#dest "title\n{eq}`hidden`")\nSee {eq}`active`.',
+        DocumentKind.MARKDOWN,
+    )
+    invalid = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        '[x](#dest\n\n "title\n{eq}`active`")',
+        DocumentKind.MARKDOWN,
+    )
+
+    valid_snapshot = MySTFrontend().lower((valid,))
+    invalid_snapshot = MySTFrontend().lower((invalid,))
+
+    assert [(ref.role_kind, ref.target) for ref in valid_snapshot.generic_refs] == [
+        ("markdown-link", "dest")
+    ]
+    assert [ref.target for ref in valid_snapshot.equation_refs] == ["active"]
+    assert [ref.target for ref in invalid_snapshot.equation_refs] == ["active"]
 
 
 @pytest.mark.parametrize(

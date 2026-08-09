@@ -8,15 +8,6 @@ from collections.abc import Iterable
 from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
-from scieqlint.frontend.myst_shared import (
-    FENCE_RE as MYST_FENCE_RE,
-)
-from scieqlint.frontend.myst_shared import (
-    is_escaped,
-    markdown_link_metadata_ranges,
-    markdown_link_tokens,
-    opaque_markdown_ranges,
-)
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
@@ -26,6 +17,10 @@ from scieqlint.markdown import (
     inline_code_ranges,
     is_escaped,
     is_fence_closer,
+    is_escaped,
+    markdown_link_metadata_ranges,
+    markdown_link_tokens,
+    opaque_markdown_ranges,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -383,35 +378,7 @@ def _next_attachable_line_index(
 
 
 def _fence_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    lines = _line_ranges(document.text)
-    ranges: list[tuple[int, int]] = []
-    index = 0
-    while index < len(lines):
-        start, _end, line = lines[index]
-        match = MYST_FENCE_RE.match(line)
-        if match is None:
-            index += 1
-            continue
-        marker = match.group("marker")
-        close_index = _fence_close_index(lines, index, marker)
-        range_end = lines[close_index][1] if close_index is not None else len(document.text)
-        ranges.append((start, range_end))
-        index = close_index + 1 if close_index is not None else len(lines)
-    return tuple(ranges)
-
-
-def _fence_close_index(
-    lines: tuple[tuple[int, int, str], ...],
-    opener_index: int,
-    marker: str,
-) -> int | None:
-    fence_char = marker[0]
-    fence_length = len(marker)
-    for index in range(opener_index + 1, len(lines)):
-        stripped = lines[index][2].strip()
-        if stripped.startswith(fence_char * fence_length) and set(stripped) <= {fence_char}:
-            return index
-    return None
+    return code_fence_ranges(document.text)
 
 
 def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:

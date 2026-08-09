@@ -1,4 +1,4 @@
-"""Shared ordered lexical semantics for Markdown opaque regions and math."""
+"""Shared ordered lexical intervals for Markdown code, math, links, and opacity."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from dataclasses import dataclass
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
 
-_FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
 HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
 HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOTALL)
 HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
@@ -57,6 +56,18 @@ class _RangeCursor:
             return None
         start, end = self._ranges[self._index]
         return end if start <= position else None
+
+
+@dataclass(frozen=True, slots=True)
+class MarkdownLinkToken:
+    start: int
+    end: int
+    destination_start: int
+    destination_end: int
+    is_image: bool
+
+
+_FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
 
 
 def parse_fence_opener(line: str) -> tuple[str, str] | None:
@@ -525,3 +536,225 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
             return index
         index += 1
     return -1
+
+
+def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
+    tokens: list[MarkdownLinkToken] = []
+    index = 0
+    while index < len(text):
+        is_image = text[index] == "!" and index + 1 < len(text) and text[index + 1] == "["
+        label_start = index + 1 if is_image else index
+        if (
+            (is_image or text[index] == "[")
+            and not is_escaped(text, index)
+            and (not is_image or not is_escaped(text, label_start))
+        ):
+            token = _parse_markdown_link(text, label_start, is_image)
+            if token is not None:
+                tokens.append(token)
+                index = token.end
+                continue
+        index += 1
+    return tuple(tokens)
+
+
+def markdown_link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
+    return tuple(
+        (token.start, token.end) if token.is_image else (token.destination_start, token.end)
+        for token in markdown_link_tokens(text)
+    )
+
+
+def opaque_markdown_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
+    lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
+    ranges = [*occupied, *lexical.fences, *lexical.html, *lexical.roles, *lexical.code]
+    ranges.extend((start, close_end) for start, _body_start, _body_end, close_end in lexical.display)
+    ranges.extend((start, close_end) for start, _body_start, _body_end, close_end in lexical.inline)
+    return _merge_ranges(ranges)
+
+
+def _parse_markdown_link(
+    text: str,
+    label_start: int,
+    is_image: bool,
+) -> MarkdownLinkToken | None:
+    label_end = _find_link_label_end(text, label_start)
+    if label_end is None or label_end + 1 >= len(text) or text[label_end + 1] != "(":
+        return None
+    body = _parse_link_body(text, label_end + 2)
+    if body is None:
+        return None
+    destination_start, destination_end, end = body
+    return MarkdownLinkToken(
+        start=label_start - 1 if is_image else label_start,
+        end=end,
+        destination_start=destination_start,
+        destination_end=destination_end,
+        is_image=is_image,
+    )
+
+
+def _find_link_label_end(text: str, start: int) -> int | None:
+    depth = 1
+    index = start + 1
+    while index < len(text):
+        char = text[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == "\n":
+            return None
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return None
+
+
+def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
+    index = _skip_link_whitespace(text, start)
+    if index is None:
+        return None
+    if index < len(text) and text[index] == "<":
+        destination_start = index + 1
+        index += 1
+        while index < len(text):
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == ">":
+                destination_end = index
+                index += 1
+                break
+            if text[index] in "\n\r" or _is_ascii_control(text[index]):
+                return None
+            index += 1
+        else:
+            return None
+    else:
+        destination_start = index
+        depth = 0
+        while index < len(text):
+            char = text[index]
+            if char == "\\":
+                index += 2
+                continue
+            if (char in " \t\n\r" or _is_ascii_control(char)) and depth == 0:
+                break
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                if depth == 0:
+                    break
+                depth -= 1
+            index += 1
+        if depth != 0:
+            return None
+        destination_end = index
+
+    index = _skip_link_whitespace(text, index)
+    if index is None or index >= len(text):
+        return None
+    if text[index] != ")":
+        index = _parse_link_title(text, index)
+        if index is None:
+            return None
+        index = _skip_link_whitespace(text, index)
+        if index is None or index >= len(text) or text[index] != ")":
+            return None
+    return destination_start, destination_end, index + 1
+
+
+def _parse_link_title(text: str, start: int) -> int | None:
+    opener = text[start]
+    if opener in {'"', "'"}:
+        index = start + 1
+        while index < len(text):
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == opener:
+                return index + 1
+            if text[index] in "\n\r":
+                index = _advance_line_ending(text, index)
+                if index is None or _starts_blank_line(text, index):
+                    return None
+                continue
+            index += 1
+        return None
+    if opener != "(":
+        return None
+    depth = 1
+    index = start + 1
+    while index < len(text):
+        if text[index] == "\\":
+            index += 2
+            continue
+        if text[index] in "\n\r":
+            index = _advance_line_ending(text, index)
+            if index is None or _starts_blank_line(text, index):
+                return None
+            continue
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return None
+
+
+def _skip_link_whitespace(text: str, start: int) -> int | None:
+    index = start
+    while index < len(text) and text[index] in " \t":
+        index += 1
+    if index >= len(text) or text[index] not in "\n\r":
+        return index
+    index = _advance_line_ending(text, index)
+    if index is None:
+        return None
+    while index < len(text) and text[index] in " \t":
+        index += 1
+    return None if index < len(text) and text[index] in "\n\r" else index
+
+
+def _advance_line_ending(text: str, index: int) -> int | None:
+    if text.startswith("\r\n", index):
+        return index + 2
+    if index < len(text) and text[index] in "\n\r":
+        return index + 1
+    return None
+
+
+def _starts_blank_line(text: str, index: int) -> bool:
+    while index < len(text) and text[index] in " \t":
+        index += 1
+    return index < len(text) and text[index] in "\n\r"
+
+
+def _is_ascii_control(char: str) -> bool:
+    return ord(char) < 0x20 or ord(char) == 0x7F
+
+
+def _html_block_ranges(text: str) -> tuple[OffsetRange, ...]:
+    ranges: list[OffsetRange] = []
+    for match in HTML_BLOCK_OPEN_RE.finditer(text):
+        tag = match.group("tag").lower()
+        closing = re.search(rf"</[ \t]*{re.escape(tag)}[ \t]*>", text[match.end() :], re.IGNORECASE)
+        if closing is not None:
+            ranges.append((match.start(), match.end() + closing.end()))
+            continue
+        if tag in HTML_RAWTEXT_TAGS:
+            ranges.append((match.start(), len(text)))
+            continue
+        blank_line = re.search(r"\n[ \t]*\n", text[match.end() :])
+        end = len(text) if blank_line is None else match.end() + blank_line.start() + 1
+        ranges.append((match.start(), end))
+    return tuple(ranges)
