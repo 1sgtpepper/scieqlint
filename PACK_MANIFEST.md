@@ -234,6 +234,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/references_good.md`
 - `tests/fixtures/good/symbol_directives.md`
 - `tests/fixtures/good/symbol_directives.tex`
+- `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
