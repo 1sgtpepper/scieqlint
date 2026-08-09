@@ -442,21 +442,14 @@ def _load_baselines(
     consumed_inputs: list[ConsumedInput],
 ) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
-    for path in _baseline_paths(config, project_root):
-        with open_text(path, encoding="utf-8") as (stream, consumed_input):
-            consumed_inputs.append(consumed_input)
-            identities.update(baseline_identities_from_json(stream.read()))
-    return frozenset(identities)
-
-
-def _baseline_paths(config: Config, project_root: Path) -> tuple[Path, ...]:
-    paths: list[Path] = []
     for raw in config.baseline.files:
         path = Path(raw)
         if not path.is_absolute():
             path = project_root / path
-        paths.append(path)
-    return tuple(paths)
+        with open_text(path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
+            identities.update(baseline_identities_from_json(stream.read()))
+    return frozenset(identities)
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:

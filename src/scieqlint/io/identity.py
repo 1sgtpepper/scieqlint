@@ -31,13 +31,13 @@ class ConsumedInput:
     identity: FileIdentity | None
 
     def matches_path(self, path: Path) -> bool:
-        return self.path_key == lexical_path_key(path)
+        return self.path_key == _lexical_path_key(path)
 
     def matches_identity(self, stat_result: os.stat_result) -> bool:
         return self.identity is not None and self.identity.matches(stat_result)
 
 
-def lexical_path_key(path: Path) -> str:
+def _lexical_path_key(path: Path) -> str:
     """Normalize a path lexically using the host platform's path rules."""
     return os.path.normcase(os.path.abspath(os.fspath(path)))
 
@@ -57,7 +57,7 @@ def open_text(
         stream = os.fdopen(descriptor, "r", encoding=encoding)
         descriptor = None
         try:
-            yield stream, ConsumedInput(lexical_path_key(path), identity)
+            yield stream, ConsumedInput(_lexical_path_key(path), identity)
         finally:
             stream.close()
     finally:
