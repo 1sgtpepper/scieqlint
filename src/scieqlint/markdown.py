@@ -14,10 +14,6 @@ HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
 HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOTALL)
 HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
 HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?(?:\]\]>|$)", re.DOTALL)
-HTML_ELEMENT_RE = re.compile(
-    r"<(?P<tag>[A-Za-z][A-Za-z0-9:-]*)\b[^>]*>.*?</(?P=tag)[ \t]*>",
-    re.IGNORECASE | re.DOTALL,
-)
 HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
 HTML_BLOCK_OPEN_RE = re.compile(
     r"^[ \t]{0,3}<(?P<tag>address|article|aside|base|basefont|blockquote|body|caption|"
@@ -35,6 +31,7 @@ _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 class _LexicalRanges:
     fences: tuple[OffsetRange, ...]
     html: tuple[OffsetRange, ...]
+    roles: tuple[OffsetRange, ...]
     code: tuple[OffsetRange, ...]
     display: tuple[DollarRange, ...]
     inline: tuple[DollarRange, ...]
@@ -118,7 +115,7 @@ def markdown_protected_ranges(
     """Return ordered non-math Markdown regions that delimit live scanning."""
 
     lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
-    return _merge_ranges((*occupied, *lexical.fences, *lexical.html, *lexical.code))
+    return _merge_ranges((*occupied, *lexical.fences, *lexical.html, *lexical.roles, *lexical.code))
 
 
 def dollar_display_ranges(
@@ -171,10 +168,11 @@ def _ordered_lexical_ranges(
 
     lines = _source_lines(text)
     if not lines:
-        return _LexicalRanges((), (), (), (), (), ())
+        return _LexicalRanges((), (), (), (), (), (), ())
 
     fences: list[OffsetRange] = []
     html: list[OffsetRange] = []
+    roles: list[OffsetRange] = []
     code: list[OffsetRange] = []
     display: list[DollarRange] = []
     inline: list[DollarRange] = []
@@ -211,10 +209,11 @@ def _ordered_lexical_ranges(
 
         role_end = _myst_role_end_at(text, index)
         if role_end is not None:
+            roles.append((index, role_end))
             index = role_end
             continue
 
-        html_end = _html_range_at(text, index)
+        html_end = None if is_escaped(text, index) else _html_range_at(text, index)
         if html_end is not None:
             html.append((index, html_end))
             index = html_end
@@ -254,6 +253,10 @@ def _ordered_lexical_ranges(
         if run_start != index:
             index += 1
             continue
+        if is_escaped(text, index):
+            index = run_end
+            backtick_index += 1
+            continue
         close_index = next_same_backtick[backtick_index]
         if close_index is None:
             index = run_end
@@ -267,6 +270,7 @@ def _ordered_lexical_ranges(
     return _LexicalRanges(
         fences=_merge_ranges(fences),
         html=_merge_ranges(html),
+        roles=_merge_ranges(roles),
         code=_merge_ranges(code),
         display=tuple(display),
         inline=tuple(inline),
@@ -342,21 +346,33 @@ def _is_display_opener(text: str, start: int, line_start: int | None = None) -> 
 
 
 def _find_ordered_display_close(text: str, start: int) -> int:
+    line_start = text.rfind("\n", 0, start) + 1
     cursor = start
-    while True:
-        close = text.find("$$", cursor)
-        if close == -1:
+    while line_start < len(text):
+        line_end = text.find("\n", line_start)
+        if line_end == -1:
+            line_end = len(text)
+        candidate = text.find("$$", cursor, line_end)
+        while candidate != -1:
+            tail = text[candidate + 2 : line_end].strip("\r \t")
+            if (
+                not is_escaped(text, candidate)
+                and (candidate == 0 or text[candidate - 1] != "$")
+                and (candidate + 2 == len(text) or text[candidate + 2] != "$")
+                and (not tail or _is_dollar_label_tail(tail))
+            ):
+                return candidate
+            candidate = text.find("$$", candidate + 1, line_end)
+        if line_end == len(text):
             return -1
-        if (
-            not is_escaped(text, close)
-            and (close == 0 or text[close - 1] != "$")
-            and (close + 2 == len(text) or text[close + 2] != "$")
-        ):
-            return close
-        cursor = close + 2
+        line_start = line_end + 1
+        cursor = line_start
+    return -1
 
 
 def _myst_role_end_at(text: str, start: int) -> int | None:
+    if is_escaped(text, start):
+        return None
     match = _MYST_ROLE_RE.match(text, start)
     return match.end() if match is not None else None
 
@@ -367,7 +383,6 @@ def _html_range_at(text: str, start: int) -> int | None:
         HTML_DECLARATION_RE,
         HTML_PROCESSING_INSTRUCTION_RE,
         HTML_CDATA_RE,
-        HTML_ELEMENT_RE,
     ):
         match = pattern.match(text, start)
         if match is not None:
@@ -399,15 +414,11 @@ def _is_adjacent_to_dollar(text: str, index: int) -> bool:
 
 
 def _is_inline_opening(text: str, index: int) -> bool:
-    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")
+    return not is_escaped(text, index) and not _is_adjacent_to_dollar(text, index)
 
 
 def _is_inline_closing(text: str, index: int) -> bool:
-    if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
-        return False
-    return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
+    return not is_escaped(text, index) and not _is_adjacent_to_dollar(text, index)
 
 
 def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
@@ -417,3 +428,7 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
             return index
         index += 1
     return -1
+
+
+def _is_dollar_label_tail(tail: str) -> bool:
+    return bool(re.fullmatch(r"(?:\{#[^}\s]+\}|\([^()\s]+\))", tail))

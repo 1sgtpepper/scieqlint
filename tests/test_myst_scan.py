@@ -120,7 +120,7 @@ def test_myst_display_dollar_math_accepts_indentation_but_not_prose_prefix() -> 
 def test_myst_dollar_tail_requires_a_complete_label_suffix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "$$\nx = x\n$$ prose (ghost)\n\n$$\ny = y\n$$ {#real}\n",
+        "$$\nx = x\n$$ prose (ghost)\nmore\n$$ {#real}\n",
         DocumentKind.MARKDOWN,
     )
 

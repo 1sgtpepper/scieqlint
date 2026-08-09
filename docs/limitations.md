@@ -33,11 +33,12 @@ E = mc^2
 ```
 ````
 
-Dollar math follows a bounded delimiter profile: escaped dollars and borrowed
-`$$$` delimiters remain prose; display `$$` starts after zero to three leading
-ASCII spaces at the start of a line; inline `$` delimiters require outer text
-boundaries; and only a complete label suffix immediately after a display block
-is recognized.
+Dollar math follows the supported `mdit-py-plugins`-compatible delimiter profile:
+escaped dollars and borrowed `$$$` delimiters remain prose; display `$$` starts
+after zero to three leading ASCII spaces at the start of a line and closes only
+at the end of a source line (optionally followed by one complete label suffix);
+single-dollar inline math may be adjacent to ordinary text but stays on one source
+line. Empty bodies and unmatched delimiters are not facts.
 
 ## Core grammar subset
 
@@ -93,9 +94,11 @@ inline math spans.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
 The legacy scanner and architecture frontend resolve Markdown regions in source
-order: a code span, raw HTML region, or fence opened first owns later dollar
-markers, while math opened first owns later backticks and fence-like text until
-its first valid dollar close. Their trimmed bodies and spans therefore agree.
+order: a code span, block/raw-text HTML region, or fence opened first owns later
+dollar markers, while math opened first owns later backticks and fence-like text
+until its first valid dollar close. Ordinary inline HTML tags protect only their
+tag lexemes, so inline content remains live. Their trimmed bodies and spans
+therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick

@@ -99,6 +99,7 @@ def test_inline_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
     )
 
     assert result.blocks == ()
+    assert result.diagnostics == ()
 
 
 def test_inline_dollar_math_symbol_diagnostics_use_trimmed_source_columns() -> None:
@@ -240,7 +241,7 @@ def test_display_dollar_math_requires_a_line_boundary_and_allows_indent() -> Non
     assert result.diagnostics == ()
 
 
-def test_inline_dollar_math_requires_outer_text_boundaries() -> None:
+def test_inline_dollar_math_allows_text_boundaries() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "word$x = x$ and $x = x$word\n",
@@ -252,7 +253,8 @@ def test_inline_dollar_math_requires_outer_text_boundaries() -> None:
         Config(scanner=ScannerConfig(inline_math=True)),
     )
 
-    assert result.blocks == ()
+    assert [block.text for block in result.blocks] == ["x = x", "x = x"]
+    assert result.diagnostics == ()
 
 
 def test_inline_dollar_math_skips_escaped_closers_and_keeps_even_slashes_active() -> None:
@@ -273,7 +275,7 @@ def test_inline_dollar_math_skips_escaped_closers_and_keeps_even_slashes_active(
 def test_dollar_tail_accepts_only_a_complete_label_suffix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "$$\nx = x\n$$ prose (ghost)\n\n$$\ny = y\n$$ {#real}\n",
+        "$$\nx = x\n$$ prose (ghost)\nmore\n$$ {#real}\n",
         DocumentKind.MARKDOWN,
     )
 
@@ -317,19 +319,22 @@ def test_display_math_closes_at_dollar_inside_code_like_text() -> None:
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert [block.text for block in result.blocks] == ["a = a\n`"]
-    assert result.diagnostics == ()
+    assert result.blocks == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
 
 
 def test_legacy_and_frontend_share_source_order_for_math_and_backticks() -> None:
-    text = "$$\nleft\n`$$`\nright\ntext\n$$\noutside\n$$\n"
+    text = "$$\nleft\n`$$`\nright\ntext\n$$\noutside\n$$\noutside\n$$\n"
     document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
 
     legacy = MarkdownScanner().scan(document, Config())
     frontend = MySTFrontend().lower((document,))
 
-    assert [block.text for block in legacy.blocks] == ["left\n`", "outside"]
-    assert [math.body for math in frontend.display_math] == ["left\n`", "outside"]
+    assert [block.text for block in legacy.blocks] == ["left\n`$$`\nright\ntext", "outside"]
+    assert [math.body for math in frontend.display_math] == [
+        "left\n`$$`\nright\ntext",
+        "outside",
+    ]
     assert frontend.display_math[0].span is not None
     assert (legacy.blocks[0].span.start, legacy.blocks[0].span.end) == (
         frontend.display_math[0].span.start,
@@ -376,7 +381,55 @@ def test_display_math_closes_at_dollar_inside_multibacktick_like_text() -> None:
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert [block.text for block in result.blocks] == ["a = a\n``"]
+    assert result.blocks == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+def test_escaped_backticks_do_not_open_code_spans_but_even_slashes_do() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "\\`$x$ and \\\\`$y$`\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["x"]
+    assert result.diagnostics == ()
+
+
+def test_inline_html_tags_leave_inline_content_live() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<span>$x$</span> and \\<span>$y$</span>\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["x", "y"]
+    assert result.diagnostics == ()
+
+
+def test_block_html_keeps_math_content_opaque() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<div>\n$x$\n</div>\n\n$y$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["y"]
     assert result.diagnostics == ()
 
 
