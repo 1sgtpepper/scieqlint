@@ -44,6 +44,11 @@ Identity capture failures do not change stdout or already-loaded-document API
 analysis, but any file-output operation refuses before creating or modifying its
 destination when a consumed input's object identity is unavailable.
 
+The lexical-role check follows the host path implementation. On a case-insensitive
+POSIX filesystem, a case-only alias to a pathname whose object was replaced cannot be
+inferred from POSIX spelling alone; the descriptor identity still protects aliases to
+the object that was actually consumed.
+
 ## Dependency updates
 
 Dependency updates should pass the normal CI loop. Security updates may be expedited, but they must not bypass tests that protect the runtime security contract.

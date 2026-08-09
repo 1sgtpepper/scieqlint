@@ -38,8 +38,11 @@ class ConsumedInput:
 
 
 def _lexical_path_key(path: Path) -> str:
-    """Normalize a path lexically using the host platform's path rules."""
-    return os.path.normcase(os.path.abspath(os.fspath(path)))
+    """Anchor a lexical path without collapsing symlink-sensitive parent segments."""
+    # Path.absolute() adds the current directory but retains ``..``. Using
+    # os.path.abspath() here would apply normpath() and could make an output
+    # path for a different file look like the consumed caller path.
+    return os.path.normcase(path.absolute().as_posix())
 
 
 @contextmanager

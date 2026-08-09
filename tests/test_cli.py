@@ -128,6 +128,35 @@ def test_check_refuses_replaced_exact_input_path(tmp_path, monkeypatch) -> None:
     assert doc.read_text(encoding="utf-8") == replacement
 
 
+def test_check_allows_distinct_output_after_symlink_parent_input(tmp_path) -> None:
+    root = tmp_path / "root"
+    target_directory = root / "external" / "dir"
+    target_directory.mkdir(parents=True)
+    link = root / "link"
+    link.symlink_to(target_directory, target_is_directory=True)
+    consumed = root / "external" / "victim.md"
+    output = root / "victim.md"
+    original = "# physical target\n"
+    consumed.write_text(original, encoding="utf-8")
+    output.write_text("old output\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(root / "link" / ".." / "victim.md"),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["summary"]["files_checked"] == 1
+    assert consumed.read_text(encoding="utf-8") == original
+
+
 def test_graph_refuses_symlink_output_alias(tmp_path) -> None:
     doc = tmp_path / "graph.md"
     output = tmp_path / "graph.json"
