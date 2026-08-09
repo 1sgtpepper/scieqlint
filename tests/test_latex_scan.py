@@ -87,6 +87,16 @@ def test_comment_line_endings_terminate_on_cr_and_crlf() -> None:
         assert result.diagnostics == ()
 
 
+def test_comment_delimiter_is_ignored_before_the_live_dollar_close() -> None:
+    result = LatexScanner().scan(
+        _document("$$\nx = x % $$\ny = y\n$$\n"),
+        Config(),
+    )
+
+    assert [block.text for block in result.blocks] == ["x = x\ny = y"]
+    assert result.diagnostics == ()
+
+
 def test_latex_scanner_ignores_comments_and_verbatim() -> None:
     result = LatexScanner().scan(
         _document(
@@ -219,6 +229,14 @@ def test_unclosed_verbatim_protects_the_remaining_source() -> None:
         _document("\\begin{verbatim}\n\\begin{equation}\nx = x + 1\n\\end{equation}\n"),
         Config(),
     )
+
+    assert result.blocks == ()
+    assert result.references == ()
+    assert result.diagnostics == ()
+
+
+def test_verbatim_opener_at_end_of_file_protects_through_eof() -> None:
+    result = LatexScanner().scan(_document("\\begin{verbatim}"), Config())
 
     assert result.blocks == ()
     assert result.references == ()
