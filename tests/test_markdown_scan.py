@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.api import check_documents
+from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import (
     MathContainer,
@@ -41,6 +42,78 @@ def test_inline_math_scans_only_when_enabled() -> None:
 
     assert len(result.blocks) == 1
     assert result.blocks[0].container is MathContainer.MARKDOWN_INLINE
+
+
+def test_inline_math_span_tracks_trimmed_source_body() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    block = result.blocks[0]
+    assert block.text == "x = y"
+    assert block.span.col == 9
+    assert document.text[block.span.start : block.span.end] == "x = y"
+
+
+def test_inline_math_span_preserves_tabs_and_combining_unicode() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $\t x\u0301 = y \t $ after.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    block = result.blocks[0]
+    assert block.text == "x\u0301 = y"
+    assert document.text[block.span.start : block.span.end] == block.text
+
+
+def test_inline_math_whitespace_only_body_is_not_a_fact() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $ \t $ after.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+
+
+def test_inline_math_symbol_diagnostics_use_trimmed_source_columns() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Text $  x = y  $.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents(
+        [document],
+        config=Config(
+            scanner=ScannerConfig(inline_math=True),
+            checks=ChecksConfig(symbols=SymbolsConfig(enabled=True)),
+        ),
+    )
+
+    assert [
+        (diagnostic.code, diagnostic.detail, diagnostic.span.col)
+        for diagnostic in result.diagnostics
+        if diagnostic.span is not None
+    ] == [("SYM001", "x", 9), ("SYM001", "y", 13)]
 
 
 def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
