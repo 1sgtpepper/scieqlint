@@ -623,7 +623,14 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
     lexical = _ordered_lexical_ranges(text, (), scan_math=True)
-    protected = (*lexical.fences, *lexical.html, *lexical.roles, *lexical.code)
+    protected = (
+        *lexical.fences,
+        *lexical.html,
+        *lexical.roles,
+        *lexical.code,
+        *((start, close_end) for start, _body_start, _body_end, close_end in lexical.display),
+        *((start, close_end) for start, _body_start, _body_end, close_end in lexical.inline),
+    )
     opaque = _opaque_ranges_from_lexical(lexical)
     links = _markdown_link_tokens_from_lexical(text, protected)
     return MarkdownReferenceSnapshot(

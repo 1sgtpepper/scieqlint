@@ -334,6 +334,7 @@ def test_even_backslashes_reactivate_markdown_links_and_myst_roles() -> None:
     [
         (r"\`[active](#active)`", ["active"]),
         (r"\\`[hidden](#hidden)`", []),
+        ("$[hidden](#hidden)$", []),
         ("<span>[inline](#inline)</span>", ["inline"]),
         ("<div>\n[hidden](#hidden)\n\n[live](#live)", ["live"]),
     ],
