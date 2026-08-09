@@ -184,6 +184,15 @@ def test_dollar_math_does_not_pair_across_raw_html() -> None:
     assert dollar_display_ranges(text, protected) == ()
 
 
+def test_markdown_protected_ranges_merge_existing_occupancy() -> None:
+    assert markdown_protected_ranges("`x`", ((1, 2),)) == ((0, 3),)
+
+
+def test_empty_and_plain_markdown_have_no_code_ranges() -> None:
+    assert inline_code_ranges("") == ()
+    assert inline_code_ranges("plain text") == ()
+
+
 def test_unterminated_display_math_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -450,6 +459,22 @@ def test_block_html_keeps_math_content_opaque() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "<div>\n$x$\n</div>\n\n$y$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["y"]
+    assert result.diagnostics == ()
+
+
+def test_unclosed_block_html_ends_at_a_blank_line() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<div>\n$x$\n\n$y$\n",
         DocumentKind.MARKDOWN,
     )
 

@@ -334,9 +334,7 @@ def _next_same_backtick_runs(
     return tuple(next_runs)
 
 
-def _is_display_opener(text: str, start: int, line_start: int | None = None) -> bool:
-    if line_start is None:
-        line_start = text.rfind("\n", 0, start) + 1
+def _is_display_opener(text: str, start: int, line_start: int) -> bool:
     prefix = text[line_start:start]
     return (
         len(prefix) <= 3
