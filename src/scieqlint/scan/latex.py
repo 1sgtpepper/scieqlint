@@ -175,13 +175,6 @@ def _mask_to_length(text: str) -> str:
     return "".join("\n" if char == "\n" else "\r" if char == "\r" else " " for char in text)
 
 
-def _comment_start(line: str) -> int | None:
-    for index, char in enumerate(line):
-        if char == "%" and not _is_escaped(line, index):
-            return index
-    return None
-
-
 def _labels(
     document: SourceDocument,
     blocks: list[MathBlock],
