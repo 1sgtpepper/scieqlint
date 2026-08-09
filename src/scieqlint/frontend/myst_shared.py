@@ -5,15 +5,11 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     dollar_display_ranges as _dollar_display_ranges,
 )
 from scieqlint.markdown import (
     dollar_inline_ranges as _dollar_inline_ranges,
-)
-from scieqlint.markdown import (
-    inline_code_ranges as _inline_code_ranges,
 )
 
 LineRange = tuple[int, int, str]
@@ -46,10 +42,6 @@ def line_ranges(text: str) -> tuple[LineRange, ...]:
 
 def in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
     return any(start <= position < end for start, end in ranges)
-
-
-def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
-    return _inline_code_ranges(document.text)
 
 
 def dollar_display_ranges(

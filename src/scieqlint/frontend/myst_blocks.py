@@ -13,7 +13,7 @@ from scieqlint.facts.structure import (
     StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import is_fence_closer, parse_fence_opener
+from scieqlint.markdown import inline_code_ranges, is_fence_closer, parse_fence_opener
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
@@ -27,7 +27,6 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
-    inline_code_ranges,
 )
 
 
@@ -311,7 +310,7 @@ def _malformed_role_issues(
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
 ) -> Iterable[StructureSyntaxIssueFact]:
-    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
+    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document.text))
     for match in ROLE_MARKER_RE.finditer(document.text):
         if in_ranges(match.start(), occupied_with_code):
             continue

@@ -307,10 +307,7 @@ def _ordered_lexical_ranges(
         if backtick_index >= len(backtick_runs):
             index += 1
             continue
-        run_start, run_end, _delimiter_length = backtick_runs[backtick_index]
-        if run_start != index:
-            index += 1
-            continue
+        _run_start, run_end, _delimiter_length = backtick_runs[backtick_index]
         if is_escaped(text, index):
             index = run_end
             backtick_index += 1
@@ -344,8 +341,6 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
         line = raw_line[:-1] if raw_line.endswith("\n") else raw_line
         lines.append((start, end, line))
         start = end
-    if start < len(text) or (not lines and text):
-        lines.append((start, len(text), text[start:]))
     return lines
 
 
@@ -785,12 +780,7 @@ def _metadata_ranges_from_tokens(
 ) -> tuple[OffsetRange, ...]:
     ranges: list[OffsetRange] = []
     for token in tokens:
-        if token.metadata_ranges:
-            ranges.extend(token.metadata_ranges)
-        elif token.is_image:
-            ranges.append((token.start, token.end))
-        else:
-            ranges.append((token.destination_start, token.end))
+        ranges.extend(token.metadata_ranges)
     return _merge_ranges(ranges)
 
 
@@ -888,7 +878,7 @@ def _parse_link_title(text: str, start: int) -> int | None:
                 return index + 1
             if text[index] in "\n\r":
                 index = _advance_line_ending(text, index)
-                if index is None or _starts_blank_line(text, index):
+                if _starts_blank_line(text, index):
                     return None
                 continue
             index += 1
@@ -902,7 +892,7 @@ def _parse_link_title(text: str, start: int) -> int | None:
             continue
         if text[index] in "\n\r":
             index = _advance_line_ending(text, index)
-            if index is None or _starts_blank_line(text, index):
+            if _starts_blank_line(text, index):
                 return None
             continue
         if text[index] == "(":
@@ -920,19 +910,17 @@ def _skip_link_whitespace(text: str, start: int) -> tuple[int | None, bool]:
     if index >= len(text) or text[index] not in "\n\r":
         return index, index != start
     index = _advance_line_ending(text, index)
-    if index is None:
-        return None, True
     while index < len(text) and text[index] in " \t":
         index += 1
     return (None, True) if index < len(text) and text[index] in "\n\r" else (index, True)
 
 
-def _advance_line_ending(text: str, index: int) -> int | None:
+def _advance_line_ending(text: str, index: int) -> int:
     if text.startswith("\r\n", index):
         return index + 2
-    if index < len(text) and text[index] in "\n\r":
-        return index + 1
-    return None
+    assert index < len(text)
+    assert text[index] in "\n\r"
+    return index + 1
 
 
 def _starts_blank_line(text: str, index: int) -> bool:

@@ -112,10 +112,13 @@ def test_roles_before_after_valid_and_unclosed_math_keep_their_context(
 
 
 def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
+    assert markdown_link_tokens("[x](\n\n)") == ()
     assert markdown_link_tokens("[x](#dest\n\n)") == ()
     assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
+    assert len(markdown_link_tokens('[x](#dest "title\r\ncontinued")')) == 1
     assert len(markdown_link_tokens('[x](#dest "one\ntwo\nthree")')) == 1
     assert len(markdown_link_tokens('[x](#dest\n "title")')) == 1
+    assert len(markdown_link_tokens("[x](#dest (title\ncontinued))")) == 1
     assert markdown_link_tokens("[x](#dest with-space)") == ()
     assert markdown_link_tokens("[x](#dest(with space))") == ()
     assert markdown_link_tokens("[x](#dest\x01)") == ()
@@ -429,8 +432,10 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         '[x](<dest>"title")',
         '[x](#target "title)',
         '[x](#target "title\n)',
+        '[x](#target "title\n  \ncontinued")',
         '[x](#target "title"',
         "[x](#target (title",
+        "[x](#target (title\n\ncontinued))",
         "[x](#target (ti(tle)))",
         "[x](#target [title])",
         "\\[x](#target)",
@@ -442,6 +447,7 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     assert markdown_link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
     assert markdown_link_tokens("[x](#foo&amp;bar)")[0].destination == "#foo&bar"
     assert markdown_link_tokens("[x](#foo&#x26;bar)")[0].destination == "#foo&bar"
+    assert markdown_link_tokens("[x](#foo&unknown;)")[0].destination == "#foo&unknown;"
 
 
 def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> None:
