@@ -292,14 +292,15 @@ def _write_output(
             created = True
         except FileExistsError:
             descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT, 0o666)
-        try:
-            output_stat = os.fstat(descriptor)
-        except OSError as exc:
-            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
-        # A newly created directory entry cannot alias a consumed input, even if
-        # the filesystem immediately reuses its device/inode tuple after unlink.
-        if not created and any(item.matches_identity(output_stat) for item in consumed_inputs):
-            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+        if not created:
+            try:
+                output_stat = os.fstat(descriptor)
+            except OSError as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+            if any(item.matches_identity(output_stat) for item in consumed_inputs):
+                raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             descriptor = None
             output.seek(0)

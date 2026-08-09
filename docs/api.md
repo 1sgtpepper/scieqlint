@@ -35,7 +35,9 @@ provided non-glob path does not exist. Existing paths are treated literally even
 when their names contain glob characters; only nonexistent strings with glob
 syntax are expanded.
 `check_documents` and `graph_documents` are the already-loaded-document APIs and
-do not read baseline files from disk.
+do not read baseline files from disk. Path-based APIs preserve their analysis result
+when physical identity capture is unavailable; that identity is required only by
+the CLI guard before writing a file output.
 
 `CheckResult` exposes `diagnostics`, `files_checked`, `math_blocks_checked`,
 `config_path`, `version`, `show_suppressed`, and `exit_code()`. `exit_code()`

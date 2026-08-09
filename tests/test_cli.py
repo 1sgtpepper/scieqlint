@@ -349,6 +349,33 @@ def test_check_refuses_when_config_identity_is_indeterminate(tmp_path, monkeypat
     assert not output.exists()
 
 
+def test_check_stdout_remains_available_when_config_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "config identity detail" not in result.output
+
+
 def test_check_refuses_when_baseline_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "README.md"
     config = tmp_path / "scieqlint.toml"
@@ -380,6 +407,35 @@ def test_check_refuses_when_baseline_identity_is_indeterminate(tmp_path, monkeyp
     assert not output.exists()
 
 
+def test_check_stdout_remains_available_when_baseline_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_baseline_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise PermissionError("baseline identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_baseline_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "baseline identity detail" not in result.output
+
+
 def test_graph_refuses_when_source_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "graph.md"
     output = tmp_path / "result.json"
@@ -395,6 +451,35 @@ def test_graph_refuses_when_source_identity_is_indeterminate(tmp_path, monkeypat
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert "graph identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_graph_refuses_when_config_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "graph.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("graph config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "graph config identity detail" not in result.output
     assert not output.exists()
 
 
@@ -415,6 +500,33 @@ def test_graph_stdout_remains_available_when_source_identity_is_indeterminate(
     assert result.exit_code == 0
     assert '"schema_version": "0.3"' in result.output
     assert "graph identity detail" not in result.output
+
+
+def test_graph_stdout_remains_available_when_config_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "graph.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("graph config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert '"schema_version": "0.3"' in result.output
+    assert "graph config identity detail" not in result.output
 
 
 def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch) -> None:
@@ -444,6 +556,39 @@ def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert doc.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_existing_output_when_output_identity_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    real_fstat = cli_module.os.fstat
+    calls = 0
+
+    def deny_output_identity(descriptor: int):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise PermissionError("output identity detail must not escape")
+        return real_fstat(descriptor)
+
+    monkeypatch.setattr(cli_module.os, "fstat", deny_output_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "output identity detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
 
 
 def test_check_refuses_hardlink_to_consumed_source_after_source_replacement(
