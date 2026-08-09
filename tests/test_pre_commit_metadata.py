@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import runpy
 import subprocess
 from pathlib import Path
 
@@ -205,6 +206,21 @@ def test_pre_commit_adapter_falls_back_to_staged_paths(
 
     assert pre_commit.main(()) == expected_returncode
     assert bool(calls) is bool(expected_returncode)
+
+
+def test_pre_commit_adapter_module_entrypoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess:
+        return subprocess.CompletedProcess(args, returncode=0, stdout=b"")
+
+    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
+    monkeypatch.setattr(pre_commit.sys, "argv", ["scieqlint.pre_commit", "notes.txt"])
+
+    with pytest.raises(SystemExit) as raised:
+        runpy.run_path(str(Path(pre_commit.__file__)), run_name="__main__")
+
+    assert raised.value.code == 0
 
 
 @pytest.mark.parametrize(("filename", "source"), _BOUNDARY_CASES)
