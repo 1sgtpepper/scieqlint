@@ -292,6 +292,8 @@ def _write_output(
             created = True
         except FileExistsError:
             descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT, 0o666)
+        # O_EXCL proves a newly created directory entry cannot be a consumed object;
+        # an identity lookup is needed only before replacing an existing object.
         if not created:
             try:
                 output_stat = os.fstat(descriptor)
