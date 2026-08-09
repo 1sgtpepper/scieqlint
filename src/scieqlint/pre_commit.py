@@ -54,7 +54,7 @@ def _invisible_paths(
     # Recover only paths pre-commit removes before invocation: deletions and
     # rename sources. Existing additions and modifications remain candidate-owned.
     candidates = set(candidate_paths)
-    staged = set() if staged_paths is None else staged_paths
+    staged: set[str] = set() if staged_paths is None else staged_paths
     paths: list[str] = []
     for status, changed_paths in records:
         if status == "D" and (not candidates or candidates <= staged):
