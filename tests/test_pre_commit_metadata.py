@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from scieqlint import pre_commit
+
 _BOUNDARY_CASES = (
     (
         "chapter.MD",
@@ -100,6 +102,109 @@ def test_pre_commit_hook_metadata_targets_supported_sources() -> None:
     assert "always_run: true" in metadata
     assert "pass_filenames: true" in metadata
     assert "require_serial: true" in metadata
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("paper.md", True),
+        ("paper.MD", True),
+        ("paper.tex", True),
+        ("paper.IPYNB", True),
+        ("paper.md.tmp", False),
+        ("paper", False),
+    ],
+)
+def test_pre_commit_adapter_classifies_source_suffix(
+    path: str,
+    expected: bool,
+) -> None:
+    assert pre_commit._is_supported(path) is expected
+
+
+def test_pre_commit_adapter_reads_deleted_and_renamed_index_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completed = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=(
+            b"R100\0definitions.md\0definitions.md.tmp\0C100\0source.tex\0copy.tex\0D\0notes.txt\0"
+        ),
+    )
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        assert command == [
+            "git",
+            "diff",
+            "--cached",
+            "--name-status",
+            "--diff-filter=ACDMRTUXB",
+            "-z",
+            "--",
+        ]
+        assert kwargs == {"check": True, "capture_output": True}
+        return completed
+
+    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
+
+    assert pre_commit._staged_paths() == (
+        "definitions.md",
+        "definitions.md.tmp",
+        "source.tex",
+        "copy.tex",
+        "notes.txt",
+    )
+
+
+def test_pre_commit_adapter_filters_option_separator() -> None:
+    assert pre_commit._candidate_paths(("--", "--quiet.MARKDOWN")) == ("--quiet.MARKDOWN",)
+
+
+def test_pre_commit_adapter_runs_project_check_for_supported_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, returncode=7)
+
+    def unexpected_staged_paths() -> tuple[str, ...]:
+        raise AssertionError("candidate should be used")
+
+    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
+    monkeypatch.setattr(pre_commit, "_staged_paths", unexpected_staged_paths)
+
+    assert pre_commit.main(("--", "chapter.MD")) == 7
+    assert calls == [
+        (
+            [pre_commit.sys.executable, "-m", "scieqlint", "check", "--"],
+            {"check": False},
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("staged_paths", "expected_returncode"),
+    [((), 0), (("unrelated.txt",), 0), (("deleted.md",), 5)],
+)
+def test_pre_commit_adapter_falls_back_to_staged_paths(
+    monkeypatch: pytest.MonkeyPatch,
+    staged_paths: tuple[str, ...],
+    expected_returncode: int,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, returncode=5)
+
+    monkeypatch.setattr(pre_commit, "_staged_paths", lambda: staged_paths)
+    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
+
+    assert pre_commit.main(()) == expected_returncode
+    assert bool(calls) is bool(expected_returncode)
 
 
 @pytest.mark.parametrize(("filename", "source"), _BOUNDARY_CASES)
