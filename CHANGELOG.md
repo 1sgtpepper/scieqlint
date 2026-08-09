@@ -55,6 +55,7 @@ Release notes must use these sections:
   project-context check when supported sources are added, changed, deleted, or
   renamed, regardless of suffix case, without treating candidate paths as CLI
   input; checker options are preserved before the required `--` boundary.
+- Inline Markdown math spans now retain source offsets for the trimmed math body.
 
 ### Deprecated
 

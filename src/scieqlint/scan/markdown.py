@@ -215,13 +215,17 @@ def _inline_blocks(
     )
     for match in INLINE_RE.finditer(document.text):
         body_start = match.start("body")
-        body_end = match.end("body")
         if any(start <= body_start < end for start, end in occupied):
             continue
         body = match.group("body")
-        span = _span(document, body_start, body_end)
+        text = body.strip()
+        if not text:
+            continue
+        span_start = body_start + len(body) - len(body.lstrip())
+        span_end = body_start + len(body.rstrip())
+        span = _span(document, span_start, span_end)
         yield MathBlock(
-            text=body.strip(),
+            text=text,
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
             container=MathContainer.MARKDOWN_INLINE,
