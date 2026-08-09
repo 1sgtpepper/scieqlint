@@ -88,8 +88,8 @@ Release notes must use these sections:
   exclusive creation where directory-descriptor opens are supported, and leaves
   stdout/API analysis available when output-safety metadata is unavailable.
 - Compact rational factors adjacent to implicit products are now parsed
-  consistently with explicit division, with zero denominators rejected as
-  unsupported syntax.
+  consistently with explicit division, with zero denominators and oversized
+  literals reported as unsupported syntax.
 
 ### Deprecated
 

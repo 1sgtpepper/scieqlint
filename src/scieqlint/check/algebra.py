@@ -178,6 +178,8 @@ class _Parser:
                 number = Fraction(value)
             except ZeroDivisionError as exc:
                 raise UnsupportedExpressionError("division by zero") from exc
+            except ValueError as exc:
+                raise UnsupportedExpressionError("invalid rational literal") from exc
             return {(): number}
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
             return {((value, 1),): Fraction(1)}

@@ -114,8 +114,21 @@ def test_compact_rational_preserves_unequal_and_symbolic_denominator_cases() -> 
 
         assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"], equation
 
+
 def test_compact_rational_zero_denominator_is_controlled_unsupported_syntax() -> None:
     diagnostics = check_algebra(_first_block("$$\nx 1/0 = x\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_oversized_compact_rational_is_controlled_unsupported_syntax() -> None:
+    original_limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(sys.int_info.str_digits_check_threshold)
+    try:
+        oversized = "9" * 5000
+        diagnostics = check_algebra(_first_block(f"$$\nx {oversized}/1 = x\n$$\n"))
+    finally:
+        sys.set_int_max_str_digits(original_limit)
 
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
