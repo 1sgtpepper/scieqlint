@@ -97,7 +97,7 @@ def _run_check_paths(
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
     consumed_inputs = list(config_inputs)
-    input_identities_complete = all(item.identity is not None for item in consumed_inputs)
+    input_identities_complete = _consumed_inputs_complete(consumed_inputs)
 
     for path in discovered:
         opened = False
@@ -105,7 +105,7 @@ def _run_check_paths(
             with open_text(path, encoding="utf-8") as (stream, consumed_input):
                 opened = True
                 consumed_inputs.append(consumed_input)
-                if consumed_input.identity is None:
+                if not _consumed_input_complete(consumed_input):
                     input_identities_complete = False
                 text = stream.read()
         except (OSError, UnicodeError) as exc:
@@ -133,8 +133,8 @@ def _run_check_paths(
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
     baselines = _load_baselines(config, project_root, consumed_inputs)
-    input_identities_complete = input_identities_complete and all(
-        item.identity is not None for item in consumed_inputs
+    input_identities_complete = input_identities_complete and _consumed_inputs_complete(
+        consumed_inputs
     )
     diagnostics_result = apply_baseline(
         diagnostics_result,
@@ -263,11 +263,11 @@ def _run_graph_paths(
     )
     documents: list[SourceDocument] = []
     consumed_inputs = list(config_inputs)
-    input_identities_complete = all(item.identity is not None for item in consumed_inputs)
+    input_identities_complete = _consumed_inputs_complete(consumed_inputs)
     for path in discovered:
         with open_text(path, encoding="utf-8") as (stream, consumed_input):
             consumed_inputs.append(consumed_input)
-            if consumed_input.identity is None:
+            if not _consumed_input_complete(consumed_input):
                 input_identities_complete = False
             documents.append(
                 SourceDocument.from_text(
@@ -326,6 +326,15 @@ def _apply_overrides(
         else config.parser
     )
     return replace(config, scanner=scanner, checks=checks, parser=parser)
+
+
+def _consumed_input_complete(consumed_input: ConsumedInput) -> bool:
+    """Return whether both object and path-role metadata support safe output."""
+    return consumed_input.identity is not None and consumed_input.path_metadata_complete
+
+
+def _consumed_inputs_complete(consumed_inputs: Sequence[ConsumedInput]) -> bool:
+    return all(_consumed_input_complete(item) for item in consumed_inputs)
 
 
 def _discover_files(

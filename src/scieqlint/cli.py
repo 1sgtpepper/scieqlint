@@ -38,6 +38,9 @@ class _ConsumedIdentity(Protocol):
     def matches_current_identity(self, stat_result: os.stat_result) -> bool: ...
 
 
+_OUTPUT_PARENT_FD_SUPPORTED = os.open in os.supports_dir_fd
+
+
 DEFAULT_CONFIG = """[project]
 root = "."
 order = []
@@ -264,6 +267,76 @@ def _preset_text(name: str) -> str:
     return text if text.endswith("\n") else f"{text}\n"
 
 
+def _refuse_if_input_alias(
+    output_path: Path,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+) -> None:
+    try:
+        matches_input = any(
+            item.matches_path(output_path) or item.matches_physical_path(output_path)
+            for item in consumed_inputs
+        )
+    except OSError as exc:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
+    if matches_input:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+
+
+def _open_output_parent(path: Path) -> int | None:
+    """Pin the physical parent before creating a destination entry when possible."""
+    if not _OUTPUT_PARENT_FD_SUPPORTED:
+        return None
+    flags = getattr(os, "O_DIRECTORY", 0)
+    path_only = getattr(os, "O_PATH", 0)
+    flags |= path_only or os.O_RDONLY
+    return os.open(path.parent, flags)
+
+
+def _open_output_entry(path: Path, flags: int, parent_fd: int | None) -> int:
+    if parent_fd is None:
+        return os.open(path, flags, 0o666)
+    return os.open(path.name, flags, 0o666, dir_fd=parent_fd)
+
+
+def _open_output_descriptor(
+    output_path: Path,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+) -> tuple[int, bool]:
+    """Open an output without following a disappearing entry into creation."""
+    for attempt in range(2):
+        parent_fd: int | None = None
+        try:
+            parent_fd = _open_output_parent(output_path)
+            # Repeat the role check after pinning the parent. On POSIX this makes
+            # an exclusive create operate in the directory that was validated.
+            _refuse_if_input_alias(output_path, consumed_inputs)
+            try:
+                return (
+                    _open_output_entry(
+                        output_path,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                        parent_fd,
+                    ),
+                    True,
+                )
+            except FileExistsError:
+                try:
+                    # Do not add O_CREAT here: a dangling symlink must not create its target.
+                    return _open_output_entry(output_path, os.O_WRONLY, parent_fd), False
+                except FileNotFoundError:
+                    if attempt == 1:
+                        raise _OperationalError(
+                            f"refusing to overwrite analysis input: {output_path}"
+                        ) from None
+                    # Re-open and re-pin the parent before retrying. The entry
+                    # may have disappeared or changed while this descriptor was open.
+                    continue
+        finally:
+            if parent_fd is not None:
+                os.close(parent_fd)
+    raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+
+
 def _write_output(
     rendered: str,
     output_path: Path | None,
@@ -278,49 +351,14 @@ def _write_output(
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
-    try:
-        if any(
-            item.matches_path(output_path) or item.matches_physical_path(output_path)
-            for item in consumed_inputs
-        ):
-            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
-    except OSError as exc:
-        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
+    _refuse_if_input_alias(output_path, consumed_inputs)
     if not input_identities_complete:
         raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
     descriptor: int | None = None
-    created = False
     try:
-        try:
-            descriptor = os.open(
-                output_path,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                0o666,
-            )
-            created = True
-        except FileExistsError:
-            for _attempt in range(2):
-                try:
-                    # Do not add O_CREAT here: a dangling symlink must not create its target.
-                    descriptor = os.open(output_path, os.O_WRONLY)
-                    break
-                except FileNotFoundError:
-                    try:
-                        descriptor = os.open(
-                            output_path,
-                            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                            0o666,
-                        )
-                        created = True
-                        break
-                    except FileExistsError:
-                        continue
-            if descriptor is None:
-                raise _OperationalError(
-                    f"refusing to overwrite analysis input: {output_path}"
-                ) from None
-        # O_EXCL proves a newly created directory entry cannot be a consumed object;
-        # an identity lookup is needed only before replacing an existing object.
+        descriptor, created = _open_output_descriptor(output_path, consumed_inputs)
+        # O_EXCL proves a newly created entry is not an existing consumed object;
+        # an identity lookup is needed before replacing an existing object.
         if not created:
             try:
                 output_stat = os.fstat(descriptor)

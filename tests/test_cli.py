@@ -183,6 +183,48 @@ def test_check_refuses_deleted_input_through_symlinked_parent(tmp_path, monkeypa
     assert not output.exists()
 
 
+@pytest.mark.skipif(
+    not cli_module._OUTPUT_PARENT_FD_SUPPORTED,
+    reason="directory-descriptor output creation is unavailable",
+)
+def test_check_pins_output_parent_before_deleted_role_can_be_recreated(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "root"
+    alternate = tmp_path / "alternate"
+    alias = tmp_path / "alias"
+    root.mkdir()
+    alternate.mkdir()
+    alias.symlink_to(alternate, target_is_directory=True)
+    doc = root / "source.md"
+    output = alias / "source.md"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_open = cli_module.os.open
+    swapped = False
+
+    def retarget_before_child(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped
+        if dir_fd is not None and path == output.name and not swapped:
+            alias.unlink()
+            alias.symlink_to(root, target_is_directory=True)
+            doc.unlink()
+            swapped = True
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", retarget_before_child)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert not doc.exists()
+    assert not output.exists()
+    assert json.loads((alternate / "source.md").read_text(encoding="utf-8"))["diagnostics"] == []
+
+
 def test_check_refuses_symlink_to_replaced_source_role(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "source.md"
     output = tmp_path / "result.json"
@@ -651,6 +693,46 @@ def test_check_stdout_remains_available_when_baseline_identity_is_indeterminate(
     assert "baseline identity detail" not in result.output
 
 
+@pytest.mark.parametrize("role", ["source", "explicit_config", "automatic_config", "baseline"])
+def test_check_keeps_readable_inputs_when_path_metadata_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+    role,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    arguments = ["check", str(doc), "--format", "json"]
+    if role == "explicit_config":
+        config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+        arguments.extend(["--config", str(config)])
+    elif role == "automatic_config":
+        config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+    elif role == "baseline":
+        config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+        baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+        arguments.extend(["--config", str(config)])
+
+    def deny_path_metadata(_path) -> bool:
+        raise PermissionError("path metadata detail must not escape")
+
+    monkeypatch.setattr(identity_module.Path, "is_symlink", deny_path_metadata)
+
+    stdout_result = CliRunner().invoke(main, arguments)
+    assert stdout_result.exit_code == 0
+    assert '"diagnostics": []' in stdout_result.output
+    assert "path metadata detail" not in stdout_result.output
+
+    output_result = CliRunner().invoke(main, [*arguments, "--output", str(output)])
+    assert output_result.exit_code == 2
+    assert "refusing to overwrite analysis input" in output_result.output
+    assert "path metadata detail" not in output_result.output
+    assert not output.exists()
+
+
 def test_graph_refuses_when_source_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "graph.md"
     output = tmp_path / "result.json"
@@ -753,13 +835,13 @@ def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch
     checked = False
     real_open = cli_module.os.open
 
-    def swap_before_open(path, flags, mode=0o777):
+    def swap_before_open(path, flags, mode=0o777, *, dir_fd=None):
         nonlocal checked
-        if path == output and not checked:
+        if path == output.name and dir_fd is not None and not checked:
             output.unlink()
             output.symlink_to(doc)
             checked = True
-        return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr(cli_module.os, "open", swap_before_open)
 
@@ -1040,14 +1122,14 @@ def test_check_refuses_dangling_output_symlink_without_recreating_target(
     real_open = cli_module.os.open
     swapped = False
 
-    def create_dangling_alias(path, flags, mode=0o777):
+    def create_dangling_alias(path, flags, mode=0o777, *, dir_fd=None):
         nonlocal swapped
-        if path == output and flags & os.O_EXCL and not swapped:
+        if path == output.name and dir_fd is not None and flags & os.O_EXCL and not swapped:
             output.unlink()
             output.symlink_to(doc)
             doc.unlink()
             swapped = True
-        return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr(cli_module.os, "open", create_dangling_alias)
 
