@@ -7,6 +7,8 @@ import subprocess
 import sys
 from collections.abc import Sequence
 
+from scieqlint.cli import check as check_command
+
 
 def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
     args = tuple(arguments)
@@ -36,8 +38,15 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 2
 
     if configured_paths:
+        has_configured_paths = True
+    else:
+        with check_command.make_context(
+            "check", list(check_args), resilient_parsing=True
+        ) as context:
+            has_configured_paths = bool(context.params.get("paths"))
+    if has_configured_paths:
         sys.stderr.write(
-            "SciEqLint pre-commit hook does not accept filenames after '--'; "
+            "SciEqLint pre-commit hook does not accept filenames before or after '--'; "
             "use checker options before the boundary\n"
         )
         return 2

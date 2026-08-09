@@ -56,7 +56,8 @@ Release notes must use these sections:
   Normal commit hooks use pre-commit's tracked-file staging context while still
   seeing untracked supported files; `--all-files` and `--files` observe the
   current worktree. The hook is limited to the pre-commit stage and requires
-  pre-commit 3.2.0 or newer.
+  pre-commit 3.2.0 or newer. Consumer hook arguments with positional paths are
+  rejected rather than narrowing the project scan.
 - Pre-commit launches now use Python isolated mode, including inherited Python path
   variables, so consumer-side modules cannot shadow the installed SciEqLint package.
 - Source distributions now include the pre-commit hook manifest so integration

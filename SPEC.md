@@ -1934,8 +1934,9 @@ tracked unstaged changes before the check; untracked supported files remain visi
 project discovery. `--all-files` and `--files` runs do not stash unstaged changes, so
 those modes check the current worktree. The hook does not receive candidate filenames
 because each invocation must run exactly once; consumer `--files`, `exclude`, `types`,
-and `exclude_types` settings do not scope the project check. Checker options are passed
-before the `--` boundary; filenames after it are rejected. The published hook is
+and `exclude_types` settings do not scope the project check. The pre-boundary arguments
+are validated with the `check` command parser; positional paths before or after the `--`
+boundary are rejected. The published hook is
 eligible only for the `pre-commit` stage and requires pre-commit 3.2.0 or newer.
 Pre-push and generic revision-range runs are not supported because the adapter does not
 validate arbitrary revision snapshots.

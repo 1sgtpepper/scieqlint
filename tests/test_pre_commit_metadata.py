@@ -172,7 +172,21 @@ def test_pre_commit_adapter_forwards_checker_options(
 
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
-    assert pre_commit.main(("--strict-unknowns", "--")) == 7
+    assert (
+        pre_commit.main(
+            (
+                "--strict-unknowns",
+                "--config",
+                "pyproject.toml",
+                "--format",
+                "json",
+                "--output",
+                "report.json",
+                "--",
+            )
+        )
+        == 7
+    )
     assert calls == [
         [
             pre_commit.sys.executable,
@@ -181,6 +195,12 @@ def test_pre_commit_adapter_forwards_checker_options(
             "scieqlint",
             "check",
             "--strict-unknowns",
+            "--config",
+            "pyproject.toml",
+            "--format",
+            "json",
+            "--output",
+            "report.json",
             "--",
         ]
     ]
@@ -199,6 +219,13 @@ def test_pre_commit_adapter_rejects_configured_filenames(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert pre_commit.main(("--", "chapter.MD")) == 2
+    assert "does not accept filenames" in capsys.readouterr().err
+
+
+def test_pre_commit_adapter_rejects_positional_paths_before_boundary(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert pre_commit.main(("chapter.md", "--")) == 2
     assert "does not accept filenames" in capsys.readouterr().err
 
 
@@ -606,6 +633,36 @@ def test_pre_commit_hook_forwards_consumer_arguments(
     output = result.stdout + result.stderr
     assert "error PARSE021" in output
     assert "No such option" not in output
+
+
+def test_pre_commit_hook_rejects_positional_consumer_path(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
+            "chapter.md": "$$\nF = m a\n$$ {#duplicate}\n",
+        },
+        hook_args=("chapter.md", "--"),
+    )
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    output = result.stdout + result.stderr
+    assert "does not accept filenames" in output
+    assert "REF001" not in output
 
 
 def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(
