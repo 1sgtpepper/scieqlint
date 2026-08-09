@@ -8,6 +8,7 @@ from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.reference import EquationLabelFact
 from scieqlint.facts.structure import FenceFact
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import is_escaped
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import directive_option_prefix_lines
@@ -143,6 +144,8 @@ def _tex_label_facts(
     body_text: str,
 ) -> Iterable[EquationLabelFact]:
     for match in TEX_LABEL_RE.finditer(body_text):
+        if is_escaped(body_text, match.start()):
+            continue
         label = match.group("label")
         label_start = body_start + match.start("label")
         yield EquationLabelFact(

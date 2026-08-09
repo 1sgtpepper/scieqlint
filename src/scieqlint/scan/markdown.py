@@ -15,6 +15,7 @@ from scieqlint.markdown import (
     dollar_display_ranges,
     dollar_inline_ranges,
     inline_code_ranges,
+    is_escaped,
     is_fence_closer,
 )
 from scieqlint.scan.base import (
@@ -230,6 +231,8 @@ def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
 
 def _tex_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
     for match in TEX_LABEL_RE.finditer(block.text):
+        if is_escaped(block.text, match.start()):
+            continue
         label_start = block.span.start + match.start(1)
         label_end = block.span.start + match.end(1)
         yield EquationLabel(

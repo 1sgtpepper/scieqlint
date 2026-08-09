@@ -104,6 +104,9 @@ Release notes must use these sections:
 - Escaped Markdown backticks no longer open code spans, ordinary inline HTML tags
   no longer hide their contents, and dollar display closers follow source-line
   boundaries and complete label suffixes.
+- LaTeX scanning now ignores starred and commented verbatim markers, respects
+  TeX control-sequence boundaries outside verbatim, and closes live verbatim
+  ranges at their first exact matching delimiter.
 
 ### Deprecated
 

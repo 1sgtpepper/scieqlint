@@ -23,7 +23,7 @@ from scieqlint.scan.base import (
 from scieqlint.scan.symbols import parse_symbol_directive
 
 ENV_RE = re.compile(r"\\begin\{(?P<name>equation\*?|align\*?)\}")
-VERBATIM_RE = re.compile(r"\\begin\{verbatim\}.*?\\end\{verbatim\}", re.DOTALL)
+VERBATIM_CONTROL_RE = re.compile(r"\\(?P<kind>begin|end)\{verbatim(?P<star>\*)?\}")
 LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}]+)\}")
 SYMBOL_PREFIX = "scieqlint-symbol:"
@@ -32,7 +32,7 @@ SYMBOL_PREFIX = "scieqlint-symbol:"
 class LatexScanner:
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         _ = config
-        verbatim = _verbatim_ranges(document)
+        verbatim = _verbatim_ranges(document, _comment_ranges(document))
         ignored = _ignored_ranges(document)
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
@@ -94,7 +94,7 @@ def _environment_blocks(
     blocks: list[MathBlock] = []
     diagnostics: list[Diagnostic] = []
     for match in ENV_RE.finditer(document.text):
-        if _in_ranges(match.start(), ignored):
+        if _in_ranges(match.start(), ignored) or _is_escaped(document.text, match.start()):
             continue
         name = match.group("name")
         close_pattern = f"\\end{{{name}}}"
@@ -106,7 +106,7 @@ def _environment_blocks(
             MathContainer.LATEX_ALIGN if name.startswith("align") else MathContainer.LATEX_EQUATION
         )
         if container is MathContainer.LATEX_ALIGN:
-            blocks.extend(_align_blocks(document, match.end(), close))
+            blocks.extend(_align_blocks(document, match.end(), close, ignored))
         else:
             block = _math_block(document, match.end(), close, container)
             if block is not None:
@@ -114,8 +114,13 @@ def _environment_blocks(
     return blocks, diagnostics
 
 
-def _align_blocks(document: SourceDocument, start: int, end: int) -> Iterable[MathBlock]:
-    for row_start, row_end in _align_rows(document.text, start, end):
+def _align_blocks(
+    document: SourceDocument,
+    start: int,
+    end: int,
+    ignored: tuple[tuple[int, int], ...],
+) -> Iterable[MathBlock]:
+    for row_start, row_end in _align_rows(document.text, start, end, ignored):
         text = _clean_math_text(document.text[row_start:row_end]).replace("&", "").strip()
         if not text:
             continue
@@ -128,10 +133,18 @@ def _align_blocks(document: SourceDocument, start: int, end: int) -> Iterable[Ma
         )
 
 
-def _align_rows(text: str, start: int, end: int) -> Iterable[tuple[int, int]]:
+def _align_rows(
+    text: str,
+    start: int,
+    end: int,
+    ignored: tuple[tuple[int, int], ...],
+) -> Iterable[tuple[int, int]]:
     row_start = start
     cursor = start
     while cursor < end:
+        if _in_ranges(cursor, ignored):
+            cursor += 1
+            continue
         if text.startswith(r"\\", cursor) and not _is_escaped(text, cursor):
             yield _trim_span(text, row_start, cursor)
             row_start = _row_break_end(text, cursor + 2, end)
@@ -184,6 +197,8 @@ def _labels(
     for block in blocks:
         source_text = document.text[block.span.start : block.span.end]
         for match in LABEL_RE.finditer(source_text):
+            if _is_escaped(source_text, match.start()):
+                continue
             label_start = block.span.start + match.start("label")
             label_end = block.span.start + match.end("label")
             if _in_ranges(match.start() + block.span.start, ignored):
@@ -201,7 +216,7 @@ def _references(
     ignored: tuple[tuple[int, int], ...],
 ) -> Iterable[EquationReference]:
     for match in REFERENCE_RE.finditer(document.text):
-        if _in_ranges(match.start(), ignored):
+        if _in_ranges(match.start(), ignored) or _is_escaped(document.text, match.start()):
             continue
         target = _normalize_label(match.group("target"))
         source = (
@@ -319,22 +334,57 @@ def _find_close(
         close = document.text.find(closing, cursor)
         if close == -1:
             return -1
-        if not _in_ranges(close, ignored):
+        if not _in_ranges(close, ignored) and not _is_escaped_opening(
+            document.text, close, closing
+        ):
             return close
         cursor = close + len(closing)
 
 
 def _ignored_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    ranges = list(_verbatim_ranges(document))
+    comments = _comment_ranges(document)
+    verbatim = _verbatim_ranges(document, comments)
+    comments = tuple((start, end) for start, end in comments if not _in_ranges(start, verbatim))
+    ranges = list(verbatim)
+    ranges.extend(comments)
+    return tuple(sorted(ranges))
+
+
+def _comment_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
+    ranges: list[tuple[int, int]] = []
     for line_start, line_end in _line_ranges(document.text):
         comment_start = _comment_start(document.text[line_start:line_end])
         if comment_start is not None:
             ranges.append((line_start + comment_start, line_end))
-    return tuple(sorted(ranges))
+    return tuple(ranges)
 
 
-def _verbatim_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    return tuple((match.start(), match.end()) for match in VERBATIM_RE.finditer(document.text))
+def _verbatim_ranges(
+    document: SourceDocument,
+    comments: tuple[tuple[int, int], ...] = (),
+) -> tuple[tuple[int, int], ...]:
+    ranges: list[tuple[int, int]] = []
+    active_start: int | None = None
+    active_star: str | None = None
+    for match in VERBATIM_CONTROL_RE.finditer(document.text):
+        kind = match.group("kind")
+        star = match.group("star") or ""
+        if active_start is None:
+            if (
+                kind == "begin"
+                and not _in_ranges(match.start(), comments)
+                and not _is_escaped(document.text, match.start())
+            ):
+                active_start = match.start()
+                active_star = star
+            continue
+        if kind == "end" and star == active_star:
+            ranges.append((active_start, match.end()))
+            active_start = None
+            active_star = None
+    if active_start is not None:
+        ranges.append((active_start, len(document.text)))
+    return tuple(ranges)
 
 
 def _line_ranges(text: str) -> Iterable[tuple[int, int]]:
@@ -371,8 +421,8 @@ def _row_break_end(text: str, start: int, end: int) -> int:
     return start
 
 
-def _is_escaped_opening(text: str, index: int, opening: str) -> bool:
-    return opening.startswith("\\") and _is_escaped(text, index)
+def _is_escaped_opening(text: str, index: int, _opening: str) -> bool:
+    return _is_escaped(text, index)
 
 
 def _is_escaped(text: str, index: int) -> bool:

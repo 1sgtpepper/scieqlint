@@ -175,6 +175,12 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 For `align`, rows are split on unescaped `\\` and alignment markers are removed before
 equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
 for reference checks. LaTeX macro expansion and full environment parsing are deferred.
+Both `verbatim` and `verbatim*` environments are opaque. TeX controls are recognized
+only when their backslash begins an active control sequence outside verbatim. Inside a
+live verbatim range, every character is literal and the range ends at the first exact
+matching `\end{verbatim}` or `\end{verbatim*}` sequence, regardless of line position,
+percent signs, or preceding backslashes; mismatched starred forms remain literal
+content. An unclosed range stays protected through end of file.
 
 ## Dimensions
 

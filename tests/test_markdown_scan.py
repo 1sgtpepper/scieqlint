@@ -830,13 +830,20 @@ def test_markdown_lexical_precedence_fixture_keeps_only_live_display_math() -> N
     document = SourceDocument.from_text(
         PurePosixPath("tests/fixtures/good/markdown_lexical_precedence.md"),
         Path("tests/fixtures/good/markdown_lexical_precedence.md").read_text(encoding="utf-8"),
+    assert [block.text for block in result.blocks] == ["E = m c^2"]
+    assert result.diagnostics == ()
+
+
+def test_escaped_tex_label_in_markdown_math_is_not_an_equation_label() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n\\label{one}\n\\\\label{two}\n\\\\\\label{three}\n\\\\\\\\label{four}\n$$\n",
         DocumentKind.MARKDOWN,
     )
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert [block.text for block in result.blocks] == ["E = m c^2"]
-    assert result.diagnostics == ()
+    assert [label.label for label in result.labels] == ["one", "three"]
 
 
 def test_malformed_markdown_symbol_directive_warns_and_code_fence_is_ignored() -> None:
