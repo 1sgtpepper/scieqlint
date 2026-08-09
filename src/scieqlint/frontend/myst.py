@@ -87,7 +87,6 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     display_math, equation_labels = scan_display_math(
         document,
         smap,
-        occupied_fence_ranges,
         fences,
     )
     generic_refs, equation_refs = scan_refs(document, smap, occupied_fence_ranges)
@@ -95,7 +94,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         scan_inline_math(
             document,
             smap,
-            math_occupied_ranges(occupied_fence_ranges, display_math),
+            math_occupied_ranges(display_math),
         )
     )
     return FactSnapshot(

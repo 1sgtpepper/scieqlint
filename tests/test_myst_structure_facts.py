@@ -499,10 +499,8 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     assert [(ref.target, ref.normalized_target) for ref in snapshot.generic_refs] == [
         ("#part-one", "part-one")
     ]
-    assert [(label.label, label.label_syntax_kind) for label in snapshot.equation_labels] == [
-        ("eq-end", "dollar-tail")
-    ]
-    assert [math.body for math in snapshot.display_math] == ["visible\n```\n$$\n```"]
+    assert snapshot.equation_labels == ()
+    assert [math.body for math in snapshot.display_math] == ["visible\n```"]
     assert [diagnostic.code for diagnostic in diagnostics] == [
         "STR005",
         "STR003",

@@ -18,25 +18,19 @@ from .myst_shared import (
     OffsetRange,
     dollar_display_ranges,
     dollar_inline_ranges,
-    markdown_protected_ranges,
     normalize_label,
 )
 
 
 def math_occupied_ranges(
-    fence_ranges: Sequence[OffsetRange],
     display_math: Sequence[DisplayMathFact],
 ) -> tuple[OffsetRange, ...]:
-    math_ranges = tuple(
-        (fact.span.start, fact.span.end) for fact in display_math if fact.span is not None
-    )
-    return (*tuple(fence_ranges), *math_ranges)
+    return tuple((fact.span.start, fact.span.end) for fact in display_math if fact.span is not None)
 
 
 def scan_display_math(
     document: SourceDocument,
     smap: SourceMap,
-    occupied: Sequence[OffsetRange],
     fences: Sequence[FenceFact],
 ) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
     display: list[DisplayMathFact] = []
@@ -48,8 +42,7 @@ def scan_display_math(
         display.append(math_fact)
         labels.extend(label_facts)
 
-    occupied_with_code = markdown_protected_ranges(document, occupied)
-    dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied_with_code)
+    dollar_display, dollar_labels = _dollar_display_math(document, smap, ())
     display.extend(dollar_display)
     labels.extend(dollar_labels)
     return tuple(display), tuple(labels)
@@ -60,10 +53,9 @@ def scan_inline_math(
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
 ) -> Iterable[InlineMathFact]:
-    occupied_with_code = markdown_protected_ranges(document, occupied)
     for start, body_start, body_end, end in dollar_inline_ranges(
         document.text,
-        occupied_with_code,
+        occupied,
     ):
         body = document.text[body_start:body_end]
         text = body.strip()

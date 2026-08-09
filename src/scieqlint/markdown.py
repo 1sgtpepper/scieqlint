@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
@@ -28,6 +29,32 @@ HTML_BLOCK_OPEN_RE = re.compile(
 )
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
+
+
+@dataclass(frozen=True, slots=True)
+class _LexicalRanges:
+    fences: tuple[OffsetRange, ...]
+    html: tuple[OffsetRange, ...]
+    code: tuple[OffsetRange, ...]
+    display: tuple[DollarRange, ...]
+    inline: tuple[DollarRange, ...]
+    display_openers: tuple[int, ...]
+
+
+class _RangeCursor:
+    """Monotonic membership cursor for one ordered range sweep."""
+
+    def __init__(self, ranges: Sequence[OffsetRange]) -> None:
+        self._ranges = _merge_ranges(ranges)
+        self._index = 0
+
+    def end_at(self, position: int) -> int | None:
+        while self._index < len(self._ranges) and self._ranges[self._index][1] <= position:
+            self._index += 1
+        if self._index >= len(self._ranges):
+            return None
+        start, end = self._ranges[self._index]
+        return end if start <= position else None
 
 
 def parse_fence_opener(line: str) -> tuple[str, str] | None:
@@ -62,47 +89,11 @@ def inline_code_ranges(
     text: str,
     occupied: Sequence[OffsetRange] = (),
 ) -> tuple[OffsetRange, ...]:
-    blocked = _merge_ranges((*occupied, *code_fence_ranges(text)))
-    return _scan_inline_code_ranges(text, blocked)
-
-
-def _scan_inline_code_ranges(
-    text: str,
-    blocked: Sequence[OffsetRange],
-) -> tuple[OffsetRange, ...]:
-    ranges: list[OffsetRange] = []
-    index = 0
-    while index < len(text):
-        blocked_end = _range_end_at(index, blocked)
-        if blocked_end is not None:
-            index = blocked_end
-            continue
-        role_end = _myst_role_end_at(text, index)
-        if role_end is not None:
-            index = role_end
-            continue
-        if text[index] != "`":
-            index += 1
-            continue
-        opener_end = _backtick_run_end(text, index)
-        delimiter_length = opener_end - index
-        close_start = _matching_backtick_run(text, opener_end, delimiter_length, blocked)
-        if close_start is None:
-            index = opener_end
-            continue
-        close_end = close_start + delimiter_length
-        ranges.append((index, close_end))
-        index = close_end
-    return tuple(ranges)
+    return _ordered_lexical_ranges(text, occupied, scan_math=True).code
 
 
 def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
-    lines: list[tuple[int, int, str]] = []
-    start = 0
-    for line in text.splitlines(keepends=True):
-        end = start + len(line)
-        lines.append((start, end, line[:-1] if line.endswith("\n") else line))
-        start = end
+    lines = _source_lines(text)
 
     ranges: list[OffsetRange] = []
     index = 0
@@ -126,133 +117,29 @@ def markdown_protected_ranges(
 ) -> tuple[OffsetRange, ...]:
     """Return ordered non-math Markdown regions that delimit live scanning."""
 
-    fences = code_fence_ranges(text)
-    blocked = _merge_ranges((*occupied, *fences))
-    inline_and_html = _inline_and_html_ranges(text, blocked)
-    return _merge_ranges((*occupied, *fences, *inline_and_html))
-
-
-def _inline_and_html_ranges(
-    text: str,
-    blocked: Sequence[OffsetRange],
-) -> tuple[OffsetRange, ...]:
-    ranges: list[OffsetRange] = []
-    index = 0
-    while index < len(text):
-        blocked_end = _range_end_at(index, blocked)
-        if blocked_end is not None:
-            index = blocked_end
-            continue
-        role_end = _myst_role_end_at(text, index)
-        if role_end is not None:
-            index = role_end
-            continue
-        html_end = _html_range_at(text, index)
-        if html_end is not None:
-            ranges.append((index, html_end))
-            index = html_end
-            continue
-        if text[index] != "`":
-            index += 1
-            continue
-        opener_end = _backtick_run_end(text, index)
-        delimiter_length = opener_end - index
-        close_start = _matching_backtick_run(text, opener_end, delimiter_length, blocked)
-        if close_start is None:
-            index = opener_end
-            continue
-        close_end = close_start + delimiter_length
-        ranges.append((index, close_end))
-        index = close_end
-    return tuple(ranges)
+    lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
+    return _merge_ranges((*occupied, *lexical.fences, *lexical.html, *lexical.code))
 
 
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
-    ranges: list[DollarRange] = []
-    cursor = 0
-    while True:
-        start = text.find("$$", cursor)
-        if start == -1:
-            break
-        if (
-            _in_ranges(start, (*skippable_ranges, *blocked))
-            or is_escaped(text, start)
-            or not _is_display_opener(text, start)
-        ):
-            cursor = start + 2
-            continue
-        close = _find_dollar_close(text, start + 2, blocked, skippable_ranges)
-        if close == -1:
-            cursor = start + 2
-            continue
-        ranges.append((start, start + 2, close, close + 2))
-        cursor = close + 2
-    return tuple(ranges)
+    return _ordered_lexical_ranges(text, occupied, scan_math=True).display
 
 
 def dollar_display_opener_positions(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[int, ...]:
-    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
-    positions: list[int] = []
-    cursor = 0
-    while True:
-        start = text.find("$$", cursor)
-        if start == -1:
-            break
-        if (
-            not _in_ranges(start, (*skippable_ranges, *blocked))
-            and not is_escaped(text, start)
-            and _is_display_opener(text, start)
-        ):
-            positions.append(start)
-        cursor = start + 2
-    return tuple(positions)
+    return _ordered_lexical_ranges(text, occupied, scan_math=True).display_openers
 
 
 def dollar_inline_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
-    ranges: list[DollarRange] = []
-    line_start = 0
-    while line_start < len(text):
-        line_end = text.find("\n", line_start)
-        if line_end == -1:
-            line_end = len(text)
-        opening: int | None = None
-        index = line_start
-        while index < line_end:
-            blocked_end = _range_end_at(index, blocked)
-            if blocked_end is not None:
-                opening = None
-                index = min(blocked_end, line_end)
-                continue
-            skippable_end = _range_end_at(index, skippable_ranges)
-            if skippable_end is not None:
-                index = min(skippable_end, line_end)
-                continue
-            if text[index] != "$":
-                index += 1
-                continue
-            if opening is None:
-                if _is_inline_opening(text, index):
-                    opening = index
-                index += 1
-                continue
-            if _is_inline_closing(text, index):
-                if index > opening + 1:
-                    ranges.append((opening, opening + 1, index, index + 1))
-                opening = None
-            index += 1
-        line_start = line_end + 1
-    return tuple(ranges)
+    return _ordered_lexical_ranges(text, occupied, scan_math=True).inline
 
 
 def is_escaped(text: str, index: int) -> bool:
@@ -287,6 +174,132 @@ def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
     return tuple(merged)
 
 
+def _ordered_lexical_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+    *,
+    scan_math: bool,
+) -> _LexicalRanges:
+    """Scan Markdown regions in source order so the first opener owns the text."""
+
+    lines = _source_lines(text)
+    if not lines:
+        return _LexicalRanges((), (), (), (), (), ())
+
+    fences: list[OffsetRange] = []
+    html: list[OffsetRange] = []
+    code: list[OffsetRange] = []
+    display: list[DollarRange] = []
+    inline: list[DollarRange] = []
+    display_openers: list[int] = []
+    occupied_cursor = _RangeCursor(occupied)
+    backtick_runs = _backtick_runs(text)
+    next_same_backtick = _next_same_backtick_runs(backtick_runs)
+    backtick_index = 0
+    line_index = 0
+    index = 0
+
+    while index < len(text):
+        while backtick_index < len(backtick_runs) and backtick_runs[backtick_index][0] < index:
+            backtick_index += 1
+        while line_index + 1 < len(lines) and index >= lines[line_index][1]:
+            line_index += 1
+        line_start, _line_end, line = lines[line_index]
+        line_content_end = line_start + len(line.rstrip("\r\n"))
+
+        occupied_end = occupied_cursor.end_at(index)
+        if occupied_end is not None:
+            index = occupied_end
+            continue
+
+        if index == line_start:
+            opener = parse_fence_opener(line)
+            if opener is not None:
+                marker, _info = opener
+                close_index = _fence_close_index(lines, line_index, marker)
+                range_end = lines[close_index][1] if close_index is not None else len(text)
+                fences.append((line_start, range_end))
+                index = range_end
+                continue
+
+        role_end = _myst_role_end_at(text, index)
+        if role_end is not None:
+            index = role_end
+            continue
+
+        html_end = _html_range_at(text, index)
+        if html_end is not None:
+            html.append((index, html_end))
+            index = html_end
+            continue
+
+        if (
+            scan_math
+            and text.startswith("$$", index)
+            and _is_display_opener(text, index, line_start)
+        ):
+            display_openers.append(index)
+            close = _find_ordered_display_close(text, index + 2)
+            if close == -1:
+                index = len(text)
+                continue
+            display.append((index, index + 2, close, close + 2))
+            index = close + 2
+            continue
+
+        if scan_math and text[index] == "$" and _is_inline_opening(text, index):
+            close = _find_ordered_inline_close(text, index + 1, line_content_end)
+            if close == -1:
+                index = line_content_end
+                continue
+            inline.append((index, index + 1, close, close + 1))
+            index = close + 1
+            continue
+
+        if text[index] != "`":
+            index += 1
+            continue
+
+        if backtick_index >= len(backtick_runs):
+            index += 1
+            continue
+        run_start, run_end, _delimiter_length = backtick_runs[backtick_index]
+        if run_start != index:
+            index += 1
+            continue
+        close_index = next_same_backtick[backtick_index]
+        if close_index is None:
+            index = run_end
+            backtick_index += 1
+            continue
+        close_start, close_end, _ = backtick_runs[close_index]
+        code.append((index, close_end))
+        index = close_end
+        backtick_index = close_index + 1
+
+    return _LexicalRanges(
+        fences=_merge_ranges(fences),
+        html=_merge_ranges(html),
+        code=_merge_ranges(code),
+        display=tuple(display),
+        inline=tuple(inline),
+        display_openers=tuple(display_openers),
+    )
+
+
+def _source_lines(text: str) -> list[tuple[int, int, str]]:
+    lines: list[tuple[int, int, str]] = []
+    start = 0
+    for raw_line in text.splitlines(keepends=True):
+        end = start + len(raw_line)
+        line = raw_line[:-1] if raw_line.endswith("\n") else raw_line
+        lines.append((start, end, line))
+        start = end
+    if start < len(text) or (not lines and text):
+        lines.append((start, len(text), text[start:]))
+    return lines
+
+
 def _fence_close_index(
     lines: Sequence[tuple[int, int, str]],
     opener_index: int,
@@ -305,28 +318,34 @@ def _backtick_run_end(text: str, start: int) -> int:
     return end
 
 
-def _matching_backtick_run(
-    text: str,
-    start: int,
-    length: int,
-    blocked: Sequence[OffsetRange],
-) -> int | None:
-    index = start
+def _backtick_runs(text: str) -> tuple[tuple[int, int, int], ...]:
+    runs: list[tuple[int, int, int]] = []
+    index = 0
     while index < len(text):
-        if _range_end_at(index, blocked) is not None:
-            return None
         if text[index] != "`":
             index += 1
             continue
         run_end = _backtick_run_end(text, index)
-        if run_end - index == length:
-            return index
+        runs.append((index, run_end, run_end - index))
         index = run_end
-    return None
+    return tuple(runs)
 
 
-def _is_display_opener(text: str, start: int) -> bool:
-    line_start = text.rfind("\n", 0, start) + 1
+def _next_same_backtick_runs(
+    runs: Sequence[tuple[int, int, int]],
+) -> tuple[int | None, ...]:
+    next_runs: list[int | None] = [None] * len(runs)
+    last_by_length: dict[int, int] = {}
+    for index in range(len(runs) - 1, -1, -1):
+        length = runs[index][2]
+        next_runs[index] = last_by_length.get(length)
+        last_by_length[length] = index
+    return tuple(next_runs)
+
+
+def _is_display_opener(text: str, start: int, line_start: int | None = None) -> bool:
+    if line_start is None:
+        line_start = text.rfind("\n", 0, start) + 1
     prefix = text[line_start:start]
     return (
         len(prefix) <= 3
@@ -335,40 +354,12 @@ def _is_display_opener(text: str, start: int) -> bool:
     )
 
 
-def _find_dollar_close(
-    text: str,
-    start: int,
-    blocked: Sequence[OffsetRange],
-    skippable_ranges: Sequence[OffsetRange],
-) -> int:
+def _find_ordered_display_close(text: str, start: int) -> int:
     cursor = start
     while True:
         close = text.find("$$", cursor)
         if close == -1:
             return -1
-        next_skippable = next(
-            (
-                (range_start, range_end)
-                for range_start, range_end in skippable_ranges
-                if range_end > cursor and range_start < close + 2
-            ),
-            None,
-        )
-        next_blocked = next(
-            (
-                (range_start, range_end)
-                for range_start, range_end in blocked
-                if range_end > cursor and range_start < close + 2
-            ),
-            None,
-        )
-        if next_blocked is not None and (
-            next_skippable is None or next_blocked[0] <= next_skippable[0]
-        ):
-            return -1
-        if next_skippable is not None:
-            cursor = next_skippable[1]
-            continue
         if (
             not is_escaped(text, close)
             and (close == 0 or text[close - 1] != "$")
@@ -378,58 +369,11 @@ def _find_dollar_close(
         cursor = close + 2
 
 
-def _dollar_block_ranges(
-    text: str,
-    occupied: Sequence[OffsetRange],
-) -> tuple[tuple[OffsetRange, ...], tuple[OffsetRange, ...]]:
-    inline_ranges = inline_code_ranges(text)
-    fences = code_fence_ranges(text)
-    skippable_ranges = _merge_ranges((*inline_ranges, *fences))
-    html_ranges = _raw_html_ranges(text, (*occupied, *fences, *inline_ranges))
-    blocked = _merge_ranges(_subtract_ranges((*occupied, *html_ranges), skippable_ranges))
-    return skippable_ranges, blocked
-
-
-def _subtract_ranges(
-    ranges: Sequence[OffsetRange],
-    removals: Sequence[OffsetRange],
-) -> tuple[OffsetRange, ...]:
-    remaining: list[OffsetRange] = []
-    for start, end in ranges:
-        pieces = [(start, end)]
-        for remove_start, remove_end in removals:
-            next_pieces: list[OffsetRange] = []
-            for piece_start, piece_end in pieces:
-                if remove_end <= piece_start or remove_start >= piece_end:
-                    next_pieces.append((piece_start, piece_end))
-                    continue
-                if piece_start < remove_start:
-                    next_pieces.append((piece_start, remove_start))
-                if remove_end < piece_end:
-                    next_pieces.append((remove_end, piece_end))
-            pieces = next_pieces
-        remaining.extend(pieces)
-    return tuple(remaining)
-
-
 def _raw_html_ranges(
     text: str,
     blocked: Sequence[OffsetRange],
 ) -> tuple[OffsetRange, ...]:
-    ranges: list[OffsetRange] = []
-    index = 0
-    while index < len(text):
-        blocked_end = _range_end_at(index, blocked)
-        if blocked_end is not None:
-            index = blocked_end
-            continue
-        html_end = _html_range_at(text, index)
-        if html_end is not None:
-            ranges.append((index, html_end))
-            index = html_end
-            continue
-        index += 1
-    return tuple(ranges)
+    return _ordered_lexical_ranges(text, blocked, scan_math=True).html
 
 
 def _myst_role_end_at(text: str, start: int) -> int | None:
@@ -484,3 +428,12 @@ def _is_inline_closing(text: str, index: int) -> bool:
     if is_escaped(text, index) or _is_adjacent_to_dollar(text, index):
         return False
     return index + 1 == len(text) or not (text[index + 1].isalnum() or text[index + 1] == "_")
+
+
+def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
+    index = start
+    while index < line_end:
+        if text[index] == "$" and _is_inline_closing(text, index):
+            return index
+        index += 1
+    return -1

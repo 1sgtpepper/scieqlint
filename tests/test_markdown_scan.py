@@ -308,7 +308,7 @@ def test_display_delimiter_in_non_math_fence_does_not_emit_scan_warning() -> Non
     assert result.diagnostics == ()
 
 
-def test_display_math_is_not_closed_by_delimiter_in_inline_code() -> None:
+def test_display_math_closes_at_dollar_inside_code_like_text() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "$$\na = a\n`$$`\n",
@@ -317,19 +317,19 @@ def test_display_math_is_not_closed_by_delimiter_in_inline_code() -> None:
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert result.blocks == ()
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+    assert [block.text for block in result.blocks] == ["a = a\n`"]
+    assert result.diagnostics == ()
 
 
-def test_legacy_and_frontend_display_math_ignore_inline_code_delimiters() -> None:
-    text = "$$\nleft\n`$$`\nright\n$$\n"
+def test_legacy_and_frontend_share_source_order_for_math_and_backticks() -> None:
+    text = "$$\nleft\n`$$`\nright\ntext\n$$\noutside\n$$\n"
     document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
 
     legacy = MarkdownScanner().scan(document, Config())
     frontend = MySTFrontend().lower((document,))
 
-    assert [block.text for block in legacy.blocks] == ["left\n`$$`\nright"]
-    assert [math.body for math in frontend.display_math] == ["left\n`$$`\nright"]
+    assert [block.text for block in legacy.blocks] == ["left\n`", "outside"]
+    assert [math.body for math in frontend.display_math] == ["left\n`", "outside"]
     assert frontend.display_math[0].span is not None
     assert (legacy.blocks[0].span.start, legacy.blocks[0].span.end) == (
         frontend.display_math[0].span.start,
@@ -367,7 +367,7 @@ def test_legacy_and_frontend_display_math_ignore_unclosed_tilde_fences() -> None
     assert legacy.diagnostics == ()
 
 
-def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None:
+def test_display_math_closes_at_dollar_inside_multibacktick_like_text() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "$$\na = a\n``$$``\n",
@@ -376,8 +376,8 @@ def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert result.blocks == ()
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+    assert [block.text for block in result.blocks] == ["a = a\n``"]
+    assert result.diagnostics == ()
 
 
 def test_inline_math_stays_opaque_inside_a_longer_backtick_span() -> None:
@@ -395,6 +395,24 @@ def test_inline_math_stays_opaque_inside_a_longer_backtick_span() -> None:
     assert result.blocks == ()
     assert result.diagnostics == ()
     assert MySTFrontend().lower((document,)).inline_math == ()
+
+
+def test_math_opened_before_backticks_owns_the_first_dollar_closer() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$a `x$ z` tail$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+    frontend = MySTFrontend().lower((document,))
+
+    assert [block.text for block in legacy.blocks] == ["a `x"]
+    assert [math.body for math in frontend.inline_math] == ["a `x"]
+    assert legacy.diagnostics == ()
 
 
 def test_inline_math_stays_opaque_inside_a_multiline_backtick_span() -> None:
@@ -462,6 +480,19 @@ def test_markdown_symbol_directive_fixture_is_extracted() -> None:
     assert result.symbol_directives[0].source is SymbolDirectiveSource.MARKDOWN_COMMENT
     span = result.symbol_directives[0].span
     assert document.text[span.start : span.end] == "E"
+    assert result.diagnostics == ()
+
+
+def test_markdown_lexical_precedence_fixture_keeps_only_live_display_math() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tests/fixtures/good/markdown_lexical_precedence.md"),
+        Path("tests/fixtures/good/markdown_lexical_precedence.md").read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["E = m c^2"]
     assert result.diagnostics == ()
 
 

@@ -99,16 +99,14 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 
 def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
     closed = {(start, end) for start, _body_start, _body_end, end in _display_ranges(document)}
-    occupied = _code_spans(document)
-    for start in dollar_display_opener_positions(document.text, occupied):
+    for start in dollar_display_opener_positions(document.text, ()):
         if any(open_start <= start < end for open_start, end in closed):
             continue
         yield _scan_diagnostic(document, start, start + 2)
 
 
 def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
-    occupied = _code_spans(document)
-    return iter(dollar_display_ranges(document.text, occupied))
+    return iter(dollar_display_ranges(document.text, ()))
 
 
 def _inline_ranges(
@@ -185,10 +183,7 @@ def _inline_blocks(
     document: SourceDocument,
     existing_blocks: list[MathBlock],
 ) -> Iterable[MathBlock]:
-    occupied = (
-        *((block.span.start, block.span.end) for block in existing_blocks),
-        *_code_spans(document),
-    )
+    occupied = tuple((block.span.start, block.span.end) for block in existing_blocks)
     for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
         body = document.text[body_start:body_end]
         text = body.strip()

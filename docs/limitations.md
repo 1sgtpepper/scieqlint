@@ -92,16 +92,14 @@ Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
-Display-dollar delimiters inside inline code are treated as literal code by both
-the legacy scanner and the architecture frontend; their trimmed bodies and spans
-therefore agree.
+The legacy scanner and architecture frontend resolve Markdown regions in source
+order: a code span, raw HTML region, or fence opened first owns later dollar
+markers, while math opened first owns later backticks and fence-like text until
+its first valid dollar close. Their trimmed bodies and spans therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick
-fence info string cannot contain a backtick. Fences and recognized raw HTML are
-established before dollar delimiters are paired, while inline-code delimiters
-are resolved in source order: a code span opened first owns its dollars, and
-backticks inside already-open math remain literal math content.
+fence info string cannot contain a backtick.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
