@@ -65,6 +65,8 @@ class MarkdownLinkToken:
     destination_start: int
     destination_end: int
     is_image: bool
+    destination: str
+    metadata_ranges: tuple[OffsetRange, ...] = ()
 
 
 _FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
@@ -540,7 +542,7 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
 
 def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
     tokens: list[MarkdownLinkToken] = []
-    code_ranges = inline_code_ranges(text)
+    code_ranges = markdown_protected_ranges(text)
     index = 0
     while index < len(text):
         if _in_ranges(index, code_ranges):
@@ -563,10 +565,15 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
 
 
 def markdown_link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
-    return tuple(
-        (token.start, token.end) if token.is_image else (token.destination_start, token.end)
-        for token in markdown_link_tokens(text)
-    )
+    ranges: list[OffsetRange] = []
+    for token in markdown_link_tokens(text):
+        if token.metadata_ranges:
+            ranges.extend(token.metadata_ranges)
+        elif token.is_image:
+            ranges.append((token.start, token.end))
+        else:
+            ranges.append((token.destination_start, token.end))
+    return _merge_ranges(ranges)
 
 
 def opaque_markdown_ranges(
@@ -589,18 +596,35 @@ def _parse_markdown_link(
     label_end = _find_link_label_end(text, label_start, code_ranges)
     if label_end is None or label_end + 1 >= len(text) or text[label_end + 1] != "(":
         return None
-    if markdown_link_tokens(text[label_start + 1 : label_end]):
+    child_tokens = markdown_link_tokens(text[label_start + 1 : label_end])
+    if not is_image and any(not child.is_image for child in child_tokens):
         return None
     body = _parse_link_body(text, label_end + 2)
     if body is None:
         return None
     destination_start, destination_end, end = body
+    token_start = label_start - 1 if is_image else label_start
+    if is_image:
+        metadata_ranges = ((token_start, end),)
+    else:
+        metadata_ranges = _merge_ranges(
+            (
+                (destination_start, end),
+                *(
+                    (label_start + child.start + 1, label_start + child.end + 1)
+                    for child in child_tokens
+                    if child.is_image
+                ),
+            )
+        )
     return MarkdownLinkToken(
-        start=label_start - 1 if is_image else label_start,
+        start=token_start,
         end=end,
         destination_start=destination_start,
         destination_end=destination_end,
         is_image=is_image,
+        destination=_decode_destination(text[destination_start:destination_end]),
+        metadata_ranges=metadata_ranges,
     )
 
 
@@ -617,9 +641,11 @@ def _find_link_label_end(
             continue
         char = text[index]
         if char == "\\":
+            if index + 1 >= len(text) or text[index + 1] in "\r\n":
+                return None
             index += 2
             continue
-        if char == "\n":
+        if char in "\r\n":
             return None
         if char == "[":
             depth += 1
@@ -632,7 +658,7 @@ def _find_link_label_end(
 
 
 def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
-    index = _skip_link_whitespace(text, start)
+    index, _ = _skip_link_whitespace(text, start)
     if index is None:
         return None
     if index < len(text) and text[index] == "<":
@@ -642,6 +668,8 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
             if text[index] == "\\":
                 index = _skip_backslash_escape(text, index)
                 continue
+            if text[index] == "<":
+                return None
             if text[index] == ">":
                 destination_end = index
                 index += 1
@@ -676,14 +704,16 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
             return None
         destination_end = index
 
-    index = _skip_link_whitespace(text, index)
+    index, has_separator = _skip_link_whitespace(text, index)
     if index is None or index >= len(text):
         return None
     if text[index] != ")":
+        if not has_separator:
+            return None
         index = _parse_link_title(text, index)
         if index is None:
             return None
-        index = _skip_link_whitespace(text, index)
+        index, _ = _skip_link_whitespace(text, index)
         if index is None or index >= len(text) or text[index] != ")":
             return None
     return destination_start, destination_end, index + 1
@@ -729,18 +759,18 @@ def _parse_link_title(text: str, start: int) -> int | None:
     return None
 
 
-def _skip_link_whitespace(text: str, start: int) -> int | None:
+def _skip_link_whitespace(text: str, start: int) -> tuple[int | None, bool]:
     index = start
     while index < len(text) and text[index] in " \t":
         index += 1
     if index >= len(text) or text[index] not in "\n\r":
-        return index
+        return index, index != start
     index = _advance_line_ending(text, index)
     if index is None:
-        return None
+        return None, True
     while index < len(text) and text[index] in " \t":
         index += 1
-    return None if index < len(text) and text[index] in "\n\r" else index
+    return (None, True) if index < len(text) and text[index] in "\n\r" else (index, True)
 
 
 def _advance_line_ending(text: str, index: int) -> int | None:
@@ -767,22 +797,22 @@ def _skip_backslash_escape(text: str, index: int) -> int:
     return index + 1
 
 
+def _decode_destination(destination: str) -> str:
+    decoded: list[str] = []
+    index = 0
+    while index < len(destination):
+        if (
+            destination[index] == "\\"
+            and index + 1 < len(destination)
+            and _is_ascii_punctuation(destination[index + 1])
+        ):
+            decoded.append(destination[index + 1])
+            index += 2
+            continue
+        decoded.append(destination[index])
+        index += 1
+    return "".join(decoded)
+
+
 def _is_ascii_punctuation(char: str) -> bool:
     return "!" <= char <= "/" or ":" <= char <= "@" or "[" <= char <= "`" or "{" <= char <= "~"
-
-
-def _html_block_ranges(text: str) -> tuple[OffsetRange, ...]:
-    ranges: list[OffsetRange] = []
-    for match in HTML_BLOCK_OPEN_RE.finditer(text):
-        tag = match.group("tag").lower()
-        closing = re.search(rf"</[ \t]*{re.escape(tag)}[ \t]*>", text[match.end() :], re.IGNORECASE)
-        if closing is not None:
-            ranges.append((match.start(), match.end() + closing.end()))
-            continue
-        if tag in HTML_RAWTEXT_TAGS:
-            ranges.append((match.start(), len(text)))
-            continue
-        blank_line = re.search(r"\n[ \t]*\n", text[match.end() :])
-        end = len(text) if blank_line is None else match.end() + blank_line.start() + 1
-        ranges.append((match.start(), end))
-    return tuple(ranges)

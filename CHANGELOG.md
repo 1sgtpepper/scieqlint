@@ -114,7 +114,8 @@ Release notes must use these sections:
   verbatim content and comments now retain their lexical ownership. Overlapping
   escaped dollar candidates no longer hide an adjacent live display block.
 - Markdown links and MyST roles now respect escapes, image syntax, and link metadata
-  when creating reference facts.
+  when creating reference facts; decoded destinations retain their original source
+  offsets for diagnostics.
 
 ### Deprecated
 

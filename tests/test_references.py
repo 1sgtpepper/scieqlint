@@ -340,6 +340,7 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     normal = markdown_link_tokens("[x](#target)")[0]
     assert image.is_image is True
     assert normal.is_image is False
+    assert normal.destination == "#target"
     assert markdown_link_metadata_ranges("![alt](#target)") == ((0, 15),)
     assert markdown_link_metadata_ranges("[x](#target)") == ((4, 12),)
 
@@ -362,6 +363,10 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "[x](<target\n>)",
         "[x](<target)",
         "[x](<target>",
+        "[x](<a<b>)",
+        '[x](<dest>"title")',
+        "[foo\\\nbar](#target)",
+        "[foo\rbar](#target)",
         '[x](#target "title)',
         '[x](#target "title\n)',
         '[x](#target "title"',
@@ -371,6 +376,52 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     )
     for text in invalid:
         assert markdown_link_tokens(text) == (), text
+
+    assert markdown_link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
+    assert markdown_link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
+
+
+def test_nested_images_preserve_outer_link_semantics_and_image_opacity() -> None:
+    image_with_link = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "![foo [bar](#ghost)](img.png)",
+        DocumentKind.MARKDOWN,
+    )
+    link_with_image = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "[![alt](img.png)](#target)",
+        DocumentKind.MARKDOWN,
+    )
+
+    for document in (image_with_link, link_with_image):
+        snapshot = MySTFrontend().lower((document,))
+        scan = MarkdownScanner().scan(document, Config())
+        if document.text.startswith("!"):
+            assert snapshot.generic_refs == ()
+            assert scan.references == ()
+        else:
+            assert [(ref.role_kind, ref.target) for ref in snapshot.generic_refs] == [
+                ("markdown-link", "target")
+            ]
+            assert [(ref.source.value, ref.target) for ref in scan.references] == [
+                ("markdown_anchor", "target")
+            ]
+
+
+def test_raw_html_does_not_join_dollar_math_across_live_myst_role() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "<div>\n$$\n</div>\n{eq}`active`\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+    scan = MarkdownScanner().scan(document, Config())
+
+    assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [("eq", "active")]
+    assert [(ref.source.value, ref.target) for ref in scan.references] == [
+        ("myst_eq_role", "active")
+    ]
 
 
 def test_markdown_links_to_comment_bridged_myst_heading_anchors_are_not_equation_refs() -> None:

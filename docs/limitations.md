@@ -121,6 +121,9 @@ reference-fact profile and are left as source text.
 Link components permit at most one line ending, and quoted or parenthesized
 titles may span lines but not blank lines. Unbracketed destinations reject spaces
 and ASCII control characters; angle-bracket destinations are used for those URLs.
+Backslash escapes are decoded for reference resolution while source offsets retain
+the original destination spelling. Images remain metadata, including nested images
+inside links; a link containing an image can still contribute its outer target.
 Role-like text inside inline code, inline or display math, HTML comments, and raw
 HTML is opaque and does not create reference facts.
 

@@ -73,7 +73,7 @@ def _markdown_link_ref_fact(
     token: MarkdownLinkToken,
 ) -> GenericRefFact:
     target_start = token.destination_start + 1
-    target = document.text[target_start : token.destination_end]
+    target = token.destination[1:]
     return GenericRefFact(
         fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
         document_id=document.path.as_posix(),

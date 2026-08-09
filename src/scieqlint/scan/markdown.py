@@ -314,7 +314,7 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         ):
             continue
         target_start = token.destination_start + 1
-        target = _normalize_label(document.text[target_start : token.destination_end])
+        target = _normalize_label(token.destination[1:])
         if target in attached_myst_anchors:
             continue
         yield EquationReference(
