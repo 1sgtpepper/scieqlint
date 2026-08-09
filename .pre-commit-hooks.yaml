@@ -4,8 +4,7 @@
   entry: python -m scieqlint.pre_commit
   args: ["--"]
   language: python
-  files: '(?i)\.(md|markdown|tex|ipynb)$'
-  stages: [pre-commit, pre-push]
+  stages: [pre-commit]
   always_run: true
   pass_filenames: true
   require_serial: true

@@ -52,9 +52,9 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - The pre-commit hook now runs a complete project-context check when supported
-  sources are added, changed, deleted, or renamed, regardless of suffix case,
-  including ref-range and pre-push runs, without treating candidate paths as CLI input;
-  checker options are preserved before the required `--` boundary.
+  staged sources are added, changed, deleted, or renamed, regardless of suffix
+  case, without treating candidate paths as CLI input; checker options are
+  preserved before the required `--` boundary.
 
 ### Deprecated
 

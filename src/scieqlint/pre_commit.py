@@ -15,7 +15,7 @@ def _is_supported(path: str) -> bool:
     return Path(path).suffix.lower() in SUPPORTED_SUFFIXES
 
 
-def _diff_paths(*diff_arguments: str) -> tuple[str, ...]:
+def _diff_records(*diff_arguments: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     result = subprocess.run(
         [
             "git",
@@ -30,40 +30,28 @@ def _diff_paths(*diff_arguments: str) -> tuple[str, ...]:
         capture_output=True,
     )
     fields = result.stdout.split(b"\0")
-    paths: list[str] = []
+    records: list[tuple[str, tuple[str, ...]]] = []
     index = 0
     while index < len(fields) - 1:
         status = os.fsdecode(fields[index])
         index += 1
         path_count = 2 if status[:1] in {"R", "C"} else 1
-        paths.extend(os.fsdecode(path) for path in fields[index : index + path_count])
+        paths = tuple(os.fsdecode(path) for path in fields[index : index + path_count])
         index += path_count
+        records.append((status[:1], paths))
+    return tuple(records)
+
+
+def _staged_invisible_paths() -> tuple[str, ...]:
+    # Recover only paths pre-commit removes before invocation: deletions and
+    # rename sources. Existing additions and modifications remain candidate-owned.
+    paths: list[str] = []
+    for status, changed_paths in _diff_records("--cached"):
+        if status == "D":
+            paths.extend(changed_paths)
+        elif status == "R":
+            paths.append(changed_paths[0])
     return tuple(paths)
-
-
-def _staged_paths() -> tuple[str, ...]:
-    # The index retains deleted and rename-source paths after pre-commit filters
-    # them out of its candidate filename list.
-    return _diff_paths("--cached")
-
-
-def _range_paths(from_ref: str, to_ref: str) -> tuple[str, ...]:
-    try:
-        return _diff_paths(f"{from_ref}...{to_ref}")
-    except subprocess.CalledProcessError:
-        return _diff_paths(f"{from_ref}..{to_ref}")
-
-
-def _range_refs() -> tuple[str, str] | None:
-    from_ref = os.environ.get("PRE_COMMIT_FROM_REF")
-    to_ref = os.environ.get("PRE_COMMIT_TO_REF")
-    if from_ref is None and to_ref is None:
-        return None
-    if not from_ref or not to_ref:
-        raise ValueError(
-            "SciEqLint pre-commit hook requires both PRE_COMMIT_FROM_REF and PRE_COMMIT_TO_REF"
-        )
-    return from_ref, to_ref
 
 
 def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -83,19 +71,22 @@ def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[s
 def main(arguments: Sequence[str] | None = None) -> int:
     """Run the project check only for a supported pre-commit change."""
     args = tuple(sys.argv[1:] if arguments is None else arguments)
+    if os.environ.get("PRE_COMMIT_FROM_REF") or os.environ.get("PRE_COMMIT_TO_REF"):
+        sys.stderr.write(
+            "SciEqLint pre-commit hook supports ordinary staged runs only; "
+            "revision-range runs are not supported\n"
+        )
+        return 2
     try:
         check_args, candidate_paths = _split_arguments(args)
-        refs = _range_refs()
     except ValueError as error:
         sys.stderr.write(f"{error}\n")
         return 2
 
-    if refs is not None:
-        paths = _range_paths(*refs)
-    elif candidate_paths:
+    if any(_is_supported(path) for path in candidate_paths):
         paths = candidate_paths
     else:
-        paths = _staged_paths()
+        paths = (*candidate_paths, *_staged_invisible_paths())
     if not any(_is_supported(path) for path in paths):
         return 0
     return subprocess.run(
