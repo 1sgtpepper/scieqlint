@@ -368,8 +368,10 @@ def has_blocking_release_gate(text: str) -> bool:
     lines = text.splitlines()
     scalar_content_lines: set[int] = set()
     quoted_content_lines: set[int] = set()
+    quoted_scalar_opening_lines: set[int] = set()
     scalar_indent: int | None = None
     quoted_scalar_quote: str | None = None
+    flow_mapping_present = False
     for line_index, line in enumerate(lines):
         indent = len(line) - len(line.lstrip())
         if scalar_indent is not None:
@@ -382,6 +384,7 @@ def has_blocking_release_gate(text: str) -> bool:
             quoted_content_lines.add(line_index)
             quoted_scalar_quote = _yaml_quote_state(line, quoted_scalar_quote)
             continue
+        flow_mapping_present = flow_mapping_present or _yaml_contains_flow_mapping(line)
         if block_scalar_header.search(_strip_yaml_comment(line).strip()) is not None:
             scalar_indent = indent
             continue
@@ -393,11 +396,28 @@ def has_blocking_release_gate(text: str) -> bool:
             value = value[colon + 1 :].lstrip()
         if value.startswith(("'", '"')):
             quoted_scalar_quote = _yaml_quote_state(value)
+            if quoted_scalar_quote is not None:
+                quoted_scalar_opening_lines.add(line_index)
 
     # Scalar and quoted continuations are values, never YAML structure.
     ignored_structure_lines = scalar_content_lines | quoted_content_lines
+    if flow_mapping_present:
+        # Flow maps and their multiline contents need YAML structure, not line scans.
+        return False
+    if any(
+        index not in ignored_structure_lines
+        and (match := status_line.fullmatch(line)) is not None
+        and match.group("key").strip().casefold() in {"defaults", "shell"}
+        for index, line in enumerate(lines)
+    ):
+        # Custom or inherited shells can alter command execution and failure propagation.
+        return False
     for index, line in enumerate(lines):
-        if index in ignored_structure_lines or gate_line.fullmatch(line) is None:
+        if (
+            index in ignored_structure_lines
+            or index in quoted_scalar_opening_lines
+            or gate_line.fullmatch(line) is None
+        ):
             continue
         # Derive the containing step and job from their mapping boundaries; YAML
         # nesting is valid with widths other than the repository's usual two spaces.
@@ -583,6 +603,9 @@ def _scope_is_proven_blocking(
         key = key.casefold()
         if key in seen_status_keys:
             return False
+        if key == "<<":
+            # YAML merges can inject status properties that this textual scan cannot resolve.
+            return False
         if key == "needs" and reject_needs:
             # Reachability through skipped dependencies is not proven here.
             return False
@@ -603,7 +626,7 @@ def _static_workflow_bool(value: str) -> bool | None:
     if not value or value.startswith(("&", "*")):
         return None
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        value = value[1:-1].strip()
+        return None
     if value.startswith("${{") and value.endswith("}}"):
         value = value[3:-2].strip()
     normalized = value.casefold()
@@ -612,6 +635,38 @@ def _static_workflow_bool(value: str) -> bool | None:
     if normalized == "false":
         return False
     return None
+
+
+def _yaml_contains_flow_mapping(value: str) -> bool:
+    quote: str | None = None
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if character == "#" and (index == 0 or value[index - 1].isspace()):
+                break
+            if value.startswith("${{", index):
+                closing = value.find("}}", index + 3)
+                if closing < 0:
+                    return False
+                index = closing + 2
+                continue
+            if character in {"'", '"'}:
+                quote = character
+            elif character == "{":
+                return True
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    return False
 
 
 def _yaml_quote_state(value: str, quote: str | None = None) -> str | None:

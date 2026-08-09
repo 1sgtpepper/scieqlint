@@ -782,6 +782,20 @@ jobs:
             True,
         ),
         (
+            "quoted job if value",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: "true"
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
             "static true job if expression",
             """name: CI
 on: [push]
@@ -852,6 +866,20 @@ jobs:
             False,
         ),
         (
+            "quoted job continue-on-error value",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: "false"
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
             "alias continue-on-error",
             """name: CI
 on: [push]
@@ -875,6 +903,101 @@ on: [push]
 jobs:
   quality:
     if: &enabled true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "multiline quoted run",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: "python tools/architecture/terminology_drift.py --format json
+          || true"
+""",
+            True,
+        ),
+        (
+            "flow-map run decoy",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: decoy
+        env: {
+        run: python tools/architecture/terminology_drift.py --format json
+        }
+        run: echo ok
+""",
+            True,
+        ),
+        (
+            "merged job status",
+            """name: CI
+on: [push]
+
+jobs:
+  quality_defaults: &job_defaults
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: optional-check
+  quality:
+    <<: *job_defaults
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "explicit custom shell",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: "true {0}"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "inherited custom shell",
+            """name: CI
+on: [push]
+
+defaults:
+  run:
+    shell: bash
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "duplicate status keys",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: false
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - run: python tools/architecture/terminology_drift.py --format json
@@ -995,9 +1118,7 @@ def test_architecture_terminology_scanner_rejects_disabled_parent_job(
     "enabled_condition",
     [
         "if: true",
-        'if: "true"',
-        "if: 'true'",
-        'if: "${{ true }}"',
+        "if: ${{ true }}",
         "if: true # enabled",
     ],
 )
