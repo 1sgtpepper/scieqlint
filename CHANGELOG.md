@@ -47,8 +47,8 @@ Release notes must use these sections:
   fixed-schema configuration tables are rejected instead of being ignored.
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
-- Architecture terminology gates now reject explicitly disabled workflow steps
-  and parent jobs.
+- Architecture terminology gates now reject explicitly disabled or otherwise
+  non-blocking workflow steps and parent jobs.
 
 ### Deprecated
 

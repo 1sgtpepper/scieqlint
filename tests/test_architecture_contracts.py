@@ -544,6 +544,213 @@ def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
 
 
 @pytest.mark.parametrize(
+    ("ci_text", "expected_gate_violation"),
+    [
+        (
+            """name: CI
+
+jobs:
+  quality:
+    continue-on-error: true
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - run: >-
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - run: |2-
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - run: |-2
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - name: 'architecture gate
+        run: python tools/architecture/terminology_drift.py --format json'
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - name: "architecture gate
+        run: python tools/architecture/terminology_drift.py --format json"
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+    quality:
+        if: false
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+    quality:
+        continue-on-error: true
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+    quality:
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - name: architecture gate configuration
+        with:
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - name: architecture gate documentation
+        run: |
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    strategy:
+      steps:
+        - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+        continue-on-error: true
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+    quality:
+        steps:
+            - if: false
+              run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            """name: CI
+
+jobs:
+    quality:
+        steps:
+            - name: architecture gate
+              with:
+                continue-on-error: true
+              run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            """name: CI
+
+jobs:
+  quality:
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+  optional:
+    continue-on-error: true
+    steps:
+      - run: optional-check
+""",
+            False,
+        ),
+    ],
+)
+def test_architecture_terminology_scanner_resolves_step_and_parent_job_scope(
+    tmp_path: Path,
+    ci_text: str,
+    expected_gate_violation: bool,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        ci_text,
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == int(expected_gate_violation)
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == (
+        ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
+    )
+
+
+@pytest.mark.parametrize(
     "disabled_condition",
     [
         "if: false",

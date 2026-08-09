@@ -365,55 +365,183 @@ def has_blocking_release_gate(text: str) -> bool:
         r"^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*true[ \t]*(?:#.*)?$",
         re.IGNORECASE,
     )
+    mapping_line = re.compile(r"^[ \t]*(?!-[ \t]+)[^#\s][^:]*:[ \t]*.*$")
+    mapping_key = re.compile(r"^[ \t]*(?!-[ \t]+)(?P<key>[^#\s][^:]*):[ \t]*(?:#.*)?$")
+    list_item_line = re.compile(r"^[ \t]*-(?:[ \t]+.*)?$")
+    block_scalar_header = re.compile(
+        r"(?:^|:[ \t]*|-[ \t]+)[|>]"
+        r"(?:(?:[1-9][+-]?)|(?:[+-][1-9]?))?[ \t]*$"
+    )
     lines = text.splitlines()
-    for index, line in enumerate(lines):
-        if gate_line.fullmatch(line) is None:
-            continue
+    scalar_content_lines: set[int] = set()
+    quoted_content_lines: set[int] = set()
+    scalar_indent: int | None = None
+    quoted_scalar_quote: str | None = None
+    for line_index, line in enumerate(lines):
         indent = len(line) - len(line.lstrip())
-        step_indent = indent if line.lstrip().startswith("- ") else max(indent - 2, 0)
-        start = index
-        while start >= 0:
-            candidate = lines[start]
-            candidate_indent = len(candidate) - len(candidate.lstrip())
-            if candidate_indent == step_indent and candidate.lstrip().startswith("- "):
+        if scalar_indent is not None:
+            if line.strip() and not line.lstrip().startswith("#") and indent <= scalar_indent:
+                scalar_indent = None
+            else:
+                scalar_content_lines.add(line_index)
+                continue
+        if quoted_scalar_quote is not None:
+            quoted_content_lines.add(line_index)
+            quoted_scalar_quote = _yaml_quote_state(line, quoted_scalar_quote)
+            continue
+        if block_scalar_header.search(_strip_yaml_comment(line).strip()) is not None:
+            scalar_indent = indent
+            continue
+        value = line.lstrip()
+        if value.startswith("- "):
+            value = value[2:].lstrip()
+        colon = value.find(":")
+        if colon >= 0:
+            value = value[colon + 1 :].lstrip()
+        if value.startswith(("'", '"')):
+            quoted_scalar_quote = _yaml_quote_state(value)
+
+    for index, line in enumerate(lines):
+        if (
+            index in scalar_content_lines
+            or index in quoted_content_lines
+            or gate_line.fullmatch(line) is None
+        ):
+            continue
+        # Derive the containing step and job from their mapping boundaries; YAML
+        # nesting is valid with widths other than the repository's usual two spaces.
+        gate_indent = len(line) - len(line.lstrip())
+        inline_step = line.lstrip().startswith("- ")
+        if inline_step:
+            step_start = index
+        else:
+            step_start = -1
+            for candidate_index in range(index - 1, -1, -1):
+                candidate = lines[candidate_index]
+                if candidate_index in scalar_content_lines:
+                    continue
+                candidate_indent = len(candidate) - len(candidate.lstrip())
+                if candidate_indent < gate_indent and list_item_line.fullmatch(candidate):
+                    step_start = candidate_index
+                    break
+            if step_start < 0:
+                continue
+
+        step_indent = len(lines[step_start]) - len(lines[step_start].lstrip())
+        steps_start = -1
+        steps_indent = -1
+        for candidate_index in range(step_start, -1, -1):
+            candidate_match = mapping_key.fullmatch(lines[candidate_index])
+            if candidate_match is None or candidate_match.group("key").strip() != "steps":
+                continue
+            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
+            if candidate_indent <= step_indent:
+                steps_start = candidate_index
+                steps_indent = candidate_indent
                 break
-            start -= 1
+        if steps_start < 0:
+            continue
+
+        job_start = -1
+        job_indent = -1
+        for candidate_index in range(steps_start - 1, -1, -1):
+            candidate_match = mapping_key.fullmatch(lines[candidate_index])
+            if candidate_match is None:
+                continue
+            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
+            if candidate_indent < steps_indent:
+                job_start = candidate_index
+                job_indent = candidate_indent
+                break
+        if job_start < 0:
+            continue
+
+        jobs_start = -1
+        jobs_indent = -1
+        for candidate_index in range(job_start - 1, -1, -1):
+            candidate_match = mapping_key.fullmatch(lines[candidate_index])
+            if candidate_match is None:
+                continue
+            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
+            if candidate_indent < job_indent:
+                if candidate_match.group("key").strip() == "jobs":
+                    jobs_start = candidate_index
+                    jobs_indent = candidate_indent
+                break
+        if jobs_start < 0:
+            continue
+
+        for candidate_index in range(jobs_start - 1, -1, -1):
+            candidate_match = mapping_key.fullmatch(lines[candidate_index])
+            if candidate_match is None:
+                continue
+            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
+            if candidate_indent < jobs_indent:
+                jobs_start = -1
+                break
+        if jobs_start < 0:
+            continue
+
+        direct_step_indent = -1
+        for candidate_index in range(steps_start + 1, index + 1):
+            if candidate_index in scalar_content_lines:
+                continue
+            candidate = lines[candidate_index]
+            if not candidate.strip() or candidate.lstrip().startswith("#"):
+                continue
+            candidate_indent = len(candidate) - len(candidate.lstrip())
+            if list_item_line.fullmatch(candidate):
+                if candidate_indent >= steps_indent:
+                    direct_step_indent = candidate_indent
+                break
+            break
+        if direct_step_indent < 0 or step_indent != direct_step_indent:
+            continue
+
         end = index + 1
         while end < len(lines):
             candidate = lines[end]
             candidate_indent = len(candidate) - len(candidate.lstrip())
-            if candidate_indent == step_indent and candidate.lstrip().startswith("- "):
+            if candidate_indent == step_indent and list_item_line.fullmatch(candidate):
                 break
             end += 1
-        step_lines = lines[max(start, 0) : end]
-        if not any(
-            len(candidate) - len(candidate.lstrip()) in {step_indent, step_indent + 2}
+        step_lines = lines[step_start:end]
+        direct_property_indents = {
+            len(candidate) - len(candidate.lstrip())
+            for candidate_index, candidate in enumerate(step_lines, start=step_start)
+            if candidate_index not in scalar_content_lines
+            and len(candidate) - len(candidate.lstrip()) > step_indent
+            and mapping_line.fullmatch(candidate)
+        }
+        direct_property_indent = min(direct_property_indents, default=-1)
+        if not inline_step and gate_indent != direct_property_indent:
+            continue
+        step_property_indents = {step_indent}
+        if direct_property_indent >= 0:
+            step_property_indents.add(direct_property_indent)
+        if any(
+            len(candidate) - len(candidate.lstrip()) in step_property_indents
             and (nonblocking.fullmatch(candidate) or _is_disabled_if_line(candidate))
             for candidate in step_lines
         ):
-            job_property_indent = step_indent - 2
-            job_indent = job_property_indent - 2
-            job_key = re.compile(r"^[ \t]*[^#\s][^:]*:[ \t]*(?:#.*)?$")
-            job_start = index
-            while job_start >= 0:
-                candidate = lines[job_start]
-                candidate_indent = len(candidate) - len(candidate.lstrip())
-                if candidate_indent == job_indent and job_key.fullmatch(candidate):
-                    break
-                job_start -= 1
-            job_end = index + 1
-            while job_end < len(lines):
-                candidate = lines[job_end]
-                candidate_indent = len(candidate) - len(candidate.lstrip())
-                if candidate_indent == job_indent and job_key.fullmatch(candidate):
-                    break
-                job_end += 1
-            if not any(
-                len(candidate) - len(candidate.lstrip()) == job_property_indent
-                and _is_disabled_if_line(candidate)
-                for candidate in lines[max(job_start, 0) : job_end]
-            ):
-                return True
+            continue
+
+        job_end = len(lines)
+        for candidate_index in range(job_start + 1, len(lines)):
+            candidate_match = mapping_key.fullmatch(lines[candidate_index])
+            if candidate_match is None:
+                continue
+            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
+            if candidate_indent == job_indent:
+                job_end = candidate_index
+                break
+        if any(
+            len(candidate) - len(candidate.lstrip()) == steps_indent
+            and (nonblocking.fullmatch(candidate) or _is_disabled_if_line(candidate))
+            for candidate in lines[job_start + 1 : job_end]
+        ):
+            continue
+        return True
     return False
 
 
@@ -427,6 +555,29 @@ def _is_disabled_if_line(line: str) -> bool:
     if value.startswith("${{") and value.endswith("}}"):
         value = value[3:-2].strip()
     return value.casefold() == "false"
+
+
+def _yaml_quote_state(value: str, quote: str | None = None) -> str | None:
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if character == "#" and (index == 0 or value[index - 1].isspace()):
+                break
+            if character in {"'", '"'}:
+                quote = character
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    return quote
 
 
 def _strip_yaml_comment(value: str) -> str:
