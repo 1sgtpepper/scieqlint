@@ -315,7 +315,9 @@ def test_pre_commit_adapter_falls_back_to_staged_paths(
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
     assert pre_commit.main(("--",)) == (5 if invokes_checker else 0)
-    assert calls == ([[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]] if invokes_checker else [])
+    assert calls == (
+        [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]] if invokes_checker else []
+    )
 
 
 def test_pre_commit_adapter_module_entrypoint(
