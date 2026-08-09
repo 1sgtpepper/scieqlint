@@ -61,8 +61,7 @@ def _range_refs() -> tuple[str, str] | None:
         return None
     if not from_ref or not to_ref:
         raise ValueError(
-            "SciEqLint pre-commit hook requires both PRE_COMMIT_FROM_REF and "
-            "PRE_COMMIT_TO_REF"
+            "SciEqLint pre-commit hook requires both PRE_COMMIT_FROM_REF and PRE_COMMIT_TO_REF"
         )
     return from_ref, to_ref
 

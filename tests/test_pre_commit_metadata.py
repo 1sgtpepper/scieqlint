@@ -224,9 +224,10 @@ def test_pre_commit_adapter_uses_revision_range_before_candidate_paths(
 
 
 def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
-    assert pre_commit._split_arguments(
-        ("--strict-unknowns", "--", "--quiet.MARKDOWN")
-    ) == (("--strict-unknowns",), ("--quiet.MARKDOWN",))
+    assert pre_commit._split_arguments(("--strict-unknowns", "--", "--quiet.MARKDOWN")) == (
+        ("--strict-unknowns",),
+        ("--quiet.MARKDOWN",),
+    )
 
 
 def test_pre_commit_adapter_runs_project_check_for_supported_candidate(
@@ -314,11 +315,7 @@ def test_pre_commit_adapter_falls_back_to_staged_paths(
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
     assert pre_commit.main(("--",)) == (5 if invokes_checker else 0)
-    assert calls == (
-        [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
-        if invokes_checker
-        else []
-    )
+    assert calls == ([[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]] if invokes_checker else [])
 
 
 def test_pre_commit_adapter_module_entrypoint(
