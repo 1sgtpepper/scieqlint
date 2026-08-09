@@ -8,7 +8,7 @@ import json
 import re
 import sys
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
@@ -44,6 +44,47 @@ DEFAULT_ARCHITECTURE_DOCS = (
 )
 DEFAULT_MODULE_GRAPH = "pyproject.toml"
 DEFAULT_CI_CONFIGS = (".github/workflows/ci.yml",)
+_RELEVANT_GATE_TRIGGERS = frozenset({"push", "pull_request"})
+_SUPPORTED_GATE_JOB_KEYS = frozenset(
+    {
+        "concurrency",
+        "container",
+        "continue-on-error",
+        "defaults",
+        "environment",
+        "env",
+        "if",
+        "name",
+        "needs",
+        "outputs",
+        "permissions",
+        "runs-on",
+        "secrets",
+        "services",
+        "shell",
+        "steps",
+        "strategy",
+        "timeout-minutes",
+        "uses",
+        "with",
+        "working-directory",
+    }
+)
+_SUPPORTED_GATE_STEP_KEYS = frozenset(
+    {
+        "continue-on-error",
+        "env",
+        "id",
+        "if",
+        "name",
+        "run",
+        "shell",
+        "timeout-minutes",
+        "uses",
+        "with",
+        "working-directory",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -56,6 +97,7 @@ class LoadedInput:
 @dataclass
 class _GateWorkflow:
     jobs: list[_GateJob]
+    relevant_trigger_seen: bool = False
     shell_configured: bool = False
     working_directory: str | None = None
     working_directory_seen: bool = False
@@ -65,6 +107,9 @@ class _GateWorkflow:
 @dataclass
 class _GateJob:
     steps: list[_GateStep]
+    runs_on: str | None = None
+    runs_on_seen: bool = False
+    uses_seen: bool = False
     if_blocking: bool = True
     if_seen: bool = False
     continue_on_error_blocking: bool = True
@@ -81,6 +126,7 @@ class _GateStep:
     job: _GateJob
     run_count: int = 0
     gate_run_count: int = 0
+    uses_seen: bool = False
     if_blocking: bool = True
     if_seen: bool = False
     continue_on_error_blocking: bool = True
@@ -98,6 +144,7 @@ class _GateFrame:
     job: _GateJob | None = None
     step: _GateStep | None = None
     defaults_owner: str | None = None
+    mapping_keys: set[str] = field(default_factory=set)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -411,6 +458,10 @@ def has_blocking_release_gate(text: str) -> bool:
 
     for line in text.splitlines():
         indent = len(line) - len(line.lstrip())
+        leading_whitespace = line[: len(line) - len(line.lstrip(" \t"))]
+        if "\t" in leading_whitespace:
+            workflow.unsupported = True
+            continue
 
         if block_scalar_indent is not None:
             if line.strip() and not line.lstrip().startswith("#") and indent <= block_scalar_indent:
@@ -428,17 +479,22 @@ def has_blocking_release_gate(text: str) -> bool:
 
         if not line.strip() or line.lstrip().startswith("#"):
             continue
+        if re.match(r"^(?:---|\.\.\.)(?:\s|$)", line.strip()):
+            workflow.unsupported = True
+            continue
 
         while len(frames) > 1 and indent <= frames[-1].indent:
             frames.pop()
 
         entry = _split_yaml_mapping(line)
         if entry is None:
+            workflow.unsupported = True
             continue
         is_list_item, raw_key, value = entry
-        key = _canonical_yaml_key(raw_key) if raw_key is not None else None
         entry_indent = indent + 2 if is_list_item else indent
         next_flow_depth, flow_seen = _yaml_flow_map_transition(line, 0)
+        if flow_seen and not _yaml_flow_mappings_valid(line):
+            workflow.unsupported = True
         parent = frames[-1]
 
         if parent.kind == "steps" and is_list_item:
@@ -455,10 +511,14 @@ def has_blocking_release_gate(text: str) -> bool:
                     step=step,
                 )
             )
-            if key is None and raw_key is not None:
+            if raw_key is None:
                 step.unsupported = True
-            elif key is not None:
-                _record_gate_step_property(step, key, value)
+            else:
+                key = _register_gate_mapping_key(workflow, frames[-1], raw_key)
+                if key is None:
+                    step.unsupported = True
+                else:
+                    _record_gate_step_property(step, key, value)
             if flow_seen:
                 step.unsupported = True
             flow_depth = next_flow_depth
@@ -480,19 +540,45 @@ def has_blocking_release_gate(text: str) -> bool:
             continue
 
         if is_list_item:
-            frames.append(
-                _GateFrame(
-                    indent=indent,
-                    kind="list",
-                    job=parent.job,
-                    step=parent.step,
-                    defaults_owner=parent.defaults_owner,
-                )
+            if parent.kind == "triggers":
+                workflow.unsupported = True
+                continue
+            list_frame = _GateFrame(
+                indent=indent,
+                kind="list",
+                job=parent.job,
+                step=parent.step,
+                defaults_owner=parent.defaults_owner,
             )
+            frames.append(list_frame)
+            if (
+                raw_key is not None
+                and _register_gate_mapping_key(workflow, list_frame, raw_key) is None
+            ):
+                workflow.unsupported = True
             flow_depth = next_flow_depth
             continue
 
+        key = _register_gate_mapping_key(workflow, parent, raw_key)
+        if key is None:
+            workflow.unsupported = True
+            continue
+
         if parent.kind == "root":
+            if key == "on":
+                relevant_trigger, trigger_value_valid = _trigger_value_result(value)
+                workflow.relevant_trigger_seen = relevant_trigger
+                if not trigger_value_valid:
+                    workflow.unsupported = True
+                if flow_seen:
+                    flow_depth = next_flow_depth
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(_GateFrame(indent=entry_indent, kind="triggers"))
+                elif value.startswith(("&", "*")):
+                    workflow.unsupported = True
+                else:
+                    flow_depth = next_flow_depth
+                continue
             if key == "jobs":
                 if flow_seen:
                     workflow.unsupported = True
@@ -525,13 +611,30 @@ def has_blocking_release_gate(text: str) -> bool:
                 frames.append(_GateFrame(indent=entry_indent, kind="map"))
             continue
 
+        if parent.kind == "triggers":
+            if key in _RELEVANT_GATE_TRIGGERS:
+                workflow.relevant_trigger_seen = True
+                if not _is_valid_trigger_event_value(value):
+                    workflow.unsupported = True
+            if flow_seen:
+                flow_depth = next_flow_depth
+                continue
+            if _is_empty_yaml_mapping_value(value):
+                frames.append(_GateFrame(indent=entry_indent, kind="map"))
+            continue
+
         if parent.kind == "jobs":
+            if not key:
+                workflow.unsupported = True
+                continue
             job = _GateJob(steps=[])
             workflow.jobs.append(job)
             if flow_seen:
                 job.unsupported = True
             elif _is_empty_yaml_mapping_value(value):
                 frames.append(_GateFrame(indent=entry_indent, kind="job", job=job))
+            else:
+                workflow.unsupported = True
             flow_depth = next_flow_depth
             if not flow_seen and _is_block_scalar_header(value):
                 block_scalar_indent = indent
@@ -675,7 +778,13 @@ def has_blocking_release_gate(text: str) -> bool:
                 )
             )
 
-    if workflow.unsupported or workflow.shell_configured:
+    if (
+        workflow.unsupported
+        or workflow.shell_configured
+        or not workflow.relevant_trigger_seen
+        or flow_depth
+        or quoted_scalar_quote is not None
+    ):
         return False
     for job in workflow.jobs:
         for step in job.steps:
@@ -683,9 +792,16 @@ def has_blocking_release_gate(text: str) -> bool:
                 continue
             if not step.if_blocking or not step.continue_on_error_blocking:
                 continue
-            if step.unsupported or step.shell_configured:
+            if step.unsupported or step.shell_configured or step.uses_seen:
                 continue
-            if job.unsupported or job.needs_seen or job.shell_configured:
+            if (
+                job.unsupported
+                or job.needs_seen
+                or job.shell_configured
+                or job.uses_seen
+                or not job.runs_on_seen
+                or not _is_supported_runs_on(job.runs_on)
+            ):
                 continue
             if not job.if_blocking or not job.continue_on_error_blocking:
                 continue
@@ -706,8 +822,212 @@ def has_blocking_release_gate(text: str) -> bool:
     return False
 
 
+def _register_gate_mapping_key(
+    workflow: _GateWorkflow,
+    frame: _GateFrame,
+    raw_key: str,
+) -> str | None:
+    key = _canonical_yaml_key(raw_key)
+    if key is None or key in frame.mapping_keys:
+        workflow.unsupported = True
+        return None
+    frame.mapping_keys.add(key)
+    return key
+
+
+def _is_supported_runs_on(value: str | None) -> bool:
+    if value is None:
+        return False
+    normalized = value.strip().casefold()
+    if not normalized or normalized in {"null", "~", "true", "false"}:
+        return False
+    return not normalized.startswith(("[", "{", "&", "*", "!", "${{"))
+
+
+def _yaml_value_kind(value: str) -> str:
+    cleaned = _strip_yaml_comment(value).strip()
+    if not cleaned:
+        return "empty"
+    if cleaned.startswith("{"):
+        return (
+            "mapping" if cleaned.endswith("}") and _yaml_flow_mappings_valid(cleaned) else "invalid"
+        )
+    if cleaned.startswith("["):
+        return (
+            "sequence"
+            if cleaned.endswith("]") and _split_yaml_flow_entries(cleaned[1:-1]) is not None
+            else "invalid"
+        )
+    if cleaned.startswith(("&", "*", "!")):
+        return "invalid"
+    if cleaned[0] in {"'", '"'}:
+        return "scalar" if _decode_yaml_scalar(cleaned) is not None else "invalid"
+    normalized = cleaned.casefold()
+    if normalized in {"null", "~"}:
+        return "null"
+    if normalized in {"true", "false"}:
+        return "boolean"
+    if re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", cleaned):
+        return "number"
+    return "scalar"
+
+
+def _is_yaml_mapping_or_null(value: str) -> bool:
+    return _yaml_value_kind(value) in {"empty", "mapping", "null"}
+
+
+def _is_yaml_scalar_or_mapping(value: str) -> bool:
+    return _yaml_value_kind(value) in {"scalar", "mapping"}
+
+
+def _is_valid_trigger_event_value(value: str) -> bool:
+    return _yaml_value_kind(value) in {"empty", "mapping", "null"}
+
+
+def _trigger_value_result(value: str) -> tuple[bool, bool]:
+    cleaned = _strip_yaml_comment(value).strip()
+    if not cleaned:
+        return False, True
+    if cleaned.startswith("["):
+        if not cleaned.endswith("]"):
+            return False, False
+        entries = _split_yaml_flow_entries(cleaned[1:-1])
+        if entries is None:
+            return False, False
+        return (
+            any(_decode_yaml_scalar(item) in _RELEVANT_GATE_TRIGGERS for item in entries),
+            True,
+        )
+    if cleaned.startswith("{"):
+        if not cleaned.endswith("}"):
+            return False, False
+        entries = _split_yaml_flow_entries(cleaned[1:-1])
+        if entries is None:
+            return False, False
+        keys: list[str] = []
+        relevant = False
+        for item in entries:
+            colon = _find_yaml_mapping_colon(item)
+            if colon < 0:
+                return False, False
+            key = _canonical_yaml_key(item[:colon].strip())
+            if key is None or key in keys:
+                return False, False
+            keys.append(key)
+            if key in _RELEVANT_GATE_TRIGGERS:
+                if not _is_valid_trigger_event_value(item[colon + 1 :]):
+                    return False, False
+                relevant = True
+        return relevant, True
+    decoded = _decode_yaml_scalar(cleaned)
+    return (decoded in _RELEVANT_GATE_TRIGGERS, decoded is not None)
+
+
+def _yaml_flow_mapping_keys(value: str) -> list[str] | None:
+    keys: list[str] = []
+    entries = _split_yaml_flow_entries(value)
+    if entries is None:
+        return None
+    for item in entries:
+        colon = _find_yaml_mapping_colon(item)
+        if colon < 0:
+            return None
+        key = _canonical_yaml_key(item[:colon].strip())
+        if key is None or key in keys:
+            return None
+        keys.append(key)
+    return keys
+
+
+def _yaml_flow_mappings_valid(value: str) -> bool:
+    quote: str | None = None
+    mapping_starts: list[int] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if value.startswith("${{", index):
+                closing = value.find("}}", index + 3)
+                if closing < 0:
+                    return False
+                index = closing + 2
+                continue
+            if character in {"'", '"'}:
+                quote = character
+            elif character == "{":
+                mapping_starts.append(index)
+            elif character == "}":
+                if not mapping_starts:
+                    return False
+                content = value[mapping_starts.pop() + 1 : index]
+                if _yaml_flow_mapping_keys(content) is None:
+                    return False
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    return quote is None and not mapping_starts
+
+
+def _split_yaml_flow_entries(value: str) -> list[str] | None:
+    entries: list[str] = []
+    start = 0
+    quote: str | None = None
+    braces = 0
+    brackets = 0
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if character in {"'", '"'}:
+                quote = character
+            elif character == "{":
+                braces += 1
+            elif character == "}" and braces:
+                braces -= 1
+            elif character == "[":
+                brackets += 1
+            elif character == "]" and brackets:
+                brackets -= 1
+            elif character == "," and not braces and not brackets:
+                entries.append(value[start:index].strip())
+                start = index + 1
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    tail = value[start:].strip()
+    if tail or entries:
+        entries.append(tail)
+    if quote is not None or braces or brackets:
+        return None
+    return [entry for entry in entries if entry]
+
+
 def _record_gate_step_property(step: _GateStep, key: str, value: str) -> None:
-    if key == "run":
+    if (
+        key not in _SUPPORTED_GATE_STEP_KEYS
+        or key == "with"
+        or (key == "env" and not _is_yaml_mapping_or_null(value))
+    ):
+        step.unsupported = True
+    elif key == "uses":
+        step.uses_seen = True
+    elif key == "run":
         step.run_count += 1
         if _decode_yaml_scalar(value) == CI_GATE_COMMAND:
             step.gate_run_count += 1
@@ -733,7 +1053,27 @@ def _record_gate_step_property(step: _GateStep, key: str, value: str) -> None:
 
 
 def _record_gate_job_property(job: _GateJob, key: str, value: str) -> None:
-    if key == "if":
+    if (
+        key not in _SUPPORTED_GATE_JOB_KEYS
+        or key in {"secrets", "with"}
+        or (
+            key in {"env", "outputs", "permissions", "services", "strategy"}
+            and not _is_yaml_mapping_or_null(value)
+        )
+        or (
+            key in {"concurrency", "container", "environment"}
+            and not _is_yaml_scalar_or_mapping(value)
+        )
+    ):
+        job.unsupported = True
+    elif key == "uses":
+        job.uses_seen = True
+    elif key == "runs-on":
+        if job.runs_on_seen:
+            job.unsupported = True
+        job.runs_on_seen = True
+        job.runs_on = _decode_yaml_scalar(value)
+    elif key == "if":
         if job.if_seen:
             job.unsupported = True
         job.if_seen = True
@@ -803,6 +1143,7 @@ def _mark_gate_flow(workflow: _GateWorkflow, frame: _GateFrame, key: str) -> Non
         "continue-on-error",
         "shell",
         "working-directory",
+        "uses",
         "needs",
         "<<",
     }:
@@ -813,6 +1154,8 @@ def _mark_gate_flow(workflow: _GateWorkflow, frame: _GateFrame, key: str) -> Non
         "needs",
         "shell",
         "working-directory",
+        "runs-on",
+        "uses",
         "steps",
         "defaults",
         "<<",
@@ -846,7 +1189,9 @@ def _find_yaml_mapping_colon(value: str) -> int:
                 break
             if character in {"'", '"'}:
                 quote = character
-            elif character == ":":
+            elif character == ":" and (
+                index + 1 == len(value) or value[index + 1].isspace() or value[index + 1] in ",[]{}"
+            ):
                 return index
         elif quote == "'" and character == "'":
             if index + 1 < len(value) and value[index + 1] == "'":
@@ -863,8 +1208,7 @@ def _find_yaml_mapping_colon(value: str) -> int:
 
 
 def _canonical_yaml_key(raw_key: str) -> str | None:
-    decoded = _decode_yaml_scalar(raw_key)
-    return decoded.casefold() if decoded is not None else None
+    return _decode_yaml_scalar(raw_key)
 
 
 def _decode_yaml_scalar(value: str) -> str | None:

@@ -457,21 +457,21 @@ def test_architecture_terminology_scanner_preserves_lines_while_ignoring_code(
     "ci_text",
     [
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
             "      # run: python tools/architecture/terminology_drift.py --format json\n"
         ),
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
             "      - continue-on-error: true\n"
             "        run: python tools/architecture/terminology_drift.py --format json\n"
         ),
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
             "      - if: ${{ false }}\n"
             "        run: python tools/architecture/terminology_drift.py --format json\n"
         ),
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
+            "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
             "      - if: false\n"
             "        run: python tools/architecture/terminology_drift.py --format json\n"
         ),
@@ -499,7 +499,7 @@ def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    steps:\n"
+        "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
         "      - run: optional-check\n"
         "        continue-on-error: true\n"
         "      - run: python tools/architecture/terminology_drift.py --format json\n",
@@ -531,10 +531,11 @@ def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    steps:\n"
-        "      - name: architecture gate\n"
+        "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - uses: actions/checkout@v4\n"
         "        with:\n"
         f"          {nested_property}\n"
+        "      - name: architecture gate\n"
         "        run: python tools/architecture/terminology_drift.py --format json\n",
         encoding="utf-8",
     )
@@ -549,9 +550,11 @@ def test_architecture_terminology_scanner_ignores_nested_nonblocking_keys(
     [
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - run: python tools/architecture/terminology_drift.py --format json
@@ -560,9 +563,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - run: >-
           run: python tools/architecture/terminology_drift.py --format json
@@ -571,9 +576,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - run: |2-
           run: python tools/architecture/terminology_drift.py --format json
@@ -582,9 +589,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - run: |-2
           run: python tools/architecture/terminology_drift.py --format json
@@ -593,9 +602,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - name: 'architecture gate
         run: python tools/architecture/terminology_drift.py --format json'
@@ -604,9 +615,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - name: "architecture gate
         run: python tools/architecture/terminology_drift.py --format json"
@@ -615,9 +628,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
     quality:
+        runs-on: ubuntu-latest
         if: false
         steps:
             - run: python tools/architecture/terminology_drift.py --format json
@@ -626,9 +641,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
     quality:
+        runs-on: ubuntu-latest
         continue-on-error: true
         steps:
             - run: python tools/architecture/terminology_drift.py --format json
@@ -637,9 +654,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
     quality:
+        runs-on: ubuntu-latest
         steps:
             - run: python tools/architecture/terminology_drift.py --format json
 """,
@@ -647,9 +666,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - name: architecture gate configuration
         with:
@@ -659,9 +680,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - name: architecture gate documentation
         run: |
@@ -671,9 +694,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     strategy:
       steps:
         - run: python tools/architecture/terminology_drift.py --format json
@@ -682,9 +707,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - run: python tools/architecture/terminology_drift.py --format json
         continue-on-error: true
@@ -693,9 +720,11 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
     quality:
+        runs-on: ubuntu-latest
         steps:
             - if: false
               run: python tools/architecture/terminology_drift.py --format json
@@ -704,25 +733,31 @@ jobs:
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
     quality:
+        runs-on: ubuntu-latest
         steps:
-            - name: architecture gate
+            - uses: actions/checkout@v4
               with:
                 continue-on-error: true
+            - name: architecture gate
               run: python tools/architecture/terminology_drift.py --format json
 """,
             False,
         ),
         (
             """name: CI
+on: [push]
 
 jobs:
   quality:
+    runs-on: ubuntu-latest
     steps:
       - run: python tools/architecture/terminology_drift.py --format json
   optional:
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - run: optional-check
@@ -1340,6 +1375,457 @@ def test_architecture_terminology_scanner_tracks_candidate_execution_identity(
     ), case_name
 
 
+@pytest.mark.parametrize(
+    ("case_name", "ci_text", "expected_gate_violation"),
+    [
+        (
+            "missing runs-on",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "scalar job entry",
+            """name: CI
+on: [push]
+
+jobs:
+  decoy: false
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "empty runs-on",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on:
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "flow runs-on",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: [ubuntu-latest]
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "missing mapping separation",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run:python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-sensitive run key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - RUN: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-sensitive jobs key",
+            """name: CI
+on: [push]
+
+JOBS:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-sensitive steps key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    STEPS:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unknown step key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - mystery: true
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unknown job key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    mystery: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "run step with action inputs",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - with:
+          command: decoy
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "duplicate job steps",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "duplicate root jobs",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+jobs:
+  other:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "duplicate job id",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "multiple documents",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+---
+name: decoy
+""",
+            True,
+        ),
+        (
+            "tab indentation",
+            (
+                "name: CI\non: [push]\n\n"
+                "jobs:\n\tquality:\n\t\truns-on: ubuntu-latest\n\t\tsteps:\n"
+                "\t\t\t- run: python tools/architecture/terminology_drift.py --format json\n"
+            ),
+            True,
+        ),
+        (
+            "action step mixed with run",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "reusable job mixed with steps",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    uses: org/repo/.github/workflows/reusable.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "missing trigger",
+            """name: CI
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "empty trigger sequence",
+            """name: CI
+on: []
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "manual trigger only",
+            """name: CI
+on: [workflow_dispatch]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "block push trigger",
+            """name: CI
+on:
+  push:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "flow push trigger",
+            """name: CI
+on: {push: null}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "malformed flow trigger",
+            """name: CI
+on: {push: [}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "scalar push trigger configuration",
+            """name: CI
+on:
+  push: nonsense
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "boolean step environment",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - env: true
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "boolean job environment",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    env: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "sequence job strategy",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    strategy: []
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "boolean job container",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    container: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "duplicate flow environment keys",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - env: {A: 1, A: 2}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "inline document marker",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+--- {name: decoy}
+""",
+            True,
+        ),
+    ],
+)
+def test_architecture_terminology_scanner_rejects_unproven_workflow_forms(
+    tmp_path: Path,
+    case_name: str,
+    ci_text: str,
+    expected_gate_violation: bool,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        ci_text,
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == int(expected_gate_violation), case_name
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == (
+        ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
+    ), case_name
+
+
 def test_architecture_terminology_scanner_bounds_gate_analysis_work(tmp_path: Path):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     jobs = "".join(
@@ -1382,7 +1868,7 @@ def test_architecture_terminology_scanner_rejects_disabled_parent_job(
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    "
+        "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    "
         f"{disabled_condition}\n"
         "    steps:\n"
         "      - run: python tools/architecture/terminology_drift.py --format json\n",
@@ -1410,7 +1896,7 @@ def test_architecture_terminology_scanner_keeps_enabled_conditions_blocking(
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    steps:\n"
+        "name: CI\non: [push]\n\njobs:\n  quality:\n    runs-on: ubuntu-latest\n    steps:\n"
         "      - name: architecture gate\n"
         f"        {enabled_condition}\n"
         "        run: python tools/architecture/terminology_drift.py --format json\n",
@@ -1478,7 +1964,8 @@ forbidden_modules = ["scieqlint.scan"]
     )
     gate = "python tools/architecture/terminology_drift.py --format json" if ci_gate else "pytest"
     (workflows / "ci.yml").write_text(
-        f"name: CI\n\njobs:\n  quality:\n    steps:\n      - run: {gate}\n",
+        f"name: CI\non: [push]\n\njobs:\n  quality:\n"
+        f"    runs-on: ubuntu-latest\n    steps:\n      - run: {gate}\n",
         encoding="utf-8",
     )
     return root

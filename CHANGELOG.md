@@ -48,8 +48,9 @@ Release notes must use these sections:
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
 - Architecture terminology gates now accept only statically proven,
-  failure-propagating workflow steps and parent jobs executing from the repository
-  root; disabled, redirected, or otherwise unproven forms are rejected.
+  failure-propagating steps in runnable push or pull-request workflow jobs that
+  execute from the repository root; disabled, redirected, malformed, or otherwise
+  unproven forms are rejected.
 
 ### Deprecated
 
