@@ -27,6 +27,7 @@ HTML_BLOCK_OPEN_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
+_MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 
 
 def parse_fence_opener(line: str) -> tuple[str, str] | None:
@@ -75,6 +76,10 @@ def _scan_inline_code_ranges(
         blocked_end = _range_end_at(index, blocked)
         if blocked_end is not None:
             index = blocked_end
+            continue
+        role_end = _myst_role_end_at(text, index)
+        if role_end is not None:
+            index = role_end
             continue
         if text[index] != "`":
             index += 1
@@ -138,6 +143,10 @@ def _inline_and_html_ranges(
         if blocked_end is not None:
             index = blocked_end
             continue
+        role_end = _myst_role_end_at(text, index)
+        if role_end is not None:
+            index = role_end
+            continue
         html_end = _html_range_at(text, index)
         if html_end is not None:
             ranges.append((index, html_end))
@@ -162,6 +171,7 @@ def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
+    code_ranges, blocked = _dollar_block_ranges(text, occupied)
     ranges: list[DollarRange] = []
     cursor = 0
     while True:
@@ -169,13 +179,13 @@ def dollar_display_ranges(
         if start == -1:
             break
         if (
-            _in_ranges(start, occupied)
+            _in_ranges(start, (*code_ranges, *blocked))
             or is_escaped(text, start)
             or not _is_display_opener(text, start)
         ):
             cursor = start + 2
             continue
-        close = _find_dollar_close(text, start + 2, occupied)
+        close = _find_dollar_close(text, start + 2, blocked, code_ranges)
         if close == -1:
             cursor = start + 2
             continue
@@ -188,6 +198,7 @@ def dollar_display_opener_positions(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[int, ...]:
+    code_ranges, blocked = _dollar_block_ranges(text, occupied)
     positions: list[int] = []
     cursor = 0
     while True:
@@ -195,7 +206,7 @@ def dollar_display_opener_positions(
         if start == -1:
             break
         if (
-            not _in_ranges(start, occupied)
+            not _in_ranges(start, (*code_ranges, *blocked))
             and not is_escaped(text, start)
             and _is_display_opener(text, start)
         ):
@@ -208,6 +219,7 @@ def dollar_inline_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
+    code_ranges, blocked = _dollar_block_ranges(text, occupied)
     ranges: list[DollarRange] = []
     line_start = 0
     while line_start < len(text):
@@ -217,10 +229,14 @@ def dollar_inline_ranges(
         opening: int | None = None
         index = line_start
         while index < line_end:
-            occupied_end = _range_end_at(index, occupied)
-            if occupied_end is not None:
+            blocked_end = _range_end_at(index, blocked)
+            if blocked_end is not None:
                 opening = None
-                index = min(occupied_end, line_end)
+                index = min(blocked_end, line_end)
+                continue
+            code_end = _range_end_at(index, code_ranges)
+            if code_end is not None:
+                index = min(code_end, line_end)
                 continue
             if text[index] != "$":
                 index += 1
@@ -322,17 +338,35 @@ def _is_display_opener(text: str, start: int) -> bool:
 def _find_dollar_close(
     text: str,
     start: int,
-    occupied: Sequence[OffsetRange],
+    blocked: Sequence[OffsetRange],
+    code_ranges: Sequence[OffsetRange],
 ) -> int:
     cursor = start
     while True:
         close = text.find("$$", cursor)
         if close == -1:
             return -1
-        if any(
-            range_start < close + 2 and range_end > cursor for range_start, range_end in occupied
-        ):
+        next_code = next(
+            (
+                (range_start, range_end)
+                for range_start, range_end in code_ranges
+                if range_end > cursor and range_start < close + 2
+            ),
+            None,
+        )
+        next_blocked = next(
+            (
+                (range_start, range_end)
+                for range_start, range_end in blocked
+                if range_end > cursor and range_start < close + 2
+            ),
+            None,
+        )
+        if next_blocked is not None and (next_code is None or next_blocked[0] <= next_code[0]):
             return -1
+        if next_code is not None:
+            cursor = next_code[1]
+            continue
         if (
             not is_escaped(text, close)
             and (close == 0 or text[close - 1] != "$")
@@ -340,6 +374,64 @@ def _find_dollar_close(
         ):
             return close
         cursor = close + 2
+
+
+def _dollar_block_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> tuple[tuple[OffsetRange, ...], tuple[OffsetRange, ...]]:
+    code_ranges = inline_code_ranges(text)
+    fences = code_fence_ranges(text)
+    html_ranges = _raw_html_ranges(text, (*occupied, *fences, *code_ranges))
+    blocked = _merge_ranges(_subtract_ranges((*occupied, *fences, *html_ranges), code_ranges))
+    return code_ranges, blocked
+
+
+def _subtract_ranges(
+    ranges: Sequence[OffsetRange],
+    removals: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
+    remaining: list[OffsetRange] = []
+    for start, end in ranges:
+        pieces = [(start, end)]
+        for remove_start, remove_end in removals:
+            next_pieces: list[OffsetRange] = []
+            for piece_start, piece_end in pieces:
+                if remove_end <= piece_start or remove_start >= piece_end:
+                    next_pieces.append((piece_start, piece_end))
+                    continue
+                if piece_start < remove_start:
+                    next_pieces.append((piece_start, remove_start))
+                if remove_end < piece_end:
+                    next_pieces.append((remove_end, piece_end))
+            pieces = next_pieces
+        remaining.extend(pieces)
+    return tuple(remaining)
+
+
+def _raw_html_ranges(
+    text: str,
+    blocked: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
+    ranges: list[OffsetRange] = []
+    index = 0
+    while index < len(text):
+        blocked_end = _range_end_at(index, blocked)
+        if blocked_end is not None:
+            index = blocked_end
+            continue
+        html_end = _html_range_at(text, index)
+        if html_end is not None:
+            ranges.append((index, html_end))
+            index = html_end
+            continue
+        index += 1
+    return tuple(ranges)
+
+
+def _myst_role_end_at(text: str, start: int) -> int | None:
+    match = _MYST_ROLE_RE.match(text, start)
+    return match.end() if match is not None else None
 
 
 def _html_range_at(text: str, start: int) -> int | None:
