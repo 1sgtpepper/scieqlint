@@ -171,7 +171,7 @@ def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    code_ranges, blocked = _dollar_block_ranges(text, occupied)
+    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
     ranges: list[DollarRange] = []
     cursor = 0
     while True:
@@ -179,13 +179,13 @@ def dollar_display_ranges(
         if start == -1:
             break
         if (
-            _in_ranges(start, (*code_ranges, *blocked))
+            _in_ranges(start, (*skippable_ranges, *blocked))
             or is_escaped(text, start)
             or not _is_display_opener(text, start)
         ):
             cursor = start + 2
             continue
-        close = _find_dollar_close(text, start + 2, blocked, code_ranges)
+        close = _find_dollar_close(text, start + 2, blocked, skippable_ranges)
         if close == -1:
             cursor = start + 2
             continue
@@ -198,7 +198,7 @@ def dollar_display_opener_positions(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[int, ...]:
-    code_ranges, blocked = _dollar_block_ranges(text, occupied)
+    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
     positions: list[int] = []
     cursor = 0
     while True:
@@ -206,7 +206,7 @@ def dollar_display_opener_positions(
         if start == -1:
             break
         if (
-            not _in_ranges(start, (*code_ranges, *blocked))
+            not _in_ranges(start, (*skippable_ranges, *blocked))
             and not is_escaped(text, start)
             and _is_display_opener(text, start)
         ):
@@ -219,7 +219,7 @@ def dollar_inline_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    code_ranges, blocked = _dollar_block_ranges(text, occupied)
+    skippable_ranges, blocked = _dollar_block_ranges(text, occupied)
     ranges: list[DollarRange] = []
     line_start = 0
     while line_start < len(text):
@@ -234,9 +234,9 @@ def dollar_inline_ranges(
                 opening = None
                 index = min(blocked_end, line_end)
                 continue
-            code_end = _range_end_at(index, code_ranges)
-            if code_end is not None:
-                index = min(code_end, line_end)
+            skippable_end = _range_end_at(index, skippable_ranges)
+            if skippable_end is not None:
+                index = min(skippable_end, line_end)
                 continue
             if text[index] != "$":
                 index += 1
@@ -339,17 +339,17 @@ def _find_dollar_close(
     text: str,
     start: int,
     blocked: Sequence[OffsetRange],
-    code_ranges: Sequence[OffsetRange],
+    skippable_ranges: Sequence[OffsetRange],
 ) -> int:
     cursor = start
     while True:
         close = text.find("$$", cursor)
         if close == -1:
             return -1
-        next_code = next(
+        next_skippable = next(
             (
                 (range_start, range_end)
-                for range_start, range_end in code_ranges
+                for range_start, range_end in skippable_ranges
                 if range_end > cursor and range_start < close + 2
             ),
             None,
@@ -362,10 +362,12 @@ def _find_dollar_close(
             ),
             None,
         )
-        if next_blocked is not None and (next_code is None or next_blocked[0] <= next_code[0]):
+        if next_blocked is not None and (
+            next_skippable is None or next_blocked[0] <= next_skippable[0]
+        ):
             return -1
-        if next_code is not None:
-            cursor = next_code[1]
+        if next_skippable is not None:
+            cursor = next_skippable[1]
             continue
         if (
             not is_escaped(text, close)
@@ -380,11 +382,12 @@ def _dollar_block_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[OffsetRange, ...], tuple[OffsetRange, ...]]:
-    code_ranges = inline_code_ranges(text)
+    inline_ranges = inline_code_ranges(text)
     fences = code_fence_ranges(text)
-    html_ranges = _raw_html_ranges(text, (*occupied, *fences, *code_ranges))
-    blocked = _merge_ranges(_subtract_ranges((*occupied, *fences, *html_ranges), code_ranges))
-    return code_ranges, blocked
+    skippable_ranges = _merge_ranges((*inline_ranges, *fences))
+    html_ranges = _raw_html_ranges(text, (*occupied, *fences, *inline_ranges))
+    blocked = _merge_ranges(_subtract_ranges((*occupied, *html_ranges), skippable_ranges))
+    return skippable_ranges, blocked
 
 
 def _subtract_ranges(
