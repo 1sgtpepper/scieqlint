@@ -145,6 +145,41 @@ def test_percent_is_literal_before_a_mid_line_verbatim_close() -> None:
     assert [block.text for block in result.blocks] == ["x = x + 1"]
 
 
+def test_same_line_verbatim_close_then_new_verbatim_open_is_compositional() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "\\begin{verbatim}%\\end{verbatim} \\begin{verbatim}\n"
+            "\\begin{equation}\n"
+            "x = x + 1\n"
+            "\\end{equation}\n"
+            "\\end{verbatim}\n"
+        ),
+        Config(),
+    )
+
+    assert result.blocks == ()
+
+
+def test_same_line_verbatim_close_then_comment_hides_following_equation() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "\\begin{verbatim}%\\end{verbatim} % \\begin{equation}x = x + 1\\end{equation}\n"
+        ),
+        Config(),
+    )
+
+    assert result.blocks == ()
+
+
+def test_same_line_verbatim_close_exposes_following_symbol_comment() -> None:
+    result = LatexScanner().scan(
+        _document('\\begin{verbatim}%\\end{verbatim} % scieqlint-symbol: X = active, dim="1"\n'),
+        Config(),
+    )
+
+    assert [directive.symbol for directive in result.symbol_directives] == ["X"]
+
+
 def test_unclosed_verbatim_protects_the_remaining_source() -> None:
     result = LatexScanner().scan(
         _document("\\begin{verbatim}\n\\begin{equation}\nx = x + 1\n\\end{equation}\n"),

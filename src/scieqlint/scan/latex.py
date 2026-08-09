@@ -32,8 +32,8 @@ SYMBOL_PREFIX = "scieqlint-symbol:"
 class LatexScanner:
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         _ = config
-        verbatim = _verbatim_ranges(document, _comment_ranges(document))
-        ignored = _ignored_ranges(document)
+        comments, verbatim = _lexical_ranges(document)
+        ignored = tuple(sorted((*comments, *verbatim)))
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
@@ -49,7 +49,7 @@ class LatexScanner:
         diagnostics.extend(_unterminated_delimiters(document, ignored, "$$", "$$"))
         labels.extend(_labels(document, blocks, ignored))
         references = tuple(_references(document, ignored))
-        symbol_directives, symbol_diagnostics = _symbol_directives(document, verbatim)
+        symbol_directives, symbol_diagnostics = _symbol_directives(document, comments)
         diagnostics.extend(symbol_diagnostics)
 
         return ScanResult(
@@ -234,18 +234,12 @@ def _references(
 
 def _symbol_directives(
     document: SourceDocument,
-    verbatim: tuple[tuple[int, int], ...],
+    comments: tuple[tuple[int, int], ...],
 ) -> tuple[tuple[SymbolDirective, ...], tuple[Diagnostic, ...]]:
     directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
-    for line_start, line_end in _line_ranges(document.text):
-        comment_start = _comment_start(document.text[line_start:line_end])
-        if comment_start is None:
-            continue
-        start = line_start + comment_start
-        if _in_ranges(start, verbatim):
-            continue
-        comment = document.text[start:line_end].rstrip("\n")
+    for start, line_end in comments:
+        comment = document.text[start:line_end].rstrip("\r\n")
         comment_body = comment[1:].lstrip()
         if not comment_body.startswith(SYMBOL_PREFIX):
             continue
@@ -341,67 +335,58 @@ def _find_close(
         cursor = close + len(closing)
 
 
-def _ignored_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    comments = _comment_ranges(document)
-    verbatim = _verbatim_ranges(document, comments)
-    comments = tuple((start, end) for start, end in comments if not _in_ranges(start, verbatim))
-    ranges = list(verbatim)
-    ranges.extend(comments)
-    return tuple(sorted(ranges))
-
-
-def _comment_ranges(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    ranges: list[tuple[int, int]] = []
-    for line_start, line_end in _line_ranges(document.text):
-        comment_start = _comment_start(document.text[line_start:line_end])
-        if comment_start is not None:
-            ranges.append((line_start + comment_start, line_end))
-    return tuple(ranges)
-
-
-def _verbatim_ranges(
+def _lexical_ranges(
     document: SourceDocument,
-    comments: tuple[tuple[int, int], ...] = (),
-) -> tuple[tuple[int, int], ...]:
-    ranges: list[tuple[int, int]] = []
+) -> tuple[tuple[tuple[int, int], ...], tuple[tuple[int, int], ...]]:
+    comments: list[tuple[int, int]] = []
+    verbatim: list[tuple[int, int]] = []
+    text = document.text
+    index = 0
+    comment_start: int | None = None
     active_start: int | None = None
-    active_star: str | None = None
-    for match in VERBATIM_CONTROL_RE.finditer(document.text):
-        kind = match.group("kind")
-        star = match.group("star") or ""
-        if active_start is None:
-            if (
-                kind == "begin"
-                and not _in_ranges(match.start(), comments)
-                and not _is_escaped(document.text, match.start())
-            ):
-                active_start = match.start()
-                active_star = star
+    active_star = ""
+    while index < len(text):
+        if comment_start is not None:
+            line_end = _line_end(text, index)
+            comments.append((comment_start, line_end))
+            comment_start = None
+            index = line_end
             continue
-        if kind == "end" and star == active_star:
-            ranges.append((active_start, match.end()))
-            active_start = None
-            active_star = None
+        if active_start is not None:
+            match = VERBATIM_CONTROL_RE.search(text, index)
+            if match is None:
+                verbatim.append((active_start, len(text)))
+                active_start = None
+                break
+            if match.group("kind") == "end" and (match.group("star") or "") == active_star:
+                verbatim.append((active_start, match.end()))
+                active_start = None
+            index = match.end()
+            continue
+        if text[index] == "%" and not _is_escaped(text, index):
+            comment_start = index
+            continue
+        match = VERBATIM_CONTROL_RE.match(text, index)
+        if match is not None and match.group("kind") == "begin" and not _is_escaped(text, index):
+            active_start = index
+            active_star = match.group("star") or ""
+            index = match.end()
+            continue
+        index += 1
     if active_start is not None:
-        ranges.append((active_start, len(document.text)))
-    return tuple(ranges)
+        verbatim.append((active_start, len(text)))
+    return tuple(comments), tuple(verbatim)
 
 
-def _line_ranges(text: str) -> Iterable[tuple[int, int]]:
-    start = 0
-    for line in text.splitlines(keepends=True):
-        end = start + len(line)
-        yield start, end
-        start = end
-    if start < len(text):
-        yield start, len(text)
-
-
-def _comment_start(line: str) -> int | None:
-    for index, char in enumerate(line):
-        if char == "%" and not _is_escaped(line, index):
-            return index
-    return None
+def _line_end(text: str, start: int) -> int:
+    index = start
+    while index < len(text) and text[index] not in "\r\n":
+        index += 1
+    if index == len(text):
+        return index
+    if text[index] == "\r" and index + 1 < len(text) and text[index + 1] == "\n":
+        return index + 2
+    return index + 1
 
 
 def _trim_span(text: str, start: int, end: int) -> tuple[int, int]:
