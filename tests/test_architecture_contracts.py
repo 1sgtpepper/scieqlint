@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import tomllib
 from dataclasses import FrozenInstanceError
 from pathlib import Path, PurePosixPath
@@ -1079,6 +1080,287 @@ def test_architecture_terminology_scanner_requires_static_blocking_gate(
     assert [item["id"] for item in report["violations"]] == (
         ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
     ), case_name
+
+
+@pytest.mark.parametrize(
+    ("case_name", "ci_text", "expected_gate_violation"),
+    [
+        (
+            "single-quoted shell key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - 'shell': "true {0}"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "double-quoted shell key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - "shell": "true {0}"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped shell key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - "s\\u0068ell": "true {0}"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped if key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    "i\\u0066": false
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped continue-on-error key",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    "continue-on\\u002derror": true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped needs key",
+            """name: CI
+on: [push]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo setup
+  quality:
+    "n\\u0065eds": setup
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unrelated flow mapping",
+            """name: CI
+on: {push: null}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "unrelated root shell key",
+            """name: CI
+on: [push]
+
+env:
+  shell: harmless-value
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "unrelated job shell",
+            """name: CI
+on: [push]
+
+jobs:
+  unrelated:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: "true {0}"
+        run: echo unrelated
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "step working-directory override",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - working-directory: decoy
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "workflow working-directory default",
+            """name: CI
+on: [push]
+
+defaults:
+  run:
+    working-directory: decoy
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "job working-directory default",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    defaults:
+      run:
+        working-directory: decoy
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "step repository-root working-directory",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - working-directory: .
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "unrelated job working-directory",
+            """name: CI
+on: [push]
+
+jobs:
+  unrelated:
+    runs-on: ubuntu-latest
+    steps:
+      - working-directory: decoy
+        run: echo unrelated
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "specific root working-directory override",
+            """name: CI
+on: [push]
+
+defaults:
+  run:
+    working-directory: decoy
+jobs:
+  quality:
+    defaults:
+      run:
+        working-directory: .
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+    ],
+)
+def test_architecture_terminology_scanner_tracks_candidate_execution_identity(
+    tmp_path: Path,
+    case_name: str,
+    ci_text: str,
+    expected_gate_violation: bool,
+):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        ci_text,
+        encoding="utf-8",
+    )
+
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+
+    assert result.returncode == int(expected_gate_violation), case_name
+    report = json.loads(result.stdout)
+    assert [item["id"] for item in report["violations"]] == (
+        ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
+    ), case_name
+
+
+def test_architecture_terminology_scanner_bounds_gate_analysis_work(tmp_path: Path):
+    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
+    jobs = "".join(
+        f"  job{index}:\n"
+        "    if: false\n"
+        "    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: python tools/architecture/terminology_drift.py --format json\n"
+        for index in range(3200)
+    )
+    (fixture / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\non: [push]\njobs:\n" + jobs,
+        encoding="utf-8",
+    )
+
+    started = time.perf_counter()
+    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
+    elapsed = time.perf_counter() - started
+
+    assert result.returncode == 1
+    assert elapsed < 5.0
 
 
 @pytest.mark.parametrize(

@@ -53,6 +53,53 @@ class LoadedInput:
     text: str
 
 
+@dataclass
+class _GateWorkflow:
+    jobs: list[_GateJob]
+    shell_configured: bool = False
+    working_directory: str | None = None
+    working_directory_seen: bool = False
+    unsupported: bool = False
+
+
+@dataclass
+class _GateJob:
+    steps: list[_GateStep]
+    if_blocking: bool = True
+    if_seen: bool = False
+    continue_on_error_blocking: bool = True
+    continue_on_error_seen: bool = False
+    needs_seen: bool = False
+    shell_configured: bool = False
+    working_directory: str | None = None
+    working_directory_seen: bool = False
+    unsupported: bool = False
+
+
+@dataclass
+class _GateStep:
+    job: _GateJob
+    run_count: int = 0
+    gate_run_count: int = 0
+    if_blocking: bool = True
+    if_seen: bool = False
+    continue_on_error_blocking: bool = True
+    continue_on_error_seen: bool = False
+    shell_configured: bool = False
+    working_directory: str | None = None
+    working_directory_seen: bool = False
+    unsupported: bool = False
+
+
+@dataclass
+class _GateFrame:
+    indent: int
+    kind: str
+    job: _GateJob | None = None
+    step: _GateStep | None = None
+    defaults_owner: str | None = None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     root = Path(args.root).resolve()
@@ -352,278 +399,498 @@ def scan_release_gate(loaded: list[LoadedInput]) -> list[dict[str, Any]]:
     ]
 
 
+# Keep each candidate's job, step, and defaults path while reading the file once;
+# recovering that path with backward and forward scans both loses scope and scales
+# quadratically when a workflow contains many gate-looking commands.
 def has_blocking_release_gate(text: str) -> bool:
-    gate_line = re.compile(
-        rf"^[ \t]*(?:-[ \t]+)?run:[ \t]*[\"']?"
-        rf"{re.escape(CI_GATE_COMMAND)}[\"']?[ \t]*(?:#.*)?$"
-    )
-    status_line = re.compile(r"^[ \t]*(?:-[ \t]+)?(?P<key>[^#\s][^:]*):[ \t]*(?P<value>.*)$")
-    mapping_line = re.compile(r"^[ \t]*(?!-[ \t]+)(?P<key>[^#\s][^:]*):[ \t]*(?P<value>.*)$")
-    mapping_key = re.compile(r"^[ \t]*(?!-[ \t]+)(?P<key>[^#\s][^:]*):[ \t]*(?:#.*)?$")
-    list_item_line = re.compile(r"^[ \t]*-(?:[ \t]+.*)?$")
-    block_scalar_header = re.compile(
-        r"(?:^|:[ \t]*|-[ \t]+)[|>]"
-        r"(?:(?:[1-9][+-]?)|(?:[+-][1-9]?))?[ \t]*$"
-    )
-    lines = text.splitlines()
-    scalar_content_lines: set[int] = set()
-    quoted_content_lines: set[int] = set()
-    quoted_scalar_opening_lines: set[int] = set()
-    scalar_indent: int | None = None
+    workflow = _GateWorkflow(jobs=[])
+    frames = [_GateFrame(indent=-1, kind="root")]
+    block_scalar_indent: int | None = None
     quoted_scalar_quote: str | None = None
-    flow_mapping_present = False
-    for line_index, line in enumerate(lines):
+    flow_depth = 0
+
+    for line in text.splitlines():
         indent = len(line) - len(line.lstrip())
-        if scalar_indent is not None:
-            if line.strip() and not line.lstrip().startswith("#") and indent <= scalar_indent:
-                scalar_indent = None
+
+        if block_scalar_indent is not None:
+            if line.strip() and not line.lstrip().startswith("#") and indent <= block_scalar_indent:
+                block_scalar_indent = None
             else:
-                scalar_content_lines.add(line_index)
                 continue
+
         if quoted_scalar_quote is not None:
-            quoted_content_lines.add(line_index)
             quoted_scalar_quote = _yaml_quote_state(line, quoted_scalar_quote)
             continue
-        flow_mapping_present = flow_mapping_present or _yaml_contains_flow_mapping(line)
-        if block_scalar_header.search(_strip_yaml_comment(line).strip()) is not None:
-            scalar_indent = indent
+
+        if flow_depth:
+            flow_depth, _ = _yaml_flow_map_transition(line, flow_depth)
             continue
-        value = line.lstrip()
-        if value.startswith("- "):
-            value = value[2:].lstrip()
-        colon = value.find(":")
-        if colon >= 0:
-            value = value[colon + 1 :].lstrip()
-        if value.startswith(("'", '"')):
+
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        while len(frames) > 1 and indent <= frames[-1].indent:
+            frames.pop()
+
+        entry = _split_yaml_mapping(line)
+        if entry is None:
+            continue
+        is_list_item, raw_key, value = entry
+        key = _canonical_yaml_key(raw_key) if raw_key is not None else None
+        entry_indent = indent + 2 if is_list_item else indent
+        next_flow_depth, flow_seen = _yaml_flow_map_transition(line, 0)
+        parent = frames[-1]
+
+        if parent.kind == "steps" and is_list_item:
+            job = parent.job
+            if job is None:
+                continue
+            step = _GateStep(job=job)
+            job.steps.append(step)
+            frames.append(
+                _GateFrame(
+                    indent=indent,
+                    kind="step",
+                    job=job,
+                    step=step,
+                )
+            )
+            if key is None and raw_key is not None:
+                step.unsupported = True
+            elif key is not None:
+                _record_gate_step_property(step, key, value)
+            if flow_seen:
+                step.unsupported = True
+            flow_depth = next_flow_depth
+            if flow_seen:
+                continue
+            if _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            elif _yaml_quote_state(value) is not None:
+                quoted_scalar_quote = _yaml_quote_state(value)
+            elif _is_empty_yaml_mapping_value(value) and key is not None:
+                frames.append(
+                    _GateFrame(
+                        indent=entry_indent,
+                        kind="map",
+                        job=job,
+                        step=step,
+                    )
+                )
+            continue
+
+        if is_list_item:
+            frames.append(
+                _GateFrame(
+                    indent=indent,
+                    kind="list",
+                    job=parent.job,
+                    step=parent.step,
+                    defaults_owner=parent.defaults_owner,
+                )
+            )
+            flow_depth = next_flow_depth
+            continue
+
+        if parent.kind == "root":
+            if key == "jobs":
+                if flow_seen:
+                    workflow.unsupported = True
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(_GateFrame(indent=entry_indent, kind="jobs"))
+                elif value.startswith(("&", "*")):
+                    workflow.unsupported = True
+                flow_depth = next_flow_depth
+                if not flow_seen and _is_block_scalar_header(value):
+                    block_scalar_indent = indent
+                continue
+            if key == "defaults":
+                if flow_seen:
+                    workflow.unsupported = True
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(
+                        _GateFrame(indent=entry_indent, kind="defaults", defaults_owner="workflow")
+                    )
+                else:
+                    workflow.unsupported = True
+                flow_depth = next_flow_depth
+                continue
+            if flow_seen:
+                flow_depth = next_flow_depth
+            elif _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            elif _yaml_quote_state(value) is not None:
+                quoted_scalar_quote = _yaml_quote_state(value)
+            elif _is_empty_yaml_mapping_value(value) and key is not None:
+                frames.append(_GateFrame(indent=entry_indent, kind="map"))
+            continue
+
+        if parent.kind == "jobs":
+            job = _GateJob(steps=[])
+            workflow.jobs.append(job)
+            if flow_seen:
+                job.unsupported = True
+            elif _is_empty_yaml_mapping_value(value):
+                frames.append(_GateFrame(indent=entry_indent, kind="job", job=job))
+            flow_depth = next_flow_depth
+            if not flow_seen and _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            continue
+
+        if parent.kind == "step":
+            step = parent.step
+            if step is None:
+                continue
+            if key is None:
+                step.unsupported = True
+            else:
+                _record_gate_step_property(step, key, value)
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+            flow_depth = next_flow_depth
+            if flow_seen:
+                continue
+            if _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            elif _yaml_quote_state(value) is not None:
+                quoted_scalar_quote = _yaml_quote_state(value)
+            elif _is_empty_yaml_mapping_value(value):
+                frames.append(
+                    _GateFrame(
+                        indent=entry_indent,
+                        kind="map",
+                        job=step.job,
+                        step=step,
+                    )
+                )
+            continue
+
+        if parent.kind == "job":
+            job = parent.job
+            if job is None:
+                continue
+            if key is None:
+                job.unsupported = True
+            elif key == "steps":
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(_GateFrame(indent=entry_indent, kind="steps", job=job))
+            elif key == "defaults":
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(
+                        _GateFrame(
+                            indent=entry_indent,
+                            kind="defaults",
+                            job=job,
+                            defaults_owner="job",
+                        )
+                    )
+                else:
+                    job.unsupported = True
+            else:
+                _record_gate_job_property(job, key, value)
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+            flow_depth = next_flow_depth
+            if flow_seen:
+                continue
+            if _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            elif _yaml_quote_state(value) is not None:
+                quoted_scalar_quote = _yaml_quote_state(value)
+            elif _is_empty_yaml_mapping_value(value) and key not in {
+                "if",
+                "continue-on-error",
+                "needs",
+                "shell",
+                "working-directory",
+                "<<",
+                "steps",
+                "defaults",
+            }:
+                frames.append(
+                    _GateFrame(
+                        indent=entry_indent,
+                        kind="map",
+                        job=job,
+                    )
+                )
+            continue
+
+        if parent.kind == "defaults":
+            if key == "run":
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+                elif _is_empty_yaml_mapping_value(value):
+                    frames.append(
+                        _GateFrame(
+                            indent=entry_indent,
+                            kind="defaults_run",
+                            job=parent.job,
+                            defaults_owner=parent.defaults_owner,
+                        )
+                    )
+                else:
+                    _mark_gate_default_unsupported(workflow, parent)
+            else:
+                _mark_gate_default_unsupported(workflow, parent)
+            flow_depth = next_flow_depth
+            if flow_seen:
+                continue
+            if _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            continue
+
+        if parent.kind == "defaults_run":
+            if key is None:
+                _mark_gate_default_unsupported(workflow, parent)
+            else:
+                _record_gate_defaults_run_property(workflow, parent, key, value)
+                if flow_seen:
+                    _mark_gate_flow(workflow, parent, key)
+            flow_depth = next_flow_depth
+            if flow_seen:
+                continue
+            if _is_block_scalar_header(value):
+                block_scalar_indent = indent
+            continue
+
+        if flow_seen:
+            flow_depth = next_flow_depth
+        elif _is_block_scalar_header(value):
+            block_scalar_indent = indent
+        elif _yaml_quote_state(value) is not None:
             quoted_scalar_quote = _yaml_quote_state(value)
-            if quoted_scalar_quote is not None:
-                quoted_scalar_opening_lines.add(line_index)
+        elif _is_empty_yaml_mapping_value(value):
+            frames.append(
+                _GateFrame(
+                    indent=entry_indent,
+                    kind="map",
+                    job=parent.job,
+                    step=parent.step,
+                    defaults_owner=parent.defaults_owner,
+                )
+            )
 
-    # Scalar and quoted continuations are values, never YAML structure.
-    ignored_structure_lines = scalar_content_lines | quoted_content_lines
-    if flow_mapping_present:
-        # Flow maps and their multiline contents need YAML structure, not line scans.
+    if workflow.unsupported or workflow.shell_configured:
         return False
-    if any(
-        index not in ignored_structure_lines
-        and (match := status_line.fullmatch(line)) is not None
-        and match.group("key").strip().casefold() in {"defaults", "shell"}
-        for index, line in enumerate(lines)
-    ):
-        # Custom or inherited shells can alter command execution and failure propagation.
-        return False
-    for index, line in enumerate(lines):
-        if (
-            index in ignored_structure_lines
-            or index in quoted_scalar_opening_lines
-            or gate_line.fullmatch(line) is None
-        ):
-            continue
-        # Derive the containing step and job from their mapping boundaries; YAML
-        # nesting is valid with widths other than the repository's usual two spaces.
-        gate_indent = len(line) - len(line.lstrip())
-        inline_step = line.lstrip().startswith("- ")
-        if inline_step:
-            step_start = index
-        else:
-            step_start = -1
-            for candidate_index in range(index - 1, -1, -1):
-                candidate = lines[candidate_index]
-                if candidate_index in ignored_structure_lines:
-                    continue
-                candidate_indent = len(candidate) - len(candidate.lstrip())
-                if candidate_indent < gate_indent and list_item_line.fullmatch(candidate):
-                    step_start = candidate_index
-                    break
-            if step_start < 0:
+    for job in workflow.jobs:
+        for step in job.steps:
+            if step.run_count != 1 or step.gate_run_count != 1:
                 continue
-
-        step_indent = len(lines[step_start]) - len(lines[step_start].lstrip())
-        steps_start = -1
-        steps_indent = -1
-        for candidate_index in range(step_start, -1, -1):
-            if candidate_index in ignored_structure_lines:
+            if not step.if_blocking or not step.continue_on_error_blocking:
                 continue
-            candidate_match = mapping_key.fullmatch(lines[candidate_index])
-            if candidate_match is None or candidate_match.group("key").strip() != "steps":
+            if step.unsupported or step.shell_configured:
                 continue
-            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
-            if candidate_indent <= step_indent:
-                steps_start = candidate_index
-                steps_indent = candidate_indent
-                break
-        if steps_start < 0:
-            continue
-
-        job_start = -1
-        job_indent = -1
-        for candidate_index in range(steps_start - 1, -1, -1):
-            if candidate_index in ignored_structure_lines:
+            if job.unsupported or job.needs_seen or job.shell_configured:
                 continue
-            candidate_match = mapping_key.fullmatch(lines[candidate_index])
-            if candidate_match is None:
+            if not job.if_blocking or not job.continue_on_error_blocking:
                 continue
-            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
-            if candidate_indent < steps_indent:
-                job_start = candidate_index
-                job_indent = candidate_indent
-                break
-        if job_start < 0:
-            continue
-
-        jobs_start = -1
-        jobs_indent = -1
-        for candidate_index in range(job_start - 1, -1, -1):
-            if candidate_index in ignored_structure_lines:
+            working_directory = (
+                step.working_directory
+                if step.working_directory_seen
+                else job.working_directory
+                if job.working_directory_seen
+                else workflow.working_directory
+                if workflow.working_directory_seen
+                else None
+            )
+            if working_directory is not None and not _is_repository_root_directory(
+                working_directory
+            ):
                 continue
-            candidate_match = mapping_key.fullmatch(lines[candidate_index])
-            if candidate_match is None:
-                continue
-            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
-            if candidate_indent < job_indent:
-                if candidate_match.group("key").strip() == "jobs":
-                    jobs_start = candidate_index
-                    jobs_indent = candidate_indent
-                break
-        if jobs_start < 0:
-            continue
-
-        for candidate_index in range(jobs_start - 1, -1, -1):
-            if candidate_index in ignored_structure_lines:
-                continue
-            candidate_match = mapping_key.fullmatch(lines[candidate_index])
-            if candidate_match is None:
-                continue
-            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
-            if candidate_indent < jobs_indent:
-                jobs_start = -1
-                break
-        if jobs_start < 0:
-            continue
-
-        direct_step_indent = -1
-        for candidate_index in range(steps_start + 1, index + 1):
-            if candidate_index in ignored_structure_lines:
-                continue
-            candidate = lines[candidate_index]
-            if not candidate.strip() or candidate.lstrip().startswith("#"):
-                continue
-            candidate_indent = len(candidate) - len(candidate.lstrip())
-            if list_item_line.fullmatch(candidate):
-                if candidate_indent >= steps_indent:
-                    direct_step_indent = candidate_indent
-                break
-            break
-        if direct_step_indent < 0 or step_indent != direct_step_indent:
-            continue
-
-        end = index + 1
-        while end < len(lines):
-            if end in ignored_structure_lines:
-                end += 1
-                continue
-            candidate = lines[end]
-            candidate_indent = len(candidate) - len(candidate.lstrip())
-            if candidate_indent == step_indent and list_item_line.fullmatch(candidate):
-                break
-            end += 1
-        step_lines = lines[step_start:end]
-        direct_property_indents = {
-            len(candidate) - len(candidate.lstrip())
-            for candidate_index, candidate in enumerate(step_lines, start=step_start)
-            if candidate_index not in ignored_structure_lines
-            and len(candidate) - len(candidate.lstrip()) > step_indent
-            and mapping_line.fullmatch(candidate)
-        }
-        direct_property_indent = min(direct_property_indents, default=-1)
-        if not inline_step and gate_indent != direct_property_indent:
-            continue
-        step_property_indents = {step_indent}
-        if direct_property_indent >= 0:
-            step_property_indents.add(direct_property_indent)
-        if not _scope_is_proven_blocking(
-            lines=lines,
-            ignored_structure_lines=ignored_structure_lines,
-            start=step_start,
-            end=end,
-            property_indents=step_property_indents,
-            status_line=status_line,
-            reject_needs=False,
-        ):
-            continue
-
-        job_end = len(lines)
-        for candidate_index in range(job_start + 1, len(lines)):
-            if candidate_index in ignored_structure_lines:
-                continue
-            candidate_match = mapping_key.fullmatch(lines[candidate_index])
-            if candidate_match is None:
-                continue
-            candidate_indent = len(lines[candidate_index]) - len(lines[candidate_index].lstrip())
-            if candidate_indent == job_indent:
-                job_end = candidate_index
-                break
-        if not _scope_is_proven_blocking(
-            lines=lines,
-            ignored_structure_lines=ignored_structure_lines,
-            start=job_start + 1,
-            end=job_end,
-            property_indents={steps_indent},
-            status_line=status_line,
-            reject_needs=True,
-        ):
-            continue
-        return True
+            return True
     return False
 
 
-def _scope_is_proven_blocking(
-    *,
-    lines: list[str],
-    ignored_structure_lines: set[int],
-    start: int,
-    end: int,
-    property_indents: set[int],
-    status_line: re.Pattern[str],
-    reject_needs: bool,
-) -> bool:
-    seen_status_keys: set[str] = set()
-    for index in range(start, end):
-        if index in ignored_structure_lines:
-            continue
-        line = lines[index]
-        if len(line) - len(line.lstrip()) not in property_indents:
-            continue
-        match = status_line.fullmatch(line)
-        if match is None:
-            continue
-        key = match.group("key").strip()
-        if len(key) >= 2 and key[0] == key[-1] and key[0] in {"'", '"'}:
-            key = key[1:-1].strip()
-        key = key.casefold()
-        if key in seen_status_keys:
-            return False
-        if key == "<<":
-            # YAML merges can inject status properties that this textual scan cannot resolve.
-            return False
-        if key == "needs" and reject_needs:
-            # Reachability through skipped dependencies is not proven here.
-            return False
-        if key not in {"if", "continue-on-error"}:
-            continue
-        seen_status_keys.add(key)
-        static_bool = _static_workflow_bool(match.group("value"))
-        if key == "if" and static_bool is not True:
-            return False
-        if key == "continue-on-error" and static_bool is not False:
-            return False
-    return True
+def _record_gate_step_property(step: _GateStep, key: str, value: str) -> None:
+    if key == "run":
+        step.run_count += 1
+        if _decode_yaml_scalar(value) == CI_GATE_COMMAND:
+            step.gate_run_count += 1
+    elif key == "if":
+        if step.if_seen:
+            step.unsupported = True
+        step.if_seen = True
+        step.if_blocking = _static_workflow_bool(value) is True
+    elif key == "continue-on-error":
+        if step.continue_on_error_seen:
+            step.unsupported = True
+        step.continue_on_error_seen = True
+        step.continue_on_error_blocking = _static_workflow_bool(value) is False
+    elif key == "shell":
+        step.shell_configured = True
+    elif key == "working-directory":
+        if step.working_directory_seen:
+            step.unsupported = True
+        step.working_directory_seen = True
+        step.working_directory = _decode_yaml_scalar(value)
+    elif key in {"needs", "<<"}:
+        step.unsupported = True
+
+
+def _record_gate_job_property(job: _GateJob, key: str, value: str) -> None:
+    if key == "if":
+        if job.if_seen:
+            job.unsupported = True
+        job.if_seen = True
+        job.if_blocking = _static_workflow_bool(value) is True
+    elif key == "continue-on-error":
+        if job.continue_on_error_seen:
+            job.unsupported = True
+        job.continue_on_error_seen = True
+        job.continue_on_error_blocking = _static_workflow_bool(value) is False
+    elif key == "needs":
+        job.needs_seen = True
+    elif key == "shell":
+        job.shell_configured = True
+    elif key == "working-directory":
+        if job.working_directory_seen:
+            job.unsupported = True
+        job.working_directory_seen = True
+        job.working_directory = _decode_yaml_scalar(value)
+    elif key == "<<":
+        job.unsupported = True
+
+
+def _record_gate_defaults_run_property(
+    workflow: _GateWorkflow,
+    frame: _GateFrame,
+    key: str,
+    value: str,
+) -> None:
+    if frame.job is None:
+        if key == "shell":
+            if workflow.shell_configured:
+                workflow.unsupported = True
+            workflow.shell_configured = True
+        elif key == "working-directory":
+            if workflow.working_directory_seen:
+                workflow.unsupported = True
+            workflow.working_directory_seen = True
+            workflow.working_directory = _decode_yaml_scalar(value)
+        else:
+            workflow.unsupported = True
+    else:
+        job = frame.job
+        if key == "shell":
+            if job.shell_configured:
+                job.unsupported = True
+            job.shell_configured = True
+        elif key == "working-directory":
+            if job.working_directory_seen:
+                job.unsupported = True
+            job.working_directory_seen = True
+            job.working_directory = _decode_yaml_scalar(value)
+        else:
+            job.unsupported = True
+
+
+def _mark_gate_default_unsupported(workflow: _GateWorkflow, frame: _GateFrame) -> None:
+    if frame.job is None:
+        workflow.unsupported = True
+    else:
+        frame.job.unsupported = True
+
+
+def _mark_gate_flow(workflow: _GateWorkflow, frame: _GateFrame, key: str) -> None:
+    if frame.kind == "step" and key in {
+        "run",
+        "if",
+        "continue-on-error",
+        "shell",
+        "working-directory",
+        "needs",
+        "<<",
+    }:
+        frame.step.unsupported = True
+    elif frame.kind == "job" and key in {
+        "if",
+        "continue-on-error",
+        "needs",
+        "shell",
+        "working-directory",
+        "steps",
+        "defaults",
+        "<<",
+    }:
+        frame.job.unsupported = True
+    elif frame.kind in {"defaults", "defaults_run"}:
+        _mark_gate_default_unsupported(workflow, frame)
+
+
+def _split_yaml_mapping(line: str) -> tuple[bool, str | None, str] | None:
+    indent = len(line) - len(line.lstrip())
+    content = line[indent:]
+    is_list_item = content == "-" or content.startswith(("- ", "-\t"))
+    if is_list_item:
+        content = content[1:].lstrip()
+        if not content or content.startswith("#"):
+            return True, None, ""
+    colon = _find_yaml_mapping_colon(content)
+    if colon < 0:
+        return (True, None, "") if is_list_item else None
+    return is_list_item, content[:colon].strip(), content[colon + 1 :].strip()
+
+
+def _find_yaml_mapping_colon(value: str) -> int:
+    quote: str | None = None
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if quote is None:
+            if character == "#":
+                break
+            if character in {"'", '"'}:
+                quote = character
+            elif character == ":":
+                return index
+        elif quote == "'" and character == "'":
+            if index + 1 < len(value) and value[index + 1] == "'":
+                index += 1
+            else:
+                quote = None
+        elif quote == '"':
+            if character == "\\":
+                index += 1
+            elif character == '"':
+                quote = None
+        index += 1
+    return -1
+
+
+def _canonical_yaml_key(raw_key: str) -> str | None:
+    decoded = _decode_yaml_scalar(raw_key)
+    return decoded.casefold() if decoded is not None else None
+
+
+def _decode_yaml_scalar(value: str) -> str | None:
+    value = _strip_yaml_comment(value).strip()
+    if not value:
+        return ""
+    if value[0] == "'":
+        if len(value) < 2 or value[-1] != "'":
+            return None
+        return value[1:-1].replace("''", "'")
+    if value[0] == '"':
+        if len(value) < 2 or value[-1] != '"':
+            return None
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return decoded if isinstance(decoded, str) else None
+    if value.startswith(("&", "*", "!")):
+        return None
+    return value
 
 
 def _static_workflow_bool(value: str) -> bool | None:
     value = _strip_yaml_comment(value).strip()
-    # Anchors and aliases require YAML resolution; unknown values fail closed.
-    if not value or value.startswith(("&", "*")):
+    if not value or value.startswith(("&", "*", "!")):
         return None
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
         return None
@@ -637,8 +904,23 @@ def _static_workflow_bool(value: str) -> bool | None:
     return None
 
 
-def _yaml_contains_flow_mapping(value: str) -> bool:
+def _is_empty_yaml_mapping_value(value: str) -> bool:
+    value = _strip_yaml_comment(value).strip()
+    return not value or re.fullmatch(r"&[A-Za-z0-9_-]+", value) is not None
+
+
+def _is_block_scalar_header(value: str) -> bool:
+    value = _strip_yaml_comment(value).strip()
+    return re.fullmatch(r"[|>](?:(?:[1-9][+-]?)|(?:[+-][1-9]?))?", value) is not None
+
+
+def _is_repository_root_directory(value: str | None) -> bool:
+    return value in {".", "./"}
+
+
+def _yaml_flow_map_transition(value: str, depth: int) -> tuple[int, bool]:
     quote: str | None = None
+    opened = False
     index = 0
     while index < len(value):
         character = value[index]
@@ -648,13 +930,16 @@ def _yaml_contains_flow_mapping(value: str) -> bool:
             if value.startswith("${{", index):
                 closing = value.find("}}", index + 3)
                 if closing < 0:
-                    return False
+                    break
                 index = closing + 2
                 continue
             if character in {"'", '"'}:
                 quote = character
             elif character == "{":
-                return True
+                depth += 1
+                opened = True
+            elif character == "}" and depth:
+                depth -= 1
         elif quote == "'" and character == "'":
             if index + 1 < len(value) and value[index + 1] == "'":
                 index += 1
@@ -666,7 +951,7 @@ def _yaml_contains_flow_mapping(value: str) -> bool:
             elif character == '"':
                 quote = None
         index += 1
-    return False
+    return depth, opened
 
 
 def _yaml_quote_state(value: str, quote: str | None = None) -> str | None:

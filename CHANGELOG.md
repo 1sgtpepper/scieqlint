@@ -47,8 +47,9 @@ Release notes must use these sections:
   fixed-schema configuration tables are rejected instead of being ignored.
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
-- Architecture terminology gates now accept only statically proven blocking
-  workflow steps and parent jobs; disabled or otherwise unproven forms are rejected.
+- Architecture terminology gates now accept only statically proven,
+  failure-propagating workflow steps and parent jobs executing from the repository
+  root; disabled, redirected, or otherwise unproven forms are rejected.
 
 ### Deprecated
 
