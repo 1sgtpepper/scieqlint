@@ -182,6 +182,21 @@ def test_escaped_tex_controls_do_not_change_scanner_state() -> None:
     assert result.diagnostics == ()
 
 
+def test_escaped_environment_closer_does_not_end_live_equation() -> None:
+    result = LatexScanner().scan(
+        _document(
+            r"\begin{equation}" + "\n"
+            "x = x + 1\n"
+            r"\\end{equation}" + "\n"
+            r"\end{equation}" + "\n"
+        ),
+        Config(),
+    )
+
+    assert len(result.blocks) == 1
+    assert result.blocks[0].text == "x = x + 1\n\\\\end{equation}"
+
+
 def test_escaped_verbatim_markers_leave_live_equations_active() -> None:
     result = check_documents(
         [
@@ -277,6 +292,20 @@ def test_latex_labels_in_comments_are_ignored() -> None:
     result = LatexScanner().scan(
         _document(
             "\\begin{equation}\nE = m c^2 % \\label{commented}\n\\label{real}\n\\end{equation}\n"
+        ),
+        Config(),
+    )
+
+    assert [label.label for label in result.labels] == ["real"]
+
+
+def test_escaped_latex_labels_are_not_equation_labels() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "\\begin{equation}\n"
+            "\\label{real}\n"
+            r"\\label{escaped}" + "\n"
+            "\\end{equation}\n"
         ),
         Config(),
     )
