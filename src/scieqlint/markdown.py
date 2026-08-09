@@ -151,19 +151,6 @@ def is_escaped(text: str, index: int) -> bool:
     return slash_count % 2 == 1
 
 
-def _in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
-    return any(start <= position < end for start, end in ranges)
-
-
-def _range_end_at(position: int, ranges: Sequence[OffsetRange]) -> int | None:
-    for start, end in ranges:
-        if start <= position < end:
-            return end
-        if start > position:
-            break
-    return None
-
-
 def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
     merged: list[OffsetRange] = []
     for start, end in sorted((start, end) for start, end in ranges if start < end):
@@ -272,7 +259,7 @@ def _ordered_lexical_ranges(
             index = run_end
             backtick_index += 1
             continue
-        close_start, close_end, _ = backtick_runs[close_index]
+        _, close_end, _ = backtick_runs[close_index]
         code.append((index, close_end))
         index = close_end
         backtick_index = close_index + 1
@@ -367,13 +354,6 @@ def _find_ordered_display_close(text: str, start: int) -> int:
         ):
             return close
         cursor = close + 2
-
-
-def _raw_html_ranges(
-    text: str,
-    blocked: Sequence[OffsetRange],
-) -> tuple[OffsetRange, ...]:
-    return _ordered_lexical_ranges(text, blocked, scan_math=True).html
 
 
 def _myst_role_end_at(text: str, start: int) -> int | None:
