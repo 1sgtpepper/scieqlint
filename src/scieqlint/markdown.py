@@ -1,4 +1,4 @@
-"""Shared dollar-delimiter and Markdown code-span lexical semantics."""
+"""Shared ordered lexical semantics for Markdown opaque regions and math."""
 
 from __future__ import annotations
 
@@ -9,6 +9,24 @@ OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
 
 _FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
+HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
+HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOTALL)
+HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
+HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?(?:\]\]>|$)", re.DOTALL)
+HTML_ELEMENT_RE = re.compile(
+    r"<(?P<tag>[A-Za-z][A-Za-z0-9:-]*)\b[^>]*>.*?</(?P=tag)[ \t]*>",
+    re.IGNORECASE | re.DOTALL,
+)
+HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
+HTML_BLOCK_OPEN_RE = re.compile(
+    r"^[ \t]{0,3}<(?P<tag>address|article|aside|base|basefont|blockquote|body|caption|"
+    r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|"
+    r"footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|"
+    r"nav|ol|p|pre|script|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
+    r"track|ul)(?:[ \t/>]|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 
 
 def parse_fence_opener(line: str) -> tuple[str, str] | None:
@@ -39,16 +57,31 @@ def is_fence_closer(line: str, marker: str) -> bool:
     return run_length >= len(marker) and not candidate[run_length:].strip(" \t")
 
 
-def inline_code_ranges(text: str) -> tuple[OffsetRange, ...]:
+def inline_code_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange] = (),
+) -> tuple[OffsetRange, ...]:
+    blocked = _merge_ranges((*occupied, *code_fence_ranges(text)))
+    return _scan_inline_code_ranges(text, blocked)
+
+
+def _scan_inline_code_ranges(
+    text: str,
+    blocked: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
     ranges: list[OffsetRange] = []
     index = 0
     while index < len(text):
+        blocked_end = _range_end_at(index, blocked)
+        if blocked_end is not None:
+            index = blocked_end
+            continue
         if text[index] != "`":
             index += 1
             continue
         opener_end = _backtick_run_end(text, index)
         delimiter_length = opener_end - index
-        close_start = _matching_backtick_run(text, opener_end, delimiter_length)
+        close_start = _matching_backtick_run(text, opener_end, delimiter_length, blocked)
         if close_start is None:
             index = opener_end
             continue
@@ -79,6 +112,49 @@ def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
         range_end = lines[close_index][1] if close_index is not None else len(text)
         ranges.append((opener_start, range_end))
         index = close_index + 1 if close_index is not None else len(lines)
+    return tuple(ranges)
+
+
+def markdown_protected_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange] = (),
+) -> tuple[OffsetRange, ...]:
+    """Return ordered non-math Markdown regions that delimit live scanning."""
+
+    fences = code_fence_ranges(text)
+    blocked = _merge_ranges((*occupied, *fences))
+    inline_and_html = _inline_and_html_ranges(text, blocked)
+    return _merge_ranges((*occupied, *fences, *inline_and_html))
+
+
+def _inline_and_html_ranges(
+    text: str,
+    blocked: Sequence[OffsetRange],
+) -> tuple[OffsetRange, ...]:
+    ranges: list[OffsetRange] = []
+    index = 0
+    while index < len(text):
+        blocked_end = _range_end_at(index, blocked)
+        if blocked_end is not None:
+            index = blocked_end
+            continue
+        html_end = _html_range_at(text, index)
+        if html_end is not None:
+            ranges.append((index, html_end))
+            index = html_end
+            continue
+        if text[index] != "`":
+            index += 1
+            continue
+        opener_end = _backtick_run_end(text, index)
+        delimiter_length = opener_end - index
+        close_start = _matching_backtick_run(text, opener_end, delimiter_length, blocked)
+        if close_start is None:
+            index = opener_end
+            continue
+        close_end = close_start + delimiter_length
+        ranges.append((index, close_end))
+        index = close_end
     return tuple(ranges)
 
 
@@ -139,17 +215,26 @@ def dollar_inline_ranges(
         if line_end == -1:
             line_end = len(text)
         opening: int | None = None
-        for index in range(line_start, line_end):
-            if text[index] != "$" or _in_ranges(index, occupied):
+        index = line_start
+        while index < line_end:
+            occupied_end = _range_end_at(index, occupied)
+            if occupied_end is not None:
+                opening = None
+                index = min(occupied_end, line_end)
+                continue
+            if text[index] != "$":
+                index += 1
                 continue
             if opening is None:
                 if _is_inline_opening(text, index):
                     opening = index
+                index += 1
                 continue
             if _is_inline_closing(text, index):
                 if index > opening + 1:
                     ranges.append((opening, opening + 1, index, index + 1))
                 opening = None
+            index += 1
         line_start = line_end + 1
     return tuple(ranges)
 
@@ -165,6 +250,25 @@ def is_escaped(text: str, index: int) -> bool:
 
 def _in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
     return any(start <= position < end for start, end in ranges)
+
+
+def _range_end_at(position: int, ranges: Sequence[OffsetRange]) -> int | None:
+    for start, end in ranges:
+        if start <= position < end:
+            return end
+        if start > position:
+            break
+    return None
+
+
+def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
+    merged: list[OffsetRange] = []
+    for start, end in sorted((start, end) for start, end in ranges if start < end):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return tuple(merged)
 
 
 def _fence_close_index(
@@ -185,9 +289,16 @@ def _backtick_run_end(text: str, start: int) -> int:
     return end
 
 
-def _matching_backtick_run(text: str, start: int, length: int) -> int | None:
+def _matching_backtick_run(
+    text: str,
+    start: int,
+    length: int,
+    blocked: Sequence[OffsetRange],
+) -> int | None:
     index = start
     while index < len(text):
+        if _range_end_at(index, blocked) is not None:
+            return None
         if text[index] != "`":
             index += 1
             continue
@@ -218,14 +329,48 @@ def _find_dollar_close(
         close = text.find("$$", cursor)
         if close == -1:
             return -1
+        if any(
+            range_start < close + 2 and range_end > cursor for range_start, range_end in occupied
+        ):
+            return -1
         if (
-            not _in_ranges(close, occupied)
-            and not is_escaped(text, close)
+            not is_escaped(text, close)
             and (close == 0 or text[close - 1] != "$")
             and (close + 2 == len(text) or text[close + 2] != "$")
         ):
             return close
         cursor = close + 2
+
+
+def _html_range_at(text: str, start: int) -> int | None:
+    for pattern in (
+        HTML_COMMENT_RE,
+        HTML_DECLARATION_RE,
+        HTML_PROCESSING_INSTRUCTION_RE,
+        HTML_CDATA_RE,
+        HTML_ELEMENT_RE,
+    ):
+        match = pattern.match(text, start)
+        if match is not None:
+            return match.end()
+
+    block = HTML_BLOCK_OPEN_RE.match(text, start)
+    if block is not None:
+        tag = block.group("tag").lower()
+        closing = re.search(
+            rf"</[ \t]*{re.escape(tag)}[ \t]*>",
+            text[block.end() :],
+            re.IGNORECASE,
+        )
+        if closing is not None:
+            return block.end() + closing.end()
+        if tag in HTML_RAWTEXT_TAGS:
+            return len(text)
+        blank_line = re.search(r"\n[ \t]*\n", text[block.end() :])
+        return len(text) if blank_line is None else block.end() + blank_line.start() + 1
+
+    tag = HTML_TAG_RE.match(text, start)
+    return tag.end() if tag is not None else None
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:

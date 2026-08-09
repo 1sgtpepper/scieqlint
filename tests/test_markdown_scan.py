@@ -6,7 +6,12 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.markdown import code_fence_ranges
+from scieqlint.markdown import (
+    code_fence_ranges,
+    dollar_display_ranges,
+    inline_code_ranges,
+    markdown_protected_ranges,
+)
 from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
@@ -129,6 +134,53 @@ def test_inline_math_ignores_code_spans_and_non_math_fences() -> None:
     result = MarkdownScanner().scan(document, config)
 
     assert result.blocks == ()
+
+
+def test_fence_transition_does_not_pair_backticks_across_live_math() -> None:
+    text = "```python\ncode\n````\n$x=x+1$\n```\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    assert inline_code_ranges(text) == ()
+    assert (
+        MarkdownScanner()
+        .scan(
+            document,
+            Config(scanner=ScannerConfig(inline_math=True)),
+        )
+        .blocks[0]
+        .text
+        == "x=x+1"
+    )
+    assert [fact.body for fact in MySTFrontend().lower((document,)).inline_math] == ["x=x+1"]
+
+
+def test_tilde_fence_transition_does_not_pair_backticks_across_live_math() -> None:
+    text = "~~~python\n`\n~~~\n$x=x+1$\n`\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    assert inline_code_ranges(text) == ()
+    assert (
+        MarkdownScanner()
+        .scan(
+            document,
+            Config(scanner=ScannerConfig(inline_math=True)),
+        )
+        .blocks[0]
+        .text
+        == "x=x+1"
+    )
+    assert [fact.body for fact in MySTFrontend().lower((document,)).inline_math] == ["x=x+1"]
+
+
+def test_dollar_math_does_not_pair_across_raw_html() -> None:
+    text = "<div>\n$$\n</div>\n$$\n"
+    protected = markdown_protected_ranges(text)
+
+    first_dollar = text.index("$$")
+    final_dollar = text.index("$$", first_dollar + 2)
+    assert protected[0][0] <= first_dollar < protected[0][1]
+    assert not protected[0][0] <= final_dollar < protected[0][1]
+    assert dollar_display_ranges(text, protected) == ()
 
 
 def test_unterminated_display_math_emits_scan_warning() -> None:

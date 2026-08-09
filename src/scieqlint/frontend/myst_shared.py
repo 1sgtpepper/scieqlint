@@ -21,6 +21,9 @@ from scieqlint.markdown import (
 from scieqlint.markdown import (
     inline_code_ranges as _inline_code_ranges,
 )
+from scieqlint.markdown import (
+    markdown_protected_ranges as _markdown_protected_ranges,
+)
 
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
@@ -61,6 +64,13 @@ def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
 
 def code_fence_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
     return _code_fence_ranges(document.text)
+
+
+def markdown_protected_ranges(
+    document: SourceDocument,
+    occupied: Sequence[OffsetRange] = (),
+) -> tuple[OffsetRange, ...]:
+    return _markdown_protected_ranges(document.text, occupied)
 
 
 def dollar_display_ranges(

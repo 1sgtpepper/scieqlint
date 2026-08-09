@@ -16,10 +16,9 @@ from .myst_shared import (
     MYST_OPTION_RE,
     TEX_LABEL_RE,
     OffsetRange,
-    code_fence_ranges,
     dollar_display_ranges,
     dollar_inline_ranges,
-    inline_code_ranges,
+    markdown_protected_ranges,
     normalize_label,
 )
 
@@ -49,11 +48,7 @@ def scan_display_math(
         display.append(math_fact)
         labels.extend(label_facts)
 
-    occupied_with_code = (
-        *tuple(occupied),
-        *code_fence_ranges(document),
-        *inline_code_ranges(document),
-    )
+    occupied_with_code = markdown_protected_ranges(document, occupied)
     dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied_with_code)
     display.extend(dollar_display)
     labels.extend(dollar_labels)
@@ -65,11 +60,7 @@ def scan_inline_math(
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
 ) -> Iterable[InlineMathFact]:
-    occupied_with_code = (
-        *tuple(occupied),
-        *code_fence_ranges(document),
-        *inline_code_ranges(document),
-    )
+    occupied_with_code = markdown_protected_ranges(document, occupied)
     for start, body_start, body_end, end in dollar_inline_ranges(
         document.text,
         occupied_with_code,

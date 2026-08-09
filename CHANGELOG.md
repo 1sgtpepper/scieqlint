@@ -99,6 +99,9 @@ Release notes must use these sections:
 - Dollar math now honors escaped delimiters, block placement, and complete label
   suffixes, while Markdown code spans and fenced-code regions follow their
   delimiter and indentation boundaries.
+- Markdown protected regions now take lexical precedence before code and dollar
+  delimiters are paired, so transitions between fences, HTML, and live text do
+  not hide later math.
 
 ### Deprecated
 

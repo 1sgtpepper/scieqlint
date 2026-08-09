@@ -10,11 +10,10 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
-    code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
     dollar_inline_ranges,
-    inline_code_ranges,
+    markdown_protected_ranges,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -206,10 +205,7 @@ def _inline_blocks(
 
 
 def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    return (
-        *inline_code_ranges(document.text),
-        *code_fence_ranges(document.text),
-    )
+    return markdown_protected_ranges(document.text)
 
 
 def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:

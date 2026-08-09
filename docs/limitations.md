@@ -98,7 +98,9 @@ therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick
-fence info string cannot contain a backtick.
+fence info string cannot contain a backtick. Fences and recognized raw HTML are
+protected before inline code and dollar delimiters are paired, so delimiters do
+not cross between protected regions and live Markdown.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
