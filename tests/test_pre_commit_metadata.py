@@ -153,6 +153,10 @@ def test_pre_commit_adapter_recovers_only_invisible_index_paths(
         "definitions.md",
         "notes.txt",
     )
+    assert pre_commit._invisible_paths(records, ("notes.txt",)) == ()
+    assert pre_commit._invisible_paths(records, ("definitions.md.tmp",)) == (
+        "definitions.md",
+    )
 
 
 def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
@@ -436,7 +440,8 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
             },
         )
         (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
-        _git(project, "add", "--", "chapter.md")
+        (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
+        _git(project, "add", "--", "chapter.md", "notes.txt")
     else:
         _init_project(
             project,
@@ -448,6 +453,8 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
                 "notes.txt": "plain text\n",
             },
         )
+        (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
+        _git(project, "add", "--", "notes.txt")
         if operation == "delete":
             _git(project, "rm", "--", "definitions.md")
         else:
