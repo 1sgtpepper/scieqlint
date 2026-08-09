@@ -640,7 +640,7 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
         index += 1
         while index < len(text):
             if text[index] == "\\":
-                index += 2
+                index = _skip_backslash_escape(text, index)
                 continue
             if text[index] == ">":
                 destination_end = index
@@ -657,7 +657,7 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
         while index < len(text):
             char = text[index]
             if char == "\\":
-                index += 2
+                index = _skip_backslash_escape(text, index)
                 continue
             if char in " \t\n\r":
                 if depth:
@@ -695,7 +695,7 @@ def _parse_link_title(text: str, start: int) -> int | None:
         index = start + 1
         while index < len(text):
             if text[index] == "\\":
-                index += 2
+                index = _skip_backslash_escape(text, index)
                 continue
             if text[index] == opener:
                 return index + 1
@@ -712,7 +712,7 @@ def _parse_link_title(text: str, start: int) -> int | None:
     index = start + 1
     while index < len(text):
         if text[index] == "\\":
-            index += 2
+            index = _skip_backslash_escape(text, index)
             continue
         if text[index] in "\n\r":
             index = _advance_line_ending(text, index)
@@ -759,6 +759,16 @@ def _starts_blank_line(text: str, index: int) -> bool:
 
 def _is_ascii_control(char: str) -> bool:
     return ord(char) < 0x20 or ord(char) == 0x7F
+
+
+def _skip_backslash_escape(text: str, index: int) -> int:
+    if index + 1 < len(text) and _is_ascii_punctuation(text[index + 1]):
+        return index + 2
+    return index + 1
+
+
+def _is_ascii_punctuation(char: str) -> bool:
+    return "!" <= char <= "/" or ":" <= char <= "@" or "[" <= char <= "`" or "{" <= char <= "~"
 
 
 def _html_block_ranges(text: str) -> tuple[OffsetRange, ...]:
