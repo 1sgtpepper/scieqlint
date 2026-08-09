@@ -33,12 +33,13 @@ E = mc^2
 ```
 ````
 
-Dollar math follows the supported `mdit-py-plugins`-compatible delimiter profile:
-escaped dollars and borrowed `$$$` delimiters remain prose; display `$$` starts
-after zero to three leading ASCII spaces at the start of a line and closes only
-at the end of a source line (optionally followed by one complete label suffix);
-single-dollar inline math may be adjacent to ordinary text but stays on one source
-line. Empty bodies and unmatched delimiters are not facts.
+Dollar math follows a conservative SciEqLint profile derived from the referenced
+`mdit-py-plugins` behavior: escaped dollars and borrowed `$$$` delimiters remain
+prose; display `$$` starts after zero to three leading ASCII spaces at the start
+of a line and closes only at the end of a source line (optionally followed by one
+complete label suffix); single-dollar inline math may be adjacent to ordinary
+text but stays on one source line. Empty bodies and unmatched delimiters are not
+facts.
 
 ## Core grammar subset
 
