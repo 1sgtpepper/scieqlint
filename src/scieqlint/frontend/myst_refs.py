@@ -9,9 +9,7 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     MarkdownLinkToken,
     is_escaped,
-    markdown_link_metadata_ranges,
-    markdown_link_tokens,
-    opaque_markdown_ranges,
+    markdown_reference_snapshot,
 )
 from scieqlint.source.maps import SourceMap
 
@@ -29,9 +27,11 @@ def scan_refs(
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
-    occupied_with_code = opaque_markdown_ranges(document.text, ())
-    link_metadata = markdown_link_metadata_ranges(document.text)
-    for token in markdown_link_tokens(document.text):
+    snapshot = markdown_reference_snapshot(document.text)
+    occupied_with_code = snapshot.opaque_ranges
+    link_tokens = snapshot.links
+    link_metadata = snapshot.link_metadata_ranges
+    for token in link_tokens:
         if token.is_image or in_ranges(token.start, occupied_with_code):
             continue
         if token.fragment_target is None:

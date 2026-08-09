@@ -115,9 +115,12 @@ line that is not a directive option.
 Only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
 references. The reference lexer supports inline links with balanced labels,
-bounded destinations, and nonblank multiline titles. Reference-link definitions,
-autolinks, and the full CommonMark inline-precedence graph remain outside this
-reference-fact profile and are left as source text.
+soft line breaks, bounded destinations, and nonblank multiline titles.
+Parenthesized titles require literal parentheses to be backslash-escaped, and
+valid named or numeric character references in destinations are decoded for
+resolution. Reference-link definitions, autolinks, and the full CommonMark
+inline-precedence graph remain outside this reference-fact profile and are left
+as source text.
 The destination/title separator permits spaces or tabs and at most one line ending;
 quoted or parenthesized titles may span multiple nonblank lines. Unbracketed
 destinations reject spaces and ASCII control characters; angle-bracket destinations
@@ -128,7 +131,9 @@ fragment is recognized only when the decoded destination has a nonempty target a
 including nested images inside links; a link containing an image can still
 contribute its outer target.
 Role-like text inside inline code, inline or display math, HTML comments, and raw
-HTML is opaque and does not create reference facts.
+HTML is opaque and does not create reference facts. Active MyST role bodies are
+also opaque to Markdown-link tokenization, while ordinary inline HTML tag
+lexemes do not hide their content.
 
 ## MyST structure linting
 

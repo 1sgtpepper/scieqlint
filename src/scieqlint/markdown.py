@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from html import unescape
+from html.entities import html5
 
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
@@ -79,7 +81,16 @@ class _LinkFrame:
     token_start: int
     is_image: bool
     children: list[MarkdownLinkToken] = field(default_factory=lambda: list[MarkdownLinkToken]())
-    invalid: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class MarkdownReferenceSnapshot:
+    """Immutable Markdown ownership decisions shared by reference consumers."""
+
+    opaque_ranges: tuple[OffsetRange, ...]
+    links: tuple[MarkdownLinkToken, ...]
+    link_metadata_ranges: tuple[OffsetRange, ...]
+    attached_target_labels: frozenset[str]
 
 
 _FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
@@ -142,8 +153,17 @@ def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
 def attached_markdown_target_labels(text: str) -> frozenset[str]:
     """Return target labels attached to a heading or fenced block."""
 
+    lexical = _ordered_lexical_ranges(text, (), scan_math=True)
+    opaque = _opaque_ranges_from_lexical(lexical)
+    return _attached_markdown_target_labels_from_opaque(text, opaque)
+
+
+def _attached_markdown_target_labels_from_opaque(
+    text: str,
+    opaque: Sequence[OffsetRange],
+) -> frozenset[str]:
     lines = _source_lines(text)
-    occupied_cursor = _RangeCursor(opaque_markdown_ranges(text, ()))
+    occupied_cursor = _RangeCursor(opaque)
     labels: set[str] = set()
     for index, (start, _end, line) in enumerate(lines):
         if occupied_cursor.end_at(start) is not None:
@@ -596,8 +616,30 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
 
 
 def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
+    return markdown_reference_snapshot(text).links
+
+
+def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
+    """Return one immutable lexical/reference snapshot for ``text``."""
+
+    lexical = _ordered_lexical_ranges(text, (), scan_math=True)
+    protected = (*lexical.fences, *lexical.html, *lexical.roles, *lexical.code)
+    opaque = _opaque_ranges_from_lexical(lexical)
+    links = _markdown_link_tokens_from_lexical(text, protected)
+    return MarkdownReferenceSnapshot(
+        opaque_ranges=opaque,
+        links=links,
+        link_metadata_ranges=_metadata_ranges_from_tokens(links),
+        attached_target_labels=_attached_markdown_target_labels_from_opaque(text, opaque),
+    )
+
+
+def _markdown_link_tokens_from_lexical(
+    text: str,
+    protected: Sequence[OffsetRange],
+) -> tuple[MarkdownLinkToken, ...]:
     tokens: list[MarkdownLinkToken] = []
-    protected_cursor = _RangeCursor(markdown_protected_ranges(text))
+    protected_cursor = _RangeCursor(protected)
     stack: list[_LinkFrame] = []
     index = 0
     while index < len(text):
@@ -609,11 +651,6 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
         char = text[index]
         if char == "\\":
             index = _skip_backslash_escape(text, index)
-            continue
-        if char in "\r\n":
-            for frame in stack:
-                frame.invalid = True
-            index += 1
             continue
         if char == "!" and index + 1 < len(text) and text[index + 1] == "[":
             stack.append(_LinkFrame(index, True))
@@ -630,7 +667,7 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
         frame = stack.pop()
         visible_children = tuple(frame.children)
         next_index = index + 1
-        if not frame.invalid and index + 1 < len(text) and text[index + 1] == "(":
+        if index + 1 < len(text) and text[index + 1] == "(":
             body = _parse_link_body(text, index + 2)
             if body is not None:
                 destination_start, destination_end, end = body
@@ -717,6 +754,15 @@ def _decode_destination_span(
             spans.append((index, index + 2))
             index += 2
             continue
+        entity_end = text.find(";", index + 1, end) if text[index] == "&" else -1
+        if entity_end != -1:
+            entity = text[index : entity_end + 1]
+            decoded_entity = _decode_entity(entity)
+            if decoded_entity is not None:
+                decoded.extend(decoded_entity)
+                spans.extend((index, entity_end + 1) for _ in decoded_entity)
+                index = entity_end + 1
+                continue
         decoded.append(text[index])
         spans.append((index, index + 1))
         index += 1
@@ -724,8 +770,14 @@ def _decode_destination_span(
 
 
 def markdown_link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
+    return markdown_reference_snapshot(text).link_metadata_ranges
+
+
+def _metadata_ranges_from_tokens(
+    tokens: Sequence[MarkdownLinkToken],
+) -> tuple[OffsetRange, ...]:
     ranges: list[OffsetRange] = []
-    for token in markdown_link_tokens(text):
+    for token in tokens:
         if token.metadata_ranges:
             ranges.extend(token.metadata_ranges)
         elif token.is_image:
@@ -740,8 +792,17 @@ def opaque_markdown_ranges(
     occupied: Sequence[OffsetRange],
 ) -> tuple[OffsetRange, ...]:
     lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
-    ranges = [*occupied, *lexical.fences, *lexical.html, *lexical.roles, *lexical.code]
-    ranges.extend((start, close_end) for start, _body_start, _body_end, close_end in lexical.display)
+    return _opaque_ranges_from_lexical(lexical, occupied)
+
+
+def _opaque_ranges_from_lexical(
+    lexical: _LexicalRanges,
+    occupied: Sequence[OffsetRange] = (),
+) -> tuple[OffsetRange, ...]:
+    ranges = [*occupied, *lexical.fences, *lexical.html, *lexical.code]
+    ranges.extend(
+        (start, close_end) for start, _body_start, _body_end, close_end in lexical.display
+    )
     ranges.extend((start, close_end) for start, _body_start, _body_end, close_end in lexical.inline)
     return _merge_ranges(ranges)
 
@@ -827,7 +888,6 @@ def _parse_link_title(text: str, start: int) -> int | None:
         return None
     if opener != "(":
         return None
-    depth = 1
     index = start + 1
     while index < len(text):
         if text[index] == "\\":
@@ -839,11 +899,9 @@ def _parse_link_title(text: str, start: int) -> int | None:
                 return None
             continue
         if text[index] == "(":
-            depth += 1
-        elif text[index] == ")":
-            depth -= 1
-            if depth == 0:
-                return index + 1
+            return None
+        if text[index] == ")":
+            return index + 1
         index += 1
     return None
 
@@ -888,3 +946,13 @@ def _skip_backslash_escape(text: str, index: int) -> int:
 
 def _is_ascii_punctuation(char: str) -> bool:
     return "!" <= char <= "/" or ":" <= char <= "@" or "[" <= char <= "`" or "{" <= char <= "~"
+
+
+def _decode_entity(value: str) -> str | None:
+    if value.startswith("&") and value[1:-1].startswith("#"):
+        decoded = unescape(value)
+    elif (decoded_entity := html5.get(value[1:])) is not None:
+        decoded = decoded_entity
+    else:
+        return None
+    return decoded if decoded != value else None

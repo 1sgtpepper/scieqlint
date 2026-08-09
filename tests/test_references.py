@@ -12,12 +12,13 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import (
+    attached_markdown_target_labels,
     markdown_link_metadata_ranges,
     markdown_link_tokens,
     opaque_markdown_ranges,
 )
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_heading_anchor_targets
+from scieqlint.scan.markdown import MarkdownScanner
 
 
 def _scan(text: str):
@@ -37,7 +38,7 @@ def test_missing_reference_is_warning() -> None:
     assert diagnostics[0].message == "equation reference target not found: missing"
 
 
-def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
+def test_equation_roles_are_opaque_in_code_math_comments_and_block_html() -> None:
     text = "\n".join(
         [
             "`{eq}code`",
@@ -46,7 +47,9 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
             "{eq}`display-math`",
             "$$",
             "<!-- {eq}`comment` -->",
-            "<span>{eq}`raw-html`</span>",
+            "<div>",
+            "{eq}`raw-html`",
+            "",
             "See {eq}`missing`.",
         ]
     )
@@ -236,6 +239,18 @@ def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
     assert result.diagnostics == ()
 
 
+def test_markdown_links_to_fenced_directive_anchors_are_not_equation_refs() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        "(tip)=\n```{note}\nbody\n```\n\nSee [](#tip).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.diagnostics == ()
+
+
 def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
@@ -314,6 +329,48 @@ def test_even_backslashes_reactivate_markdown_links_and_myst_roles() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("text", "targets"),
+    [
+        (r"\`[active](#active)`", ["active"]),
+        (r"\\`[hidden](#hidden)`", []),
+        ("<span>[inline](#inline)</span>", ["inline"]),
+        ("<div>\n[hidden](#hidden)\n\n[live](#live)", ["live"]),
+    ],
+)
+def test_link_facts_follow_escaped_code_and_html_ownership(
+    text: str,
+    targets: list[str],
+) -> None:
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    frontend = MySTFrontend().lower((document,))
+    legacy = MarkdownScanner().scan(document, Config())
+
+    assert [token.fragment_target for token in markdown_link_tokens(text)] == targets
+    assert [ref.target for ref in frontend.generic_refs] == targets
+    assert [ref.target for ref in legacy.references] == targets
+
+
+def test_links_inside_myst_roles_are_not_reparsed_as_markdown() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "{ref}`[role-body](#ghost)`\nSee [live](#live).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    frontend = MySTFrontend().lower((document,))
+    legacy = MarkdownScanner().scan(document, Config())
+
+    assert [(ref.role_kind, ref.target) for ref in frontend.generic_refs] == [
+        ("markdown-link", "live"),
+        ("ref", "[role-body](#ghost)"),
+    ]
+    assert [(ref.source.value, ref.target) for ref in legacy.references] == [
+        ("markdown_anchor", "live")
+    ]
+
+
 def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     valid = (
         "[x](#target)",
@@ -321,9 +378,12 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         '[x]( <https://example.test/a\\>b> "title" )',
         "[x](https://example.test/a(b(c)) 'title')",
         '[x](#target "ti\\"tle")',
-        "[x](#target (ti(tle)))",
+        "[x](#target (ti\\(tle\\)))",
         "[x](#target (ti\\)tle))",
         "[x](https://example.test/a\\(b)",
+        "[x\ny](#target)",
+        "[foo\\\nbar](#target)",
+        "[foo\rbar](#target)",
         "[See [the] note](#target)",
         "[See \\] note](#target)",
         "\\![See {eq}`active`](#target)",
@@ -359,7 +419,6 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "[x] #target",
         "[x](#target",
         "[x](#target(",
-        "[x\ny](#target)",
         "[x(#target)",
         "[x](<target\n>)",
         "[x](<a b>)",
@@ -367,12 +426,11 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "[x](<target>",
         "[x](<a<b>)",
         '[x](<dest>"title")',
-        "[foo\\\nbar](#target)",
-        "[foo\rbar](#target)",
         '[x](#target "title)',
         '[x](#target "title\n)',
         '[x](#target "title"',
         "[x](#target (title",
+        "[x](#target (ti(tle)))",
         "[x](#target [title])",
         "\\[x](#target)",
     )
@@ -381,6 +439,8 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
 
     assert markdown_link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
     assert markdown_link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
+    assert markdown_link_tokens("[x](#foo&amp;bar)")[0].destination == "#foo&bar"
+    assert markdown_link_tokens("[x](#foo&#x26;bar)")[0].destination == "#foo&bar"
 
 
 def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> None:
@@ -391,6 +451,7 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
         "[empty](#)\n"
         "[punct](#foo\\-bar)\n"
         "[paren](#a\\)b)\n"
+        "[entity](#foo&amp;bar)\n"
     )
     tokens = markdown_link_tokens(text)
 
@@ -401,6 +462,7 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
         None,
         "foo-bar",
         "a)b",
+        "foo&bar",
     ]
     escaped = tokens[1]
     assert escaped.fragment_target_start is not None
@@ -420,16 +482,19 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
         "escaped",
         "foo-bar",
         "a)b",
+        "foo&bar",
     ]
     assert [ref.target for ref in legacy.references] == [
         "raw",
         "escaped",
         "foo-bar",
         "a)b",
+        "foo&bar",
     ]
     assert [
         diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
     ] == [
+        "REF002",
         "REF002",
         "REF002",
         "REF002",
@@ -441,6 +506,18 @@ def test_deeply_nested_images_are_parsed_without_recursion() -> None:
     text = "alt"
     for _ in range(600):
         text = f"![{text}](image.png)"
+
+    tokens = markdown_link_tokens(text)
+
+    assert len(tokens) == 1
+    assert tokens[0].is_image is True
+    assert (tokens[0].start, tokens[0].end) == (0, len(text))
+
+
+def test_multiline_nested_images_do_not_invalidate_open_frames() -> None:
+    text = "alt"
+    for _ in range(300):
+        text = f"![\n{text}\n](image.png)"
 
     tokens = markdown_link_tokens(text)
 
@@ -576,7 +653,7 @@ def test_lone_myst_anchor_has_no_attached_heading_target() -> None:
         DocumentKind.MARKDOWN,
     )
 
-    assert _attached_myst_heading_anchor_targets(document) == frozenset()
+    assert attached_markdown_target_labels(document.text) == frozenset()
 
 
 def test_empty_myst_role_is_malformed_syntax() -> None:

@@ -10,7 +10,6 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
-    attached_markdown_target_labels,
     code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
@@ -19,9 +18,7 @@ from scieqlint.markdown import (
     is_escaped,
     is_fence_closer,
     is_escaped,
-    markdown_link_metadata_ranges,
-    markdown_link_tokens,
-    opaque_markdown_ranges,
+    markdown_reference_snapshot,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -301,10 +298,12 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 
 
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
-    link_metadata = markdown_link_metadata_ranges(document.text)
-    occupied = opaque_markdown_ranges(document.text, ())
-    for token in markdown_link_tokens(document.text):
+    snapshot = markdown_reference_snapshot(document.text)
+    attached_myst_anchors = snapshot.attached_target_labels
+    occupied = snapshot.opaque_ranges
+    link_tokens = snapshot.links
+    link_metadata = snapshot.link_metadata_ranges
+    for token in link_tokens:
         if token.is_image or _in_ranges(token.start, occupied):
             continue
         if token.fragment_target is None:
@@ -341,10 +340,6 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
             raw=match.group(0),
             source=source,
         )
-
-
-def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
-    return attached_markdown_target_labels(document.text)
 
 
 def _symbol_directives(
