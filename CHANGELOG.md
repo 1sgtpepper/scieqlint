@@ -53,7 +53,8 @@ Release notes must use these sections:
   locations for symbol checks.
 - The pre-commit hook now runs a complete project-context check when supported
   sources are added, changed, deleted, or renamed, regardless of suffix case,
-  without treating staged paths as CLI input; unrelated commits remain skipped.
+  including ref-range and pre-push runs, without treating candidate paths as CLI input;
+  checker options are preserved before the required `--` boundary.
 
 ### Deprecated
 

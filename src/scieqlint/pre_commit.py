@@ -15,14 +15,12 @@ def _is_supported(path: str) -> bool:
     return Path(path).suffix.lower() in SUPPORTED_SUFFIXES
 
 
-def _staged_paths() -> tuple[str, ...]:
-    # The index retains deleted and rename-source paths after pre-commit filters
-    # them out of its candidate filename list.
+def _diff_paths(*diff_arguments: str) -> tuple[str, ...]:
     result = subprocess.run(
         [
             "git",
             "diff",
-            "--cached",
+            *diff_arguments,
             "--name-status",
             "--diff-filter=ACDMRTUXB",
             "-z",
@@ -43,20 +41,66 @@ def _staged_paths() -> tuple[str, ...]:
     return tuple(paths)
 
 
-def _candidate_paths(arguments: Sequence[str]) -> tuple[str, ...]:
-    return tuple(argument for argument in arguments if argument != "--")
+def _staged_paths() -> tuple[str, ...]:
+    # The index retains deleted and rename-source paths after pre-commit filters
+    # them out of its candidate filename list.
+    return _diff_paths("--cached")
+
+
+def _range_paths(from_ref: str, to_ref: str) -> tuple[str, ...]:
+    try:
+        return _diff_paths(f"{from_ref}...{to_ref}")
+    except subprocess.CalledProcessError:
+        return _diff_paths(f"{from_ref}..{to_ref}")
+
+
+def _range_refs() -> tuple[str, str] | None:
+    from_ref = os.environ.get("PRE_COMMIT_FROM_REF")
+    to_ref = os.environ.get("PRE_COMMIT_TO_REF")
+    if from_ref is None and to_ref is None:
+        return None
+    if not from_ref or not to_ref:
+        raise ValueError(
+            "SciEqLint pre-commit hook requires both PRE_COMMIT_FROM_REF and "
+            "PRE_COMMIT_TO_REF"
+        )
+    return from_ref, to_ref
+
+
+def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    args = tuple(arguments)
+    if not args:
+        return (), ()
+    try:
+        boundary = args.index("--")
+    except ValueError as error:
+        raise ValueError(
+            "SciEqLint pre-commit hook arguments must include '--' between check "
+            "options and filenames; preserve it when overriding hook args"
+        ) from error
+    return args[:boundary], args[boundary + 1 :]
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
     """Run the project check only for a supported pre-commit change."""
     args = tuple(sys.argv[1:] if arguments is None else arguments)
-    paths = _candidate_paths(args)
-    if not any(_is_supported(path) for path in paths):
+    try:
+        check_args, candidate_paths = _split_arguments(args)
+        refs = _range_refs()
+    except ValueError as error:
+        sys.stderr.write(f"{error}\n")
+        return 2
+
+    if refs is not None:
+        paths = _range_paths(*refs)
+    elif candidate_paths:
+        paths = candidate_paths
+    else:
         paths = _staged_paths()
     if not any(_is_supported(path) for path in paths):
         return 0
     return subprocess.run(
-        [sys.executable, "-m", "scieqlint", "check", "--"],
+        [sys.executable, "-m", "scieqlint", "check", *check_args, "--"],
         check=False,
     ).returncode
 

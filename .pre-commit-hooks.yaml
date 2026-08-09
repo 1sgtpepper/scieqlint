@@ -5,6 +5,7 @@
   args: ["--"]
   language: python
   files: '(?i)\.(md|markdown|tex|ipynb)$'
+  stages: [pre-commit, pre-push]
   always_run: true
   pass_filenames: true
   require_serial: true
