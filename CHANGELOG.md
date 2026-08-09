@@ -47,6 +47,7 @@ Release notes must use these sections:
   fixed-schema configuration tables are rejected instead of being ignored.
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
+- Unsupported TeX function names no longer trigger undefined-symbol warnings.
 
 ### Deprecated
 
