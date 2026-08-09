@@ -152,6 +152,7 @@ class _Parser:
         if value == "\\sqrt":
             operand_start = self.index
             operand = self._group()
+            root = _sqrt(operand)
             # Preserve the original root operand's symbol information before
             # normalization can erase it through cancellation or exponent zero.
             if any(
@@ -159,7 +160,7 @@ class _Parser:
                 for token in self.tokens[operand_start : self.index]
             ):
                 raise UnsupportedExpressionError("sqrt of symbolic expression")
-            return _sqrt(operand)
+            return root
         if value in TEX_MULTIPLY:
             raise UnsupportedExpressionError("unexpected multiplication operator")
         if value.startswith("\\"):
@@ -326,6 +327,8 @@ def _pow(value: Polynomial, exponent: int) -> Polynomial:
 
 
 def _sqrt(value: Polynomial) -> Polynomial:
+    if not value:
+        return {(): Fraction(0)}
     if len(value) != 1:
         raise UnsupportedExpressionError("sqrt of non-constant expression")
     monomial, coefficient = next(iter(value.items()))

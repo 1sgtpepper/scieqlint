@@ -105,7 +105,12 @@ def test_unary_signs_preserve_grouping_and_parity() -> None:
 
 
 def test_numeric_sqrt_perfect_square_remains_supported() -> None:
-    for equation in ("\\sqrt{0} = 0", "\\sqrt{4} = 2", "\\sqrt{9/4} = 3/2"):
+    for equation in (
+        "\\sqrt{0} = 0",
+        "\\sqrt{1-1} = 0",
+        "\\sqrt{4} = 2",
+        "\\sqrt{9/4} = 3/2",
+    ):
         diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
 
         assert diagnostics == (), equation
