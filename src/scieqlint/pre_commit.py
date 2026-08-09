@@ -46,24 +46,6 @@ def _staged_records() -> tuple[tuple[str, tuple[str, ...]], ...]:
     return _diff_records("--cached")
 
 
-def _invisible_paths(
-    records: Sequence[tuple[str, tuple[str, ...]]],
-    candidate_paths: Sequence[str] = (),
-    staged_paths: set[str] | None = None,
-) -> tuple[str, ...]:
-    # Recover only paths pre-commit removes before invocation: deletions and
-    # rename sources. Existing additions and modifications remain candidate-owned.
-    candidates = set(candidate_paths)
-    staged: set[str] = set() if staged_paths is None else staged_paths
-    paths: list[str] = []
-    for status, changed_paths in records:
-        if status == "D" and (not candidates or candidates <= staged):
-            paths.extend(changed_paths)
-        elif status == "R" and (not candidates or changed_paths[1] in candidates):
-            paths.append(changed_paths[0])
-    return tuple(paths)
-
-
 def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
     args = tuple(arguments)
     if not args:
@@ -72,14 +54,14 @@ def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[s
         boundary = args.index("--")
     except ValueError as error:
         raise ValueError(
-            "SciEqLint pre-commit hook arguments must include '--' between check "
-            "options and filenames; preserve it when overriding hook args"
+            "SciEqLint pre-commit hook arguments must include '--' after check "
+            "options; preserve it when overriding hook args"
         ) from error
     return args[:boundary], args[boundary + 1 :]
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
-    """Run the project check only for a supported pre-commit change."""
+    """Run one project check for a supported staged change."""
     args = tuple(sys.argv[1:] if arguments is None else arguments)
     if os.environ.get("PRE_COMMIT_FROM_REF") or os.environ.get("PRE_COMMIT_TO_REF"):
         sys.stderr.write(
@@ -88,25 +70,22 @@ def main(arguments: Sequence[str] | None = None) -> int:
         )
         return 2
     try:
-        check_args, candidate_paths = _split_arguments(args)
+        check_args, configured_paths = _split_arguments(args)
     except ValueError as error:
         sys.stderr.write(f"{error}\n")
         return 2
 
-    if any(_is_supported(path) for path in candidate_paths):
-        paths = candidate_paths
-    else:
-        staged_records = _staged_records()
-        staged_paths = {path for _, changed_paths in staged_records for path in changed_paths}
-        paths = (
-            *candidate_paths,
-            *_invisible_paths(
-                staged_records,
-                candidate_paths,
-                staged_paths,
-            ),
+    if configured_paths:
+        sys.stderr.write(
+            "SciEqLint pre-commit hook does not accept filenames after '--'; "
+            "use checker options before the boundary\n"
         )
-    if not any(_is_supported(path) for path in paths):
+        return 2
+
+    staged_records = _staged_records()
+    if not any(
+        _is_supported(path) for _, changed_paths in staged_records for path in changed_paths
+    ):
         return 0
     return subprocess.run(
         [sys.executable, "-m", "scieqlint", "check", *check_args, "--"],

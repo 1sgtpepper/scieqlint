@@ -95,8 +95,8 @@ def test_pre_commit_hook_metadata_targets_supported_sources() -> None:
     assert "stages: [pre-commit]" in metadata
     assert "files:" not in metadata
     assert "always_run: true" in metadata
-    assert "pass_filenames: true" in metadata
-    assert "require_serial: true" in metadata
+    assert "pass_filenames: false" in metadata
+    assert "require_serial:" not in metadata
 
 
 @pytest.mark.parametrize(
@@ -117,7 +117,7 @@ def test_pre_commit_adapter_classifies_source_suffix(
     assert pre_commit._is_supported(path) is expected
 
 
-def test_pre_commit_adapter_recovers_only_invisible_index_paths(
+def test_pre_commit_adapter_parses_all_staged_path_roles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     completed = subprocess.CompletedProcess(
@@ -149,12 +149,6 @@ def test_pre_commit_adapter_recovers_only_invisible_index_paths(
         ("C", ("source.tex", "copy.tex")),
         ("D", ("notes.txt",)),
     )
-    assert pre_commit._invisible_paths(records) == (
-        "definitions.md",
-        "notes.txt",
-    )
-    assert pre_commit._invisible_paths(records, ("notes.txt",)) == ()
-    assert pre_commit._invisible_paths(records, ("definitions.md.tmp",)) == ("definitions.md",)
 
 
 def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
@@ -164,7 +158,7 @@ def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
     )
 
 
-def test_pre_commit_adapter_runs_project_check_for_supported_candidate(
+def test_pre_commit_adapter_runs_project_check_for_supported_staged_change(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[list[str], dict[str, object]]] = []
@@ -173,9 +167,14 @@ def test_pre_commit_adapter_runs_project_check_for_supported_candidate(
         calls.append((command, kwargs))
         return subprocess.CompletedProcess(command, returncode=7)
 
+    monkeypatch.setattr(
+        pre_commit,
+        "_staged_records",
+        lambda: (("M", ("chapter.MD",)),),
+    )
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
-    assert pre_commit.main(("--", "chapter.MD")) == 7
+    assert pre_commit.main(("--",)) == 7
     assert calls == [
         (
             [pre_commit.sys.executable, "-m", "scieqlint", "check", "--"],
@@ -193,9 +192,14 @@ def test_pre_commit_adapter_forwards_checker_options(
         calls.append(command)
         return subprocess.CompletedProcess(command, returncode=7)
 
+    monkeypatch.setattr(
+        pre_commit,
+        "_staged_records",
+        lambda: (("M", ("chapter.MD",)),),
+    )
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
-    assert pre_commit.main(("--strict-unknowns", "--", "chapter.MD")) == 7
+    assert pre_commit.main(("--strict-unknowns", "--")) == 7
     assert calls == [
         [
             pre_commit.sys.executable,
@@ -215,6 +219,13 @@ def test_pre_commit_adapter_rejects_missing_option_boundary(
     assert "must include '--'" in capsys.readouterr().err
 
 
+def test_pre_commit_adapter_rejects_configured_filenames(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert pre_commit.main(("--", "chapter.MD")) == 2
+    assert "does not accept filenames" in capsys.readouterr().err
+
+
 def test_pre_commit_adapter_rejects_revision_range(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -222,17 +233,24 @@ def test_pre_commit_adapter_rejects_revision_range(
     monkeypatch.setenv("PRE_COMMIT_FROM_REF", "A")
     monkeypatch.setenv("PRE_COMMIT_TO_REF", "B")
 
-    assert pre_commit.main(("--", "chapter.MD")) == 2
+    assert pre_commit.main(("--",)) == 2
     assert "revision-range runs are not supported" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
-    ("invisible_paths", "invokes_checker"),
-    [((), False), (("unrelated.txt",), False), (("deleted.md",), True)],
+    ("staged_records", "invokes_checker"),
+    [
+        ((), False),
+        ((("M", ("unrelated.txt",)),), False),
+        ((("D", ("deleted.md",)),), True),
+        ((("R", ("definitions.md", "definitions.tmp")),), True),
+        ((("R", ("definitions.tmp", "definitions.md")),), True),
+        ((("T", ("paper.tex",)),), True),
+    ],
 )
-def test_pre_commit_adapter_recovers_invisible_staged_paths(
+def test_pre_commit_adapter_triggers_from_any_staged_path_role(
     monkeypatch: pytest.MonkeyPatch,
-    invisible_paths: tuple[str, ...],
+    staged_records: tuple[tuple[str, tuple[str, ...]], ...],
     invokes_checker: bool,
 ) -> None:
     calls: list[list[str]] = []
@@ -241,7 +259,6 @@ def test_pre_commit_adapter_recovers_invisible_staged_paths(
         calls.append(command)
         return subprocess.CompletedProcess(command, returncode=5)
 
-    staged_records = () if not invisible_paths else (("D", invisible_paths),)
     monkeypatch.setattr(pre_commit, "_staged_records", lambda: staged_records)
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
@@ -251,7 +268,7 @@ def test_pre_commit_adapter_recovers_invisible_staged_paths(
     )
 
 
-def test_pre_commit_adapter_recovers_deletion_with_existing_staged_candidate(
+def test_pre_commit_adapter_runs_one_project_check_for_all_staged_records(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[list[str]] = []
@@ -263,11 +280,16 @@ def test_pre_commit_adapter_recovers_deletion_with_existing_staged_candidate(
     monkeypatch.setattr(
         pre_commit,
         "_staged_records",
-        lambda: (("D", ("deleted.md",)), ("M", ("notes.txt",))),
+        lambda: (
+            ("M", ("notes.txt",)),
+            ("R", ("definitions.md", "definitions.tmp")),
+            ("D", ("deleted.md",)),
+            ("M", ("chapter.MD",)),
+        ),
     )
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
-    assert pre_commit.main(("--", "notes.txt")) == 5
+    assert pre_commit.main(("--",)) == 5
     assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
 
 
@@ -278,16 +300,29 @@ def test_pre_commit_adapter_module_entrypoint(
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
         calls.append(command)
-        return subprocess.CompletedProcess(command, returncode=0, stdout=b"")
+        if command[0] == "git":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=b"M\0chapter.MD\0")
+        return subprocess.CompletedProcess(command, returncode=0)
 
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
-    monkeypatch.setattr(pre_commit.sys, "argv", ["scieqlint.pre_commit", "--", "chapter.MD"])
+    monkeypatch.setattr(pre_commit.sys, "argv", ["scieqlint.pre_commit", "--"])
 
     with pytest.raises(SystemExit) as raised:
         runpy.run_path(str(Path(pre_commit.__file__)), run_name="__main__")
 
     assert raised.value.code == 0
-    assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
+    assert calls == [
+        [
+            "git",
+            "diff",
+            "--cached",
+            "--name-status",
+            "--diff-filter=ACDMRTUXB",
+            "-z",
+            "--",
+        ],
+        [pre_commit.sys.executable, "-m", "scieqlint", "check", "--"],
+    ]
 
 
 @pytest.mark.parametrize(("filename", "source"), _BOUNDARY_CASES)
@@ -405,6 +440,82 @@ def test_pre_commit_hook_checks_mixed_staged_deletion(tmp_path: Path) -> None:
     assert "references.md" in output
 
 
+def test_pre_commit_hook_checks_rename_source_when_destination_is_filtered(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "definitions.md": "$$\nE = m c^2\n$$ {#energy}\n",
+            "references.md": "See {eq}`energy`.\n",
+            "notes.txt": "plain text\n",
+        },
+        hook_exclude=r"^definitions\.tmp$",
+    )
+    _git(project, "mv", "--", "definitions.md", "definitions.tmp")
+    (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
+    _git(project, "add", "--", "notes.txt")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint", "-v"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    assert "REF002" in output
+    assert "references.md" in output
+
+
+def test_pre_commit_hook_runs_one_project_check_for_large_staged_set(
+    tmp_path: Path,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {"existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n"},
+    )
+    staged_paths = [f"candidate-{index:04d}-{'x' * 180}.md" for index in range(700)]
+    for path in staged_paths:
+        (project / path).write_text("plain text\n", encoding="utf-8")
+    (project / "trigger.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
+    _git(project, "add", "--", *staged_paths, "trigger.md")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint", "-v"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    output = result.stdout + result.stderr
+    assert output.count("REF001") == 1
+
+
 def test_pre_commit_hook_forwards_consumer_arguments(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[1]
     revision = subprocess.run(
@@ -470,10 +581,8 @@ def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(tmp_path: P
     assert "must include '--'" in output
 
 
-@pytest.mark.parametrize("operation", ["modify", "delete", "rename"])
-def test_pre_commit_hook_honors_explicit_unrelated_files(
+def test_pre_commit_hook_uses_staged_index_for_explicit_file_selection(
     tmp_path: Path,
-    operation: str,
 ) -> None:
     repository = Path(__file__).resolve().parents[1]
     revision = subprocess.run(
@@ -484,33 +593,17 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
         text=True,
     ).stdout.strip()
     project = tmp_path / "project"
-    if operation == "modify":
-        _init_project(
-            project,
-            repository,
-            revision,
-            {
-                "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
-                "notes.txt": "plain text\n",
-            },
-        )
-        (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
-        _git(project, "add", "--", "chapter.md")
-    else:
-        _init_project(
-            project,
-            repository,
-            revision,
-            {
-                "definitions.md": "$$\nE = m c^2\n$$ {#energy}\n",
-                "references.md": "See {eq}`energy`.\n",
-                "notes.txt": "plain text\n",
-            },
-        )
-        if operation == "delete":
-            _git(project, "rm", "--", "definitions.md")
-        else:
-            _git(project, "mv", "--", "definitions.md", "definitions.md.tmp")
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
+            "notes.txt": "plain text\n",
+        },
+    )
+    (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
+    _git(project, "add", "--", "chapter.md")
 
     result = subprocess.run(
         ["pre-commit", "run", "scieqlint", "--files", "notes.txt"],
@@ -519,13 +612,12 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
         text=True,
     )
 
-    assert result.returncode == 0
+    assert result.returncode == 1
     output = result.stdout + result.stderr
-    assert "REF001" not in output
-    assert "REF002" not in output
+    assert "REF001" in output
 
 
-def test_pre_commit_hook_honors_consumer_exclude_for_existing_files(tmp_path: Path) -> None:
+def test_pre_commit_hook_uses_staged_index_despite_consumer_exclude(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[1]
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -555,8 +647,8 @@ def test_pre_commit_hook_honors_consumer_exclude_for_existing_files(tmp_path: Pa
         text=True,
     )
 
-    assert result.returncode == 0
-    assert "REF001" not in result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "REF001" in result.stdout + result.stderr
 
 
 def test_pre_commit_hook_skips_unrelated_changes(tmp_path: Path) -> None:

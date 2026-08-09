@@ -1918,13 +1918,22 @@ Exit codes:
 - id: scieqlint
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
-  entry: scieqlint check
+  entry: python -m scieqlint.pre_commit
+  args: ["--"]
   language: python
-  files: '\.(md|markdown)$'
-  require_serial: true
+  stages: [pre-commit]
+  always_run: true
+  pass_filenames: false
 ```
 
-v0.1.1 hook metadata must target only `.md` and `.markdown`. v0.1.3 expands the pattern to include `.tex`; v0.1.4 expands it to include `.ipynb`.
+During ordinary pre-commit runs, the hook reads the complete staged Git diff once and
+runs one complete project-context check when any changed path has a supported suffix:
+`.md`, `.markdown`, `.tex`, or `.ipynb`, case-insensitively. Deleted paths and both
+sides of renames remain part of the trigger set. The hook does not receive candidate
+filenames, so consumer `--files`, `exclude`, `types`, and `exclude_types` settings do
+not scope the staged-index check. Checker options are passed before the `--` boundary;
+filenames after it are rejected. Pre-push and generic revision-range runs are rejected
+because the adapter does not validate arbitrary revision snapshots.
 
 ### v0.1.5 SARIF workflow
 
