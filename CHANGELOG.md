@@ -51,10 +51,10 @@ Release notes must use these sections:
 - Unsupported TeX function names no longer trigger undefined-symbol warnings.
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
-- The pre-commit hook now runs a complete project-context check when supported
-  staged sources are added, changed, deleted, or renamed, regardless of suffix
-  case, without treating candidate paths as CLI input; checker options are
-  preserved before the required `--` boundary.
+- During ordinary staged pre-commit runs, the hook now runs a complete
+  project-context check when supported sources are added, changed, deleted, or
+  renamed, regardless of suffix case, without treating candidate paths as CLI
+  input; checker options are preserved before the required `--` boundary.
 
 ### Deprecated
 
