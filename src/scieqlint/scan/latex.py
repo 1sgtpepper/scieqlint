@@ -116,10 +116,11 @@ def _environment_blocks(
 
 def _align_blocks(document: SourceDocument, start: int, end: int) -> Iterable[MathBlock]:
     for row_start, row_end in _align_rows(document.text, start, end):
-        text = _clean_math_text(document.text[row_start:row_end]).replace("&", "").strip()
-        if not text:
+        span_start, span_end = _trim_span(document.text, row_start, row_end)
+        text = _clean_math_text(document.text[span_start:span_end]).replace("&", " ")
+        if not text.strip():
             continue
-        span = _span(document, row_start, row_end)
+        span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
             span=span,
@@ -147,10 +148,10 @@ def _math_block(
     end: int,
     container: MathContainer,
 ) -> MathBlock | None:
-    text = _clean_math_text(document.text[start:end])
-    if not text:
-        return None
     span_start, span_end = _trim_span(document.text, start, end)
+    text = _clean_math_text(document.text[span_start:span_end]).rstrip()
+    if not text.strip():
+        return None
     span = _span(document, span_start, span_end)
     return MathBlock(
         text=text,
@@ -162,18 +163,23 @@ def _math_block(
 
 def _clean_math_text(text: str) -> str:
     cleaned_lines: list[str] = []
-    for line in text.splitlines():
-        cleaned = _strip_comment(line).strip()
-        if cleaned:
-            cleaned_lines.append(cleaned)
-    return "\n".join(cleaned_lines)
+    for line in text.splitlines(keepends=True):
+        comment_start = _comment_start(line)
+        if comment_start is not None:
+            line = line[:comment_start] + _mask_to_length(line[comment_start:])
+        cleaned_lines.append(line)
+    return "".join(cleaned_lines)
 
 
-def _strip_comment(line: str) -> str:
+def _mask_to_length(text: str) -> str:
+    return "".join("\n" if char == "\n" else "\r" if char == "\r" else " " for char in text)
+
+
+def _comment_start(line: str) -> int | None:
     for index, char in enumerate(line):
         if char == "%" and not _is_escaped(line, index):
-            return line[:index]
-    return line
+            return index
+    return None
 
 
 def _labels(

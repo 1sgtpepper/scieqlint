@@ -136,9 +136,11 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 - `equation` and `equation*`
 - `align` and `align*`
 
-For `align`, rows are split on unescaped `\\` and alignment markers are removed before
-equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
+For `align`, rows are split on unescaped `\\` and alignment markers are masked with
+equal-length spaces before equation checks run, preserving source offsets. SciEqLint
+extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
 for reference checks. LaTeX macro expansion and full environment parsing are deferred.
+Normalized math retains source offsets for diagnostics.
 
 ## Dimensions
 

@@ -618,7 +618,7 @@ $$ ... $$
 \begin{align*} ... \end{align*}
 ```
 
-For `align`, scanner must split rows on unescaped `\\` and remove `&` alignment markers before creating `MathBlock` objects.
+For `align`, scanner must split rows on unescaped `\\` and mask `&` alignment markers with equal-length spaces before creating `MathBlock` objects, preserving source offsets.
 
 LaTeX scanner must ignore:
 

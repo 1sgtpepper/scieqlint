@@ -51,6 +51,8 @@ Release notes must use these sections:
 - Unsupported TeX function names no longer trigger undefined-symbol warnings.
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
+- LaTeX scanning now preserves normalized-math offsets for alignment markers and
+  comments.
 
 ### Deprecated
 

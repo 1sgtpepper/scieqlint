@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from scieqlint.config.model import Config
+from scieqlint.api import check_documents
+from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import (
     LabelSource,
@@ -25,18 +26,27 @@ def test_latex_equation_environment_is_extracted() -> None:
     assert result.blocks[0].span.line == 2
 
 
-def test_latex_align_environment_splits_rows_and_removes_alignment_markers() -> None:
+def test_latex_align_environment_splits_rows_and_masks_alignment_markers() -> None:
     result = LatexScanner().scan(
         _document("\\begin{align}\nE &= m c^2 \\\\[3pt]\nF &= m a\n\\end{align}\n"),
         Config(),
     )
 
-    assert [block.text for block in result.blocks] == ["E = m c^2", "F = m a"]
+    assert [block.text for block in result.blocks] == ["E  = m c^2", "F  = m a"]
     assert [block.container for block in result.blocks] == [
         MathContainer.LATEX_ALIGN,
         MathContainer.LATEX_ALIGN,
     ]
     assert result.diagnostics == ()
+
+
+def test_latex_align_skips_empty_rows() -> None:
+    result = LatexScanner().scan(
+        _document("\\begin{align}\n\\\\\nx &= x\n\\end{align}\n"),
+        Config(),
+    )
+
+    assert [block.text for block in result.blocks] == ["x  = x"]
 
 
 def test_latex_display_delimiters_are_extracted() -> None:
@@ -49,6 +59,38 @@ def test_latex_display_delimiters_are_extracted() -> None:
     assert [block.container for block in result.blocks] == [
         MathContainer.LATEX_DISPLAY,
         MathContainer.LATEX_DISPLAY,
+    ]
+
+
+def test_latex_empty_display_math_is_not_a_block() -> None:
+    result = LatexScanner().scan(_document("\\[\n \t\n\\]\n"), Config())
+
+    assert result.blocks == ()
+
+
+def test_latex_comment_mask_preserves_carriage_returns() -> None:
+    result = LatexScanner().scan(
+        _document("\\[\r\nx = x % commented\r\n\\]\r\n"),
+        Config(),
+    )
+
+    assert [block.text for block in result.blocks] == ["x = x"]
+
+
+def test_latex_alignment_mask_preserves_symbol_source_offsets() -> None:
+    document = _document("\\begin{align}\n  % removed comment\n  x &= y\n\\end{align}\n")
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+
+    assert [
+        (diagnostic.detail, diagnostic.span.line, diagnostic.span.col)
+        for diagnostic in result.diagnostics
+    ] == [
+        ("x", 3, 3),
+        ("y", 3, 8),
     ]
 
 
