@@ -237,7 +237,9 @@ class _Parser:
 
 def _is_atom_start(token: str) -> bool:
     return token not in TEX_MULTIPLY and (
-        token.startswith("\\") or token.isdigit() or token[0].isalpha()
+        token.startswith("\\")
+        or re.fullmatch(r"\d+(?:/\d+)?", token) is not None
+        or token[0].isalpha()
     )
 
 
