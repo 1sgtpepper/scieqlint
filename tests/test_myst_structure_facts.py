@@ -182,9 +182,7 @@ def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None
 
 
 def test_four_space_fence_closer_remains_inside_the_fence():
-    snapshot = MySTFrontend().lower(
-        (doc("```{math}\nx = x\n    ```\ny = y\n```\n"),)
-    )
+    snapshot = MySTFrontend().lower((doc("```{math}\nx = x\n    ```\ny = y\n```\n"),))
 
     assert len(snapshot.fences) == 1
     assert snapshot.fences[0].is_closed is True
