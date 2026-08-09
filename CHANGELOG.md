@@ -107,7 +107,8 @@ Release notes must use these sections:
 - LaTeX scanning now ignores starred and commented verbatim markers, respects
   TeX control-sequence boundaries outside verbatim, and closes live verbatim
   ranges at their first exact matching delimiter; same-line transitions between
-  verbatim content and comments now retain their lexical ownership.
+  verbatim content and comments now retain their lexical ownership. Overlapping
+  escaped dollar candidates no longer hide an adjacent live display block.
 
 ### Deprecated
 

@@ -73,8 +73,11 @@ def _delimited_blocks(
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored) or _is_escaped_opening(document.text, start, opening):
+        if _in_ranges(start, ignored):
             cursor = start + len(opening)
+            continue
+        if _is_escaped_opening(document.text, start, opening):
+            cursor = start + 1
             continue
         body_start = start + len(opening)
         close = _find_close(document, body_start, closing, ignored)
@@ -287,12 +290,13 @@ def _unterminated_delimiters(
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if (
-            _in_ranges(start, ignored)
-            or _is_escaped_opening(document.text, start, opening)
-            or any(range_start <= start < range_end for range_start, range_end in closed)
+        if _in_ranges(start, ignored) or any(
+            range_start <= start < range_end for range_start, range_end in closed
         ):
             cursor = start + len(opening)
+            continue
+        if _is_escaped_opening(document.text, start, opening):
+            cursor = start + 1
             continue
         if _find_close(document, start + len(opening), closing, ignored) == -1:
             yield _scan_diagnostic(document, start, start + len(opening))
@@ -310,8 +314,11 @@ def _delimiter_ranges(
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored) or _is_escaped_opening(document.text, start, opening):
+        if _in_ranges(start, ignored):
             cursor = start + len(opening)
+            continue
+        if _is_escaped_opening(document.text, start, opening):
+            cursor = start + 1
             continue
         body_start = start + len(opening)
         close = _find_close(document, body_start, closing, ignored)
@@ -333,11 +340,13 @@ def _find_close(
         close = document.text.find(closing, cursor)
         if close == -1:
             return -1
-        if not _in_ranges(close, ignored) and not _is_escaped_opening(
-            document.text, close, closing
-        ):
-            return close
-        cursor = close + len(closing)
+        if _in_ranges(close, ignored):
+            cursor = close + len(closing)
+            continue
+        if _is_escaped_opening(document.text, close, closing):
+            cursor = close + 1
+            continue
+        return close
 
 
 def _lexical_ranges(

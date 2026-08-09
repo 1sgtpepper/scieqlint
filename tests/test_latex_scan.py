@@ -53,6 +53,40 @@ def test_latex_display_delimiters_are_extracted() -> None:
     ]
 
 
+def test_escaped_dollar_candidate_does_not_skip_overlapping_opening() -> None:
+    result = LatexScanner().scan(_document(r"\$$$x=x$$" + "\n"), Config())
+
+    assert [block.text for block in result.blocks] == ["x=x"]
+    assert result.diagnostics == ()
+
+
+def test_escaped_dollar_candidate_does_not_skip_overlapping_closing() -> None:
+    result = LatexScanner().scan(_document(r"$$x=x\$$$" + "\n"), Config())
+
+    assert [block.text for block in result.blocks] == [r"x=x\$"]
+    assert result.diagnostics == ()
+
+
+def test_comment_line_endings_terminate_on_cr_and_crlf() -> None:
+    for newline in ("\r", "\r\n"):
+        result = LatexScanner().scan(
+            _document(
+                "% hidden \\begin{equation}"
+                + newline
+                + "\\begin{equation}"
+                + newline
+                + "x = x + 1"
+                + newline
+                + "\\end{equation}"
+                + newline
+            ),
+            Config(),
+        )
+
+        assert [block.text for block in result.blocks] == ["x = x + 1"]
+        assert result.diagnostics == ()
+
+
 def test_latex_scanner_ignores_comments_and_verbatim() -> None:
     result = LatexScanner().scan(
         _document(

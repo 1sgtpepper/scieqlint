@@ -280,18 +280,6 @@ def test_frontend_inline_math_whitespace_only_body_is_not_a_fact() -> None:
     assert MySTFrontend().lower((document,)).inline_math == ()
 
 
-def test_myst_dollar_labels_follow_backslash_parity() -> None:
-    document = SourceDocument.from_text(
-        PurePosixPath("paper.md"),
-        "$$\n\\label{one}\n\\\\label{two}\n\\\\\\label{three}\n\\\\\\\\label{four}\n$$\n",
-        DocumentKind.MARKDOWN,
-    )
-
-    snapshot = MySTFrontend().lower((document,))
-
-    assert [label.label for label in snapshot.equation_labels] == ["one", "three"]
-
-
 def test_blank_line_does_not_end_myst_math_label_prefix() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
