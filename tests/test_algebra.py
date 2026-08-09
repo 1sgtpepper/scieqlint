@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import PurePosixPath
 
 from scieqlint.check.algebra import check_algebra
@@ -46,6 +47,26 @@ def test_line_break_does_not_continue_an_incomplete_equation() -> None:
 
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
     assert diagnostics[0].equation == "x ="
+
+
+def test_oversized_integer_exponent_is_controlled_unsupported_syntax() -> None:
+    original_limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(sys.int_info.str_digits_check_threshold)
+    try:
+        oversized = "9" * 5000
+        diagnostics = check_algebra(_first_block(f"$$\nx^{oversized} = x\n$$\n"))
+    finally:
+        sys.set_int_max_str_digits(original_limit)
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_deeply_nested_algebra_is_controlled_unsupported_syntax() -> None:
+    depth = 1000
+    equation = f"{'(' * depth}x{')' * depth} = x"
+    diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
 def test_supported_tex_fraction_is_checked() -> None:

@@ -38,6 +38,10 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
             except UnsupportedExpressionError as exc:
                 diagnostics.append(_unsupported_diagnostic(span, equation.text, exc.code))
                 continue
+            except RecursionError:
+                # Deeply nested groups are unsupported, not checker failures.
+                diagnostics.append(_unsupported_diagnostic(span, equation.text, "PARSE020"))
+                continue
 
             if _symbols(left) != _symbols(right):
                 continue
@@ -189,7 +193,11 @@ class _Parser:
             number = self._take()
         if not number.value.isdigit():
             raise UnsupportedExpressionError("non-integer exponent")
-        return sign * int(number.value)
+        try:
+            exponent = int(number.value)
+        except ValueError as exc:
+            raise UnsupportedExpressionError("invalid integer exponent") from exc
+        return sign * exponent
 
     def _group(self) -> Polynomial:
         if self._peek_value() != "(":
