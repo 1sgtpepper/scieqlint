@@ -150,7 +150,16 @@ class _Parser:
         if value == "\\frac":
             return _div(self._group(), self._group())
         if value == "\\sqrt":
-            return _sqrt(self._group())
+            operand_start = self.index
+            operand = self._group()
+            # Preserve the original root operand's symbol information before
+            # normalization can erase it through cancellation or exponent zero.
+            if any(
+                re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token.value)
+                for token in self.tokens[operand_start : self.index]
+            ):
+                raise UnsupportedExpressionError("sqrt of symbolic expression")
+            return _sqrt(operand)
         if value in TEX_MULTIPLY:
             raise UnsupportedExpressionError("unexpected multiplication operator")
         if value.startswith("\\"):

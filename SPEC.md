@@ -292,7 +292,7 @@ equation_group : equation (line_sep equation)*
 equation       : expr "=" expr ("=" expr)*
 expr           : sum
 sum            : product (("+" | "-") product)*
-product        : power (("*" | "/" | implicit_mul) power)*
+product        : unary (("*" | "/" | implicit_mul) unary)*
 power          : atom ("^" signed_integer)?
 unary          : ("+" | "-") unary | power
 atom           : NUMBER | SYMBOL | group | frac | sqrt

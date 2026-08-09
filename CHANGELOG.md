@@ -52,8 +52,9 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
-- Algebraic parsing now applies exponentiation before unary signs and keeps
-  symbolic square roots conservative.
+- Algebraic parsing now applies exponentiation before unary signs, keeps
+  symbolic square roots conservative, and does not simplify symbolic root
+  operands after cancellation.
 
 ### Deprecated
 

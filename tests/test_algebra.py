@@ -84,6 +84,13 @@ def test_grouped_symbolic_difference_sqrt_is_not_simplified() -> None:
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
+def test_symbolic_sqrt_that_normalizes_to_constant_is_not_simplified() -> None:
+    for equation in ("\\sqrt{x/x} = 1", "\\sqrt{4*x/x} = 2", "\\sqrt{x^0} = 1"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], equation
+
+
 def test_unary_negation_binds_after_exponentiation() -> None:
     diagnostics = check_algebra(_first_block("$$\n-x^2 = x^2\n$$\n"))
 
