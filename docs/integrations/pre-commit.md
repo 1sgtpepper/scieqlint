@@ -14,9 +14,10 @@ The hook checks `.md`, `.markdown`, `.tex`, and `.ipynb` changes, including uppe
 suffixes, during ordinary `pre-commit` runs. It keeps pre-commit's candidate selection
 authoritative for existing paths, including explicit `--files`, `exclude`, `types`, and
 `exclude_types` selections. When pre-commit removes every candidate, the adapter
-consults the staged diff only for deleted paths and rename sources; ordinary staged
-modifications do not bypass that selection. Pre-push and generic ref-range runs are
-rejected because this adapter does not validate arbitrary revision snapshots.
+consults the staged diff only for deleted paths and rename sources; those invisible-role
+recoveries cannot be suppressed by consumer filters. Ordinary staged modifications do
+not bypass candidate selection. Pre-push and generic ref-range runs are rejected because
+this adapter does not validate arbitrary revision snapshots.
 
 When a supported change is present, the adapter runs a complete project-context check
 rather than passing candidate filenames as checker input; configuration, ignore rules,

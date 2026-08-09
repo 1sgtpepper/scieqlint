@@ -42,11 +42,17 @@ def _diff_records(*diff_arguments: str) -> tuple[tuple[str, tuple[str, ...]], ..
     return tuple(records)
 
 
-def _staged_invisible_paths() -> tuple[str, ...]:
+def _staged_records() -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return _diff_records("--cached")
+
+
+def _invisible_paths(
+    records: Sequence[tuple[str, tuple[str, ...]]],
+) -> tuple[str, ...]:
     # Recover only paths pre-commit removes before invocation: deletions and
     # rename sources. Existing additions and modifications remain candidate-owned.
     paths: list[str] = []
-    for status, changed_paths in _diff_records("--cached"):
+    for status, changed_paths in records:
         if status == "D":
             paths.extend(changed_paths)
         elif status == "R":
@@ -86,7 +92,12 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if any(_is_supported(path) for path in candidate_paths):
         paths = candidate_paths
     else:
-        paths = (*candidate_paths, *_staged_invisible_paths())
+        staged_records = _staged_records()
+        staged_paths = {path for _, changed_paths in staged_records for path in changed_paths}
+        if candidate_paths and not any(path in staged_paths for path in candidate_paths):
+            paths = candidate_paths
+        else:
+            paths = (*candidate_paths, *_invisible_paths(staged_records))
     if not any(_is_supported(path) for path in paths):
         return 0
     return subprocess.run(

@@ -143,7 +143,13 @@ def test_pre_commit_adapter_recovers_only_invisible_index_paths(
 
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
-    assert pre_commit._staged_invisible_paths() == (
+    records = pre_commit._staged_records()
+    assert records == (
+        ("R", ("definitions.md", "definitions.md.tmp")),
+        ("C", ("source.tex", "copy.tex")),
+        ("D", ("notes.txt",)),
+    )
+    assert pre_commit._invisible_paths(records) == (
         "definitions.md",
         "notes.txt",
     )
@@ -233,7 +239,8 @@ def test_pre_commit_adapter_recovers_invisible_staged_paths(
         calls.append(command)
         return subprocess.CompletedProcess(command, returncode=5)
 
-    monkeypatch.setattr(pre_commit, "_staged_invisible_paths", lambda: invisible_paths)
+    staged_records = () if not invisible_paths else (("D", invisible_paths),)
+    monkeypatch.setattr(pre_commit, "_staged_records", lambda: staged_records)
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
     assert pre_commit.main(("--",)) == (5 if invokes_checker else 0)
@@ -404,7 +411,11 @@ def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(tmp_path: P
     assert "must include '--'" in output
 
 
-def test_pre_commit_hook_honors_explicit_unrelated_files(tmp_path: Path) -> None:
+@pytest.mark.parametrize("operation", ["modify", "delete", "rename"])
+def test_pre_commit_hook_honors_explicit_unrelated_files(
+    tmp_path: Path,
+    operation: str,
+) -> None:
     repository = Path(__file__).resolve().parents[1]
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -414,17 +425,33 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(tmp_path: Path) -> None
         text=True,
     ).stdout.strip()
     project = tmp_path / "project"
-    _init_project(
-        project,
-        repository,
-        revision,
-        {
-            "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
-            "notes.txt": "plain text\n",
-        },
-    )
-    (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
-    _git(project, "add", "--", "chapter.md")
+    if operation == "modify":
+        _init_project(
+            project,
+            repository,
+            revision,
+            {
+                "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
+                "notes.txt": "plain text\n",
+            },
+        )
+        (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
+        _git(project, "add", "--", "chapter.md")
+    else:
+        _init_project(
+            project,
+            repository,
+            revision,
+            {
+                "definitions.md": "$$\nE = m c^2\n$$ {#energy}\n",
+                "references.md": "See {eq}`energy`.\n",
+                "notes.txt": "plain text\n",
+            },
+        )
+        if operation == "delete":
+            _git(project, "rm", "--", "definitions.md")
+        else:
+            _git(project, "mv", "--", "definitions.md", "definitions.md.tmp")
 
     result = subprocess.run(
         ["pre-commit", "run", "scieqlint", "--files", "notes.txt"],
@@ -434,7 +461,9 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(tmp_path: Path) -> None
     )
 
     assert result.returncode == 0
-    assert "REF001" not in result.stdout + result.stderr
+    output = result.stdout + result.stderr
+    assert "REF001" not in output
+    assert "REF002" not in output
 
 
 def test_pre_commit_hook_honors_consumer_exclude_for_existing_files(tmp_path: Path) -> None:
