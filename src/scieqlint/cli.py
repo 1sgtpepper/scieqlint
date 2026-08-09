@@ -5,19 +5,18 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TextIO
+from typing import Protocol, TextIO
 
 import click
 
 from scieqlint import __version__
-from scieqlint.app import (
+from scieqlint.api import (
     _run_check_paths,  # pyright: ignore[reportPrivateUsage]
     _run_graph_paths,  # pyright: ignore[reportPrivateUsage]
 )
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.graph.json import render_graph_json
-from scieqlint.io.identity import FileIdentity
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -28,6 +27,12 @@ class _OperationalError(click.ClickException):
     """A controlled CLI failure unrelated to lint findings."""
 
     exit_code = 2
+
+
+class _ConsumedIdentity(Protocol):
+    """Writer-side contract for an identity captured by the analysis owner."""
+
+    def matches(self, stat_result: os.stat_result) -> bool: ...
 
 
 DEFAULT_CONFIG = """[project]
@@ -261,7 +266,7 @@ def _write_output(
     output_path: Path | None,
     stdout: TextIO,
     *,
-    consumed_identities: tuple[FileIdentity, ...] = (),
+    consumed_identities: tuple[_ConsumedIdentity, ...] = (),
     input_identities_complete: bool = True,
 ) -> None:
     if output_path is None:

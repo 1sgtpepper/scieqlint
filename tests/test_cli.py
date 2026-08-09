@@ -173,6 +173,67 @@ def test_graph_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
     assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
 
 
+def test_graph_refuses_hardlink_to_consumed_source_after_source_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "$$\na = a\n$$ {#energy}\n"
+    doc.write_text(original, encoding="utf-8")
+    os.link(doc, output)
+    real_run = cli_module._run_graph_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text("# replacement\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+    assert doc.read_text(encoding="utf-8") == "# replacement\n"
+
+
+def test_graph_refuses_hardlink_to_consumed_config_after_config_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    os.link(config, output)
+    real_run = cli_module._run_graph_paths
+
+    def replace_config_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text("[report]\nshow_suppressed = false\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_config_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
 def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "README.md"
     config = tmp_path / "scieqlint.toml"

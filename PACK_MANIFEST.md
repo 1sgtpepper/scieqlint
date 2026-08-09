@@ -167,6 +167,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/graph/model.py`
 - `src/scieqlint/io/__init__.py`
 - `src/scieqlint/io/discover.py`
+- `src/scieqlint/io/identity.py`
 - `src/scieqlint/io/limits.py`
 - `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`
