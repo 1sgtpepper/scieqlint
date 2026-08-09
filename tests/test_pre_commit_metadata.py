@@ -253,6 +253,26 @@ def test_pre_commit_adapter_recovers_invisible_staged_paths(
     )
 
 
+def test_pre_commit_adapter_recovers_deletion_with_existing_staged_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, returncode=5)
+
+    monkeypatch.setattr(
+        pre_commit,
+        "_staged_records",
+        lambda: (("D", ("deleted.md",)), ("M", ("notes.txt",))),
+    )
+    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
+
+    assert pre_commit.main(("--", "notes.txt")) == 5
+    assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
+
+
 def test_pre_commit_adapter_module_entrypoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -336,6 +356,43 @@ def test_pre_commit_hook_checks_when_supported_source_leaves_project(
         _git(project, "rm", "--", "definitions.md")
     else:
         _git(project, "mv", "--", "definitions.md", "definitions.md.tmp")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint", "-v"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    output = result.stdout + result.stderr
+    assert "REF002" in output
+    assert "references.md" in output
+
+
+def test_pre_commit_hook_checks_mixed_staged_deletion(tmp_path: Path) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "definitions.md": "$$\nE = m c^2\n$$ {#energy}\n",
+            "references.md": "See {eq}`energy`.\n",
+            "notes.txt": "plain text\n",
+        },
+    )
+    (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
+    _git(project, "add", "--", "notes.txt")
+    _git(project, "rm", "--", "definitions.md")
 
     result = subprocess.run(
         ["pre-commit", "run", "scieqlint", "-v"],
@@ -440,8 +497,7 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
             },
         )
         (project / "chapter.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
-        (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
-        _git(project, "add", "--", "chapter.md", "notes.txt")
+        _git(project, "add", "--", "chapter.md")
     else:
         _init_project(
             project,
@@ -453,8 +509,6 @@ def test_pre_commit_hook_honors_explicit_unrelated_files(
                 "notes.txt": "plain text\n",
             },
         )
-        (project / "notes.txt").write_text("unrelated staged text\n", encoding="utf-8")
-        _git(project, "add", "--", "notes.txt")
         if operation == "delete":
             _git(project, "rm", "--", "definitions.md")
         else:

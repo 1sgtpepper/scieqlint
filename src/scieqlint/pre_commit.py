@@ -49,13 +49,15 @@ def _staged_records() -> tuple[tuple[str, tuple[str, ...]], ...]:
 def _invisible_paths(
     records: Sequence[tuple[str, tuple[str, ...]]],
     candidate_paths: Sequence[str] = (),
+    staged_paths: set[str] | None = None,
 ) -> tuple[str, ...]:
     # Recover only paths pre-commit removes before invocation: deletions and
     # rename sources. Existing additions and modifications remain candidate-owned.
     candidates = set(candidate_paths)
+    staged = set() if staged_paths is None else staged_paths
     paths: list[str] = []
     for status, changed_paths in records:
-        if status == "D" and not candidates:
+        if status == "D" and (not candidates or candidates <= staged):
             paths.extend(changed_paths)
         elif status == "R" and (
             not candidates or changed_paths[1] in candidates
@@ -97,7 +99,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
         paths = candidate_paths
     else:
         staged_records = _staged_records()
-        paths = (*candidate_paths, *_invisible_paths(staged_records, candidate_paths))
+        staged_paths = {
+            path for _, changed_paths in staged_records for path in changed_paths
+        }
+        paths = (
+            *candidate_paths,
+            *_invisible_paths(
+                staged_records,
+                candidate_paths,
+                staged_paths,
+            ),
+        )
     if not any(_is_supported(path) for path in paths):
         return 0
     return subprocess.run(
