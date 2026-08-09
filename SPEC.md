@@ -1922,18 +1922,20 @@ Exit codes:
   args: ["--"]
   language: python
   stages: [pre-commit]
+  minimum_pre_commit_version: "3.2.0"
   always_run: true
   pass_filenames: false
 ```
 
-During ordinary pre-commit runs, the hook reads the complete staged Git diff once and
-runs one complete project-context check when any changed path has a supported suffix:
-`.md`, `.markdown`, `.tex`, or `.ipynb`, case-insensitively. Deleted paths and both
-sides of renames remain part of the trigger set. The hook does not receive candidate
-filenames, so consumer `--files`, `exclude`, `types`, and `exclude_types` settings do
-not scope the staged-index check. Checker options are passed before the `--` boundary;
-filenames after it are rejected. Pre-push and generic revision-range runs are rejected
-because the adapter does not validate arbitrary revision snapshots.
+During ordinary pre-commit runs, the hook runs one complete project-context check per
+invocation, including clean `--all-files`, explicit `--files`, and unsupported-only
+staged changes. Pre-commit stashes unstaged worktree changes before invoking the hook,
+so the check observes the staged project snapshot. The hook does not receive candidate
+filenames because each invocation must run exactly once; consumer `--files`, `exclude`,
+`types`, and `exclude_types` settings do not scope the project check. Checker options
+are passed before the `--` boundary; filenames after it are rejected. Pre-push and
+generic revision-range runs are rejected because the adapter does not validate
+arbitrary revision snapshots.
 
 ### v0.1.5 SARIF workflow
 

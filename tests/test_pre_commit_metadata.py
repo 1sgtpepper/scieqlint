@@ -93,62 +93,11 @@ def test_pre_commit_hook_metadata_targets_supported_sources() -> None:
     assert 'args: ["--"]' in metadata
     assert "language: python" in metadata
     assert "stages: [pre-commit]" in metadata
+    assert 'minimum_pre_commit_version: "3.2.0"' in metadata
     assert "files:" not in metadata
     assert "always_run: true" in metadata
     assert "pass_filenames: false" in metadata
     assert "require_serial:" not in metadata
-
-
-@pytest.mark.parametrize(
-    ("path", "expected"),
-    [
-        ("paper.md", True),
-        ("paper.MD", True),
-        ("paper.tex", True),
-        ("paper.IPYNB", True),
-        ("paper.md.tmp", False),
-        ("paper", False),
-    ],
-)
-def test_pre_commit_adapter_classifies_source_suffix(
-    path: str,
-    expected: bool,
-) -> None:
-    assert pre_commit._is_supported(path) is expected
-
-
-def test_pre_commit_adapter_parses_all_staged_path_roles(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    completed = subprocess.CompletedProcess(
-        args=[],
-        returncode=0,
-        stdout=(
-            b"R100\0definitions.md\0definitions.md.tmp\0C100\0source.tex\0copy.tex\0D\0notes.txt\0"
-        ),
-    )
-
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
-        assert command == [
-            "git",
-            "diff",
-            "--cached",
-            "--name-status",
-            "--diff-filter=ACDMRTUXB",
-            "-z",
-            "--",
-        ]
-        assert kwargs == {"check": True, "capture_output": True}
-        return completed
-
-    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
-
-    records = pre_commit._staged_records()
-    assert records == (
-        ("R", ("definitions.md", "definitions.md.tmp")),
-        ("C", ("source.tex", "copy.tex")),
-        ("D", ("notes.txt",)),
-    )
 
 
 def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
@@ -158,7 +107,7 @@ def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:
     )
 
 
-def test_pre_commit_adapter_runs_project_check_for_supported_staged_change(
+def test_pre_commit_adapter_runs_one_project_check(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[list[str], dict[str, object]]] = []
@@ -167,11 +116,6 @@ def test_pre_commit_adapter_runs_project_check_for_supported_staged_change(
         calls.append((command, kwargs))
         return subprocess.CompletedProcess(command, returncode=7)
 
-    monkeypatch.setattr(
-        pre_commit,
-        "_staged_records",
-        lambda: (("M", ("chapter.MD",)),),
-    )
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
     assert pre_commit.main(("--",)) == 7
@@ -192,11 +136,6 @@ def test_pre_commit_adapter_forwards_checker_options(
         calls.append(command)
         return subprocess.CompletedProcess(command, returncode=7)
 
-    monkeypatch.setattr(
-        pre_commit,
-        "_staged_records",
-        lambda: (("M", ("chapter.MD",)),),
-    )
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
 
     assert pre_commit.main(("--strict-unknowns", "--")) == 7
@@ -237,62 +176,6 @@ def test_pre_commit_adapter_rejects_revision_range(
     assert "revision-range runs are not supported" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize(
-    ("staged_records", "invokes_checker"),
-    [
-        ((), False),
-        ((("M", ("unrelated.txt",)),), False),
-        ((("D", ("deleted.md",)),), True),
-        ((("R", ("definitions.md", "definitions.tmp")),), True),
-        ((("R", ("definitions.tmp", "definitions.md")),), True),
-        ((("T", ("paper.tex",)),), True),
-    ],
-)
-def test_pre_commit_adapter_triggers_from_any_staged_path_role(
-    monkeypatch: pytest.MonkeyPatch,
-    staged_records: tuple[tuple[str, tuple[str, ...]], ...],
-    invokes_checker: bool,
-) -> None:
-    calls: list[list[str]] = []
-
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
-        calls.append(command)
-        return subprocess.CompletedProcess(command, returncode=5)
-
-    monkeypatch.setattr(pre_commit, "_staged_records", lambda: staged_records)
-    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
-
-    assert pre_commit.main(("--",)) == (5 if invokes_checker else 0)
-    assert calls == (
-        [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]] if invokes_checker else []
-    )
-
-
-def test_pre_commit_adapter_runs_one_project_check_for_all_staged_records(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[list[str]] = []
-
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
-        calls.append(command)
-        return subprocess.CompletedProcess(command, returncode=5)
-
-    monkeypatch.setattr(
-        pre_commit,
-        "_staged_records",
-        lambda: (
-            ("M", ("notes.txt",)),
-            ("R", ("definitions.md", "definitions.tmp")),
-            ("D", ("deleted.md",)),
-            ("M", ("chapter.MD",)),
-        ),
-    )
-    monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
-
-    assert pre_commit.main(("--",)) == 5
-    assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
-
-
 def test_pre_commit_adapter_module_entrypoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -300,8 +183,6 @@ def test_pre_commit_adapter_module_entrypoint(
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
         calls.append(command)
-        if command[0] == "git":
-            return subprocess.CompletedProcess(command, returncode=0, stdout=b"M\0chapter.MD\0")
         return subprocess.CompletedProcess(command, returncode=0)
 
     monkeypatch.setattr(pre_commit.subprocess, "run", fake_run)
@@ -311,18 +192,7 @@ def test_pre_commit_adapter_module_entrypoint(
         runpy.run_path(str(Path(pre_commit.__file__)), run_name="__main__")
 
     assert raised.value.code == 0
-    assert calls == [
-        [
-            "git",
-            "diff",
-            "--cached",
-            "--name-status",
-            "--diff-filter=ACDMRTUXB",
-            "-z",
-            "--",
-        ],
-        [pre_commit.sys.executable, "-m", "scieqlint", "check", "--"],
-    ]
+    assert calls == [[pre_commit.sys.executable, "-m", "scieqlint", "check", "--"]]
 
 
 @pytest.mark.parametrize(("filename", "source"), _BOUNDARY_CASES)
@@ -360,6 +230,108 @@ def test_pre_commit_hook_checks_unchanged_project_context(
     output = result.stdout + result.stderr
     assert "REF001" in output
     assert "No such option" not in output
+
+
+@pytest.mark.parametrize(
+    ("selection", "stage_unrelated"),
+    [
+        (("--all-files",), False),
+        (("--files", "chapter.md"), False),
+        (("--all-files",), True),
+    ],
+)
+def test_pre_commit_hook_checks_every_selection_mode(
+    tmp_path: Path,
+    selection: tuple[str, ...],
+    stage_unrelated: bool,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
+            "chapter.md": "$$\nF = m a\n$$ {#duplicate}\n",
+        },
+    )
+    if stage_unrelated:
+        (project / "notes.txt").write_text("plain text\n", encoding="utf-8")
+        _git(project, "add", "--", "notes.txt")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint", *selection],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "REF001" in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("staged_source", "working_source", "expected_returncode"),
+    [
+        (
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            "plain text\n",
+            1,
+        ),
+        (
+            "plain text\nadditional staged text\n",
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            0,
+        ),
+    ],
+)
+def test_pre_commit_hook_checks_staged_snapshot_not_unstaged_worktree(
+    tmp_path: Path,
+    staged_source: str,
+    working_source: str,
+    expected_returncode: int,
+) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {
+            "existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n",
+            "chapter.md": "plain text\n",
+        },
+    )
+    (project / "chapter.md").write_text(staged_source, encoding="utf-8")
+    _git(project, "add", "--", "chapter.md")
+    (project / "chapter.md").write_text(working_source, encoding="utf-8")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    output = result.stdout + result.stderr
+    assert result.returncode == expected_returncode
+    assert ("REF001" in output) is (expected_returncode == 1)
+    assert (project / "chapter.md").read_text(encoding="utf-8") == working_source
 
 
 @pytest.mark.parametrize("operation", ["delete", "rename"])
@@ -651,7 +623,7 @@ def test_pre_commit_hook_uses_staged_index_despite_consumer_exclude(tmp_path: Pa
     assert "REF001" in result.stdout + result.stderr
 
 
-def test_pre_commit_hook_skips_unrelated_changes(tmp_path: Path) -> None:
+def test_pre_commit_hook_checks_unrelated_staged_changes(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[1]
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -680,5 +652,5 @@ def test_pre_commit_hook_skips_unrelated_changes(tmp_path: Path) -> None:
         text=True,
     )
 
-    assert result.returncode == 0
-    assert "REF001" not in result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "REF001" in result.stdout + result.stderr
