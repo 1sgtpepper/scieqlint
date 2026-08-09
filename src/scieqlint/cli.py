@@ -10,13 +10,14 @@ from typing import TextIO
 import click
 
 from scieqlint import __version__
-from scieqlint.api import (
-    check_paths_with_inputs,
-    graph_paths_with_inputs,
+from scieqlint.app import (
+    _run_check_paths,  # pyright: ignore[reportPrivateUsage]
+    _run_graph_paths,  # pyright: ignore[reportPrivateUsage]
 )
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.graph.json import render_graph_json
+from scieqlint.io.identity import FileIdentity
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -92,7 +93,12 @@ def main() -> None:
     type=click.Choice(["text", "json", "github", "sarif"]),
     default="text",
 )
-@click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, readable=False),
+    default=None,
+)
 @click.option("--no-algebra", is_flag=True, help="Disable algebra checks.")
 @click.option("--inline-math", is_flag=True, help="Scan inline math.")
 @click.option("--quiet", is_flag=True, help="Suppress empty-success text output.")
@@ -111,7 +117,7 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
-        result, protected_paths = check_paths_with_inputs(
+        run = _run_check_paths(
             paths,
             config_path=config_path,
             no_algebra=no_algebra,
@@ -120,15 +126,21 @@ def check(
             absolute_paths=absolute_paths,
         )
         if output_format == "json":
-            rendered = JsonReporter().render(result)
+            rendered = JsonReporter().render(run.result)
         elif output_format == "github":
-            rendered = GitHubReporter().render(result)
+            rendered = GitHubReporter().render(run.result)
         elif output_format == "sarif":
-            rendered = SarifReporter().render(result)
+            rendered = SarifReporter().render(run.result)
         else:
-            rendered = TextReporter(quiet=quiet).render(result)
-        _write_output(rendered, output_path, sys.stdout, protected_paths=protected_paths)
-        raise SystemExit(result.exit_code())
+            rendered = TextReporter(quiet=quiet).render(run.result)
+        _write_output(
+            rendered,
+            output_path,
+            sys.stdout,
+            consumed_identities=run.consumed_identities,
+            input_identities_complete=run.input_identities_complete,
+        )
+        raise SystemExit(run.result.exit_code())
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
@@ -183,7 +195,12 @@ def show_preset(name: str) -> None:
 @main.command()
 @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
 @click.option("--config", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, readable=False),
+    default=None,
+)
 def graph(
     paths: tuple[Path, ...],
     config_path: Path | None,
@@ -191,9 +208,15 @@ def graph(
 ) -> None:
     """Build a graph JSON export."""
     try:
-        graph, protected_paths = graph_paths_with_inputs(paths, config_path=config_path)
-        rendered = render_graph_json(graph)
-        _write_output(rendered, output_path, sys.stdout, protected_paths=protected_paths)
+        run = _run_graph_paths(paths, config_path=config_path)
+        rendered = render_graph_json(run.result)
+        _write_output(
+            rendered,
+            output_path,
+            sys.stdout,
+            consumed_identities=run.consumed_identities,
+            input_identities_complete=run.input_identities_complete,
+        )
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
@@ -238,7 +261,8 @@ def _write_output(
     output_path: Path | None,
     stdout: TextIO,
     *,
-    protected_paths: tuple[Path, ...] = (),
+    consumed_identities: tuple[FileIdentity, ...] = (),
+    input_identities_complete: bool = True,
 ) -> None:
     if output_path is None:
         if rendered:
@@ -246,25 +270,15 @@ def _write_output(
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
-    if any(_same_file(output_path, path) for path in protected_paths):
+    if not input_identities_complete:
         raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
     descriptor: int | None = None
     try:
-        descriptor = os.open(output_path, os.O_RDWR | os.O_CREAT, 0o666)
+        descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT, 0o666)
         output_stat = os.fstat(descriptor)
-        for protected_path in protected_paths:
-            try:
-                if os.path.samestat(output_stat, os.stat(protected_path)):
-                    raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
-            except FileNotFoundError as exc:
-                raise _OperationalError(
-                    f"refusing to overwrite analysis input: {output_path}"
-                ) from exc
-            except (OSError, ValueError) as exc:
-                raise _OperationalError(
-                    f"refusing to overwrite analysis input: {output_path}"
-                ) from exc
-        with os.fdopen(descriptor, "r+", encoding="utf-8") as output:
+        if any(identity.matches(output_stat) for identity in consumed_identities):
+            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             descriptor = None
             output.seek(0)
             output.truncate()
@@ -276,14 +290,3 @@ def _write_output(
     finally:
         if descriptor is not None:
             os.close(descriptor)
-
-
-def _same_file(left: Path, right: Path) -> bool:
-    if left.absolute() == right.absolute():
-        return True
-    try:
-        return left.samefile(right)
-    except FileNotFoundError:
-        return False
-    except (OSError, ValueError) as exc:
-        raise _OperationalError(f"refusing to overwrite analysis input: {left}") from exc

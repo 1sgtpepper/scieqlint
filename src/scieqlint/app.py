@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
+from typing import Generic, TypeVar
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
@@ -13,7 +14,7 @@ from scieqlint.check.dimensions import check_dimensions
 from scieqlint.check.references import check_references
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
-from scieqlint.config.load import load_config
+from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.baseline import (
     BaselineIdentity,
@@ -28,12 +29,24 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
+from scieqlint.io.identity import FileIdentity, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookScanner
+
+_ResultT = TypeVar("_ResultT")
+
+
+@dataclass(frozen=True, slots=True)
+class _AnalysisRun(Generic[_ResultT]):
+    """An analysis result paired with identities captured while its inputs were read."""
+
+    result: _ResultT
+    consumed_identities: tuple[FileIdentity, ...]
+    input_identities_complete: bool = True
 
 
 def check_paths(
@@ -46,18 +59,17 @@ def check_paths(
     absolute_paths: bool = False,
 ) -> CheckResult:
     """Load supported files and check them."""
-    result, _protected_paths = check_paths_with_inputs(
+    return _run_check_paths(
         paths,
         config_path=config_path,
         no_algebra=no_algebra,
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
         absolute_paths=absolute_paths,
-    )
-    return result
+    ).result
 
 
-def check_paths_with_inputs(
+def _run_check_paths(
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
@@ -65,10 +77,11 @@ def check_paths_with_inputs(
     inline_math: bool = False,
     strict_unknowns: bool = False,
     absolute_paths: bool = False,
-) -> tuple[CheckResult, tuple[Path, ...]]:
-    """Load supported files, check them, and retain the consumed paths for CLI safety."""
+) -> _AnalysisRun[CheckResult]:
+    """Load supported files, check them, and retain their consumed identities."""
+    config, config_identities = _load_config_with_inputs(config_path)
     config = _apply_overrides(
-        load_config(config_path),
+        config,
         no_algebra=no_algebra,
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
@@ -83,11 +96,19 @@ def check_paths_with_inputs(
     )
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
+    consumed_identities = list(config_identities)
+    input_identities_complete = True
 
     for path in discovered:
+        opened = False
         try:
-            text = path.read_text(encoding="utf-8")
+            with open_text(path, encoding="utf-8") as (stream, identity):
+                opened = True
+                consumed_identities.append(identity)
+                text = stream.read()
         except (OSError, UnicodeError) as exc:
+            if not opened:
+                input_identities_complete = False
             info = CATALOG["INP001"]
             diagnostics.append(
                 Diagnostic(
@@ -109,8 +130,11 @@ def check_paths_with_inputs(
 
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
-    diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, project_root))
-    return (
+    diagnostics_result = apply_baseline(
+        diagnostics_result,
+        _load_baselines(config, project_root, consumed_identities),
+    )
+    return _AnalysisRun(
         CheckResult(
             diagnostics=diagnostics_result,
             files_checked=len(discovered),
@@ -119,7 +143,8 @@ def check_paths_with_inputs(
             version=__version__,
             show_suppressed=config.report.show_suppressed,
         ),
-        _check_protected_paths(discovered, config, project_root),
+        tuple(consumed_identities),
+        input_identities_complete,
     )
 
 
@@ -215,32 +240,34 @@ def graph_paths(
     config_path: Path | str | None = None,
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
-    graph, _protected_paths = graph_paths_with_inputs(paths, config_path=config_path)
-    return graph
+    return _run_graph_paths(paths, config_path=config_path).result
 
 
-def graph_paths_with_inputs(
+def _run_graph_paths(
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
-) -> tuple[Graph, tuple[Path, ...]]:
-    """Load files, build the graph, and retain consumed paths for CLI safety."""
-    config = load_config(config_path)
+) -> _AnalysisRun[Graph]:
+    """Load files, build the graph, and retain their consumed identities."""
+    config, config_identities = _load_config_with_inputs(config_path)
     discovered = _discover_files(
         paths or [Path(".")],
         config.ignore.files,
         reject_missing_explicit=bool(paths),
     )
     documents: list[SourceDocument] = []
+    consumed_identities = list(config_identities)
     for path in discovered:
-        documents.append(
-            SourceDocument.from_text(
-                _display_path(path, absolute_paths=False),
-                path.read_text(encoding="utf-8"),
-                _document_kind(path),
+        with open_text(path, encoding="utf-8") as (stream, identity):
+            consumed_identities.append(identity)
+            documents.append(
+                SourceDocument.from_text(
+                    _display_path(path, absolute_paths=False),
+                    stream.read(),
+                    _document_kind(path),
+                )
             )
-        )
-    return graph_documents(documents, config=config), _protected_paths(discovered, config)
+    return _AnalysisRun(graph_documents(documents, config=config), tuple(consumed_identities))
 
 
 def graph_documents(
@@ -396,10 +423,16 @@ def _project_relative_path(path: Path, project_root: Path | None) -> str:
     return _display_path(path, absolute_paths=False).as_posix()
 
 
-def _load_baselines(config: Config, project_root: Path) -> frozenset[BaselineIdentity]:
+def _load_baselines(
+    config: Config,
+    project_root: Path,
+    consumed_identities: list[FileIdentity],
+) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
     for path in _baseline_paths(config, project_root):
-        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
+        with open_text(path, encoding="utf-8") as (stream, identity):
+            consumed_identities.append(identity)
+            identities.update(baseline_identities_from_json(stream.read()))
     return frozenset(identities)
 
 
@@ -411,25 +444,6 @@ def _baseline_paths(config: Config, project_root: Path) -> tuple[Path, ...]:
             path = project_root / path
         paths.append(path)
     return tuple(paths)
-
-
-def _protected_paths(
-    discovered: tuple[Path, ...],
-    config: Config,
-) -> tuple[Path, ...]:
-    configured = () if config.path is None else (Path(config.path.as_posix()),)
-    return (*discovered, *configured)
-
-
-def _check_protected_paths(
-    discovered: tuple[Path, ...],
-    config: Config,
-    project_root: Path,
-) -> tuple[Path, ...]:
-    return (
-        *_protected_paths(discovered, config),
-        *_baseline_paths(config, project_root),
-    )
 
 
 def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:

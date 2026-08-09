@@ -52,9 +52,10 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
-- `check` now refuses `--output` paths that alias consumed source, configuration,
-  or baseline files; `graph` applies the same guard to its source and
-  configuration inputs.
+- `check` now refuses `--output` paths that alias the source, configuration, or
+  baseline files actually consumed during analysis; `graph` applies the same
+  guard to its source and configuration inputs. The guard uses identities
+  captured while reading each descriptor and keeps output files write-only.
 
 ### Deprecated
 

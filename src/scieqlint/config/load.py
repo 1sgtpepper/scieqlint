@@ -27,6 +27,7 @@ from scieqlint.config.model import (
 )
 from scieqlint.config.presets import read_preset_text
 from scieqlint.config.validate import validate_config
+from scieqlint.io.identity import FileIdentity, open_text
 
 _BASE_DIMENSIONS = {
     "M": 0,
@@ -41,13 +42,23 @@ _BASE_DIMENSIONS = {
 
 def load_config(path: Path | str | None = None, *, preset: str | None = None) -> Config:
     """Load config defaults, optional preset values, and supported config options."""
+    config, _consumed_identities = _load_config_with_inputs(path, preset=preset)
+    return config
+
+
+def _load_config_with_inputs(
+    path: Path | str | None = None,
+    *,
+    preset: str | None = None,
+) -> tuple[Config, tuple[FileIdentity, ...]]:
+    consumed_identities: list[FileIdentity] = []
     if path is None:
         config_path = _find_default_config()
     else:
         config_path = Path(path)
         if not config_path.exists():
             raise FileNotFoundError(f"config not found: {config_path}")
-    data = _config_data(config_path, preset=preset)
+    data = _config_data(config_path, preset=preset, consumed_identities=consumed_identities)
     errors = validate_config(data)
     if errors:
         raise ValueError("; ".join(errors))
@@ -65,54 +76,64 @@ def load_config(path: Path | str | None = None, *, preset: str | None = None) ->
     dimension_data = _table(checks_data, "dimension")
     symbols_data = _table(checks_data, "symbols")
     vars_config = _vars_config(vars_data)
-    return Config(
-        path=None if config_path is None else PurePosixPath(config_path.as_posix()),
-        project=ProjectConfig(
-            root=_posix_path(project_data, "root", PurePosixPath(".")),
-            order=_str_tuple(project_data, "order"),
-        ),
-        baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
-        scanner=ScannerConfig(
-            markdown=_bool(scanner_data, "markdown", True),
-            inline_math=_bool(scanner_data, "inline_math", False),
-            math_fences=_bool(scanner_data, "math_fences", True),
-        ),
-        parser=ParserConfig(
-            strict_unknowns=_bool(parser_data, "strict_unknowns", False),
-        ),
-        checks=ChecksConfig(
-            algebra=AlgebraConfig(
-                enabled=_bool(algebra_data, "enabled", True),
+    return (
+        Config(
+            path=None if config_path is None else PurePosixPath(config_path.as_posix()),
+            project=ProjectConfig(
+                root=_posix_path(project_data, "root", PurePosixPath(".")),
+                order=_str_tuple(project_data, "order"),
             ),
-            references=ReferencesConfig(
-                enabled=_bool(references_data, "enabled", True),
-                missing_label_strict=_bool(references_data, "missing_label_strict", False),
+            baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
+            scanner=ScannerConfig(
+                markdown=_bool(scanner_data, "markdown", True),
+                inline_math=_bool(scanner_data, "inline_math", False),
+                math_fences=_bool(scanner_data, "math_fences", True),
             ),
-            dimension=DimensionConfig(
-                mode=_dimension_mode(dimension_data, "mode", "auto"),
-                unknown_variables=_unknown_variable_policy(
-                    dimension_data,
-                    "unknown_variables",
-                    "warn",
+            parser=ParserConfig(
+                strict_unknowns=_bool(parser_data, "strict_unknowns", False),
+            ),
+            checks=ChecksConfig(
+                algebra=AlgebraConfig(
+                    enabled=_bool(algebra_data, "enabled", True),
+                ),
+                references=ReferencesConfig(
+                    enabled=_bool(references_data, "enabled", True),
+                    missing_label_strict=_bool(references_data, "missing_label_strict", False),
+                ),
+                dimension=DimensionConfig(
+                    mode=_dimension_mode(dimension_data, "mode", "auto"),
+                    unknown_variables=_unknown_variable_policy(
+                        dimension_data,
+                        "unknown_variables",
+                        "warn",
+                    ),
+                ),
+                symbols=SymbolsConfig(
+                    enabled=_bool(symbols_data, "enabled", False),
                 ),
             ),
-            symbols=SymbolsConfig(
-                enabled=_bool(symbols_data, "enabled", False),
-            ),
+            vars=vars_config,
+            aliases=_aliases_config(aliases_data, vars_config),
+            ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
+            report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
         ),
-        vars=vars_config,
-        aliases=_aliases_config(aliases_data, vars_config),
-        ignore=IgnoreConfig(files=_str_tuple(ignore_data, "files")),
-        report=ReportConfig(show_suppressed=_bool(report_data, "show_suppressed", False)),
+        tuple(consumed_identities),
     )
 
 
-def _config_data(config_path: Path | None, *, preset: str | None) -> dict[str, Any]:
+def _config_data(
+    config_path: Path | None,
+    *,
+    preset: str | None,
+    consumed_identities: list[FileIdentity],
+) -> dict[str, Any]:
     data: dict[str, Any] = {}
     if preset is not None:
         data = _merge_tables(data, tomllib.loads(read_preset_text(preset)))
     if config_path is not None:
-        data = _merge_tables(data, tomllib.loads(config_path.read_text(encoding="utf-8")))
+        with open_text(config_path, encoding="utf-8") as (stream, identity):
+            consumed_identities.append(identity)
+            data = _merge_tables(data, tomllib.loads(stream.read()))
     return data
 
 

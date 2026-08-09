@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
+import stat
 
+import pytest
 from click.testing import CliRunner
 
 from scieqlint import cli as cli_module
 from scieqlint.cli import main
 from scieqlint.config.load import load_config
 from scieqlint.config.presets import read_preset_text
+from scieqlint.io import identity as identity_module
 
 
 def test_help() -> None:
@@ -190,15 +192,16 @@ def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
     assert baseline.read_text(encoding="utf-8") == '{"diagnostics": []}\n'
 
 
-def test_check_refuses_when_output_alias_check_is_indeterminate(tmp_path, monkeypatch) -> None:
+def test_check_refuses_when_input_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "clean.md"
     output = tmp_path / "result.json"
     doc.write_text("# clean\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
 
-    def deny_samefile(_path: Path, _other: Path) -> bool:
+    def deny_identity(_stat_result) -> object:
         raise PermissionError("platform detail must not escape")
 
-    monkeypatch.setattr(Path, "samefile", deny_samefile)
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
 
     result = CliRunner().invoke(
         main,
@@ -212,25 +215,24 @@ def test_check_refuses_when_output_alias_check_is_indeterminate(tmp_path, monkey
     assert doc.read_text(encoding="utf-8") == "# clean\n"
 
 
-def test_check_refuses_output_swapped_to_input_after_alias_check(tmp_path, monkeypatch) -> None:
+def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "bad.md"
     output = tmp_path / "result.json"
     original = "ORIGINAL\n"
     doc.write_text(original, encoding="utf-8")
     output.write_text("placeholder\n", encoding="utf-8")
     checked = False
-    real_same_file = cli_module._same_file
+    real_open = cli_module.os.open
 
-    def swap_after_alias_check(left: Path, right: Path) -> bool:
+    def swap_before_open(path, flags, mode=0o777):
         nonlocal checked
-        same = real_same_file(left, right)
-        if left == output and not checked:
+        if path == output and not checked:
             output.unlink()
             output.symlink_to(doc)
             checked = True
-        return same
+        return real_open(path, flags, mode)
 
-    monkeypatch.setattr(cli_module, "_same_file", swap_after_alias_check)
+    monkeypatch.setattr(cli_module.os, "open", swap_before_open)
 
     result = CliRunner().invoke(
         main,
@@ -240,6 +242,164 @@ def test_check_refuses_output_swapped_to_input_after_alias_check(tmp_path, monke
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert doc.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_hardlink_to_consumed_source_after_source_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "# consumed source\n"
+    doc.write_text(original, encoding="utf-8")
+    os.link(doc, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text("# replacement\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+    assert doc.read_text(encoding="utf-8") == "# replacement\n"
+
+
+def test_check_writes_distinct_output_when_consumed_path_disappears(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def remove_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", remove_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["diagnostics"] == []
+    assert not doc.exists()
+
+
+def test_check_refuses_hardlink_to_consumed_config_after_config_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    os.link(config, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_config_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text("[report]\nshow_suppressed = false\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_config_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_hardlink_to_consumed_baseline_after_baseline_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    original = '{"diagnostics": []}\n'
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text(original, encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    os.link(baseline, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_baseline_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        baseline.unlink()
+        baseline.write_text(original, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_baseline_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions are required")
+def test_check_writes_existing_owner_write_only_output(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text("old\n", encoding="utf-8")
+    output.chmod(stat.S_IWUSR)
+
+    try:
+        result = CliRunner().invoke(
+            main,
+            ["check", str(doc), "--format", "json", "--output", str(output)],
+        )
+    finally:
+        output.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["diagnostics"] == []
 
 
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:
