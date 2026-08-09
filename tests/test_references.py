@@ -11,7 +11,11 @@ from scieqlint.diag.model import Severity
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.markdown import markdown_link_metadata_ranges, markdown_link_tokens
+from scieqlint.markdown import (
+    markdown_link_metadata_ranges,
+    markdown_link_tokens,
+    opaque_markdown_ranges,
+)
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner, _attached_myst_heading_anchor_targets
 
@@ -88,6 +92,7 @@ def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() ->
     assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
     assert len(markdown_link_tokens('[x](#dest\n "title")')) == 1
     assert markdown_link_tokens("[x](#dest with-space)") == ()
+    assert markdown_link_tokens("[x](#dest(with space))") == ()
     assert markdown_link_tokens("[x](#dest\x01)") == ()
 
 
@@ -316,6 +321,15 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     assert normal.is_image is False
     assert markdown_link_metadata_ranges("![alt](#target)") == ((0, 15),)
     assert markdown_link_metadata_ranges("[x](#target)") == ((4, 12),)
+
+    nested = markdown_link_tokens("[outer [inner](#inner)](#outer)")
+    assert len(nested) == 1
+    assert nested[0].destination_start == 15
+    assert nested[0].destination_end == 21
+
+    code = opaque_markdown_ranges("``[x](#hidden)`` and [x](#live)", ())
+    assert code == tuple(sorted(code))
+    assert all(left[1] <= right[0] for left, right in zip(code, code[1:], strict=False))
 
     invalid = (
         "[x] #target",

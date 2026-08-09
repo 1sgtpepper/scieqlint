@@ -540,8 +540,12 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
 
 def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
     tokens: list[MarkdownLinkToken] = []
+    code_ranges = inline_code_ranges(text)
     index = 0
     while index < len(text):
+        if _in_ranges(index, code_ranges):
+            index = next(end for start, end in code_ranges if start <= index < end)
+            continue
         is_image = text[index] == "!" and index + 1 < len(text) and text[index + 1] == "["
         label_start = index + 1 if is_image else index
         if (
@@ -549,7 +553,7 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
             and not is_escaped(text, index)
             and (not is_image or not is_escaped(text, label_start))
         ):
-            token = _parse_markdown_link(text, label_start, is_image)
+            token = _parse_markdown_link(text, label_start, is_image, code_ranges)
             if token is not None:
                 tokens.append(token)
                 index = token.end
@@ -580,9 +584,12 @@ def _parse_markdown_link(
     text: str,
     label_start: int,
     is_image: bool,
+    code_ranges: Sequence[OffsetRange],
 ) -> MarkdownLinkToken | None:
-    label_end = _find_link_label_end(text, label_start)
+    label_end = _find_link_label_end(text, label_start, code_ranges)
     if label_end is None or label_end + 1 >= len(text) or text[label_end + 1] != "(":
+        return None
+    if markdown_link_tokens(text[label_start + 1 : label_end]):
         return None
     body = _parse_link_body(text, label_end + 2)
     if body is None:
@@ -597,10 +604,17 @@ def _parse_markdown_link(
     )
 
 
-def _find_link_label_end(text: str, start: int) -> int | None:
+def _find_link_label_end(
+    text: str,
+    start: int,
+    code_ranges: Sequence[OffsetRange],
+) -> int | None:
     depth = 1
     index = start + 1
     while index < len(text):
+        if _in_ranges(index, code_ranges):
+            index = next(end for range_start, end in code_ranges if range_start <= index < end)
+            continue
         char = text[index]
         if char == "\\":
             index += 2
@@ -645,8 +659,12 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
             if char == "\\":
                 index += 2
                 continue
-            if (char in " \t\n\r" or _is_ascii_control(char)) and depth == 0:
+            if char in " \t\n\r":
+                if depth:
+                    return None
                 break
+            if _is_ascii_control(char):
+                return None
             if char == "(":
                 depth += 1
             elif char == ")":
