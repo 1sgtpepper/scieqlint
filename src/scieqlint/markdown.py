@@ -78,9 +78,7 @@ class MarkdownLinkToken:
 class _LinkFrame:
     token_start: int
     is_image: bool
-    children: list[MarkdownLinkToken] = field(
-        default_factory=lambda: list[MarkdownLinkToken]()
-    )
+    children: list[MarkdownLinkToken] = field(default_factory=lambda: list[MarkdownLinkToken]())
     invalid: bool = False
 
 
