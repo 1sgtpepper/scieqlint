@@ -13,12 +13,12 @@ from scieqlint.facts.structure import (
     StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import is_fence_closer, parse_fence_opener
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
     CODE_CELL_TAG_RE,
     DIRECTIVE_INFO_RE,
-    FENCE_RE,
     MYST_OPTION_RE,
     QUARTO_OPTION_RE,
     ROLE_MARKER_RE,
@@ -50,12 +50,12 @@ def scan_fences(
     index = 0
     while index < len(lines):
         start, end, line = lines[index]
-        match = FENCE_RE.match(line)
-        if not match:
+        opener = parse_fence_opener(line)
+        if opener is None:
             index += 1
             continue
 
-        marker = match.group("marker")
+        marker, info = opener
         close_index = _find_closing_fence(lines, index, marker)
         body_start = end
         body_end = lines[close_index][0] if close_index is not None else len(document.text)
@@ -74,7 +74,7 @@ def scan_fences(
                 body_start=body_start,
                 body_end=body_end,
                 marker=marker,
-                info=match.group("info").strip(),
+                info=info.strip(),
                 is_closed=close_index is not None,
                 opener_span=smap.span(start, end),
                 closer_span=closer_span,
@@ -123,12 +123,9 @@ def _find_closing_fence(
     opener_index: int,
     marker: str,
 ) -> int | None:
-    fence_char = marker[0]
-    fence_len = len(marker)
     for candidate_index in range(opener_index + 1, len(lines)):
         _start, _end, candidate_line = lines[candidate_index]
-        stripped = candidate_line.strip()
-        if stripped.startswith(fence_char * fence_len) and set(stripped) <= {fence_char}:
+        if is_fence_closer(candidate_line, marker):
             return candidate_index
     return None
 

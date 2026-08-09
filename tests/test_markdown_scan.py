@@ -6,6 +6,7 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.markdown import code_fence_ranges
 from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
@@ -325,6 +326,69 @@ def test_display_math_is_not_closed_by_delimiter_in_multibacktick_code() -> None
 
     assert result.blocks == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+def test_inline_math_stays_opaque_inside_a_longer_backtick_span() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "``$x$ `inner` tail``\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+    assert result.diagnostics == ()
+    assert MySTFrontend().lower((document,)).inline_math == ()
+
+
+def test_inline_math_stays_opaque_inside_a_multiline_backtick_span() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "Use ``foo\n$x$\nbar`` end.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
+    assert result.diagnostics == ()
+
+
+def test_fence_closer_allows_at_most_three_leading_spaces() -> None:
+    for spaces in range(4):
+        text = f"```\ninside\n{' ' * spaces}```\noutside\n"
+        close_start = text.index("```", text.index("inside") + len("inside"))
+        assert code_fence_ranges(text) == ((0, close_start + 4),)
+
+    text = "```\ninside\n    ```\noutside\n```\n"
+    assert code_fence_ranges(text) == ((0, len(text)),)
+
+
+def test_fence_closer_requires_the_marker_type_and_length() -> None:
+    text = "````\ninside\n```\n~~~\n`````\noutside\n"
+
+    close_start = text.index("`````")
+    assert code_fence_ranges(text) == ((0, close_start + 6),)
+
+
+def test_backtick_fence_info_string_cannot_contain_a_backtick() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "```info`\n$$\nx = x\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["x = x"]
+    assert result.diagnostics == ()
 
 
 def test_markdown_symbol_directive_fixture_is_extracted() -> None:

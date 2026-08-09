@@ -181,6 +181,16 @@ def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None
     assert disabled.diagnostics == ()
 
 
+def test_four_space_fence_closer_remains_inside_the_fence():
+    snapshot = MySTFrontend().lower(
+        (doc("```{math}\nx = x\n    ```\ny = y\n```\n"),)
+    )
+
+    assert len(snapshot.fences) == 1
+    assert snapshot.fences[0].is_closed is True
+    assert "    ```" in snapshot.fences[0].raw
+
+
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     snapshot = MySTFrontend().lower((fixture_doc(GOOD_FIXTURE),))
     query = QueryHost(snapshot)

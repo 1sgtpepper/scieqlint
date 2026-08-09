@@ -97,7 +97,8 @@ Release notes must use these sections:
 - Source distributions now include the files required by their shipped test suite,
   and CI executes that suite from an extracted archive.
 - Dollar math now honors escaped delimiters, block placement, and complete label
-  suffixes.
+  suffixes, while Markdown code spans and fenced-code regions follow their
+  delimiter and indentation boundaries.
 
 ### Deprecated
 

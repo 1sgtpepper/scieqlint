@@ -8,12 +8,54 @@ from collections.abc import Sequence
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
 
-INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
-CODE_FENCE_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})[^\n]*$")
+_FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
+
+
+def parse_fence_opener(line: str) -> tuple[str, str] | None:
+    """Return a valid fenced-code marker and info string for one source line."""
+
+    match = _FENCE_OPENER_RE.fullmatch(line.rstrip("\r\n"))
+    if match is None:
+        return None
+    marker = match.group("marker")
+    info = match.group("info")
+    if marker[0] == "`" and "`" in info:
+        return None
+    return marker, info
+
+
+def is_fence_closer(line: str, marker: str) -> bool:
+    """Return whether ``line`` is a CommonMark-style closer for ``marker``."""
+
+    candidate = line.rstrip("\r\n")
+    leading_spaces = len(candidate) - len(candidate.lstrip(" "))
+    if leading_spaces > 3:
+        return False
+    candidate = candidate[leading_spaces:]
+    marker_char = marker[0]
+    run_length = 0
+    while run_length < len(candidate) and candidate[run_length] == marker_char:
+        run_length += 1
+    return run_length >= len(marker) and not candidate[run_length:].strip(" \t")
 
 
 def inline_code_ranges(text: str) -> tuple[OffsetRange, ...]:
-    return tuple((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(text))
+    ranges: list[OffsetRange] = []
+    index = 0
+    while index < len(text):
+        if text[index] != "`":
+            index += 1
+            continue
+        opener_end = _backtick_run_end(text, index)
+        delimiter_length = opener_end - index
+        close_start = _matching_backtick_run(text, opener_end, delimiter_length)
+        if close_start is None:
+            index = opener_end
+            continue
+        close_end = close_start + delimiter_length
+        ranges.append((index, close_end))
+        index = close_end
+    return tuple(ranges)
 
 
 def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
@@ -28,11 +70,11 @@ def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
     index = 0
     while index < len(lines):
         opener_start, _opener_end, opener_line = lines[index]
-        match = CODE_FENCE_RE.match(opener_line)
-        if match is None:
+        opener = parse_fence_opener(opener_line)
+        if opener is None:
             index += 1
             continue
-        marker = match.group("marker")
+        marker, _info = opener
         close_index = _fence_close_index(lines, index, marker)
         range_end = lines[close_index][1] if close_index is not None else len(text)
         ranges.append((opener_start, range_end))
@@ -130,12 +172,29 @@ def _fence_close_index(
     opener_index: int,
     marker: str,
 ) -> int | None:
-    fence_char = marker[0]
-    fence_length = len(marker)
     for index in range(opener_index + 1, len(lines)):
-        stripped = lines[index][2].strip()
-        if stripped.startswith(fence_char * fence_length) and set(stripped) <= {fence_char}:
+        if is_fence_closer(lines[index][2], marker):
             return index
+    return None
+
+
+def _backtick_run_end(text: str, start: int) -> int:
+    end = start
+    while end < len(text) and text[end] == "`":
+        end += 1
+    return end
+
+
+def _matching_backtick_run(text: str, start: int, length: int) -> int | None:
+    index = start
+    while index < len(text):
+        if text[index] != "`":
+            index += 1
+            continue
+        run_end = _backtick_run_end(text, index)
+        if run_end - index == length:
+            return index
+        index = run_end
     return None
 
 

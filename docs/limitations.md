@@ -95,6 +95,10 @@ point at the mathematical text rather than surrounding delimiter whitespace.
 Display-dollar delimiters inside inline code are treated as literal code by both
 the legacy scanner and the architecture frontend; their trimmed bodies and spans
 therefore agree.
+Markdown code spans use equal-length backtick delimiters and may contain shorter
+backtick runs or line endings. Fenced-code closers require the matching marker,
+at least the opener length, and no more than three leading spaces; a backtick
+fence info string cannot contain a backtick.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
