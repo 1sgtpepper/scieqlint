@@ -24,6 +24,10 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Terminology-gate detection now counts only canonical gate wiring with direct
+  failure controls that are statically proven blocking. Explicitly disabled or
+  continue-on-error steps and parent jobs are excluded; general GitHub Actions
+  validation remains outside this scanner.
 - The development Ruff requirement now stays within the formatter version
   supported by the checked-in sources and documentation.
 - Package metadata now links to the repository's working documentation path.
@@ -31,6 +35,7 @@ Release notes must use these sections:
   diagnostics and do not prevent later inputs from being checked.
 - Dimension aliases now match complete surface tokens instead of splitting
   longer configured identifiers.
+- Dimension checks now accept rational factors after implicit multiplication.
 - Algebra checks now evaluate line-separated equations independently instead
   of treating a multi-line block as one chained equality.
 - SARIF artifact paths are URI-encoded and runs declare their Unicode code-point
@@ -47,10 +52,10 @@ Release notes must use these sections:
   fixed-schema configuration tables are rejected instead of being ignored.
 - The SARIF upload example now allows finding exits to reach upload and rejects
   missing, empty, or invalid JSON report files before upload.
-- Architecture terminology gates now accept only statically proven,
-  failure-propagating steps in runnable push or pull-request workflow jobs that
-  execute from the repository root; disabled, redirected, malformed, or otherwise
-  unproven forms are rejected.
+- Unsupported TeX function names no longer trigger undefined-symbol warnings.
+- Notebook Markdown scans now preserve explicit symbol directives and their cell
+  locations for symbol checks.
+- Inline Markdown math spans now retain source offsets for the trimmed math body.
 
 ### Deprecated
 
