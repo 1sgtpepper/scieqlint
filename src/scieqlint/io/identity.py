@@ -40,6 +40,12 @@ class ConsumedInput:
             and self.normalized_path_key == _normalized_path_key(path)
         )
 
+    def matches_physical_path(self, path: Path) -> bool:
+        """Match a path that currently resolves to this consumed role location."""
+        return os.path.normcase(os.path.realpath(self.path)) == os.path.normcase(
+            os.path.realpath(path)
+        )
+
     def matches_identity(self, stat_result: os.stat_result) -> bool:
         return self.identity is not None and self.identity.matches(stat_result)
 
@@ -84,7 +90,7 @@ def open_text(
     encoding: str,
 ) -> Generator[tuple[TextIO, ConsumedInput], None, None]:
     role_path = path.absolute()
-    descriptor: int | None = os.open(path, os.O_RDONLY)
+    descriptor: int | None = os.open(role_path, os.O_RDONLY)
     try:
         try:
             identity = FileIdentity.from_stat(os.fstat(descriptor))

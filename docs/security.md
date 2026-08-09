@@ -47,7 +47,8 @@ The output guard compares an existing destination with both the object consumed
 earlier and the object currently reached through every consumed source, configuration,
 or baseline role. Existing destinations are opened without creation; a destination
 that disappears during the open protocol is retried exclusively and is never created
-through a dangling symlink.
+through a dangling symlink. The same physical-role check runs before creation, so a
+symlinked parent cannot recreate a deleted consumed role at the output path.
 
 The lexical-role check follows the host path implementation. On a case-insensitive
 POSIX filesystem, a case-only alias to a pathname whose object was replaced cannot be

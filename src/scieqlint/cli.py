@@ -33,6 +33,7 @@ class _ConsumedIdentity(Protocol):
     """Writer-side contract for an identity captured by the analysis owner."""
 
     def matches_path(self, path: Path) -> bool: ...
+    def matches_physical_path(self, path: Path) -> bool: ...
     def matches_identity(self, stat_result: os.stat_result) -> bool: ...
     def matches_current_identity(self, stat_result: os.stat_result) -> bool: ...
 
@@ -277,8 +278,14 @@ def _write_output(
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
-    if any(item.matches_path(output_path) for item in consumed_inputs):
-        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+    try:
+        if any(
+            item.matches_path(output_path) or item.matches_physical_path(output_path)
+            for item in consumed_inputs
+        ):
+            raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+    except OSError as exc:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
     if not input_identities_complete:
         raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
     descriptor: int | None = None

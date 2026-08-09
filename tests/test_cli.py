@@ -155,6 +155,34 @@ def test_check_refuses_replaced_ordinary_lexical_alias(tmp_path, monkeypatch) ->
     assert doc.read_text(encoding="utf-8") == replacement
 
 
+def test_check_refuses_deleted_input_through_symlinked_parent(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    doc = root / "source.md"
+    alias = tmp_path / "alias"
+    output = alias / "source.md"
+    alias.symlink_to(root, target_is_directory=True)
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def remove_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", remove_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert not doc.exists()
+    assert not output.exists()
+
+
 def test_check_refuses_symlink_to_replaced_source_role(tmp_path, monkeypatch) -> None:
     doc = tmp_path / "source.md"
     output = tmp_path / "result.json"
@@ -914,6 +942,50 @@ def test_check_refuses_hardlink_to_consumed_baseline_after_baseline_replacement(
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert output.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize("role", ["config", "baseline"])
+def test_check_refuses_symlink_to_replaced_consumed_role(tmp_path, monkeypatch, role) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text(
+        '[baseline]\nfiles = ["baseline.json"]\n' if role == "baseline" else "",
+        encoding="utf-8",
+    )
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    consumed_role = baseline if role == "baseline" else config
+    output.symlink_to(consumed_role)
+    real_run = cli_module._run_check_paths
+
+    def replace_role_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        consumed_role.unlink()
+        consumed_role.write_text(
+            '{"diagnostics": []}\n' if role == "baseline" else "[report]\n",
+            encoding="utf-8",
+        )
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_role_after_run)
+
+    arguments = [
+        "check",
+        "--config",
+        str(config),
+        str(doc),
+        "--format",
+        "json",
+        "--output",
+        str(output),
+    ]
+    result = CliRunner().invoke(main, arguments)
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.is_symlink()
 
 
 def test_check_refuses_hardlink_to_replacement_baseline_role(tmp_path, monkeypatch) -> None:
