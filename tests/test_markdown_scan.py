@@ -199,6 +199,35 @@ def test_unterminated_display_math_emits_scan_warning() -> None:
     assert result.diagnostics[0].rule == "scanner"
 
 
+def test_unterminated_inline_math_does_not_hide_the_next_line() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$x\n$y$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["y"]
+    assert result.diagnostics == ()
+
+
+def test_unterminated_display_without_a_final_newline_warns() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\nx = x",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
 def test_closed_display_math_does_not_emit_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -430,6 +459,22 @@ def test_block_html_keeps_math_content_opaque() -> None:
     )
 
     assert [block.text for block in result.blocks] == ["y"]
+    assert result.diagnostics == ()
+
+
+def test_unclosed_rawtext_html_keeps_math_content_opaque() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "<script>\n$x$",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert result.blocks == ()
     assert result.diagnostics == ()
 
 
