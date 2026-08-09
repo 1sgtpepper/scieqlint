@@ -1,9 +1,10 @@
 - id: scieqlint
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
-  entry: scieqlint check
+  entry: python -m scieqlint.pre_commit
   args: ["--"]
   language: python
   files: '(?i)\.(md|markdown|tex|ipynb)$'
-  pass_filenames: false
+  always_run: true
+  pass_filenames: true
   require_serial: true

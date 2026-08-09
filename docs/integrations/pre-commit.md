@@ -10,8 +10,11 @@ repos:
       - id: scieqlint
 ```
 
-The hook is triggered by `.md`, `.markdown`, `.tex`, and `.ipynb` files, including
-uppercase suffixes. It runs one project-context check rather than passing only
-the staged filenames, so configuration, ignore rules, baselines, project ordering,
-and cross-file references remain available. The explicit `--` also keeps
-option-shaped paths from being interpreted as CLI options.
+The hook checks `.md`, `.markdown`, `.tex`, and `.ipynb` changes, including uppercase
+suffixes. It is invoked for every pre-commit run so deletion-only and
+supported-to-unsupported rename changes cannot be filtered out before the hook sees
+them. Its adapter then filters both candidate paths and the staged diff, so unrelated
+commits still skip the project check. When a supported change is present, it runs one
+project-context check rather than passing staged filenames as CLI input; configuration,
+ignore rules, baselines, project ordering, and cross-file references remain available.
+The explicit `--` keeps the project check's path boundary filename-safe.
