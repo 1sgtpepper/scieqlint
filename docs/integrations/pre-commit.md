@@ -27,5 +27,6 @@ filenames after the boundary are rejected. Consumers overriding the hook's `args
 preserve the boundary, for example `args: [--strict-unknowns, --]`. The published hook
 is eligible only for the `pre-commit` stage and requires pre-commit 3.2.0 or newer;
 pre-push and generic revision-range runs are not supported because the adapter does not
-validate arbitrary revision snapshots. Python safe-path mode prevents a consumer-side
-`scieqlint.py` or `scieqlint/` package from shadowing the installed hook package.
+validate arbitrary revision snapshots. Python isolated mode ignores inherited Python path
+variables and prevents a consumer-side `scieqlint.py` or `scieqlint/` package from shadowing
+the installed hook package.

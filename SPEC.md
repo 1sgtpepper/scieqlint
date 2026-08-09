@@ -1918,7 +1918,7 @@ Exit codes:
 - id: scieqlint
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
-  entry: python -P -m scieqlint.pre_commit
+  entry: python -I -m scieqlint.pre_commit
   args: ["--"]
   language: python
   stages: [pre-commit]
@@ -1939,8 +1939,9 @@ before the `--` boundary; filenames after it are rejected. The published hook is
 eligible only for the `pre-commit` stage and requires pre-commit 3.2.0 or newer.
 Pre-push and generic revision-range runs are not supported because the adapter does not
 validate arbitrary revision snapshots.
-The safe-path option also prevents a consumer-side `scieqlint.py` or `scieqlint/` package
-from shadowing the installed hook package at either Python module-launch boundary.
+Python isolated mode also ignores inherited Python path variables and prevents a
+consumer-side `scieqlint.py` or `scieqlint/` package from shadowing the installed hook
+package at either Python module-launch boundary.
 
 ### v0.1.5 SARIF workflow
 
