@@ -367,6 +367,9 @@ def test_fence_closer_allows_at_most_three_leading_spaces() -> None:
         close_start = text.index("```", text.index("inside") + len("inside"))
         assert code_fence_ranges(text) == ((0, close_start + 4),)
 
+    text = "```\ninside\n  ``` \t\noutside\n"
+    assert code_fence_ranges(text) == ((0, text.index("outside")),)
+
     text = "```\ninside\n    ```\noutside\n```\n"
     assert code_fence_ranges(text) == ((0, len(text)),)
 
