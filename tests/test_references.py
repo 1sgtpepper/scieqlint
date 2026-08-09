@@ -40,7 +40,7 @@ def test_missing_reference_is_warning() -> None:
 def test_equation_roles_are_opaque_in_code_math_comments_and_raw_html() -> None:
     text = "\n".join(
         [
-            "`{eq}`code`",
+            "`{eq}code`",
             "$ {eq}`inline-math` $",
             "$$",
             "{eq}`display-math`",
