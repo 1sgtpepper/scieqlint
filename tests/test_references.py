@@ -87,6 +87,27 @@ def test_escaped_dollar_does_not_make_an_adjacent_role_opaque() -> None:
     assert [reference.target for reference in frontend.equation_refs] == ["active", "outside"]
 
 
+@pytest.mark.parametrize(
+    ("text", "targets"),
+    [
+        ("{eq}`before` $x$ {eq}`after`", ["before", "after"]),
+        ("\\$ {eq}`after-unclosed`", ["after-unclosed"]),
+        (r"\\$ {eq}`inside-even` $", []),
+    ],
+)
+def test_roles_before_after_valid_and_unclosed_math_keep_their_context(
+    text: str,
+    targets: list[str],
+) -> None:
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == targets
+    assert [reference.target for reference in frontend.equation_refs] == targets
+
+
 def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
     assert markdown_link_tokens("[x](#dest\n\n)") == ()
     assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
@@ -330,6 +351,7 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     code = opaque_markdown_ranges("``[x](#hidden)`` and [x](#live)", ())
     assert code == tuple(sorted(code))
     assert all(left[1] <= right[0] for left, right in zip(code, code[1:], strict=False))
+    assert markdown_link_tokens("[x][ref]") == ()
 
     invalid = (
         "[x] #target",

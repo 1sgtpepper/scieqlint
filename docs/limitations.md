@@ -112,8 +112,12 @@ MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
-Only parsed Markdown links and MyST roles create reference facts; escaped text,
-images, and link destinations or titles remain metadata rather than references.
+Only parsed Markdown links and MyST roles create reference facts; escaped role
+markers, images, and link destinations or titles remain metadata rather than
+references. The reference lexer supports inline links with balanced labels,
+bounded destinations, and nonblank multiline titles. Reference-link definitions,
+autolinks, and the full CommonMark inline-precedence graph remain outside this
+reference-fact profile and are left as source text.
 Link components permit at most one line ending, and quoted or parenthesized
 titles may span lines but not blank lines. Unbracketed destinations reject spaces
 and ASCII control characters; angle-bracket destinations are used for those URLs.
