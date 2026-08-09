@@ -92,7 +92,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         smap,
         fences,
     )
-    generic_refs, equation_refs = scan_refs(document, smap, occupied_fence_ranges)
+    generic_refs, equation_refs = scan_refs(document, smap)
     inline_math = tuple(
         scan_inline_math(
             document,

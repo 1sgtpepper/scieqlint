@@ -111,6 +111,7 @@ def test_roles_before_after_valid_and_unclosed_math_keep_their_context(
 def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
     assert markdown_link_tokens("[x](#dest\n\n)") == ()
     assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
+    assert len(markdown_link_tokens('[x](#dest "one\ntwo\nthree")')) == 1
     assert len(markdown_link_tokens('[x](#dest\n "title")')) == 1
     assert markdown_link_tokens("[x](#dest with-space)") == ()
     assert markdown_link_tokens("[x](#dest(with space))") == ()
@@ -361,6 +362,7 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "[x\ny](#target)",
         "[x(#target)",
         "[x](<target\n>)",
+        "[x](<a b>)",
         "[x](<target)",
         "[x](<target>",
         "[x](<a<b>)",
@@ -379,6 +381,72 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
 
     assert markdown_link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
     assert markdown_link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
+
+
+def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> None:
+    text = (
+        "[raw](#raw)\n"
+        "[escaped](\\#escaped)\n"
+        "[angle](<#>)\n"
+        "[empty](#)\n"
+        "[punct](#foo\\-bar)\n"
+        "[paren](#a\\)b)\n"
+    )
+    tokens = markdown_link_tokens(text)
+
+    assert [token.fragment_target for token in tokens] == [
+        "raw",
+        "escaped",
+        None,
+        None,
+        "foo-bar",
+        "a)b",
+    ]
+    escaped = tokens[1]
+    assert escaped.fragment_target_start is not None
+    assert escaped.fragment_target_end is not None
+    assert text[escaped.fragment_target_start : escaped.fragment_target_end] == "escaped"
+    punct = tokens[4]
+    assert punct.fragment_target_start is not None
+    assert punct.fragment_target_end is not None
+    assert text[punct.fragment_target_start : punct.fragment_target_end] == r"foo\-bar"
+
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+    frontend = MySTFrontend().lower((document,))
+    legacy = MarkdownScanner().scan(document, Config())
+
+    assert [ref.target for ref in frontend.generic_refs] == [
+        "raw",
+        "escaped",
+        "foo-bar",
+        "a)b",
+    ]
+    assert [ref.target for ref in legacy.references] == [
+        "raw",
+        "escaped",
+        "foo-bar",
+        "a)b",
+    ]
+    assert [
+        diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
+    ] == [
+        "REF002",
+        "REF002",
+        "REF002",
+        "REF002",
+    ]
+
+
+def test_deeply_nested_images_are_parsed_without_recursion() -> None:
+    text = "alt"
+    for _ in range(600):
+        text = f"![{text}](image.png)"
+
+    tokens = markdown_link_tokens(text)
+
+    assert len(tokens) == 1
+    assert tokens[0].is_image is True
+    assert (tokens[0].start, tokens[0].end) == (0, len(text))
 
 
 def test_nested_images_preserve_outer_link_semantics_and_image_opacity() -> None:

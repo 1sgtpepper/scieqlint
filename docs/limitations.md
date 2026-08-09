@@ -118,12 +118,15 @@ references. The reference lexer supports inline links with balanced labels,
 bounded destinations, and nonblank multiline titles. Reference-link definitions,
 autolinks, and the full CommonMark inline-precedence graph remain outside this
 reference-fact profile and are left as source text.
-Link components permit at most one line ending, and quoted or parenthesized
-titles may span lines but not blank lines. Unbracketed destinations reject spaces
-and ASCII control characters; angle-bracket destinations are used for those URLs.
-Backslash escapes are decoded for reference resolution while source offsets retain
-the original destination spelling. Images remain metadata, including nested images
-inside links; a link containing an image can still contribute its outer target.
+The destination/title separator permits spaces or tabs and at most one line ending;
+quoted or parenthesized titles may span multiple nonblank lines. Unbracketed
+destinations reject spaces and ASCII control characters; angle-bracket destinations
+also reject unescaped angle brackets. Backslash escapes are decoded for reference
+resolution while source offsets retain the original destination spelling. A local
+fragment is recognized only when the decoded destination has a nonempty target after
+`#`; empty fragments remain ordinary link metadata. Images remain metadata,
+including nested images inside links; a link containing an image can still
+contribute its outer target.
 Role-like text inside inline code, inline or display math, HTML comments, and raw
 HTML is opaque and does not create reference facts.
 

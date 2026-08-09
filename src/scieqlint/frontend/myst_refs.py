@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     MarkdownLinkToken,
-    OffsetRange,
     is_escaped,
     markdown_link_metadata_ranges,
     markdown_link_tokens,
@@ -28,19 +26,15 @@ from .myst_shared import (
 def scan_refs(
     document: SourceDocument,
     smap: SourceMap,
-    occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
-    occupied_with_code = opaque_markdown_ranges(document.text, occupied)
+    occupied_with_code = opaque_markdown_ranges(document.text, ())
     link_metadata = markdown_link_metadata_ranges(document.text)
     for token in markdown_link_tokens(document.text):
         if token.is_image or in_ranges(token.start, occupied_with_code):
             continue
-        if (
-            token.destination_start == token.destination_end
-            or document.text[token.destination_start] != "#"
-        ):
+        if token.fragment_target is None:
             continue
         generic.append(_markdown_link_ref_fact(document, smap, token))
     for match in ROLE_RE.finditer(document.text):
@@ -72,8 +66,11 @@ def _markdown_link_ref_fact(
     smap: SourceMap,
     token: MarkdownLinkToken,
 ) -> GenericRefFact:
-    target_start = token.destination_start + 1
-    target = token.destination[1:]
+    assert token.fragment_target is not None
+    assert token.fragment_target_start is not None
+    assert token.fragment_target_end is not None
+    target_start = token.fragment_target_start
+    target = token.fragment_target
     return GenericRefFact(
         fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
         document_id=document.path.as_posix(),
@@ -83,7 +80,7 @@ def _markdown_link_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         role_span=smap.span(token.start, token.end),
-        target_span=smap.span(target_start, token.destination_end),
+        target_span=smap.span(target_start, token.fragment_target_end),
     )
 
 

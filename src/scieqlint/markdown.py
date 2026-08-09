@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
@@ -30,6 +30,8 @@ HTML_BLOCK_OPEN_RE = re.compile(
 HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
+_MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
+_MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?:[ \t]+)?(?P<body>.*)$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +68,18 @@ class MarkdownLinkToken:
     destination_end: int
     is_image: bool
     destination: str
+    fragment_target: str | None = None
+    fragment_target_start: int | None = None
+    fragment_target_end: int | None = None
     metadata_ranges: tuple[OffsetRange, ...] = ()
+
+
+@dataclass(slots=True)
+class _LinkFrame:
+    token_start: int
+    is_image: bool
+    children: list[MarkdownLinkToken] = field(default_factory=list)
+    invalid: bool = False
 
 
 _FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
@@ -124,6 +137,28 @@ def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
         if start not in closed_display_starts
     )
     return _merge_ranges((*lexical.fences, *lexical.html, *lexical.code, *math_ranges))
+
+
+def attached_markdown_target_labels(text: str) -> frozenset[str]:
+    """Return target labels attached to a heading or fenced block."""
+
+    lines = _source_lines(text)
+    occupied_cursor = _RangeCursor(opaque_markdown_ranges(text, ()))
+    labels: set[str] = set()
+    for index, (start, _end, line) in enumerate(lines):
+        if occupied_cursor.end_at(start) is not None:
+            continue
+        anchor = _MARKDOWN_ANCHOR_RE.fullmatch(line)
+        if anchor is None:
+            continue
+        next_index = _next_attachable_line_index(lines, index + 1)
+        if next_index is None:
+            continue
+        next_line = lines[next_index][2]
+        if parse_fence_opener(next_line) is not None or _is_heading_line(next_line):
+            label = anchor.group("label").strip()
+            labels.add(label[1:] if label.startswith("#") else label)
+    return frozenset(labels)
 
 
 def dollar_display_ranges(
@@ -292,6 +327,26 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
     if start < len(text) or (not lines and text):
         lines.append((start, len(text), text[start:]))
     return lines
+
+
+def _next_attachable_line_index(
+    lines: Sequence[tuple[int, int, str]],
+    index: int,
+) -> int | None:
+    while index < len(lines):
+        stripped = lines[index][2].strip()
+        if stripped and not stripped.startswith("<!--"):
+            return index
+        index += 1
+    return None
+
+
+def _is_heading_line(line: str) -> bool:
+    match = _MARKDOWN_HEADING_RE.fullmatch(line)
+    if match is None:
+        return False
+    body = re.sub(r"[ \t]+#+[ \t]*$", "", match.group("body")).strip()
+    return bool(body)
 
 
 def _fence_close_index(
@@ -542,26 +597,130 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
 
 def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
     tokens: list[MarkdownLinkToken] = []
-    code_ranges = markdown_protected_ranges(text)
+    protected_cursor = _RangeCursor(markdown_protected_ranges(text))
+    stack: list[_LinkFrame] = []
     index = 0
     while index < len(text):
-        if _in_ranges(index, code_ranges):
-            index = next(end for start, end in code_ranges if start <= index < end)
+        protected_end = protected_cursor.end_at(index)
+        if protected_end is not None:
+            index = protected_end
             continue
-        is_image = text[index] == "!" and index + 1 < len(text) and text[index + 1] == "["
-        label_start = index + 1 if is_image else index
-        if (
-            (is_image or text[index] == "[")
-            and not is_escaped(text, index)
-            and (not is_image or not is_escaped(text, label_start))
-        ):
-            token = _parse_markdown_link(text, label_start, is_image, code_ranges)
-            if token is not None:
-                tokens.append(token)
-                index = token.end
-                continue
-        index += 1
+
+        char = text[index]
+        if char == "\\":
+            index = _skip_backslash_escape(text, index)
+            continue
+        if char in "\r\n":
+            for frame in stack:
+                frame.invalid = True
+            index += 1
+            continue
+        if char == "!" and index + 1 < len(text) and text[index + 1] == "[":
+            stack.append(_LinkFrame(index, True))
+            index += 2
+            continue
+        if char == "[":
+            stack.append(_LinkFrame(index, False))
+            index += 1
+            continue
+        if char != "]" or not stack:
+            index += 1
+            continue
+
+        frame = stack.pop()
+        visible_children = tuple(frame.children)
+        next_index = index + 1
+        if not frame.invalid and index + 1 < len(text) and text[index + 1] == "(":
+            body = _parse_link_body(text, index + 2)
+            if body is not None:
+                destination_start, destination_end, end = body
+                token = _make_link_token(
+                    text,
+                    frame.token_start,
+                    end,
+                    destination_start,
+                    destination_end,
+                    frame.is_image,
+                    frame.children,
+                )
+                if frame.is_image or all(child.is_image for child in frame.children):
+                    visible_children = (token,)
+                next_index = end
+
+        if stack:
+            stack[-1].children.extend(visible_children)
+        else:
+            tokens.extend(visible_children)
+        index = next_index
+
+    while stack:
+        tokens.extend(stack.pop().children)
     return tuple(tokens)
+
+
+def _make_link_token(
+    text: str,
+    token_start: int,
+    end: int,
+    destination_start: int,
+    destination_end: int,
+    is_image: bool,
+    children: Sequence[MarkdownLinkToken],
+) -> MarkdownLinkToken:
+    destination, decoded_spans = _decode_destination_span(text, destination_start, destination_end)
+    fragment_target: str | None = None
+    fragment_target_start: int | None = None
+    fragment_target_end: int | None = None
+    if destination.startswith("#") and len(destination) > 1:
+        fragment_target = destination[1:]
+        fragment_target_start = decoded_spans[1][0]
+        fragment_target_end = decoded_spans[-1][1]
+    if is_image:
+        metadata_ranges = ((token_start, end),)
+    else:
+        metadata_ranges = _merge_ranges(
+            (
+                (destination_start, end),
+                *(
+                    child_range
+                    for child in children
+                    if child.is_image
+                    for child_range in child.metadata_ranges
+                ),
+            )
+        )
+    return MarkdownLinkToken(
+        start=token_start,
+        end=end,
+        destination_start=destination_start,
+        destination_end=destination_end,
+        is_image=is_image,
+        destination=destination,
+        fragment_target=fragment_target,
+        fragment_target_start=fragment_target_start,
+        fragment_target_end=fragment_target_end,
+        metadata_ranges=metadata_ranges,
+    )
+
+
+def _decode_destination_span(
+    text: str,
+    start: int,
+    end: int,
+) -> tuple[str, tuple[tuple[int, int], ...]]:
+    decoded: list[str] = []
+    spans: list[tuple[int, int]] = []
+    index = start
+    while index < end:
+        if text[index] == "\\" and index + 1 < end and _is_ascii_punctuation(text[index + 1]):
+            decoded.append(text[index + 1])
+            spans.append((index, index + 2))
+            index += 2
+            continue
+        decoded.append(text[index])
+        spans.append((index, index + 1))
+        index += 1
+    return "".join(decoded), tuple(spans)
 
 
 def markdown_link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
@@ -587,76 +746,6 @@ def opaque_markdown_ranges(
     return _merge_ranges(ranges)
 
 
-def _parse_markdown_link(
-    text: str,
-    label_start: int,
-    is_image: bool,
-    code_ranges: Sequence[OffsetRange],
-) -> MarkdownLinkToken | None:
-    label_end = _find_link_label_end(text, label_start, code_ranges)
-    if label_end is None or label_end + 1 >= len(text) or text[label_end + 1] != "(":
-        return None
-    child_tokens = markdown_link_tokens(text[label_start + 1 : label_end])
-    if not is_image and any(not child.is_image for child in child_tokens):
-        return None
-    body = _parse_link_body(text, label_end + 2)
-    if body is None:
-        return None
-    destination_start, destination_end, end = body
-    token_start = label_start - 1 if is_image else label_start
-    if is_image:
-        metadata_ranges = ((token_start, end),)
-    else:
-        metadata_ranges = _merge_ranges(
-            (
-                (destination_start, end),
-                *(
-                    (label_start + child.start + 1, label_start + child.end + 1)
-                    for child in child_tokens
-                    if child.is_image
-                ),
-            )
-        )
-    return MarkdownLinkToken(
-        start=token_start,
-        end=end,
-        destination_start=destination_start,
-        destination_end=destination_end,
-        is_image=is_image,
-        destination=_decode_destination(text[destination_start:destination_end]),
-        metadata_ranges=metadata_ranges,
-    )
-
-
-def _find_link_label_end(
-    text: str,
-    start: int,
-    code_ranges: Sequence[OffsetRange],
-) -> int | None:
-    depth = 1
-    index = start + 1
-    while index < len(text):
-        if _in_ranges(index, code_ranges):
-            index = next(end for range_start, end in code_ranges if range_start <= index < end)
-            continue
-        char = text[index]
-        if char == "\\":
-            if index + 1 >= len(text) or text[index + 1] in "\r\n":
-                return None
-            index += 2
-            continue
-        if char in "\r\n":
-            return None
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-            if depth == 0:
-                return index
-        index += 1
-    return None
-
-
 def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
     index, _ = _skip_link_whitespace(text, start)
     if index is None:
@@ -674,7 +763,7 @@ def _parse_link_body(text: str, start: int) -> tuple[int, int, int] | None:
                 destination_end = index
                 index += 1
                 break
-            if text[index] in "\n\r" or _is_ascii_control(text[index]):
+            if text[index] in " \t\n\r" or _is_ascii_control(text[index]):
                 return None
             index += 1
         else:
@@ -795,23 +884,6 @@ def _skip_backslash_escape(text: str, index: int) -> int:
     if index + 1 < len(text) and _is_ascii_punctuation(text[index + 1]):
         return index + 2
     return index + 1
-
-
-def _decode_destination(destination: str) -> str:
-    decoded: list[str] = []
-    index = 0
-    while index < len(destination):
-        if (
-            destination[index] == "\\"
-            and index + 1 < len(destination)
-            and _is_ascii_punctuation(destination[index + 1])
-        ):
-            decoded.append(destination[index + 1])
-            index += 2
-            continue
-        decoded.append(destination[index])
-        index += 1
-    return "".join(decoded)
 
 
 def _is_ascii_punctuation(char: str) -> bool:

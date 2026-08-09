@@ -10,6 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
+    attached_markdown_target_labels,
     code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
@@ -38,8 +39,6 @@ from scieqlint.scan.symbols import parse_symbol_directive
 TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
-MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
@@ -304,22 +303,21 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 def _references(document: SourceDocument) -> Iterable[EquationReference]:
     attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
     link_metadata = markdown_link_metadata_ranges(document.text)
-    occupied = opaque_markdown_ranges(document.text, _code_spans(document))
+    occupied = opaque_markdown_ranges(document.text, ())
     for token in markdown_link_tokens(document.text):
         if token.is_image or _in_ranges(token.start, occupied):
             continue
-        if (
-            token.destination_start == token.destination_end
-            or document.text[token.destination_start] != "#"
-        ):
+        if token.fragment_target is None:
             continue
-        target_start = token.destination_start + 1
-        target = _normalize_label(token.destination[1:])
+        assert token.fragment_target_start is not None
+        assert token.fragment_target_end is not None
+        target_start = token.fragment_target_start
+        target = _normalize_label(token.fragment_target)
         if target in attached_myst_anchors:
             continue
         yield EquationReference(
             target=target,
-            span=_span(document, target_start, token.destination_end),
+            span=_span(document, target_start, token.fragment_target_end),
             raw=document.text[token.start : token.end],
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
@@ -346,41 +344,7 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
 
 
 def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
-    occupied = _code_spans(document)
-    lines = _line_ranges(document.text)
-    targets: set[str] = set()
-    for index, (start, _end, line) in enumerate(lines):
-        if _in_ranges(start, occupied):
-            continue
-        match = MYST_ANCHOR_RE.match(line)
-        if match is None:
-            continue
-        next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
-            targets.add(_normalize_label(match.group("label")))
-    return frozenset(targets)
-
-
-def _next_attachable_line_index(
-    lines: tuple[tuple[int, int, str], ...],
-    index: int,
-) -> int | None:
-    while index < len(lines):
-        line = lines[index][2].strip()
-        if line and not line.startswith("<!--"):
-            return index
-        index += 1
-    return None
-
-
-def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:
-    ranges: list[tuple[int, int, str]] = []
-    start = 0
-    for line in text.splitlines(keepends=True):
-        end = start + len(line)
-        ranges.append((start, end, line[:-1] if line.endswith("\n") else line))
-        start = end
-    return tuple(ranges)
+    return attached_markdown_target_labels(document.text)
 
 
 def _symbol_directives(
