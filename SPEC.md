@@ -1929,13 +1929,16 @@ Exit codes:
 
 During ordinary pre-commit runs, the hook runs one complete project-context check per
 invocation, including clean `--all-files`, explicit `--files`, and unsupported-only
-staged changes. Pre-commit stashes unstaged worktree changes before invoking the hook,
-so the check observes the staged project snapshot. The hook does not receive candidate
-filenames because each invocation must run exactly once; consumer `--files`, `exclude`,
-`types`, and `exclude_types` settings do not scope the project check. Checker options
-are passed before the `--` boundary; filenames after it are rejected. Pre-push and
-generic revision-range runs are rejected because the adapter does not validate
-arbitrary revision snapshots.
+staged changes. For a normal commit hook invocation, pre-commit temporarily removes
+tracked unstaged changes before the check; untracked supported files remain visible to
+project discovery. `--all-files` and `--files` runs do not stash unstaged changes, so
+those modes check the current worktree. The hook does not receive candidate filenames
+because each invocation must run exactly once; consumer `--files`, `exclude`, `types`,
+and `exclude_types` settings do not scope the project check. Checker options are passed
+before the `--` boundary; filenames after it are rejected. The published hook is
+eligible only for the `pre-commit` stage and requires pre-commit 3.2.0 or newer.
+Pre-push and generic revision-range runs are not supported because the adapter does not
+validate arbitrary revision snapshots.
 
 ### v0.1.5 SARIF workflow
 

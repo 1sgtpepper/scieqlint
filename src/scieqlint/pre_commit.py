@@ -10,8 +10,6 @@ from collections.abc import Sequence
 
 def _split_arguments(arguments: Sequence[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
     args = tuple(arguments)
-    if not args:
-        return (), ()
     try:
         boundary = args.index("--")
     except ValueError as error:

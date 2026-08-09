@@ -52,8 +52,13 @@ Release notes must use these sections:
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
 - During ordinary pre-commit runs, the hook now runs one complete project-context
-  check per invocation, including clean `--all-files` and explicit `--files` runs;
-  checker options remain supported before the required `--` boundary.
+  check per invocation, including clean `--all-files` and explicit `--files` runs.
+  Normal commit hooks use pre-commit's tracked-file staging context while still
+  seeing untracked supported files; `--all-files` and `--files` observe the
+  current worktree. The hook is limited to the pre-commit stage and requires
+  pre-commit 3.2.0 or newer.
+- Source distributions now include the pre-commit hook manifest so integration
+  fixtures can run without repository Git metadata.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
 
 ### Deprecated

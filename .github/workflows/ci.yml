@@ -93,6 +93,14 @@ jobs:
           python -m pip install --upgrade pip build twine
           python -m build
           twine check dist/*
+      - name: Test extracted source distribution
+        run: |
+          sdist="$(find dist -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          tmpdir="$(mktemp -d)"
+          tar -xzf "$sdist" -C "$tmpdir"
+          cd "$tmpdir"/scieqlint-*
+          python -m pip install . pytest "pre-commit==3.2.0"
+          python -m pytest -q tests/test_pre_commit_metadata.py
       - name: Clean venv smoke test
         run: |
           python -m venv /tmp/scieqlint-smoke

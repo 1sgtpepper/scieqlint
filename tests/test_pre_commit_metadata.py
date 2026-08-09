@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import runpy
+import shutil
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
@@ -51,6 +52,38 @@ def _git(project: Path, *args: str) -> None:
         capture_output=True,
         text=True,
     )
+
+
+@pytest.fixture(scope="session")
+def hook_repository(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
+    source_root = Path(__file__).resolve().parents[1]
+    repository = tmp_path_factory.mktemp("scieqlint-hook-repository")
+    shutil.copytree(source_root / "src", repository / "src")
+    for filename in (".pre-commit-hooks.yaml", "pyproject.toml", "README.md", "SPEC.md", "LICENSE"):
+        shutil.copy2(source_root / filename, repository / filename)
+    _git(repository, "init", "--quiet")
+    _git(repository, "config", "user.email", "test@example.invalid")
+    _git(repository, "config", "user.name", "SciEqLint test")
+    _git(
+        repository,
+        "add",
+        "--",
+        ".pre-commit-hooks.yaml",
+        "pyproject.toml",
+        "README.md",
+        "SPEC.md",
+        "LICENSE",
+        "src",
+    )
+    _git(repository, "commit", "--quiet", "-m", "hook fixture")
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return repository, revision
 
 
 def _init_project(
@@ -151,10 +184,12 @@ def test_pre_commit_adapter_forwards_checker_options(
     ]
 
 
+@pytest.mark.parametrize("arguments", [(), ("--strict-unknowns", "chapter.MD")])
 def test_pre_commit_adapter_rejects_missing_option_boundary(
     capsys: pytest.CaptureFixture[str],
+    arguments: tuple[str, ...],
 ) -> None:
-    assert pre_commit.main(("--strict-unknowns", "chapter.MD")) == 2
+    assert pre_commit.main(arguments) == 2
     assert "must include '--'" in capsys.readouterr().err
 
 
@@ -165,12 +200,15 @@ def test_pre_commit_adapter_rejects_configured_filenames(
     assert "does not accept filenames" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("variable", ["PRE_COMMIT_FROM_REF", "PRE_COMMIT_TO_REF"])
 def test_pre_commit_adapter_rejects_revision_range(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    variable: str,
 ) -> None:
-    monkeypatch.setenv("PRE_COMMIT_FROM_REF", "A")
-    monkeypatch.setenv("PRE_COMMIT_TO_REF", "B")
+    monkeypatch.delenv("PRE_COMMIT_FROM_REF", raising=False)
+    monkeypatch.delenv("PRE_COMMIT_TO_REF", raising=False)
+    monkeypatch.setenv(variable, "ref")
 
     assert pre_commit.main(("--",)) == 2
     assert "revision-range runs are not supported" in capsys.readouterr().err
@@ -200,15 +238,9 @@ def test_pre_commit_hook_checks_unchanged_project_context(
     tmp_path: Path,
     filename: str,
     source: str,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -232,6 +264,32 @@ def test_pre_commit_hook_checks_unchanged_project_context(
     assert "No such option" not in output
 
 
+def test_pre_commit_hook_scans_untracked_supported_files(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
+    project = tmp_path / "project"
+    _init_project(
+        project,
+        repository,
+        revision,
+        {"existing.md": "$$\nE = m c^2\n$$ {#duplicate}\n"},
+    )
+    (project / "draft.md").write_text("$$\nF = m a\n$$ {#duplicate}\n", encoding="utf-8")
+
+    result = subprocess.run(
+        ["pre-commit", "run", "scieqlint"],
+        cwd=project,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    output = result.stdout + result.stderr
+    assert "REF001" in output
+
+
 @pytest.mark.parametrize(
     ("selection", "stage_unrelated"),
     [
@@ -244,15 +302,9 @@ def test_pre_commit_hook_checks_every_selection_mode(
     tmp_path: Path,
     selection: tuple[str, ...],
     stage_unrelated: bool,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -279,34 +331,55 @@ def test_pre_commit_hook_checks_every_selection_mode(
 
 
 @pytest.mark.parametrize(
-    ("staged_source", "working_source", "expected_returncode"),
+    ("selection", "staged_source", "working_source", "expected_returncode"),
     [
         (
+            (),
             "$$\nF = m a\n$$ {#duplicate}\n",
             "plain text\n",
             1,
         ),
         (
+            (),
             "plain text\nadditional staged text\n",
             "$$\nF = m a\n$$ {#duplicate}\n",
             0,
         ),
+        (
+            ("--all-files",),
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            "plain text\n",
+            0,
+        ),
+        (
+            ("--all-files",),
+            "plain text\nadditional staged text\n",
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            1,
+        ),
+        (
+            ("--files", "chapter.md"),
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            "plain text\n",
+            0,
+        ),
+        (
+            ("--files", "chapter.md"),
+            "plain text\nadditional staged text\n",
+            "$$\nF = m a\n$$ {#duplicate}\n",
+            1,
+        ),
     ],
 )
-def test_pre_commit_hook_checks_staged_snapshot_not_unstaged_worktree(
+def test_pre_commit_hook_matches_pre_commit_staging_mode(
     tmp_path: Path,
+    selection: tuple[str, ...],
     staged_source: str,
     working_source: str,
     expected_returncode: int,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -322,7 +395,7 @@ def test_pre_commit_hook_checks_staged_snapshot_not_unstaged_worktree(
     (project / "chapter.md").write_text(working_source, encoding="utf-8")
 
     result = subprocess.run(
-        ["pre-commit", "run", "scieqlint"],
+        ["pre-commit", "run", "scieqlint", *selection],
         cwd=project,
         capture_output=True,
         text=True,
@@ -338,15 +411,9 @@ def test_pre_commit_hook_checks_staged_snapshot_not_unstaged_worktree(
 def test_pre_commit_hook_checks_when_supported_source_leaves_project(
     tmp_path: Path,
     operation: str,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -375,15 +442,11 @@ def test_pre_commit_hook_checks_when_supported_source_leaves_project(
     assert "references.md" in output
 
 
-def test_pre_commit_hook_checks_mixed_staged_deletion(tmp_path: Path) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def test_pre_commit_hook_checks_mixed_staged_deletion(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -414,15 +477,9 @@ def test_pre_commit_hook_checks_mixed_staged_deletion(tmp_path: Path) -> None:
 
 def test_pre_commit_hook_checks_rename_source_when_destination_is_filtered(
     tmp_path: Path,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -454,15 +511,9 @@ def test_pre_commit_hook_checks_rename_source_when_destination_is_filtered(
 
 def test_pre_commit_hook_runs_one_project_check_for_large_staged_set(
     tmp_path: Path,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -488,15 +539,11 @@ def test_pre_commit_hook_runs_one_project_check_for_large_staged_set(
     assert output.count("REF001") == 1
 
 
-def test_pre_commit_hook_forwards_consumer_arguments(tmp_path: Path) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def test_pre_commit_hook_forwards_consumer_arguments(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -521,15 +568,11 @@ def test_pre_commit_hook_forwards_consumer_arguments(tmp_path: Path) -> None:
     assert "No such option" not in output
 
 
-def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(tmp_path: Path) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -553,17 +596,11 @@ def test_pre_commit_hook_rejects_consumer_arguments_without_boundary(tmp_path: P
     assert "must include '--'" in output
 
 
-def test_pre_commit_hook_uses_staged_index_for_explicit_file_selection(
+def test_pre_commit_hook_ignores_explicit_file_selection_for_project_scan(
     tmp_path: Path,
+    hook_repository: tuple[Path, str],
 ) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -589,15 +626,11 @@ def test_pre_commit_hook_uses_staged_index_for_explicit_file_selection(
     assert "REF001" in output
 
 
-def test_pre_commit_hook_uses_staged_index_despite_consumer_exclude(tmp_path: Path) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def test_pre_commit_hook_ignores_consumer_exclude_for_project_scan(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
@@ -623,15 +656,11 @@ def test_pre_commit_hook_uses_staged_index_despite_consumer_exclude(tmp_path: Pa
     assert "REF001" in result.stdout + result.stderr
 
 
-def test_pre_commit_hook_checks_unrelated_staged_changes(tmp_path: Path) -> None:
-    repository = Path(__file__).resolve().parents[1]
-    revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+def test_pre_commit_hook_checks_unrelated_staged_changes(
+    tmp_path: Path,
+    hook_repository: tuple[Path, str],
+) -> None:
+    repository, revision = hook_repository
     project = tmp_path / "project"
     _init_project(
         project,
