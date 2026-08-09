@@ -27,6 +27,7 @@ class FileIdentity:
 class ConsumedInput:
     """The lexical input role and object identity observed during consumption."""
 
+    path: Path
     path_key: str
     normalized_path_key: str | None
     identity: FileIdentity | None
@@ -41,6 +42,15 @@ class ConsumedInput:
 
     def matches_identity(self, stat_result: os.stat_result) -> bool:
         return self.identity is not None and self.identity.matches(stat_result)
+
+    def matches_current_identity(self, stat_result: os.stat_result) -> bool:
+        """Match the object currently reached through this consumed role path."""
+        try:
+            current = os.stat(self.path)
+        except FileNotFoundError:
+            return False
+        current_identity = FileIdentity.from_stat(current)
+        return current_identity.matches(stat_result)
 
 
 def _lexical_path_key(path: Path) -> str:
@@ -73,6 +83,7 @@ def open_text(
     *,
     encoding: str,
 ) -> Generator[tuple[TextIO, ConsumedInput], None, None]:
+    role_path = path.absolute()
     descriptor: int | None = os.open(path, os.O_RDONLY)
     try:
         try:
@@ -82,10 +93,14 @@ def open_text(
         stream = os.fdopen(descriptor, "r", encoding=encoding)
         descriptor = None
         try:
-            yield stream, ConsumedInput(
-                _lexical_path_key(path),
-                _normalized_path_key(path),
-                identity,
+            yield (
+                stream,
+                ConsumedInput(
+                    role_path,
+                    _lexical_path_key(path),
+                    _normalized_path_key(path),
+                    identity,
+                ),
             )
         finally:
             stream.close()

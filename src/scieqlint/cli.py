@@ -34,6 +34,7 @@ class _ConsumedIdentity(Protocol):
 
     def matches_path(self, path: Path) -> bool: ...
     def matches_identity(self, stat_result: os.stat_result) -> bool: ...
+    def matches_current_identity(self, stat_result: os.stat_result) -> bool: ...
 
 
 DEFAULT_CONFIG = """[project]
@@ -291,7 +292,26 @@ def _write_output(
             )
             created = True
         except FileExistsError:
-            descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT, 0o666)
+            for _attempt in range(2):
+                try:
+                    # Do not add O_CREAT here: a dangling symlink must not create its target.
+                    descriptor = os.open(output_path, os.O_WRONLY)
+                    break
+                except FileNotFoundError:
+                    try:
+                        descriptor = os.open(
+                            output_path,
+                            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                            0o666,
+                        )
+                        created = True
+                        break
+                    except FileExistsError:
+                        continue
+            if descriptor is None:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from None
         # O_EXCL proves a newly created directory entry cannot be a consumed object;
         # an identity lookup is needed only before replacing an existing object.
         if not created:
@@ -301,7 +321,17 @@ def _write_output(
                 raise _OperationalError(
                     f"refusing to overwrite analysis input: {output_path}"
                 ) from exc
-            if any(item.matches_identity(output_stat) for item in consumed_inputs):
+            try:
+                current_role_match = any(
+                    item.matches_current_identity(output_stat) for item in consumed_inputs
+                )
+            except OSError as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+            if current_role_match or any(
+                item.matches_identity(output_stat) for item in consumed_inputs
+            ):
                 raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
             descriptor = None

@@ -155,6 +155,60 @@ def test_check_refuses_replaced_ordinary_lexical_alias(tmp_path, monkeypatch) ->
     assert doc.read_text(encoding="utf-8") == replacement
 
 
+def test_check_refuses_symlink_to_replaced_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    replacement = "# replacement\n"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    output.symlink_to(doc)
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.is_symlink()
+
+
+def test_check_refuses_hardlink_to_replacement_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    replacement = "# replacement\n"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        os.link(doc, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
 def test_check_allows_distinct_output_after_symlink_parent_input(tmp_path) -> None:
     root = tmp_path / "root"
     target_directory = root / "external" / "dir"
@@ -198,6 +252,25 @@ def test_graph_refuses_symlink_output_alias(tmp_path) -> None:
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert doc.read_text(encoding="utf-8") == "$$\na = a\n$$ {#energy}\n"
+
+
+def test_check_writes_distinct_output_symlink_target(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    target = tmp_path / "report-target.json"
+    output = tmp_path / "report.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    target.write_text("placeholder\n", encoding="utf-8")
+    output.symlink_to(target)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert output.is_symlink()
+    assert json.loads(target.read_text(encoding="utf-8"))["diagnostics"] == []
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
 
 
 def test_check_refuses_hardlink_output_alias(tmp_path) -> None:
@@ -284,6 +357,34 @@ def test_graph_refuses_hardlink_to_consumed_source_after_source_replacement(
     assert doc.read_text(encoding="utf-8") == "# replacement\n"
 
 
+def test_graph_refuses_hardlink_to_replacement_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "$$\na = a\n$$ {#energy}\n"
+    replacement = "# replacement\n"
+    doc.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_graph_paths
+
+    def replace_source_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        os.link(doc, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_source_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
 def test_graph_refuses_hardlink_to_consumed_config_after_config_replacement(
     tmp_path,
     monkeypatch,
@@ -313,6 +414,36 @@ def test_graph_refuses_hardlink_to_consumed_config_after_config_replacement(
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert output.read_text(encoding="utf-8") == original
+
+
+def test_graph_refuses_hardlink_to_replacement_config_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    replacement = "[report]\nshow_suppressed = false\n"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_graph_paths
+
+    def replace_config_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text(replacement, encoding="utf-8")
+        os.link(config, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_config_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
 
 
 def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
@@ -783,6 +914,80 @@ def test_check_refuses_hardlink_to_consumed_baseline_after_baseline_replacement(
     assert result.exit_code == 2
     assert "refusing to overwrite analysis input" in result.output
     assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_hardlink_to_replacement_baseline_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    original = '{"diagnostics": []}\n'
+    replacement = '{"diagnostics": [{"code": "ALG001"}]}\n'
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text(original, encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_baseline_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        baseline.unlink()
+        baseline.write_text(replacement, encoding="utf-8")
+        os.link(baseline, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_baseline_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert baseline.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
+def test_check_refuses_dangling_output_symlink_without_recreating_target(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    real_open = cli_module.os.open
+    swapped = False
+
+    def create_dangling_alias(path, flags, mode=0o777):
+        nonlocal swapped
+        if path == output and flags & os.O_EXCL and not swapped:
+            output.unlink()
+            output.symlink_to(doc)
+            doc.unlink()
+            swapped = True
+        return real_open(path, flags, mode)
+
+    monkeypatch.setattr(cli_module.os, "open", create_dangling_alias)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert not doc.exists()
+    assert output.is_symlink()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions are required")
