@@ -154,9 +154,7 @@ def test_pre_commit_adapter_recovers_only_invisible_index_paths(
         "notes.txt",
     )
     assert pre_commit._invisible_paths(records, ("notes.txt",)) == ()
-    assert pre_commit._invisible_paths(records, ("definitions.md.tmp",)) == (
-        "definitions.md",
-    )
+    assert pre_commit._invisible_paths(records, ("definitions.md.tmp",)) == ("definitions.md",)
 
 
 def test_pre_commit_adapter_splits_options_from_option_shaped_path() -> None:

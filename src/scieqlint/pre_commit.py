@@ -59,9 +59,7 @@ def _invisible_paths(
     for status, changed_paths in records:
         if status == "D" and (not candidates or candidates <= staged):
             paths.extend(changed_paths)
-        elif status == "R" and (
-            not candidates or changed_paths[1] in candidates
-        ):
+        elif status == "R" and (not candidates or changed_paths[1] in candidates):
             paths.append(changed_paths[0])
     return tuple(paths)
 
@@ -99,9 +97,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         paths = candidate_paths
     else:
         staged_records = _staged_records()
-        staged_paths = {
-            path for _, changed_paths in staged_records for path in changed_paths
-        }
+        staged_paths = {path for _, changed_paths in staged_records for path in changed_paths}
         paths = (
             *candidate_paths,
             *_invisible_paths(
