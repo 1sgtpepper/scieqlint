@@ -388,6 +388,8 @@ def _lexical_ranges(
             index = match.end()
             continue
         index += 1
+    if active_start is not None:
+        verbatim.append((active_start, len(text)))
     return tuple(comments), tuple(verbatim)
 
 

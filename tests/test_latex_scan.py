@@ -163,6 +163,21 @@ def test_verbatim_closer_requires_the_matching_starred_form() -> None:
     assert [block.text for block in result.blocks] == ["y = y"]
 
 
+def test_mismatched_verbatim_closer_at_eof_keeps_region_opaque() -> None:
+    result = LatexScanner().scan(
+        _document(
+            "\\begin{equation}y = y\\end{equation}\n"
+            "\\begin{verbatim}\n"
+            "\\begin{equation}x = x + 1\\end{equation}\n"
+            "\\end{verbatim*}"
+        ),
+        Config(),
+    )
+
+    assert [block.text for block in result.blocks] == ["y = y"]
+    assert result.diagnostics == ()
+
+
 def test_verbatim_closer_inside_percent_content_is_literal_delimiter() -> None:
     result = LatexScanner().scan(
         _document(
