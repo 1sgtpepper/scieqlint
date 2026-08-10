@@ -14,8 +14,7 @@ import pytest
 
 MARKER = "public_regression"
 MARKER_DESCRIPTION = (
-    "new public bug regression that must fail by a test-owned assertion "
-    "on the pull request base"
+    "new public bug regression that must fail by a test-owned assertion on the pull request base"
 )
 _PASS = 0
 _MISMATCH = 10
