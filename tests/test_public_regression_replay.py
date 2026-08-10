@@ -63,6 +63,24 @@ def cleanup():
 def test_public_behavior(expected: str, cleanup) -> None:
     assert demo.VALUE == expected
 """
+PYTEST_FAIL_MARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    if demo.VALUE != expected:
+        pytest.fail("public behavior mismatch")
+"""
+XFAIL_MARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.public_regression
+@pytest.mark.xfail
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
 CONTROL_TEST = """
 
 def test_normative_control() -> None:
@@ -73,6 +91,19 @@ BROKEN_COLLECTION_TEST = 'raise RuntimeError("collection failed")\n'
 
 def test_replay_accepts_base_mismatch_and_head_pass(tmp_path: Path) -> None:
     base, head = _write_revisions(tmp_path, base_module='VALUE = "old"\n')
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.splitlines() == [f"HEAD PASS {NODE_ID}", f"BASE MISMATCH {NODE_ID}"]
+
+
+def test_replay_accepts_pytest_fail_as_behavioral_mismatch(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=PYTEST_FAIL_MARKED_TEST,
+    )
 
     result = _run_replay(base, head)
 
@@ -103,6 +134,20 @@ def test_replay_rejects_head_assertion_failure(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert result.stdout.splitlines() == [f"HEAD MISMATCH {NODE_ID}"]
+
+
+def test_replay_rejects_expected_failure_marker(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=XFAIL_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
+    assert "xpassed" in result.stdout.lower()
 
 
 def test_replay_reports_head_api_incompatibility(tmp_path: Path) -> None:
@@ -211,6 +256,17 @@ def test_replay_skips_base_collection_without_head_markers(tmp_path: Path) -> No
 
     assert result.returncode == 0, result.stdout
     assert result.stdout == "No newly added public regressions.\n"
+
+
+def test_replay_rejects_invalid_base_checkout_with_role(tmp_path: Path) -> None:
+    _, head = _write_revisions(tmp_path, base_module='VALUE = "old"\n')
+    missing_base = tmp_path / "missing-base"
+
+    result = _run_replay(missing_base, head)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert f"base checkout must contain src/ and tests/: {missing_base}" in result.stderr
 
 
 def test_replay_reports_base_collection_failure_for_exact_head_node(tmp_path: Path) -> None:
