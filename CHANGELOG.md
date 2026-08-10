@@ -24,6 +24,11 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Terminology-gate detection now counts only canonical gate wiring with direct
+  failure controls that are statically proven blocking. Explicitly disabled or
+  continue-on-error steps and parent jobs are excluded, as are step shell
+  overrides and inherited workflow or job run defaults; general GitHub Actions
+  validation remains outside this scanner.
 - The development Ruff requirement now stays within the formatter version
   supported by the checked-in sources and documentation.
 - Package metadata now links to the repository's working documentation path.
@@ -51,7 +56,27 @@ Release notes must use these sections:
 - Unsupported TeX function names no longer trigger undefined-symbol warnings.
 - Notebook Markdown scans now preserve explicit symbol directives and their cell
   locations for symbol checks.
+- During ordinary pre-commit runs, the hook now runs one complete project-context
+  check per invocation, including clean `--all-files` and explicit `--files` runs.
+  Normal commit hooks use pre-commit's tracked-file staging context while still
+  seeing untracked supported files; `--all-files` and `--files` observe the
+  current worktree. The hook is limited to the pre-commit stage and requires
+  pre-commit 3.2.0 or newer. Consumer hook arguments with positional paths are
+  rejected rather than narrowing the project scan.
+- Pre-commit launches now use Python isolated mode, including inherited Python path
+  variables, so consumer-side modules cannot shadow the installed SciEqLint package.
+- Source distributions now include the pre-commit hook manifest so integration
+  fixtures can run without repository Git metadata.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
+- Algebraic parsing now applies exponentiation before unary signs, keeps
+  symbolic square roots conservative, does not simplify symbolic root
+  operands after cancellation, accepts integer exponents from `-1000` through
+  `1000`, and reports out-of-range, oversized, or deeply nested unsupported
+  input without leaking interpreter errors.
+- MyST targets now attach to valid bare ATX headings, while malformed ATX
+  candidates remain diagnostics without participating in heading semantics.
+- Disabling the Markdown scanner now also disables Markdown frontend diagnostics
+  and cross-document reference/structure analysis.
 - Implementation-status documents now identify the current v1.1.0 implementation
   and its shipped capabilities without changing the unresolved maturity
   classification.

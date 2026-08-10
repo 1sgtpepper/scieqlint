@@ -179,6 +179,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/pre_commit.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/generated-myst.toml`
 - `src/scieqlint/presets/mechanics.toml`

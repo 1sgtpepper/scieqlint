@@ -153,7 +153,7 @@ def check_documents(
         markdown_documents = tuple(
             document for document in documents if document.kind is DocumentKind.MARKDOWN
         )
-        if markdown_documents:
+        if markdown_documents and config.scanner.markdown:
             query = QueryHost(MySTFrontend().lower(markdown_documents))
             diagnostics.extend(
                 diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
@@ -169,7 +169,7 @@ def check_documents(
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
-    if markdown_documents:
+    if markdown_documents and config.scanner.markdown:
         query = QueryHost(MySTFrontend().lower(markdown_documents))
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)

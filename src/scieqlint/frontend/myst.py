@@ -27,6 +27,7 @@ from .myst_headings import (
     attach_anchors,
     is_immediate_attachment,
     scan_anchors,
+    scan_heading_syntax_issues,
     scan_headings,
     sections_for_headings,
 )
@@ -75,8 +76,9 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     fences = scan_fences(document, smap, lines)
     occupied_fence_ranges = fence_ranges(fences, document.text)
     directives, code_cells = directive_and_code_cell_facts(document, fences)
-    structure_syntax_issues = tuple(
-        scan_structure_syntax_issues(document, smap, occupied_fence_ranges, fences)
+    structure_syntax_issues = (
+        *scan_structure_syntax_issues(document, smap, occupied_fence_ranges, fences),
+        *scan_heading_syntax_issues(document, smap, lines, occupied_fence_ranges),
     )
     headings = tuple(scan_headings(document, smap, lines, occupied_fence_ranges))
     anchors = tuple(scan_anchors(document, smap, lines, occupied_fence_ranges))

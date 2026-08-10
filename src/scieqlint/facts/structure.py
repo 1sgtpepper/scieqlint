@@ -10,6 +10,7 @@ from scieqlint.facts.base import FactBase
 
 FenceKind = Literal["generic", "math", "directive", "code-cell", "div"]
 StructureSyntaxKind = Literal[
+    "atx-heading",
     "myst-directive",
     "myst-option",
     "myst-role",
@@ -25,8 +26,6 @@ class HeadingFact(FactBase):
     explicit_anchor_ids: tuple[str, ...] = ()
     marker_span: SourceSpan | None = None
     text_span: SourceSpan | None = None
-    valid_atx: bool = True
-    malformation: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
