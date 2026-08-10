@@ -167,6 +167,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/graph/model.py`
 - `src/scieqlint/io/__init__.py`
 - `src/scieqlint/io/discover.py`
+- `src/scieqlint/io/identity.py`
 - `src/scieqlint/io/limits.py`
 - `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`

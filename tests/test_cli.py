@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 
+import pytest
 from click.testing import CliRunner
 
+from scieqlint import app as app_module
+from scieqlint import cli as cli_module
 from scieqlint.cli import main
 from scieqlint.config.load import load_config
 from scieqlint.config.presets import read_preset_text
+from scieqlint.io import identity as identity_module
 
 
 def test_help() -> None:
@@ -79,6 +85,1239 @@ def test_check_writes_output_file(tmp_path) -> None:
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["diagnostics"] == []
     assert payload["summary"]["errors"] == 0
+
+
+def test_check_refuses_to_overwrite_input(tmp_path) -> None:
+    doc = tmp_path / "bad.md"
+    (tmp_path / "alias").mkdir()
+    output = tmp_path / "alias" / ".." / "bad.md"
+    original = "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+    doc.write_text(original, encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_replaced_exact_input_path(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    original = "# consumed source\n"
+    replacement = "# replacement\n"
+    doc.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(doc)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+
+
+def test_check_refuses_replaced_ordinary_lexical_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    alias_directory = tmp_path / "alias"
+    output = alias_directory / ".." / "source.md"
+    replacement = "# replacement\n"
+    alias_directory.mkdir()
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+
+
+def test_check_refuses_deleted_input_through_symlinked_parent(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    doc = root / "source.md"
+    alias = tmp_path / "alias"
+    output = alias / "source.md"
+    alias.symlink_to(root, target_is_directory=True)
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def remove_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", remove_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert not doc.exists()
+    assert not output.exists()
+
+
+@pytest.mark.skipif(
+    not cli_module._OUTPUT_PARENT_FD_SUPPORTED,
+    reason="directory-descriptor output creation is unavailable",
+)
+def test_check_pins_output_parent_before_deleted_role_can_be_recreated(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "root"
+    alternate = tmp_path / "alternate"
+    alias = tmp_path / "alias"
+    root.mkdir()
+    alternate.mkdir()
+    alias.symlink_to(alternate, target_is_directory=True)
+    doc = root / "source.md"
+    output = alias / "source.md"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_open = cli_module.os.open
+    swapped = False
+
+    def retarget_before_child(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped
+        if dir_fd is not None and path == output.name and not swapped:
+            alias.unlink()
+            alias.symlink_to(root, target_is_directory=True)
+            doc.unlink()
+            swapped = True
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", retarget_before_child)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert not doc.exists()
+    assert not output.exists()
+    assert json.loads((alternate / "source.md").read_text(encoding="utf-8"))["diagnostics"] == []
+
+
+def test_check_refuses_symlink_to_replaced_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    replacement = "# replacement\n"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    output.symlink_to(doc)
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.is_symlink()
+
+
+def test_check_refuses_hardlink_to_replacement_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    replacement = "# replacement\n"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_source_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        os.link(doc, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
+def test_check_allows_distinct_output_after_symlink_parent_input(tmp_path) -> None:
+    root = tmp_path / "root"
+    target_directory = root / "external" / "dir"
+    target_directory.mkdir(parents=True)
+    link = root / "link"
+    link.symlink_to(target_directory, target_is_directory=True)
+    consumed = root / "external" / "victim.md"
+    output = root / "victim.md"
+    original = "# physical target\n"
+    consumed.write_text(original, encoding="utf-8")
+    output.write_text("old output\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(root / "link" / ".." / "victim.md"),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["summary"]["files_checked"] == 1
+    assert consumed.read_text(encoding="utf-8") == original
+
+
+def test_graph_refuses_symlink_output_alias(tmp_path) -> None:
+    doc = tmp_path / "graph.md"
+    output = tmp_path / "graph.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    output.symlink_to(doc)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == "$$\na = a\n$$ {#energy}\n"
+
+
+def test_check_writes_distinct_output_symlink_target(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    target = tmp_path / "report-target.json"
+    output = tmp_path / "report.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    target.write_text("placeholder\n", encoding="utf-8")
+    output.symlink_to(target)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert output.is_symlink()
+    assert json.loads(target.read_text(encoding="utf-8"))["diagnostics"] == []
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_refuses_hardlink_output_alias(tmp_path) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    os.link(doc, output)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(main, ["check", "README.md", "--output", "scieqlint.toml"])
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
+
+
+def test_graph_refuses_config_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "graph",
+            "README.md",
+            "--config",
+            "scieqlint.toml",
+            "--output",
+            "scieqlint.toml",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == "[report]\nshow_suppressed = true\n"
+
+
+def test_graph_refuses_hardlink_to_consumed_source_after_source_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "$$\na = a\n$$ {#energy}\n"
+    doc.write_text(original, encoding="utf-8")
+    os.link(doc, output)
+    real_run = cli_module._run_graph_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text("# replacement\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+    assert doc.read_text(encoding="utf-8") == "# replacement\n"
+
+
+def test_graph_refuses_hardlink_to_replacement_source_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "$$\na = a\n$$ {#energy}\n"
+    replacement = "# replacement\n"
+    doc.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_graph_paths
+
+    def replace_source_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text(replacement, encoding="utf-8")
+        os.link(doc, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_source_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
+def test_graph_refuses_hardlink_to_consumed_config_after_config_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    os.link(config, output)
+    real_run = cli_module._run_graph_paths
+
+    def replace_config_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text("[report]\nshow_suppressed = false\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_config_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_graph_refuses_hardlink_to_replacement_config_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    replacement = "[report]\nshow_suppressed = false\n"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    real_run = cli_module._run_graph_paths
+
+    def replace_config_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text(replacement, encoding="utf-8")
+        os.link(config, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_graph_paths", replace_config_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert config.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
+def test_check_refuses_baseline_output_alias(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", "README.md", "--config", "scieqlint.toml", "--output", "baseline.json"],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert baseline.read_text(encoding="utf-8") == '{"diagnostics": []}\n'
+
+
+def test_check_refuses_when_input_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("platform detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "platform detail" not in result.output
+    assert not output.exists()
+    assert doc.read_text(encoding="utf-8") == "# clean\n"
+
+
+def test_check_stdout_remains_available_when_input_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    doc.write_text("# clean\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("platform detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "platform detail" not in result.output
+
+
+def test_check_refuses_when_config_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "config identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_check_stdout_remains_available_when_config_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "config identity detail" not in result.output
+
+
+def test_check_refuses_when_baseline_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_baseline_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise PermissionError("baseline identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_baseline_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--config", str(config), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "baseline identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_check_stdout_remains_available_when_baseline_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_baseline_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise PermissionError("baseline identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_baseline_identity)
+
+    result = CliRunner().invoke(main, ["check", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "baseline identity detail" not in result.output
+
+
+@pytest.mark.parametrize("role", ["source", "explicit_config", "automatic_config", "baseline"])
+def test_check_keeps_readable_inputs_when_path_metadata_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+    role,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    arguments = ["check", str(doc), "--format", "json"]
+    if role == "explicit_config":
+        config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+        arguments.extend(["--config", str(config)])
+    elif role == "automatic_config":
+        config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+    elif role == "baseline":
+        config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+        baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+        arguments.extend(["--config", str(config)])
+
+    def deny_path_metadata(_path) -> bool:
+        raise PermissionError("path metadata detail must not escape")
+
+    monkeypatch.setattr(identity_module.Path, "is_symlink", deny_path_metadata)
+
+    stdout_result = CliRunner().invoke(main, arguments)
+    assert stdout_result.exit_code == 0
+    assert '"diagnostics": []' in stdout_result.output
+    assert "path metadata detail" not in stdout_result.output
+
+    output_result = CliRunner().invoke(main, [*arguments, "--output", str(output)])
+    assert output_result.exit_code == 2
+    assert "refusing to overwrite analysis input" in output_result.output
+    assert "path metadata detail" not in output_result.output
+    assert not output.exists()
+
+
+def test_graph_refuses_when_source_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "graph.md"
+    output = tmp_path / "result.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("graph identity detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc), "--output", str(output)])
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "graph identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_graph_refuses_when_config_identity_is_indeterminate(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "graph.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("graph config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["graph", str(doc), "--config", str(config), "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "graph config identity detail" not in result.output
+    assert not output.exists()
+
+
+def test_graph_stdout_remains_available_when_source_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "graph.md"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+
+    def deny_identity(_stat_result) -> object:
+        raise PermissionError("graph identity detail must not escape")
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc)])
+
+    assert result.exit_code == 0
+    assert '"schema_version": "0.3"' in result.output
+    assert "graph identity detail" not in result.output
+
+
+def test_graph_stdout_remains_available_when_config_identity_is_indeterminate(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "graph.md"
+    config = tmp_path / "scieqlint.toml"
+    doc.write_text("$$\na = a\n$$ {#energy}\n", encoding="utf-8")
+    config.write_text("[report]\nshow_suppressed = true\n", encoding="utf-8")
+    original_from_stat = identity_module.FileIdentity.from_stat
+    calls = 0
+
+    def deny_config_identity(stat_result) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("graph config identity detail must not escape")
+        return original_from_stat(stat_result)
+
+    monkeypatch.setattr(identity_module.FileIdentity, "from_stat", deny_config_identity)
+
+    result = CliRunner().invoke(main, ["graph", str(doc), "--config", str(config)])
+
+    assert result.exit_code == 0
+    assert '"schema_version": "0.3"' in result.output
+    assert "graph config identity detail" not in result.output
+
+
+def test_check_refuses_output_swapped_to_input_before_open(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "bad.md"
+    output = tmp_path / "result.json"
+    original = "ORIGINAL\n"
+    doc.write_text(original, encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    checked = False
+    real_open = cli_module.os.open
+
+    def swap_before_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal checked
+        if path == output.name and dir_fd is not None and not checked:
+            output.unlink()
+            output.symlink_to(doc)
+            checked = True
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", swap_before_open)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_existing_output_when_output_identity_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    real_fstat = cli_module.os.fstat
+    calls = 0
+
+    def deny_output_identity(descriptor: int):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise PermissionError("output identity detail must not escape")
+        return real_fstat(descriptor)
+
+    monkeypatch.setattr(cli_module.os, "fstat", deny_output_identity)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "output identity detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_output_when_input_alias_lookup_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+
+    def deny_physical_lookup(_self, _path) -> bool:
+        raise PermissionError("path lookup detail must not escape")
+
+    monkeypatch.setattr(
+        identity_module.ConsumedInput,
+        "matches_physical_path",
+        deny_physical_lookup,
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "path lookup detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_existing_output_when_current_role_lookup_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+
+    def deny_current_lookup(_self, _stat_result) -> bool:
+        raise PermissionError("current role detail must not escape")
+
+    monkeypatch.setattr(
+        identity_module.ConsumedInput,
+        "matches_current_identity",
+        deny_current_lookup,
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "current role detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_file_output_when_source_disappears_after_discovery(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_open_text = app_module.open_text
+
+    def remove_before_open(path, *, encoding):
+        if path == doc:
+            doc.unlink()
+            raise FileNotFoundError("source disappeared")
+        return real_open_text(path, encoding=encoding)
+
+    monkeypatch.setattr(app_module, "open_text", remove_before_open)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "source disappeared" not in result.output
+    assert not doc.exists()
+    assert not output.exists()
+
+
+def test_check_refuses_hardlink_to_consumed_source_after_source_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "# consumed source\n"
+    doc.write_text(original, encoding="utf-8")
+    os.link(doc, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        doc.write_text("# replacement\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+    assert doc.read_text(encoding="utf-8") == "# replacement\n"
+
+
+def test_check_writes_distinct_output_when_consumed_path_disappears(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def remove_source_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        doc.unlink()
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", remove_source_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["diagnostics"] == []
+    assert not doc.exists()
+
+
+def test_open_text_closes_descriptor_when_stream_creation_fails(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    doc.write_text("# source\n", encoding="utf-8")
+    real_open = identity_module.os.open
+    descriptors: list[int] = []
+
+    def capture_open(path, flags):
+        descriptor = real_open(path, flags)
+        descriptors.append(descriptor)
+        return descriptor
+
+    def deny_stream(_descriptor, _mode, *, encoding):
+        raise OSError(f"stream unavailable for {encoding}")
+
+    monkeypatch.setattr(identity_module.os, "open", capture_open)
+    monkeypatch.setattr(identity_module.os, "fdopen", deny_stream)
+
+    with (
+        pytest.raises(OSError, match="stream unavailable"),
+        identity_module.open_text(doc, encoding="utf-8"),
+    ):
+        pass
+
+    assert len(descriptors) == 1
+    with pytest.raises(OSError, match="Bad file descriptor"):
+        os.fstat(descriptors[0])
+
+
+def test_check_refuses_hardlink_to_consumed_config_after_config_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    output = tmp_path / "result.json"
+    original = "[report]\nshow_suppressed = true\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text(original, encoding="utf-8")
+    os.link(config, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_config_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        config.unlink()
+        config.write_text("[report]\nshow_suppressed = false\n", encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_config_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_hardlink_to_consumed_baseline_after_baseline_replacement(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    original = '{"diagnostics": []}\n'
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text(original, encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    os.link(baseline, output)
+    real_run = cli_module._run_check_paths
+
+    def replace_baseline_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        baseline.unlink()
+        baseline.write_text(original, encoding="utf-8")
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_baseline_after_run)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize("role", ["config", "baseline"])
+def test_check_refuses_symlink_to_replaced_consumed_role(tmp_path, monkeypatch, role) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    config.write_text(
+        '[baseline]\nfiles = ["baseline.json"]\n' if role == "baseline" else "",
+        encoding="utf-8",
+    )
+    baseline.write_text('{"diagnostics": []}\n', encoding="utf-8")
+    consumed_role = baseline if role == "baseline" else config
+    output.symlink_to(consumed_role)
+    real_run = cli_module._run_check_paths
+
+    def replace_role_after_run(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        consumed_role.unlink()
+        consumed_role.write_text(
+            '{"diagnostics": []}\n' if role == "baseline" else "[report]\n",
+            encoding="utf-8",
+        )
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_role_after_run)
+
+    arguments = [
+        "check",
+        "--config",
+        str(config),
+        str(doc),
+        "--format",
+        "json",
+        "--output",
+        str(output),
+    ]
+    result = CliRunner().invoke(main, arguments)
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert output.is_symlink()
+
+
+def test_check_refuses_hardlink_to_replacement_baseline_role(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "README.md"
+    config = tmp_path / "scieqlint.toml"
+    baseline = tmp_path / "baseline.json"
+    output = tmp_path / "result.json"
+    original = '{"diagnostics": []}\n'
+    replacement = '{"diagnostics": [{"code": "ALG001"}]}\n'
+    doc.write_text("# clean\n", encoding="utf-8")
+    baseline.write_text(original, encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+    real_run = cli_module._run_check_paths
+
+    def replace_baseline_and_create_output(*args, **kwargs):
+        run = real_run(*args, **kwargs)
+        baseline.unlink()
+        baseline.write_text(replacement, encoding="utf-8")
+        os.link(baseline, output)
+        return run
+
+    monkeypatch.setattr(cli_module, "_run_check_paths", replace_baseline_and_create_output)
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "check",
+            str(doc),
+            "--config",
+            str(config),
+            "--format",
+            "json",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert baseline.read_text(encoding="utf-8") == replacement
+    assert output.read_text(encoding="utf-8") == replacement
+
+
+def test_check_refuses_dangling_output_symlink_without_recreating_target(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    real_open = cli_module.os.open
+    swapped = False
+
+    def create_dangling_alias(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped
+        if path == output.name and dir_fd is not None and flags & os.O_EXCL and not swapped:
+            output.unlink()
+            output.symlink_to(doc)
+            doc.unlink()
+            swapped = True
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", create_dangling_alias)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert not doc.exists()
+    assert output.is_symlink()
+
+
+@pytest.mark.skipif(
+    not cli_module._OUTPUT_PARENT_FD_SUPPORTED,
+    reason="directory-descriptor output creation is unavailable",
+)
+def test_check_refuses_output_that_disappears_on_both_open_attempts(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "# consumed source\n"
+    doc.write_text(original, encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    real_open = cli_module.os.open
+
+    def disappear_before_existing_open(path, flags, mode=0o777, *, dir_fd=None):
+        if path == output.name and dir_fd is not None:
+            if flags & os.O_EXCL:
+                if not output.exists():
+                    output.write_text("competitor\n", encoding="utf-8")
+            else:
+                output.unlink()
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", disappear_before_existing_open)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
+    assert not output.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions are required")
+def test_check_writes_existing_owner_write_only_output(tmp_path) -> None:
+    doc = tmp_path / "README.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text("old\n", encoding="utf-8")
+    output.chmod(stat.S_IWUSR)
+
+    try:
+        result = CliRunner().invoke(
+            main,
+            ["check", str(doc), "--format", "json", "--output", str(output)],
+        )
+    finally:
+        output.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    assert result.exit_code == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["diagnostics"] == []
 
 
 def test_json_output_hides_suppressed_diagnostics_by_default(tmp_path) -> None:

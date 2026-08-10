@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
+from typing import Generic, TypeVar
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
@@ -13,7 +14,7 @@ from scieqlint.check.dimensions import check_dimensions
 from scieqlint.check.references import check_references
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
-from scieqlint.config.load import load_config
+from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
 from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.baseline import (
     BaselineIdentity,
@@ -28,12 +29,24 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
+from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookScanner
+
+_ResultT = TypeVar("_ResultT")
+
+
+@dataclass(frozen=True, slots=True)
+class _AnalysisRun(Generic[_ResultT]):
+    """An analysis result paired with identities captured while its inputs were read."""
+
+    result: _ResultT
+    consumed_inputs: tuple[ConsumedInput, ...]
+    input_identities_complete: bool
 
 
 def check_paths(
@@ -46,8 +59,29 @@ def check_paths(
     absolute_paths: bool = False,
 ) -> CheckResult:
     """Load supported files and check them."""
+    return _run_check_paths(
+        paths,
+        config_path=config_path,
+        no_algebra=no_algebra,
+        inline_math=inline_math,
+        strict_unknowns=strict_unknowns,
+        absolute_paths=absolute_paths,
+    ).result
+
+
+def _run_check_paths(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+    no_algebra: bool = False,
+    inline_math: bool = False,
+    strict_unknowns: bool = False,
+    absolute_paths: bool = False,
+) -> _AnalysisRun[CheckResult]:
+    """Load supported files, check them, and retain their consumed identities."""
+    config, config_inputs = _load_config_with_inputs(config_path)
     config = _apply_overrides(
-        load_config(config_path),
+        config,
         no_algebra=no_algebra,
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
@@ -62,11 +96,21 @@ def check_paths(
     )
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
+    consumed_inputs = list(config_inputs)
+    input_identities_complete = _consumed_inputs_complete(consumed_inputs)
 
     for path in discovered:
+        opened = False
         try:
-            text = path.read_text(encoding="utf-8")
+            with open_text(path, encoding="utf-8") as (stream, consumed_input):
+                opened = True
+                consumed_inputs.append(consumed_input)
+                if not _consumed_input_complete(consumed_input):
+                    input_identities_complete = False
+                text = stream.read()
         except (OSError, UnicodeError) as exc:
+            if not opened:
+                input_identities_complete = False
             info = CATALOG["INP001"]
             diagnostics.append(
                 Diagnostic(
@@ -88,14 +132,25 @@ def check_paths(
 
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
-    diagnostics_result = apply_baseline(diagnostics_result, _load_baselines(config, project_root))
-    return CheckResult(
-        diagnostics=diagnostics_result,
-        files_checked=len(discovered),
-        math_blocks_checked=result.math_blocks_checked,
-        config_path=config.path,
-        version=__version__,
-        show_suppressed=config.report.show_suppressed,
+    baselines = _load_baselines(config, project_root, consumed_inputs)
+    input_identities_complete = input_identities_complete and _consumed_inputs_complete(
+        consumed_inputs
+    )
+    diagnostics_result = apply_baseline(
+        diagnostics_result,
+        baselines,
+    )
+    return _AnalysisRun(
+        CheckResult(
+            diagnostics=diagnostics_result,
+            files_checked=len(discovered),
+            math_blocks_checked=result.math_blocks_checked,
+            config_path=config.path,
+            version=__version__,
+            show_suppressed=config.report.show_suppressed,
+        ),
+        tuple(consumed_inputs),
+        input_identities_complete,
     )
 
 
@@ -191,22 +246,41 @@ def graph_paths(
     config_path: Path | str | None = None,
 ) -> Graph:
     """Load supported files and build the label/reference graph."""
-    config = load_config(config_path)
+    return _run_graph_paths(paths, config_path=config_path).result
+
+
+def _run_graph_paths(
+    paths: Sequence[Path | str],
+    *,
+    config_path: Path | str | None = None,
+) -> _AnalysisRun[Graph]:
+    """Load files, build the graph, and retain their consumed identities."""
+    config, config_inputs = _load_config_with_inputs(config_path)
     discovered = _discover_files(
         paths or [Path(".")],
         config.ignore.files,
         reject_missing_explicit=bool(paths),
     )
     documents: list[SourceDocument] = []
+    consumed_inputs = list(config_inputs)
+    input_identities_complete = _consumed_inputs_complete(consumed_inputs)
     for path in discovered:
-        documents.append(
-            SourceDocument.from_text(
-                _display_path(path, absolute_paths=False),
-                path.read_text(encoding="utf-8"),
-                _document_kind(path),
+        with open_text(path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
+            if not _consumed_input_complete(consumed_input):
+                input_identities_complete = False
+            documents.append(
+                SourceDocument.from_text(
+                    _display_path(path, absolute_paths=False),
+                    stream.read(),
+                    _document_kind(path),
+                )
             )
-        )
-    return graph_documents(documents, config=config)
+    return _AnalysisRun(
+        graph_documents(documents, config=config),
+        tuple(consumed_inputs),
+        input_identities_complete,
+    )
 
 
 def graph_documents(
@@ -252,6 +326,15 @@ def _apply_overrides(
         else config.parser
     )
     return replace(config, scanner=scanner, checks=checks, parser=parser)
+
+
+def _consumed_input_complete(consumed_input: ConsumedInput) -> bool:
+    """Return whether both object and path-role metadata support safe output."""
+    return consumed_input.identity is not None and consumed_input.path_metadata_complete
+
+
+def _consumed_inputs_complete(consumed_inputs: Sequence[ConsumedInput]) -> bool:
+    return all(_consumed_input_complete(item) for item in consumed_inputs)
 
 
 def _discover_files(
@@ -362,13 +445,19 @@ def _project_relative_path(path: Path, project_root: Path | None) -> str:
     return _display_path(path, absolute_paths=False).as_posix()
 
 
-def _load_baselines(config: Config, project_root: Path) -> frozenset[BaselineIdentity]:
+def _load_baselines(
+    config: Config,
+    project_root: Path,
+    consumed_inputs: list[ConsumedInput],
+) -> frozenset[BaselineIdentity]:
     identities: set[BaselineIdentity] = set()
     for raw in config.baseline.files:
         path = Path(raw)
         if not path.is_absolute():
             path = project_root / path
-        identities.update(baseline_identities_from_json(path.read_text(encoding="utf-8")))
+        with open_text(path, encoding="utf-8") as (stream, consumed_input):
+            consumed_inputs.append(consumed_input)
+            identities.update(baseline_identities_from_json(stream.read()))
     return frozenset(identities)
 
 

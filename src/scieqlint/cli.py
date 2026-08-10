@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
-from typing import TextIO
+from typing import Protocol, TextIO
 
 import click
 
 from scieqlint import __version__
-from scieqlint.api import check_paths, graph_paths
+from scieqlint.api import (
+    _run_check_paths,  # pyright: ignore[reportPrivateUsage]
+    _run_graph_paths,  # pyright: ignore[reportPrivateUsage]
+)
 from scieqlint.config.presets import list_presets, read_preset_text
 from scieqlint.diag.catalog import explain_code
 from scieqlint.graph.json import render_graph_json
@@ -23,6 +27,18 @@ class _OperationalError(click.ClickException):
     """A controlled CLI failure unrelated to lint findings."""
 
     exit_code = 2
+
+
+class _ConsumedIdentity(Protocol):
+    """Writer-side contract for an identity captured by the analysis owner."""
+
+    def matches_path(self, path: Path) -> bool: ...
+    def matches_physical_path(self, path: Path) -> bool: ...
+    def matches_identity(self, stat_result: os.stat_result) -> bool: ...
+    def matches_current_identity(self, stat_result: os.stat_result) -> bool: ...
+
+
+_OUTPUT_PARENT_FD_SUPPORTED = os.open in os.supports_dir_fd
 
 
 DEFAULT_CONFIG = """[project]
@@ -88,7 +104,12 @@ def main() -> None:
     type=click.Choice(["text", "json", "github", "sarif"]),
     default="text",
 )
-@click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, readable=False),
+    default=None,
+)
 @click.option("--no-algebra", is_flag=True, help="Disable algebra checks.")
 @click.option("--inline-math", is_flag=True, help="Scan inline math.")
 @click.option("--quiet", is_flag=True, help="Suppress empty-success text output.")
@@ -107,7 +128,7 @@ def check(
 ) -> None:
     """Check supported files."""
     try:
-        result = check_paths(
+        run = _run_check_paths(
             paths,
             config_path=config_path,
             no_algebra=no_algebra,
@@ -116,15 +137,21 @@ def check(
             absolute_paths=absolute_paths,
         )
         if output_format == "json":
-            rendered = JsonReporter().render(result)
+            rendered = JsonReporter().render(run.result)
         elif output_format == "github":
-            rendered = GitHubReporter().render(result)
+            rendered = GitHubReporter().render(run.result)
         elif output_format == "sarif":
-            rendered = SarifReporter().render(result)
+            rendered = SarifReporter().render(run.result)
         else:
-            rendered = TextReporter(quiet=quiet).render(result)
-        _write_output(rendered, output_path, sys.stdout)
-        raise SystemExit(result.exit_code())
+            rendered = TextReporter(quiet=quiet).render(run.result)
+        _write_output(
+            rendered,
+            output_path,
+            sys.stdout,
+            consumed_inputs=run.consumed_inputs,
+            input_identities_complete=run.input_identities_complete,
+        )
+        raise SystemExit(run.result.exit_code())
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
@@ -179,7 +206,12 @@ def show_preset(name: str) -> None:
 @main.command()
 @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
 @click.option("--config", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path, readable=False),
+    default=None,
+)
 def graph(
     paths: tuple[Path, ...],
     config_path: Path | None,
@@ -187,8 +219,15 @@ def graph(
 ) -> None:
     """Build a graph JSON export."""
     try:
-        rendered = render_graph_json(graph_paths(paths, config_path=config_path))
-        _write_output(rendered, output_path, sys.stdout)
+        run = _run_graph_paths(paths, config_path=config_path)
+        rendered = render_graph_json(run.result)
+        _write_output(
+            rendered,
+            output_path,
+            sys.stdout,
+            consumed_inputs=run.consumed_inputs,
+            input_identities_complete=run.input_identities_complete,
+        )
     except click.ClickException:
         raise
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
@@ -228,11 +267,126 @@ def _preset_text(name: str) -> str:
     return text if text.endswith("\n") else f"{text}\n"
 
 
-def _write_output(rendered: str, output_path: Path | None, stdout: TextIO) -> None:
+def _refuse_if_input_alias(
+    output_path: Path,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+) -> None:
+    try:
+        matches_input = any(
+            item.matches_path(output_path) or item.matches_physical_path(output_path)
+            for item in consumed_inputs
+        )
+    except OSError as exc:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}") from exc
+    if matches_input:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+
+
+def _open_output_parent(path: Path) -> int | None:
+    """Pin the physical parent before creating a destination entry when possible."""
+    if not _OUTPUT_PARENT_FD_SUPPORTED:
+        return None
+    flags = getattr(os, "O_DIRECTORY", 0)
+    path_only = getattr(os, "O_PATH", 0)
+    flags |= path_only or os.O_RDONLY
+    return os.open(path.parent, flags)
+
+
+def _open_output_entry(path: Path, flags: int, parent_fd: int | None) -> int:
+    if parent_fd is None:
+        return os.open(path, flags, 0o666)
+    return os.open(path.name, flags, 0o666, dir_fd=parent_fd)
+
+
+def _open_output_descriptor(
+    output_path: Path,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+) -> tuple[int, bool]:
+    """Open an output without following a disappearing entry into creation."""
+    for attempt in range(2):
+        parent_fd: int | None = None
+        try:
+            parent_fd = _open_output_parent(output_path)
+            # Repeat the role check after pinning the parent. On POSIX this makes
+            # an exclusive create operate in the directory that was validated.
+            _refuse_if_input_alias(output_path, consumed_inputs)
+            try:
+                return (
+                    _open_output_entry(
+                        output_path,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                        parent_fd,
+                    ),
+                    True,
+                )
+            except FileExistsError:
+                try:
+                    # Do not add O_CREAT here: a dangling symlink must not create its target.
+                    return _open_output_entry(output_path, os.O_WRONLY, parent_fd), False
+                except FileNotFoundError:
+                    if attempt == 1:
+                        raise _OperationalError(
+                            f"refusing to overwrite analysis input: {output_path}"
+                        ) from None
+                    # Re-open and re-pin the parent before retrying. The entry
+                    # may have disappeared or changed while this descriptor was open.
+                    continue
+        finally:
+            if parent_fd is not None:
+                os.close(parent_fd)
+    raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+
+
+def _write_output(
+    rendered: str,
+    output_path: Path | None,
+    stdout: TextIO,
+    *,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+    input_identities_complete: bool,
+) -> None:
     if output_path is None:
         if rendered:
             stdout.write(rendered)
             if not rendered.endswith("\n"):
                 stdout.write("\n")
         return
-    output_path.write_text(rendered, encoding="utf-8")
+    _refuse_if_input_alias(output_path, consumed_inputs)
+    if not input_identities_complete:
+        raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+    descriptor: int | None = None
+    try:
+        descriptor, created = _open_output_descriptor(output_path, consumed_inputs)
+        # O_EXCL proves a newly created entry is not an existing consumed object;
+        # an identity lookup is needed before replacing an existing object.
+        if not created:
+            try:
+                output_stat = os.fstat(descriptor)
+            except OSError as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+            try:
+                current_role_match = any(
+                    item.matches_current_identity(output_stat) for item in consumed_inputs
+                )
+            except OSError as exc:
+                raise _OperationalError(
+                    f"refusing to overwrite analysis input: {output_path}"
+                ) from exc
+            if current_role_match or any(
+                item.matches_identity(output_stat) for item in consumed_inputs
+            ):
+                raise _OperationalError(f"refusing to overwrite analysis input: {output_path}")
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            descriptor = None
+            output.seek(0)
+            output.truncate()
+            output.write(rendered)
+    except _OperationalError:
+        raise
+    except OSError as exc:
+        raise _OperationalError(str(exc)) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)

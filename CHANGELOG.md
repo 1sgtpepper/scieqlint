@@ -80,6 +80,13 @@ Release notes must use these sections:
 - Implementation-status documents now identify the current v1.1.0 implementation
   and its shipped capabilities without changing the unresolved maturity
   classification.
+- `check` now refuses `--output` paths that alias the source, configuration, or
+  baseline files actually consumed during analysis; `graph` applies the same
+  guard to its source and configuration inputs. The guard protects both the
+  lexical input role and the object identity captured while reading each
+  descriptor, keeps output files write-only, pins the output parent before
+  exclusive creation where directory-descriptor opens are supported, and leaves
+  stdout/API analysis available when output-safety metadata is unavailable.
 
 ### Deprecated
 
