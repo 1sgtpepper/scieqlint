@@ -453,7 +453,18 @@ def test_inline_html_tags_leave_inline_content_live() -> None:
 def test_nested_block_html_keeps_math_content_opaque_until_the_matching_close() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "<div>\n<div>\n$x$\n</div>\n$z$\n</div>\n\n$y$\n",
+        "  <div>\n"
+        "<div>\n"
+        "$x$\n"
+        "</div>\n"
+        "$z$\n"
+        "</div>\n\n"
+        "$y$\n\n"
+        "(visible)=\n"
+        "# Visible\n"
+        "```python\n"
+        "pass\n"
+        "```\n",
         DocumentKind.MARKDOWN,
     )
 
@@ -464,7 +475,11 @@ def test_nested_block_html_keeps_math_content_opaque_until_the_matching_close() 
 
     assert [block.text for block in result.blocks] == ["y"]
     assert result.diagnostics == ()
-    assert [fact.body for fact in MySTFrontend().lower((document,)).inline_math] == ["y"]
+    snapshot = MySTFrontend().lower((document,))
+    assert [fact.body for fact in snapshot.inline_math] == ["y"]
+    assert [heading.text for heading in snapshot.headings] == ["Visible"]
+    assert [anchor.label for anchor in snapshot.target_anchors] == ["visible"]
+    assert [fence.language for fence in snapshot.fences] == ["python"]
 
 
 def test_unclosed_block_html_ends_at_a_blank_line() -> None:

@@ -95,9 +95,15 @@ def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
     """Return source ranges whose contents cannot introduce Markdown structure."""
 
     lexical = _ordered_lexical_ranges(text, ())
+    closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
     math_ranges = [
         (start, end) for start, _body_start, _body_end, end in (*lexical.display, *lexical.inline)
     ]
+    math_ranges.extend(
+        (start, len(text))
+        for start in lexical.display_openers
+        if start not in closed_display_starts
+    )
     return _merge_ranges((*lexical.fences, *lexical.html, *lexical.code, *math_ranges))
 
 
@@ -363,7 +369,9 @@ def _html_range_at(text: str, start: int) -> int | None:
     block = HTML_BLOCK_OPEN_RE.match(text, start)
     if block is not None:
         tag = block.group("tag").lower()
-        closing = _matching_html_block_close(text, start, tag)
+        tag_start = text.find("<", start, block.end())
+        assert tag_start != -1
+        closing = _matching_html_block_close(text, tag_start, tag)
         if closing is not None:
             return closing
         if tag in HTML_RAWTEXT_TAGS:

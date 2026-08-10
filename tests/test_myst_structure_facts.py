@@ -539,6 +539,17 @@ def test_frontend_structure_uses_shared_markdown_opacity() -> None:
     assert snapshot.structure_syntax_issues == ()
 
 
+def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
+    snapshot = MySTFrontend().lower(
+        (doc("$$\n(hidden)=\n# Hidden\n```python\npass\n```\n{eq}`\n"),)
+    )
+
+    assert snapshot.headings == ()
+    assert snapshot.target_anchors == ()
+    assert snapshot.fences == ()
+    assert snapshot.structure_syntax_issues == ()
+
+
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
     snapshot = MySTFrontend().lower(
         (
