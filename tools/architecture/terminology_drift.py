@@ -353,37 +353,428 @@ def scan_release_gate(loaded: list[LoadedInput]) -> list[dict[str, Any]]:
 
 
 def has_blocking_release_gate(text: str) -> bool:
-    gate_line = re.compile(
-        rf"^[ \t]*(?:-[ \t]+)?run:[ \t]*[\"']?"
-        rf"{re.escape(CI_GATE_COMMAND)}[\"']?[ \t]*(?:#.*)?$"
-    )
-    nonblocking = re.compile(
-        r"^[ \t]*(?:-[ \t]+)?continue-on-error:[ \t]*true[ \t]*(?:#.*)?$",
-        re.IGNORECASE,
-    )
+    # This intentionally proves only canonical gate wiring and direct failure controls.
+    # Shell overrides can replace exit propagation, so only the default run shell is
+    # evidence; full workflow validity still belongs to GitHub Actions validation.
     lines = text.splitlines()
+    ignored: set[int] = set()
+    block_indent: int | None = None
+    open_quote: str | None = None
+
+    def leading_indent(line: str) -> int:
+        return len(line) - len(line.lstrip(" "))
+
+    def quote_after_colon(line: str) -> str | None:
+        content = line.lstrip(" ")
+        if content.startswith("- "):
+            content = content[2:].lstrip()
+        if content[:1] in {"'", '"'}:
+            return None
+        colon = content.find(":")
+        value = content if colon < 0 else content[colon + 1 :].lstrip()
+        if not value or value[0] not in {"'", '"'}:
+            return None
+        quote = value[0]
+        escaped = False
+        index = 1
+        while index < len(value):
+            character = value[index]
+            if quote == "'":
+                if character == "'":
+                    if index + 1 < len(value) and value[index + 1] == "'":
+                        index += 2
+                        continue
+                    return None
+            elif character == quote and not escaped:
+                return None
+            escaped = quote == '"' and character == "\\" and not escaped
+            index += 1
+        return quote
+
+    def quote_closes(line: str, quote: str) -> bool:
+        escaped = False
+        index = 0
+        while index < len(line):
+            character = line[index]
+            if quote == "'":
+                if character == "'":
+                    if index + 1 < len(line) and line[index + 1] == "'":
+                        index += 2
+                        continue
+                    return True
+            elif character == quote and not escaped:
+                return True
+            escaped = quote == '"' and character == "\\" and not escaped
+            index += 1
+        return False
+
     for index, line in enumerate(lines):
-        if gate_line.fullmatch(line) is None:
+        if open_quote is not None:
+            ignored.add(index)
+            if quote_closes(line, open_quote):
+                open_quote = None
             continue
-        indent = len(line) - len(line.lstrip())
-        step_indent = indent if line.lstrip().startswith("- ") else max(indent - 2, 0)
-        start = index
-        while start >= 0:
-            candidate = lines[start]
-            candidate_indent = len(candidate) - len(candidate.lstrip())
-            if candidate_indent == step_indent and candidate.lstrip().startswith("- "):
-                break
-            start -= 1
-        end = index + 1
-        while end < len(lines):
-            candidate = lines[end]
-            candidate_indent = len(candidate) - len(candidate.lstrip())
-            if candidate_indent == step_indent and candidate.lstrip().startswith("- "):
-                break
-            end += 1
-        if not any(nonblocking.fullmatch(candidate) for candidate in lines[max(start, 0) : end]):
-            return True
-    return False
+
+        if block_indent is not None:
+            if not line.strip():
+                ignored.add(index)
+                continue
+            if leading_indent(line) > block_indent:
+                ignored.add(index)
+                continue
+            block_indent = None
+
+        stripped = line.lstrip(" ")
+        if not stripped or stripped.startswith("#") or line.startswith("\t"):
+            continue
+        if re.search(
+            r":[ \t]*[|>](?:[+-]?[0-9]*|[0-9]+[+-]?)[ \t]*(?:#.*)?$",
+            stripped,
+        ):
+            block_indent = leading_indent(line)
+        open_quote = quote_after_colon(line)
+
+    def mapping(index: int) -> tuple[int, str, str, bool] | None:
+        if index in ignored:
+            return None
+        line = lines[index]
+        if line.startswith("\t"):
+            return None
+        indent = leading_indent(line)
+        content = line[indent:]
+        key_indent = indent
+        sequence_item = False
+        if content.startswith("- "):
+            content = content[2:]
+            key_indent += 2
+            sequence_item = True
+        elif content == "-":
+            return None
+        match = re.fullmatch(
+            r"([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]+(.*))?",
+            content,
+        )
+        if match is None:
+            return None
+        return key_indent, match.group(1), match.group(2) or "", sequence_item
+
+    def is_list_item(index: int) -> bool:
+        if index in ignored:
+            return False
+        content = lines[index].lstrip(" ")
+        return content == "-" or content.startswith("- ")
+
+    def status_value(value: str) -> bool | None:
+        normalized = value.strip()
+        if not normalized or normalized[:1] in {"'", '"'}:
+            return None
+        normalized = re.split(r"[ \t]+#", normalized, maxsplit=1)[0].rstrip()
+        lowered = normalized.casefold()
+        if lowered in {"true", "false"}:
+            return lowered == "true"
+        expression_prefix = "$" + "{{"
+        if normalized.startswith(expression_prefix) and normalized.endswith("}}"):
+            body = normalized[len(expression_prefix) : -2].strip().casefold()
+            if body in {"true", "false"}:
+                return body == "true"
+        return None
+
+    def command_value(value: str) -> str | None:
+        normalized = value.strip()
+        if normalized[:1] in {"'", '"'}:
+            quote = normalized[0]
+            closing_quote = normalized.rfind(quote)
+            trailing = normalized[closing_quote + 1 :].strip()
+            if closing_quote < 1 or (trailing and not trailing.startswith("#")):
+                return None
+            return normalized[1:closing_quote]
+        return re.split(r"[ \t]+#", normalized, maxsplit=1)[0].rstrip()
+
+    def scope_is_blocking(properties: dict[str, list[str]]) -> bool:
+        if len(properties.get("if", [])) > 1:
+            return False
+        if len(properties.get("continue-on-error", [])) > 1:
+            return False
+        if_value = properties.get("if", [])
+        if if_value and status_value(if_value[0]) is not True:
+            return False
+        continue_value = properties.get("continue-on-error", [])
+        return not continue_value or status_value(continue_value[0]) is False
+
+    # Keep the candidate anchored to one root jobs mapping; otherwise a nested or
+    # duplicate document can detach the command from the workflow role it proves.
+    root_jobs = [
+        item
+        for index in range(len(lines))
+        if (item := mapping(index)) is not None and item[0] == 0 and item[1] == "jobs"
+    ]
+    has_document_boundary = any(
+        index not in ignored
+        and re.fullmatch(r"(?:---|\.\.\.)(?:[ \t]*(?:#.*)?)?", lines[index].strip())
+        for index in range(len(lines))
+    )
+    has_workflow_run_defaults = any(
+        index not in ignored
+        and leading_indent(lines[index]) == 0
+        and re.fullmatch(
+            r"(?:defaults|'defaults'|\"defaults\")[ \t]*:(?:[ \t]+.*)?",
+            lines[index],
+        )
+        is not None
+        for index in range(len(lines))
+    )
+    if len(root_jobs) != 1 or has_document_boundary or has_workflow_run_defaults:
+        return False
+
+    jobs_indent: int | None = None
+    job_child_indent: int | None = None
+    jobs_closed = False
+    job_indent: int | None = None
+    job_property_indent: int | None = None
+    job_properties: dict[str, list[str]] | None = None
+    job_unsupported = False
+    gate_steps: list[tuple[dict[str, list[str]], bool, int, int]] = []
+    steps_indent: int | None = None
+    steps_active = False
+    step_child_indent: int | None = None
+    step_indent: int | None = None
+    step_property_indent: int | None = None
+    step_properties: dict[str, list[str]] | None = None
+    step_unsupported = False
+    step_run_count = 0
+    step_gate_count = 0
+    job_ids: set[str] = set()
+    workflow_unsupported = False
+    found_gate = False
+
+    def finish_step() -> None:
+        nonlocal step_indent
+        nonlocal step_property_indent
+        nonlocal step_properties
+        nonlocal step_unsupported
+        nonlocal step_run_count
+        nonlocal step_gate_count
+        if step_properties is not None and step_gate_count:
+            gate_steps.append(
+                (
+                    step_properties,
+                    step_unsupported,
+                    step_run_count,
+                    step_gate_count,
+                )
+            )
+        step_indent = None
+        step_property_indent = None
+        step_properties = None
+        step_unsupported = False
+        step_run_count = 0
+        step_gate_count = 0
+
+    def finish_job() -> bool:
+        nonlocal job_indent
+        nonlocal job_property_indent
+        nonlocal job_properties
+        nonlocal job_unsupported
+        nonlocal gate_steps
+        nonlocal steps_indent
+        nonlocal steps_active
+        nonlocal step_child_indent
+        finish_step()
+        accepted = False
+        if job_properties is not None and not job_unsupported and scope_is_blocking(job_properties):
+            accepted = any(
+                run_count == 1
+                and gate_count == 1
+                and not unsupported
+                and scope_is_blocking(properties)
+                for properties, unsupported, run_count, gate_count in gate_steps
+            )
+        job_indent = None
+        job_property_indent = None
+        job_properties = None
+        job_unsupported = False
+        gate_steps = []
+        steps_indent = None
+        steps_active = False
+        step_child_indent = None
+        return accepted
+
+    def record_step_property(
+        item: tuple[int, str, str, bool] | None,
+        effective_indent: int,
+        content: str,
+    ) -> None:
+        nonlocal step_property_indent
+        nonlocal step_unsupported
+        nonlocal step_run_count
+        nonlocal step_gate_count
+        if step_properties is None:
+            return
+        if item is None:
+            if step_property_indent is None:
+                step_property_indent = effective_indent
+            normalized_content = content.strip()
+            if (
+                effective_indent == step_property_indent
+                and normalized_content != "-"
+                and not normalized_content.startswith("- #")
+            ):
+                step_unsupported = True
+            return
+        if step_property_indent is None:
+            step_property_indent = item[0]
+        if item[0] != step_property_indent:
+            return
+        key, value = item[1], item[2]
+        if key.casefold() in {"run", "if", "continue-on-error", "uses", "shell"} and key not in {
+            "run",
+            "if",
+            "continue-on-error",
+            "uses",
+            "shell",
+        }:
+            step_unsupported = True
+        if key in step_properties:
+            step_unsupported = True
+        step_properties.setdefault(key, []).append(value)
+        if key in {"uses", "shell"}:
+            step_unsupported = True
+        if key == "run":
+            step_run_count += 1
+            if command_value(value) == CI_GATE_COMMAND:
+                step_gate_count += 1
+
+    def record_job_property(
+        item: tuple[int, str, str, bool] | None,
+        effective_indent: int,
+        content: str,
+    ) -> None:
+        nonlocal job_property_indent
+        nonlocal job_unsupported
+        nonlocal steps_indent
+        nonlocal steps_active
+        nonlocal step_child_indent
+        if job_properties is None:
+            return
+        if item is None:
+            if job_property_indent is None:
+                job_property_indent = effective_indent
+            if effective_indent == job_property_indent:
+                job_unsupported = True
+            return
+        if job_property_indent is None:
+            job_property_indent = item[0]
+        if item[0] != job_property_indent:
+            return
+        key, value = item[1], item[2]
+        if key.casefold() in {
+            "steps",
+            "if",
+            "continue-on-error",
+            "uses",
+            "defaults",
+        } and key not in {
+            "steps",
+            "if",
+            "continue-on-error",
+            "uses",
+            "defaults",
+        }:
+            job_unsupported = True
+        if key in job_properties:
+            job_unsupported = True
+        job_properties.setdefault(key, []).append(value)
+        if key == "steps":
+            steps_indent = item[0]
+            steps_active = not value.strip() or value.lstrip().startswith("#")
+            step_child_indent = None
+        else:
+            steps_active = False
+        if key in {"uses", "defaults"}:
+            job_unsupported = True
+
+    for index, line in enumerate(lines):
+        if index in ignored:
+            continue
+        stripped = line.lstrip(" ")
+        if not stripped or stripped.startswith("#") or line.startswith("\t"):
+            continue
+        indent = leading_indent(line)
+        item = mapping(index)
+
+        if job_indent is not None and indent <= job_indent:
+            found_gate = finish_job() or found_gate
+        if step_indent is not None and indent <= step_indent:
+            finish_step()
+
+        if job_indent is None:
+            if item is not None and item[1] == "jobs":
+                if item[0] == 0 and not jobs_closed:
+                    jobs_indent = item[0]
+                    job_child_indent = None
+                continue
+            if jobs_indent is not None and item is not None and item[0] == 0:
+                jobs_closed = True
+                continue
+            if jobs_closed:
+                continue
+            if item is None and job_child_indent is not None and indent == job_child_indent:
+                workflow_unsupported = True
+                continue
+            if item is None or jobs_indent is None or item[0] <= jobs_indent:
+                continue
+            if job_child_indent is None:
+                job_child_indent = item[0]
+            if item[0] != job_child_indent:
+                continue
+            if item[3]:
+                workflow_unsupported = True
+                continue
+            if item[1] in job_ids:
+                workflow_unsupported = True
+            job_ids.add(item[1])
+            job_indent = item[0]
+            job_property_indent = None
+            job_properties = {}
+            job_unsupported = bool(item[2].strip() and not item[2].lstrip().startswith("#"))
+            gate_steps = []
+            steps_indent = None
+            steps_active = False
+            step_child_indent = None
+            continue
+
+        if (
+            steps_active
+            and steps_indent is not None
+            and is_list_item(index)
+            and indent > steps_indent
+        ):
+            if step_child_indent is None:
+                step_child_indent = indent
+            if indent == step_child_indent:
+                finish_step()
+                step_indent = indent
+                step_property_indent = None
+                step_properties = {}
+                step_unsupported = False
+                step_run_count = 0
+                step_gate_count = 0
+                record_step_property(
+                    item,
+                    item[0] if item is not None else indent + 2,
+                    line[indent:] if item is None else line[indent + 2 :],
+                )
+            continue
+
+        if step_indent is not None:
+            record_step_property(item, indent, line[indent:])
+            continue
+
+        record_job_property(item, indent, line[indent:])
+
+    if job_indent is not None:
+        found_gate = finish_job() or found_gate
+    return found_gate and not workflow_unsupported
 
 
 def drift_spellings(term: str) -> tuple[str, ...]:
