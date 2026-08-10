@@ -75,6 +75,8 @@ Release notes must use these sections:
   input without leaking interpreter errors.
 - MyST targets now attach to valid bare ATX headings, while malformed ATX
   candidates remain diagnostics without participating in heading semantics.
+- Disabling the Markdown scanner now also disables Markdown frontend diagnostics
+  and cross-document reference/structure analysis.
 
 ### Deprecated
 

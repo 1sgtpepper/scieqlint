@@ -107,6 +107,8 @@ such as `# #` are valid empty headings.
 This is a conservative lint subset, not a full MyST parser. Unknown custom
 directive names remain allowed. Valid MyST target anchors such as `(label)=`
 before headings are treated as anchors, not headings or malformed prose.
+When the Markdown scanner is disabled, Markdown frontend and document-level
+reference/structure analysis are skipped as well.
 
 ## Suppression comments
 

@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 from scieqlint.api import check_documents
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import (
@@ -157,6 +157,28 @@ def test_unclosed_math_fence_keeps_existing_scan_diagnostic_without_structure_du
 def test_heading_inside_code_fence_is_not_lowered():
     snapshot = MySTFrontend().lower((doc("```\n####Not a heading\n```\n"),))
     assert snapshot.headings == ()
+
+
+def test_scanner_markdown_gate_disables_frontend_diagnostics() -> None:
+    result = check_documents(
+        [doc("#Title\n")],
+        config=Config(scanner=ScannerConfig(markdown=False)),
+    )
+
+    assert result.diagnostics == ()
+
+
+def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None:
+    document = doc("See {ref}`missing-target`.\n")
+
+    enabled = check_documents([document], config=Config())
+    disabled = check_documents(
+        [document],
+        config=Config(scanner=ScannerConfig(markdown=False)),
+    )
+
+    assert [diagnostic.code for diagnostic in enabled.diagnostics] == ["REF004"]
+    assert disabled.diagnostics == ()
 
 
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
