@@ -512,8 +512,12 @@ def test_replay_marker_command_and_pull_request_job_are_wired() -> None:
     assert "tools/public_regression_replay.py" in sdist_include
     assert "  public-regression-replay:\n" in workflow
     assert "    if: github.event_name == 'pull_request'\n" in workflow
+    assert "          ref: ${{ github.event.pull_request.head.sha }}\n" in workflow
     assert "          ref: ${{ github.event.pull_request.base.sha }}\n" in workflow
     assert "        run: python tools/public_regression_replay.py --base .base\n" in workflow
+    assert "    needs: [public-regression-replay, test-matrix]\n" in workflow
+    assert "          test \"$TEST_MATRIX_RESULT\" = \"success\"\n" in workflow
+    assert "            test \"$REPLAY_RESULT\" = \"success\"\n" in workflow
 
 
 def _write_revisions(
