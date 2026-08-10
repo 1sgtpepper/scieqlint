@@ -77,6 +77,9 @@ Release notes must use these sections:
   candidates remain diagnostics without participating in heading semantics.
 - Disabling the Markdown scanner now also disables Markdown frontend diagnostics
   and cross-document reference/structure analysis.
+- Implementation-status documents now identify the current v1.1.0 implementation
+  and its shipped capabilities without changing the unresolved maturity
+  classification.
 
 ### Deprecated
 
