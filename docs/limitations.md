@@ -106,6 +106,8 @@ Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick
 fence info string cannot contain a backtick.
+TeX `\label{...}` inside Markdown math creates a label only when its backslash
+begins an active control sequence.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank

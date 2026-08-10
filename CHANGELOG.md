@@ -106,7 +106,8 @@ Release notes must use these sections:
   boundaries and complete label suffixes.
 - LaTeX scanning now ignores starred and commented verbatim markers, respects
   TeX control-sequence boundaries outside verbatim, and closes live verbatim
-  ranges at their first exact matching delimiter; same-line transitions between
+  ranges at their first exact matching delimiter; TeX labels inside Markdown
+  math use the same control-sequence boundary. Same-line transitions between
   verbatim content and comments now retain their lexical ownership. Overlapping
   escaped dollar candidates no longer hide an adjacent live display block.
 
