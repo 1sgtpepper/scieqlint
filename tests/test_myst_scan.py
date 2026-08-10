@@ -77,6 +77,24 @@ def test_myst_inline_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
     assert MySTFrontend().lower((document,)).inline_math == ()
 
 
+def test_display_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n \t \n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+    result = check_documents([document], config=Config())
+
+    assert legacy.blocks == ()
+    assert legacy.diagnostics == ()
+    assert frontend.display_math == ()
+    assert result.math_blocks_checked == 0
+    assert result.diagnostics == ()
+
+
 def test_unterminated_math_fence_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

@@ -7,12 +7,6 @@ from collections.abc import Sequence
 
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
-    code_fence_ranges as _code_fence_ranges,
-)
-from scieqlint.markdown import (
-    dollar_display_opener_positions as _dollar_display_opener_positions,
-)
-from scieqlint.markdown import (
     dollar_display_ranges as _dollar_display_ranges,
 )
 from scieqlint.markdown import (
@@ -20,9 +14,6 @@ from scieqlint.markdown import (
 )
 from scieqlint.markdown import (
     inline_code_ranges as _inline_code_ranges,
-)
-from scieqlint.markdown import (
-    markdown_protected_ranges as _markdown_protected_ranges,
 )
 
 LineRange = tuple[int, int, str]
@@ -62,29 +53,11 @@ def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
     return _inline_code_ranges(document.text)
 
 
-def code_fence_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
-    return _code_fence_ranges(document.text)
-
-
-def markdown_protected_ranges(
-    document: SourceDocument,
-    occupied: Sequence[OffsetRange] = (),
-) -> tuple[OffsetRange, ...]:
-    return _markdown_protected_ranges(document.text, occupied)
-
-
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[int, int, int, int], ...]:
     return _dollar_display_ranges(text, occupied)
-
-
-def dollar_display_opener_positions(
-    text: str,
-    occupied: Sequence[OffsetRange],
-) -> tuple[int, ...]:
-    return _dollar_display_opener_positions(text, occupied)
 
 
 def dollar_inline_ranges(

@@ -113,6 +113,9 @@ def _dollar_display_math(
     ):
         fact_id = f"{document.path.as_posix()}::display-math::{start}"
         body_text = document.text[body_start:body_end]
+        body = body_text.strip()
+        if not body:
+            continue
         span_start = body_start + len(body_text) - len(body_text.lstrip())
         span_end = body_start + len(body_text.rstrip())
         label_facts = list(_tex_label_facts(document, smap, fact_id, body_start, body_text))
@@ -123,8 +126,8 @@ def _dollar_display_math(
                 fact_id=fact_id,
                 document_id=document.path.as_posix(),
                 span=smap.span(span_start, span_end),
-                raw=body_text.strip(),
-                body=body_text.strip(),
+                raw=body,
+                body=body,
                 container="dollar-dollar",
                 label_fact_ids=tuple(label.fact_id for label in label_facts),
             )

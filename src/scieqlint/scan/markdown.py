@@ -88,6 +88,8 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
     for _start, body_start, body_end, _end in _display_ranges(document):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
+        if not text:
+            continue
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
