@@ -1052,12 +1052,14 @@ def test_open_text_closes_descriptor_when_stream_creation_fails(tmp_path, monkey
     monkeypatch.setattr(identity_module.os, "open", capture_open)
     monkeypatch.setattr(identity_module.os, "fdopen", deny_stream)
 
-    with pytest.raises(OSError, match="stream unavailable"):
-        with identity_module.open_text(doc, encoding="utf-8"):
-            pass
+    with (
+        pytest.raises(OSError, match="stream unavailable"),
+        identity_module.open_text(doc, encoding="utf-8"),
+    ):
+        pass
 
     assert len(descriptors) == 1
-    with pytest.raises(OSError):
+    with pytest.raises(OSError, match="Bad file descriptor"):
         os.fstat(descriptors[0])
 
 
