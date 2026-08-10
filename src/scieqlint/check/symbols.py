@@ -70,7 +70,7 @@ def _block_events(blocks: tuple[MathBlock, ...]) -> list[_Event]:
 def _symbols(block: MathBlock | None) -> tuple[tuple[str, SourceSpan], ...]:
     if block is None:
         return ()
-    text = _strip_labels(block.text)
+    text = _strip_labels(block.source_aligned_text)
     symbols: list[tuple[str, SourceSpan]] = []
     for match in SYMBOL_RE.finditer(text):
         symbol = match.group(0)
@@ -114,10 +114,10 @@ def _span_from_block(block: MathBlock, start: int, end: int) -> SourceSpan:
 
 def _position_from_block(block: MathBlock, offset: int) -> tuple[int, int]:
     relative = offset - block.span.start
-    line_delta = block.text[:relative].count("\n")
+    line_delta = block.source_aligned_text[:relative].count("\n")
     if line_delta == 0:
         return line_delta, block.span.col + relative
-    return line_delta, relative - block.text.rfind("\n", 0, relative)
+    return line_delta, relative - block.source_aligned_text.rfind("\n", 0, relative)
 
 
 def _event_key(
