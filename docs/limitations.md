@@ -134,6 +134,15 @@ Diagnostic baselines mark matching diagnostics as suppressed for path-based
 checks. Baselines are deterministic JSON files that use the same diagnostic
 identity fields as JSON output; they do not apply to `check_documents()`.
 
+Path-based diagnostics, graph spans, and baseline identities retain the caller's
+lexical input spelling. Relative inputs keep that spelling; absolute inputs are
+rendered relative to the current working directory by default. For checks,
+`--absolute-paths` retains an explicitly absolute input's lexical spelling.
+Symlink targets are never resolved for presentation.
+An absolute input on a different native root cannot be represented by the default
+relative path model and is rejected without exposing that path. Checks can use
+`--absolute-paths`; graph inputs must be expressed on the current native root.
+
 ## v0.1.3 LaTeX source subset
 
 SciEqLint scans supported LaTeX display containers in `.tex` files:

@@ -4,6 +4,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from scieqlint import app as app_module
 from scieqlint.api import check_documents, check_paths, graph_paths
 from scieqlint.config.model import (
     AlgebraConfig,
@@ -15,6 +16,7 @@ from scieqlint.config.model import (
 )
 from scieqlint.io import identity as identity_module
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.report.json import JsonReporter
 
 
 def test_check_paths_rejects_missing_explicit_input(tmp_path) -> None:
@@ -71,6 +73,112 @@ def test_check_paths_expands_missing_glob_pattern(tmp_path) -> None:
     result = check_paths([str(tmp_path / "*.md")])
 
     assert result.files_checked == 1
+
+
+@pytest.mark.public_regression
+def test_check_paths_renders_absolute_input_relative_to_cwd(tmp_path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    outside = tmp_path / "outside"
+    workspace.mkdir()
+    outside.mkdir()
+    path = outside / "bad.md"
+    path.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    monkeypatch.chdir(workspace)
+
+    result = check_paths([path])
+
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath("../outside/bad.md")
+
+
+def test_check_and_graph_paths_preserve_symlink_spelling_in_baseline(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    target = tmp_path / "target.md"
+    target.write_text(
+        "$$\n(a+b)^2 = a^2 + b^2\n$$ {#energy}\n\nSee {eq}`energy`.\n",
+        encoding="utf-8",
+    )
+    link = project / "link.md"
+    link.symlink_to(target)
+    monkeypatch.chdir(tmp_path)
+    logical_path = link.relative_to(tmp_path)
+
+    result = check_paths([logical_path])
+    graph = graph_paths([logical_path])
+    baseline = tmp_path / "baseline.json"
+    config = tmp_path / "scieqlint.toml"
+    baseline.write_text(JsonReporter().render(result), encoding="utf-8")
+    config.write_text('[baseline]\nfiles = ["baseline.json"]\n', encoding="utf-8")
+
+    baseline_result = check_paths([logical_path], config_path=config)
+
+    diagnostic = baseline_result.diagnostics[0]
+    assert diagnostic.suppressed is True
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath("project/link.md")
+    assert {node.span.path for node in graph.nodes} == {PurePosixPath("project/link.md")}
+
+
+def test_absolute_paths_keep_lexical_symlink_spelling(tmp_path, monkeypatch) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    target = tmp_path / "target.md"
+    target.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    link = project / "link.md"
+    link.symlink_to(target)
+    monkeypatch.chdir(tmp_path)
+
+    result = check_paths([link], absolute_paths=True)
+
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath(link.absolute().as_posix())
+
+
+def test_read_error_uses_display_path_and_safe_os_error_detail(tmp_path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    outside = tmp_path / "outside"
+    workspace.mkdir()
+    outside.mkdir()
+    path = outside / "unreadable.md"
+    path.write_text("# content\n", encoding="utf-8")
+    monkeypatch.chdir(workspace)
+
+    def fail_open(_path, *, encoding):
+        raise PermissionError(13, "permission denied", str(path))
+
+    monkeypatch.setattr(app_module, "open_text", fail_open)
+
+    result = check_paths([path])
+
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.code == "INP001"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath("../outside/unreadable.md")
+    assert diagnostic.message.endswith("../outside/unreadable.md")
+    assert diagnostic.detail == "permission denied"
+    assert str(tmp_path) not in diagnostic.message
+    assert str(tmp_path) not in diagnostic.detail
+
+
+def test_decode_error_detail_does_not_expose_the_input_path(tmp_path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    outside = tmp_path / "outside"
+    workspace.mkdir()
+    outside.mkdir()
+    path = outside / "invalid.md"
+    path.write_bytes(b"\xff")
+    monkeypatch.chdir(workspace)
+
+    result = check_paths([path])
+
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.code == "INP001"
+    assert diagnostic.detail == "invalid start byte"
+    assert str(tmp_path) not in diagnostic.message
+    assert str(tmp_path) not in diagnostic.detail
 
 
 def test_check_documents_runs_scanner_and_checks() -> None:

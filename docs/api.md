@@ -39,6 +39,16 @@ do not read baseline files from disk. Path-based APIs preserve their analysis re
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
 
+Path-based diagnostics and graph spans retain the caller-visible lexical input
+spelling. Relative inputs keep that spelling; absolute inputs are rendered
+relative to the current working directory by default. For `check_paths()`,
+`absolute_paths=True` retains an explicitly absolute input's lexical spelling
+without resolving symlinks; `graph_paths()` always uses the default presentation.
+When an absolute input and the current directory have different native roots,
+default presentation raises `ValueError` rather than leak an absolute path or
+collapse distinct roots. Checks may opt into absolute paths; graph inputs must be
+expressed on the current root.
+
 `CheckResult` exposes `diagnostics`, `files_checked`, `math_blocks_checked`,
 `config_path`, `version`, `show_suppressed`, and `exit_code()`. `exit_code()`
 returns `1` only when an unsuppressed error diagnostic exists.
