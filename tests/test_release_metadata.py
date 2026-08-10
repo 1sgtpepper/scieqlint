@@ -16,6 +16,19 @@ def test_release_version_metadata_is_consistent() -> None:
     assert f"version: {project['version']}" in citation
 
 
+def test_implementation_status_uses_the_current_release_version() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+
+    for path in (
+        Path("IMPLEMENTATION_STATUS.md"),
+        Path("PACK_MANIFEST.md"),
+        Path("SPEC.md"),
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert f"v{project['version']}" in text, path
+        assert "v0.1.5 analyzer" not in text, path
+
+
 def test_documentation_url_points_to_current_repository_docs() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
 
