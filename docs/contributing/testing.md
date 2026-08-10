@@ -28,8 +28,12 @@ Mark only a newly added test that reproduces a public bug with
 `@pytest.mark.public_regression`. Do not mark active controls, normative contract tests,
 or existing tests being strengthened. Pull-request CI runs each new marked node against
 the head and base package sources. The node is accepted only when head passes and base
-fails by assertion; a base pass or API incompatibility is rejected and reported with the
-exact node ID.
+fails by an assertion that pytest attributes to the proposed `tests/` tree. Direct test
+assertions, private test helpers, and `pytest.fail()` are valid oracles; an assertion from
+the package or a dependency is an API incompatibility unless the test catches it and
+asserts the intended behavior explicitly. Setup and teardown must both pass normally:
+failures, skips, and expected-failure outcomes in either phase are incompatible. A base
+pass or API incompatibility is rejected and reported with the exact node ID.
 
 To replay against an existing base checkout directly:
 

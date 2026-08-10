@@ -1,4 +1,4 @@
-"""Require new public regressions to fail by assertion on the base revision."""
+"""Require new public regressions to fail by a test-owned assertion on base."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ import pytest
 
 MARKER = "public_regression"
 MARKER_DESCRIPTION = (
-    "new public bug regression that must fail by assertion on the pull request base"
+    "new public bug regression that must fail by a test-owned assertion "
+    "on the pull request base"
 )
 _PASS = 0
 _MISMATCH = 10
@@ -50,17 +51,32 @@ class _CaseOutcome:
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo[None]):
         outcome = yield
         report = outcome.get_result()
+        if self.status is _CaseStatus.INCOMPATIBLE:
+            return
         if report.when != "call":
-            if report.failed:
+            if not report.passed:
                 self.status = _CaseStatus.INCOMPATIBLE
             return
 
-        if report.passed and not hasattr(report, "wasxfail"):
-            self.status = _CaseStatus.PASS
-        elif (
+        assertion_failure = (
             report.failed
             and call.excinfo is not None
             and call.excinfo.errisinstance((AssertionError, pytest.fail.Exception))
+        )
+        failure_origin = (
+            getattr(getattr(report.longrepr, "reprcrash", None), "path", None)
+            if assertion_failure
+            else None
+        )
+        failure_path = Path(failure_origin) if failure_origin is not None else None
+        if failure_path is not None and not failure_path.is_absolute():
+            failure_path = item.config.rootpath / failure_path
+        test_root = (item.config.rootpath / "tests").resolve()
+
+        if report.passed and not hasattr(report, "wasxfail"):
+            self.status = _CaseStatus.PASS
+        elif assertion_failure and (
+            failure_path is not None and failure_path.resolve().is_relative_to(test_root)
         ):
             self.status = _CaseStatus.MISMATCH
         else:
@@ -83,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Replay newly marked public regressions against head and base package sources. "
             "Exit status is zero only when every new node passes on head and fails by "
-            "assertion on base."
+            "a test-owned assertion on base."
         )
     )
     parser.add_argument(

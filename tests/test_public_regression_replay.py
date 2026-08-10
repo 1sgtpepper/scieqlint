@@ -11,8 +11,8 @@ REPLAY_COMMAND = REPOSITORY_ROOT / "tools" / "public_regression_replay.py"
 NODE_ID = "tests/test_behavior.py::test_public_behavior[new-value]"
 SECOND_NODE_ID = "tests/test_behavior.py::test_second_public_behavior"
 MARKER = (
-    "public_regression: new public bug regression that must fail by assertion on the "
-    "pull request base"
+    "public_regression: new public bug regression that must fail by a test-owned assertion "
+    "on the pull request base"
 )
 UNMARKED_TEST = """import demo
 import pytest
@@ -72,6 +72,37 @@ def test_public_behavior(expected: str) -> None:
     if demo.VALUE != expected:
         pytest.fail("public behavior mismatch")
 """
+HELPER_ASSERTION_MARKED_TEST = """import demo
+import pytest
+
+def _assert_public_value(expected: str) -> None:
+    assert demo.VALUE == expected
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    _assert_public_value(expected)
+"""
+HELPER_PYTEST_FAIL_MARKED_TEST = """import demo
+import pytest
+
+def _require_public_value(expected: str) -> None:
+    if demo.VALUE != expected:
+        pytest.fail("public behavior mismatch")
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    _require_public_value(expected)
+"""
+CALL_MARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    assert demo.current_value() == expected
+"""
 XFAIL_MARKED_TEST = """import demo
 import pytest
 
@@ -88,6 +119,32 @@ import pytest
 @pytest.mark.skip(reason="not enforcing")
 @pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
 def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
+TEARDOWN_SKIP_MARKED_TEST = """import demo
+import pytest
+
+@pytest.fixture
+def cleanup():
+    yield
+    pytest.skip("teardown deliberately skipped")
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str, cleanup) -> None:
+    assert demo.VALUE == expected
+"""
+TEARDOWN_XFAIL_MARKED_TEST = """import demo
+import pytest
+
+@pytest.fixture
+def cleanup():
+    yield
+    pytest.xfail("teardown deliberately xfailed")
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str, cleanup) -> None:
     assert demo.VALUE == expected
 """
 CONTROL_TEST = """
@@ -112,6 +169,32 @@ def test_replay_accepts_pytest_fail_as_behavioral_mismatch(tmp_path: Path) -> No
         tmp_path,
         base_module='VALUE = "old"\n',
         head_test=PYTEST_FAIL_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.splitlines() == [f"HEAD PASS {NODE_ID}", f"BASE MISMATCH {NODE_ID}"]
+
+
+def test_replay_accepts_assertion_from_private_test_helper(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=HELPER_ASSERTION_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.splitlines() == [f"HEAD PASS {NODE_ID}", f"BASE MISMATCH {NODE_ID}"]
+
+
+def test_replay_accepts_pytest_fail_from_private_test_helper(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=HELPER_PYTEST_FAIL_MARKED_TEST,
     )
 
     result = _run_replay(base, head)
@@ -200,6 +283,49 @@ def test_replay_reports_base_call_api_incompatibility(tmp_path: Path) -> None:
     assert "AttributeError" in result.stdout
 
 
+def test_replay_rejects_assertion_from_base_package(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module=(
+            "def current_value():\n"
+            '    raise AssertionError("internal invariant failed before the oracle")\n'
+        ),
+        head_module='def current_value():\n    return "new"\n',
+        head_test=CALL_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[:2] == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE API INCOMPATIBLE {NODE_ID}",
+    ]
+    assert "internal invariant failed before the oracle" in result.stdout
+
+
+def test_replay_rejects_pytest_fail_from_base_package(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module=(
+            "import pytest\n\n"
+            "def current_value():\n"
+            '    pytest.fail("internal failure before the oracle")\n'
+        ),
+        head_module='def current_value():\n    return "new"\n',
+        head_test=CALL_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[:2] == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE API INCOMPATIBLE {NODE_ID}",
+    ]
+    assert "internal failure before the oracle" in result.stdout
+
+
 def test_replay_reports_base_setup_api_incompatibility(tmp_path: Path) -> None:
     base, head = _write_revisions(
         tmp_path,
@@ -233,6 +359,34 @@ def test_replay_reports_base_teardown_api_incompatibility(tmp_path: Path) -> Non
         f"BASE API INCOMPATIBLE {NODE_ID}",
     ]
     assert "AttributeError" in result.stdout
+
+
+def test_replay_rejects_skipped_teardown(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=TEARDOWN_SKIP_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
+    assert "skipped" in result.stdout.lower()
+
+
+def test_replay_rejects_xfailed_teardown(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=TEARDOWN_XFAIL_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
+    assert "xfailed" in result.stdout.lower()
 
 
 def test_replay_continues_after_rejected_node(tmp_path: Path) -> None:
