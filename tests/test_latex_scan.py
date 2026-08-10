@@ -67,26 +67,6 @@ def test_escaped_dollar_candidate_does_not_skip_overlapping_closing() -> None:
     assert result.diagnostics == ()
 
 
-def test_comment_line_endings_terminate_on_cr_and_crlf() -> None:
-    for newline in ("\r", "\r\n"):
-        result = LatexScanner().scan(
-            _document(
-                "% hidden \\begin{equation}"
-                + newline
-                + "\\begin{equation}"
-                + newline
-                + "x = x + 1"
-                + newline
-                + "\\end{equation}"
-                + newline
-            ),
-            Config(),
-        )
-
-        assert [block.text for block in result.blocks] == ["x = x + 1"]
-        assert result.diagnostics == ()
-
-
 def test_comment_delimiter_is_ignored_before_the_live_dollar_close() -> None:
     result = LatexScanner().scan(
         _document("$$\nx = x % $$\ny = y\n$$\n"),

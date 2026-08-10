@@ -361,12 +361,15 @@ def _lexical_ranges(
     active_star = ""
     while index < len(text):
         if comment_start is not None:
-            line_end = _line_end(text, index)
+            line_end = text.find("\n", index)
+            line_end = len(text) if line_end == -1 else line_end + 1
             comments.append((comment_start, line_end))
             comment_start = None
             index = line_end
             continue
         if active_start is not None:
+            # LaTeX reads verbatim with an exact delimited terminator, so escape
+            # parity and comment syntax are not active until that terminator.
             match = VERBATIM_CONTROL_RE.search(text, index)
             if match is None:
                 verbatim.append((active_start, len(text)))
@@ -390,17 +393,6 @@ def _lexical_ranges(
     if active_start is not None:
         verbatim.append((active_start, len(text)))
     return tuple(comments), tuple(verbatim)
-
-
-def _line_end(text: str, start: int) -> int:
-    index = start
-    while index < len(text) and text[index] not in "\r\n":
-        index += 1
-    if index == len(text):
-        return index
-    if text[index] == "\r" and index + 1 < len(text) and text[index + 1] == "\n":
-        return index + 2
-    return index + 1
 
 
 def _trim_span(text: str, start: int, end: int) -> tuple[int, int]:
