@@ -76,7 +76,7 @@ def _delimited_blocks(
         if _in_ranges(start, ignored):
             cursor = start + len(opening)
             continue
-        if _is_escaped_opening(document.text, start, opening):
+        if _is_escaped(document.text, start):
             cursor = start + 1
             continue
         body_start = start + len(opening)
@@ -295,7 +295,7 @@ def _unterminated_delimiters(
         ):
             cursor = start + len(opening)
             continue
-        if _is_escaped_opening(document.text, start, opening):
+        if _is_escaped(document.text, start):
             cursor = start + 1
             continue
         if _find_close(document, start + len(opening), closing, ignored) == -1:
@@ -317,7 +317,7 @@ def _delimiter_ranges(
         if _in_ranges(start, ignored):
             cursor = start + len(opening)
             continue
-        if _is_escaped_opening(document.text, start, opening):
+        if _is_escaped(document.text, start):
             cursor = start + 1
             continue
         body_start = start + len(opening)
@@ -343,7 +343,7 @@ def _find_close(
         if _in_ranges(close, ignored):
             cursor = close + len(closing)
             continue
-        if _is_escaped_opening(document.text, close, closing):
+        if _is_escaped(document.text, close):
             cursor = close + 1
             continue
         return close
@@ -410,10 +410,6 @@ def _row_break_end(text: str, start: int, end: int) -> int:
         if close != -1 and (newline == -1 or close < newline):
             return close + 1
     return start
-
-
-def _is_escaped_opening(text: str, index: int, _opening: str) -> bool:
-    return _is_escaped(text, index)
 
 
 def _is_escaped(text: str, index: int) -> bool:
