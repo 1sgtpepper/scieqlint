@@ -390,7 +390,9 @@ def test_display_math_owns_nested_fence_without_hiding_later_live_fence() -> Non
         (MathContainer.MARKDOWN_DISPLAY, "```math\nhidden = hidden"),
         (MathContainer.MARKDOWN_FENCE, "live = live"),
     ]
-    assert [math.body for math in frontend.display_math] == ["```math\nhidden = hidden"]
+    assert [math.body for math in frontend.display_math if math.container == "dollar-dollar"] == [
+        "```math\nhidden = hidden"
+    ]
     assert [fence.info_string for fence in frontend.fences] == ["math"]
     assert legacy.diagnostics == ()
 
