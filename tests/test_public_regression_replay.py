@@ -9,6 +9,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).parents[1]
 REPLAY_COMMAND = REPOSITORY_ROOT / "tools" / "public_regression_replay.py"
 NODE_ID = "tests/test_behavior.py::test_public_behavior[new-value]"
+SECOND_NODE_ID = "tests/test_behavior.py::test_second_public_behavior"
 MARKER = (
     "public_regression: new public bug regression that must fail by assertion on the "
     "pull request base"
@@ -26,6 +27,37 @@ import pytest
 @pytest.mark.public_regression
 @pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
 def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
+MULTIPLE_MARKED_TEST = MARKED_TEST + """
+
+@pytest.mark.public_regression
+def test_second_public_behavior() -> None:
+    assert demo.SECOND == "new"
+"""
+SETUP_MARKED_TEST = """import demo
+import pytest
+
+@pytest.fixture
+def actual_value():
+    return demo.VALUE
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str, actual_value: str) -> None:
+    assert actual_value == expected
+"""
+TEARDOWN_MARKED_TEST = """import demo
+import pytest
+
+@pytest.fixture
+def cleanup():
+    yield
+    demo.finish()
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str, cleanup) -> None:
     assert demo.VALUE == expected
 """
 CONTROL_TEST = """
@@ -84,7 +116,7 @@ def test_replay_reports_head_api_incompatibility(tmp_path: Path) -> None:
     assert "AttributeError" in result.stdout
 
 
-def test_replay_reports_base_api_incompatibility(tmp_path: Path) -> None:
+def test_replay_reports_base_call_api_incompatibility(tmp_path: Path) -> None:
     base, head = _write_revisions(tmp_path, base_module="OTHER = 1\n")
 
     result = _run_replay(base, head)
@@ -95,6 +127,60 @@ def test_replay_reports_base_api_incompatibility(tmp_path: Path) -> None:
         f"BASE API INCOMPATIBLE {NODE_ID}",
     ]
     assert "AttributeError" in result.stdout
+
+
+def test_replay_reports_base_setup_api_incompatibility(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module="OTHER = 1\n",
+        head_test=SETUP_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[:2] == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE API INCOMPATIBLE {NODE_ID}",
+    ]
+    assert "AttributeError" in result.stdout
+
+
+def test_replay_reports_base_teardown_api_incompatibility(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_module='VALUE = "new"\n\ndef finish():\n    pass\n',
+        head_test=TEARDOWN_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[:2] == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE API INCOMPATIBLE {NODE_ID}",
+    ]
+    assert "AttributeError" in result.stdout
+
+
+def test_replay_continues_after_rejected_node(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "new"\nSECOND = "old"\n',
+        head_module='VALUE = "new"\nSECOND = "new"\n',
+        head_test=MULTIPLE_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines() == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE PASS {NODE_ID}: rejected because the regression also passes on base",
+        f"HEAD PASS {SECOND_NODE_ID}",
+        f"BASE MISMATCH {SECOND_NODE_ID}",
+    ]
 
 
 def test_replay_ignores_existing_and_unmarked_nodes(tmp_path: Path) -> None:
