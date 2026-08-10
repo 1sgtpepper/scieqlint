@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import PurePosixPath
 
 from scieqlint.check.algebra import check_algebra
@@ -48,8 +49,48 @@ def test_line_break_does_not_continue_an_incomplete_equation() -> None:
     assert diagnostics[0].equation == "x ="
 
 
+def test_oversized_integer_exponent_is_controlled_unsupported_syntax() -> None:
+    original_limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(sys.int_info.str_digits_check_threshold)
+    try:
+        oversized = "9" * 5000
+        diagnostics = check_algebra(_first_block(f"$$\nx^{oversized} = x\n$$\n"))
+    finally:
+        sys.set_int_max_str_digits(original_limit)
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_integer_exponents_outside_the_supported_range_are_controlled() -> None:
+    for exponent in ("1001", "-1001"):
+        diagnostics = check_algebra(_first_block(f"$$\nx^{exponent} = x\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], exponent
+
+
+def test_integer_exponent_range_includes_both_boundaries() -> None:
+    for exponent in ("1000", "-1000"):
+        diagnostics = check_algebra(_first_block(f"$$\nx^{exponent} = x^{exponent}\n$$\n"))
+
+        assert diagnostics == (), exponent
+
+
+def test_deeply_nested_algebra_is_controlled_unsupported_syntax() -> None:
+    depth = 1000
+    equation = f"{'(' * depth}x{')' * depth} = x"
+    diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
 def test_supported_tex_fraction_is_checked() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\frac{1}{2} x = x / 2\n$$\n"))
+    assert diagnostics == ()
+
+
+def test_symbolic_monomial_denominator_remains_supported() -> None:
+    diagnostics = check_algebra(_first_block("$$\n1/(2x) = 1/(2x)\n$$\n"))
+
     assert diagnostics == ()
 
 
@@ -63,19 +104,58 @@ def test_supported_negative_powers_are_checked() -> None:
     assert diagnostics == ()
 
 
-def test_supported_sqrt_perfect_square_is_checked() -> None:
+def test_symbolic_sqrt_requires_a_sign_or_domain_assumption() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{x^2} = x\n$$\n"))
-    assert diagnostics == ()
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
-def test_supported_sqrt_grouped_square_expression_is_checked() -> None:
+def test_grouped_symbolic_sqrt_is_not_simplified() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x+1)^2} = x + 1\n$$\n"))
-    assert diagnostics == ()
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
-def test_supported_sqrt_grouped_difference_square_is_checked() -> None:
+def test_grouped_symbolic_difference_sqrt_is_not_simplified() -> None:
     diagnostics = check_algebra(_first_block("$$\n\\sqrt{(x-1)^2} = x - 1\n$$\n"))
-    assert diagnostics == ()
+    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
+
+
+def test_symbolic_sqrt_that_normalizes_to_constant_is_not_simplified() -> None:
+    for equation in ("\\sqrt{x/x} = 1", "\\sqrt{4*x/x} = 2", "\\sqrt{x^0} = 1"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], equation
+
+
+def test_unary_negation_binds_after_exponentiation() -> None:
+    diagnostics = check_algebra(_first_block("$$\n-x^2 = x^2\n$$\n"))
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["ALG001"]
+
+
+def test_unary_signs_preserve_grouping_and_parity() -> None:
+    for equation in ("+x^2 = x^2", "--x^2 = x^2", "(-x)^2 = x^2"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert diagnostics == (), equation
+
+
+def test_numeric_sqrt_perfect_square_remains_supported() -> None:
+    for equation in (
+        "\\sqrt{0} = 0",
+        "\\sqrt{1-1} = 0",
+        "\\sqrt{4} = 2",
+        "\\sqrt{9/4} = 3/2",
+    ):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert diagnostics == (), equation
+
+
+def test_numeric_sqrt_non_square_is_rejected() -> None:
+    for equation in ("\\sqrt{2} = 2", "\\sqrt{-4} = 2"):
+        diagnostics = check_algebra(_first_block(f"$$\n{equation}\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], equation
 
 
 def test_tex_fraction_requires_grouped_operands() -> None:
