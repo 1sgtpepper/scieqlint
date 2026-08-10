@@ -68,10 +68,7 @@ class _RangeCursor:
 class MarkdownLinkToken:
     start: int
     end: int
-    destination_start: int
-    destination_end: int
     is_image: bool
-    destination: str
     fragment_target: str | None = None
     fragment_target_start: int | None = None
     fragment_target_end: int | None = None
@@ -724,10 +721,7 @@ def _make_link_token(
     return MarkdownLinkToken(
         start=token_start,
         end=end,
-        destination_start=destination_start,
-        destination_end=destination_end,
         is_image=is_image,
-        destination=destination,
         fragment_target=fragment_target,
         fragment_target_start=fragment_target_start,
         fragment_target_end=fragment_target_end,

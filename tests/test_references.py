@@ -422,20 +422,18 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         token = tokens[0]
         expected = text[2:] if text.startswith("\\!") else text
         assert text[token.start : token.end] == expected, text
-        assert token.destination_start < token.destination_end, text
 
     image = _link_tokens("![alt](#target)")[0]
     normal = _link_tokens("[x](#target)")[0]
     assert image.is_image is True
     assert normal.is_image is False
-    assert normal.destination == "#target"
+    assert normal.fragment_target == "target"
     assert markdown_reference_snapshot("![alt](#target)").link_metadata_ranges == ((0, 15),)
     assert markdown_reference_snapshot("[x](#target)").link_metadata_ranges == ((4, 12),)
 
     nested = _link_tokens("[outer [inner](#inner)](#outer)")
     assert len(nested) == 1
-    assert nested[0].destination_start == 15
-    assert nested[0].destination_end == 21
+    assert nested[0].fragment_target == "inner"
 
     code = markdown_reference_snapshot("``[x](#hidden)`` and [x](#live)").opaque_ranges
     assert code == tuple(sorted(code))
@@ -466,11 +464,11 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     for text in invalid:
         assert _link_tokens(text) == (), text
 
-    assert _link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
-    assert _link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
-    assert _link_tokens("[x](#foo&amp;bar)")[0].destination == "#foo&bar"
-    assert _link_tokens("[x](#foo&#x26;bar)")[0].destination == "#foo&bar"
-    assert _link_tokens("[x](#foo&unknown;)")[0].destination == "#foo&unknown;"
+    assert _link_tokens("[x](#foo\\-bar)")[0].fragment_target == "foo-bar"
+    assert _link_tokens("[x](#a\\)b)")[0].fragment_target == "a)b"
+    assert _link_tokens("[x](#foo&amp;bar)")[0].fragment_target == "foo&bar"
+    assert _link_tokens("[x](#foo&#x26;bar)")[0].fragment_target == "foo&bar"
+    assert _link_tokens("[x](#foo&unknown;)")[0].fragment_target == "foo&unknown;"
 
 
 def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> None:
