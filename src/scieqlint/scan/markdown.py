@@ -29,7 +29,6 @@ from scieqlint.scan.base import (
 )
 from scieqlint.scan.symbols import parse_symbol_directive
 
-DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
 FENCE_RE = re.compile(
     r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
     re.MULTILINE | re.DOTALL,

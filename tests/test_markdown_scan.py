@@ -10,7 +10,6 @@ from scieqlint.markdown import (
     code_fence_ranges,
     dollar_display_ranges,
     inline_code_ranges,
-    markdown_protected_ranges,
 )
 from scieqlint.scan.base import (
     MathContainer,
@@ -175,17 +174,14 @@ def test_tilde_fence_transition_does_not_pair_backticks_across_live_math() -> No
 
 def test_dollar_math_does_not_pair_across_raw_html() -> None:
     text = "<div>\n$$\n</div>\n$$\n"
-    protected = markdown_protected_ranges(text)
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        text,
+        DocumentKind.MARKDOWN,
+    )
 
-    first_dollar = text.index("$$")
-    final_dollar = text.index("$$", first_dollar + 2)
-    assert protected[0][0] <= first_dollar < protected[0][1]
-    assert not protected[0][0] <= final_dollar < protected[0][1]
-    assert dollar_display_ranges(text, protected) == ()
-
-
-def test_markdown_protected_ranges_merge_existing_occupancy() -> None:
-    assert markdown_protected_ranges("`x`", ((1, 2),)) == ((0, 3),)
+    assert MarkdownScanner().scan(document, Config()).blocks == ()
+    assert MySTFrontend().lower((document,)).display_math == ()
 
 
 def test_empty_and_plain_markdown_have_no_code_ranges() -> None:

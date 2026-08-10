@@ -108,16 +108,6 @@ def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
     return tuple(ranges)
 
 
-def markdown_protected_ranges(
-    text: str,
-    occupied: Sequence[OffsetRange] = (),
-) -> tuple[OffsetRange, ...]:
-    """Return ordered non-math Markdown regions that delimit live scanning."""
-
-    lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
-    return _merge_ranges((*occupied, *lexical.fences, *lexical.html, *lexical.roles, *lexical.code))
-
-
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
