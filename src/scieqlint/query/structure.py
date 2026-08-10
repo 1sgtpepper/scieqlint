@@ -37,8 +37,5 @@ class StructureQueryView:
     def syntax_issues(self) -> tuple[StructureSyntaxIssueFact, ...]:
         return self.snapshot.structure_syntax_issues
 
-    def malformed_headings(self) -> tuple[HeadingFact, ...]:
-        return tuple(heading for heading in self.snapshot.headings if not heading.valid_atx)
-
     def unclosed_fences(self) -> tuple[FenceFact, ...]:
         return tuple(fence for fence in self.snapshot.fences if not fence.is_closed)

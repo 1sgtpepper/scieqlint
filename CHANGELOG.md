@@ -73,6 +73,8 @@ Release notes must use these sections:
   operands after cancellation, accepts integer exponents from `-1000` through
   `1000`, and reports out-of-range, oversized, or deeply nested unsupported
   input without leaking interpreter errors.
+- MyST targets now attach to valid bare ATX headings, while malformed ATX
+  candidates remain diagnostics without participating in heading semantics.
 
 ### Deprecated
 
