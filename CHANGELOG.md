@@ -90,6 +90,8 @@ Release notes must use these sections:
 - Compact rational factors adjacent to implicit products are now parsed
   consistently with explicit division, with zero denominators and oversized
   literals reported as unsupported syntax.
+- Source distributions now include the files required by their shipped test suite,
+  and CI executes that suite from an extracted archive.
 
 ### Deprecated
 
