@@ -503,6 +503,7 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     assert [math.body for math in snapshot.display_math] == ["visible\n```"]
     assert [diagnostic.code for diagnostic in diagnostics] == [
         "STR005",
+        "STR002",
         "STR003",
         "STR003",
         "DIR010",

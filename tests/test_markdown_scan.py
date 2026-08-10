@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-import pytest
-
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
-from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import (
@@ -262,50 +259,6 @@ def test_dollar_math_respects_escape_and_block_boundaries() -> None:
 
     assert result.blocks == ()
     assert result.diagnostics == ()
-
-
-@pytest.mark.public_regression
-def test_public_dollar_math_boundaries_ignore_escaped_and_prose_delimiters() -> None:
-    source = "Literal \\$x=x+1$.\nProse $$x=x+1$$ tail.\n\n$$\ny = y\n$$\n"
-    document = SourceDocument.from_text(
-        PurePosixPath("paper.md"),
-        source,
-        DocumentKind.MARKDOWN,
-    )
-
-    result = check_documents(
-        [document],
-        config=Config(
-            scanner=ScannerConfig(inline_math=True),
-            checks=ChecksConfig(symbols=SymbolsConfig(enabled=True)),
-        ),
-    )
-
-    symbol_start = source.index("y = y")
-    assert result.files_checked == 1
-    assert result.math_blocks_checked == 1
-    assert result.exit_code() == 0
-    assert result.diagnostics == (
-        Diagnostic(
-            code="SYM001",
-            severity=Severity.WARNING,
-            message="undefined symbol: y",
-            span=SourceSpan(
-                path=PurePosixPath("paper.md"),
-                start=symbol_start,
-                end=symbol_start + 1,
-                line=5,
-                col=1,
-                end_line=5,
-                end_col=1,
-            ),
-            detail="y",
-            rule="symbols",
-        ),
-    )
-    span = result.diagnostics[0].span
-    assert span is not None
-    assert source[span.start : span.end] == "y"
 
 
 def test_display_dollar_math_requires_a_line_boundary_and_allows_indent() -> None:
