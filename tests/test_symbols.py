@@ -76,7 +76,7 @@ def test_symbol_check_ignores_label_text_and_tex_operators() -> None:
     assert result.diagnostics == ()
 
 
-@pytest.mark.parametrize("function", ("sin", "cos", "tan", "log", "ln", "exp"))
+@pytest.mark.parametrize("function", ["sin", "cos", "tan", "log", "ln", "exp"])
 def test_symbol_check_ignores_unsupported_tex_function_names(function: str) -> None:
     equation = f"\\{function}(x) = x"
     document = _document(
