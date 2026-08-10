@@ -315,6 +315,8 @@ Supported aliases:
 
 Exponentiation binds more tightly than unary signs, so `-x^2` means
 `-(x^2)`. Parentheses are required for `(-x)^2`.
+Integer exponents are supported from `-1000` through `1000`; values outside
+that range produce the unsupported-syntax diagnostic before evaluation.
 
 Unsupported in v0.1.0:
 
@@ -329,6 +331,7 @@ Unsupported in v0.1.0:
 - inequalities,
 - approximate equality,
 - non-integer powers and symbolic square roots,
+- integer exponents outside `-1000` through `1000`,
 - user-defined TeX macros,
 - Greek alias normalization.
 

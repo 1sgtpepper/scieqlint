@@ -16,6 +16,7 @@ Polynomial = dict[Monomial, Fraction]
 
 TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]")
 TEX_MULTIPLY = {"\\cdot", "\\times"}
+_MAX_ABS_EXPONENT = 1_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,7 +198,10 @@ class _Parser:
             exponent = int(number.value)
         except ValueError as exc:
             raise UnsupportedExpressionError("invalid integer exponent") from exc
-        return sign * exponent
+        exponent *= sign
+        if abs(exponent) > _MAX_ABS_EXPONENT:
+            raise UnsupportedExpressionError("integer exponent outside supported range")
+        return exponent
 
     def _group(self) -> Polynomial:
         if self._peek_value() != "(":

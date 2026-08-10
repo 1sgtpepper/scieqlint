@@ -54,8 +54,9 @@ Release notes must use these sections:
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
 - Algebraic parsing now applies exponentiation before unary signs, keeps
   symbolic square roots conservative, does not simplify symbolic root
-  operands after cancellation, and reports oversized or deeply nested
-  unsupported input without leaking interpreter errors.
+  operands after cancellation, accepts integer exponents from `-1000` through
+  `1000`, and reports out-of-range, oversized, or deeply nested unsupported
+  input without leaking interpreter errors.
 
 ### Deprecated
 

@@ -41,7 +41,7 @@ E = mc^2
 | symbols | supported |
 | `+`, `-`, `*`, `/` | supported |
 | implicit multiplication | supported within documented parser rules |
-| integer powers | supported |
+| integer powers | supported for exponents from `-1000` through `1000` |
 | `\frac{a}{b}` | supported |
 | `\sqrt{n}` | supported for numeric perfect-square rational operands only |
 | trig/log/exp | deferred |

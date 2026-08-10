@@ -61,6 +61,20 @@ def test_oversized_integer_exponent_is_controlled_unsupported_syntax() -> None:
     assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"]
 
 
+def test_integer_exponents_outside_the_supported_range_are_controlled() -> None:
+    for exponent in ("1001", "-1001"):
+        diagnostics = check_algebra(_first_block(f"$$\nx^{exponent} = x\n$$\n"))
+
+        assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE020"], exponent
+
+
+def test_integer_exponent_range_includes_both_boundaries() -> None:
+    for exponent in ("1000", "-1000"):
+        diagnostics = check_algebra(_first_block(f"$$\nx^{exponent} = x^{exponent}\n$$\n"))
+
+        assert diagnostics == (), exponent
+
+
 def test_deeply_nested_algebra_is_controlled_unsupported_syntax() -> None:
     depth = 1000
     equation = f"{'(' * depth}x{')' * depth} = x"
