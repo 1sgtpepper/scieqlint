@@ -7,6 +7,7 @@ import stat
 import pytest
 from click.testing import CliRunner
 
+from scieqlint import app as app_module
 from scieqlint import cli as cli_module
 from scieqlint.cli import main
 from scieqlint.config.load import load_config
@@ -888,6 +889,95 @@ def test_check_refuses_existing_output_when_output_identity_is_unavailable(
     assert output.read_text(encoding="utf-8") == original
 
 
+def test_check_refuses_output_when_input_alias_lookup_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+
+    def deny_physical_lookup(_self, _path) -> bool:
+        raise PermissionError("path lookup detail must not escape")
+
+    monkeypatch.setattr(
+        identity_module.ConsumedInput,
+        "matches_physical_path",
+        deny_physical_lookup,
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "path lookup detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_existing_output_when_current_role_lookup_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "clean.md"
+    output = tmp_path / "result.json"
+    original = "placeholder\n"
+    doc.write_text("# clean\n", encoding="utf-8")
+    output.write_text(original, encoding="utf-8")
+
+    def deny_current_lookup(_self, _stat_result) -> bool:
+        raise PermissionError("current role detail must not escape")
+
+    monkeypatch.setattr(
+        identity_module.ConsumedInput,
+        "matches_current_identity",
+        deny_current_lookup,
+    )
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "current role detail" not in result.output
+    assert output.read_text(encoding="utf-8") == original
+
+
+def test_check_refuses_file_output_when_source_disappears_after_discovery(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    doc.write_text("# consumed source\n", encoding="utf-8")
+    real_open_text = app_module.open_text
+
+    def remove_before_open(path, *, encoding):
+        if path == doc:
+            doc.unlink()
+            raise FileNotFoundError("source disappeared")
+        return real_open_text(path, encoding=encoding)
+
+    monkeypatch.setattr(app_module, "open_text", remove_before_open)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert "source disappeared" not in result.output
+    assert not doc.exists()
+    assert not output.exists()
+
+
 def test_check_refuses_hardlink_to_consumed_source_after_source_replacement(
     tmp_path,
     monkeypatch,
@@ -925,6 +1015,7 @@ def test_check_writes_distinct_output_when_consumed_path_disappears(
     doc = tmp_path / "source.md"
     output = tmp_path / "result.json"
     doc.write_text("# consumed source\n", encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
     real_run = cli_module._run_check_paths
 
     def remove_source_after_run(*args, **kwargs):
@@ -942,6 +1033,32 @@ def test_check_writes_distinct_output_when_consumed_path_disappears(
     assert result.exit_code == 0
     assert json.loads(output.read_text(encoding="utf-8"))["diagnostics"] == []
     assert not doc.exists()
+
+
+def test_open_text_closes_descriptor_when_stream_creation_fails(tmp_path, monkeypatch) -> None:
+    doc = tmp_path / "source.md"
+    doc.write_text("# source\n", encoding="utf-8")
+    real_open = identity_module.os.open
+    descriptors: list[int] = []
+
+    def capture_open(path, flags):
+        descriptor = real_open(path, flags)
+        descriptors.append(descriptor)
+        return descriptor
+
+    def deny_stream(_descriptor, _mode, *, encoding):
+        raise OSError(f"stream unavailable for {encoding}")
+
+    monkeypatch.setattr(identity_module.os, "open", capture_open)
+    monkeypatch.setattr(identity_module.os, "fdopen", deny_stream)
+
+    with pytest.raises(OSError, match="stream unavailable"):
+        with identity_module.open_text(doc, encoding="utf-8"):
+            pass
+
+    assert len(descriptors) == 1
+    with pytest.raises(OSError):
+        os.fstat(descriptors[0])
 
 
 def test_check_refuses_hardlink_to_consumed_config_after_config_replacement(
@@ -1142,6 +1259,43 @@ def test_check_refuses_dangling_output_symlink_without_recreating_target(
     assert "refusing to overwrite analysis input" in result.output
     assert not doc.exists()
     assert output.is_symlink()
+
+
+@pytest.mark.skipif(
+    not cli_module._OUTPUT_PARENT_FD_SUPPORTED,
+    reason="directory-descriptor output creation is unavailable",
+)
+def test_check_refuses_output_that_disappears_on_both_open_attempts(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    doc = tmp_path / "source.md"
+    output = tmp_path / "result.json"
+    original = "# consumed source\n"
+    doc.write_text(original, encoding="utf-8")
+    output.write_text("placeholder\n", encoding="utf-8")
+    real_open = cli_module.os.open
+
+    def disappear_before_existing_open(path, flags, mode=0o777, *, dir_fd=None):
+        if path == output.name and dir_fd is not None:
+            if flags & os.O_EXCL:
+                if not output.exists():
+                    output.write_text("competitor\n", encoding="utf-8")
+            else:
+                output.unlink()
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(cli_module.os, "open", disappear_before_existing_open)
+
+    result = CliRunner().invoke(
+        main,
+        ["check", str(doc), "--format", "json", "--output", str(output)],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to overwrite analysis input" in result.output
+    assert doc.read_text(encoding="utf-8") == original
+    assert not output.exists()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions are required")
