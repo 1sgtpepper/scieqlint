@@ -292,9 +292,9 @@ equation_group : equation (line_sep equation)*
 equation       : expr "=" expr ("=" expr)*
 expr           : sum
 sum            : product (("+" | "-") product)*
-product        : power (("*" | "/" | implicit_mul) power)*
-power          : unary ("^" signed_integer)?
-unary          : ("+" | "-") unary | atom
+product        : unary (("*" | "/" | implicit_mul) unary)*
+power          : atom ("^" signed_integer)?
+unary          : ("+" | "-") unary | power
 atom           : NUMBER | SYMBOL | group | frac | sqrt
 group          : "(" expr ")" | "{" expr "}"
 frac           : "\\frac" group group
@@ -313,6 +313,11 @@ Supported aliases:
 - `{...}` as grouping
 - `^2`, `^{-1}`, `^-1`
 
+Exponentiation binds more tightly than unary signs, so `-x^2` means
+`-(x^2)`. Parentheses are required for `(-x)^2`.
+Integer exponents are supported from `-1000` through `1000`; values outside
+that range produce the unsupported-syntax diagnostic before evaluation.
+
 Unsupported in v0.1.0:
 
 - trigonometric functions,
@@ -325,7 +330,8 @@ Unsupported in v0.1.0:
 - vectors/tensors,
 - inequalities,
 - approximate equality,
-- non-integer powers except `sqrt`,
+- non-integer powers and symbolic square roots,
+- integer exponents outside `-1000` through `1000`,
 - user-defined TeX macros,
 - Greek alias normalization.
 
@@ -343,7 +349,7 @@ Algebra check supports:
 - division,
 - unary signs,
 - integer powers,
-- `sqrt` only when exact handling is possible.
+- `\sqrt{n}` only for numeric perfect-square rational operands.
 
 Algorithm:
 
