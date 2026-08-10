@@ -378,25 +378,6 @@ def test_legacy_and_frontend_share_source_order_for_math_and_backticks() -> None
     assert legacy.diagnostics == ()
 
 
-@pytest.mark.public_regression
-def test_display_math_owns_nested_fence_without_hiding_later_live_fence() -> None:
-    text = "$$\n```math\nhidden = hidden\n$$\n\n```math\nlive = live\n```\n"
-    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
-
-    legacy = MarkdownScanner().scan(document, Config())
-    frontend = MySTFrontend().lower((document,))
-
-    assert [(block.container, block.text) for block in legacy.blocks] == [
-        (MathContainer.MARKDOWN_DISPLAY, "```math\nhidden = hidden"),
-        (MathContainer.MARKDOWN_FENCE, "live = live"),
-    ]
-    assert [math.body for math in frontend.display_math if math.container == "dollar-dollar"] == [
-        "```math\nhidden = hidden"
-    ]
-    assert [fence.info_string for fence in frontend.fences] == ["math"]
-    assert legacy.diagnostics == ()
-
-
 def test_shared_fence_closer_rules_keep_adjacent_math_fences_distinct() -> None:
     text = "```math\nfirst = first\n````\n```math\nsecond = second\n```\n"
     document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)

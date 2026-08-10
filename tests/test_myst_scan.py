@@ -98,6 +98,29 @@ def test_display_dollar_math_whitespace_only_body_is_not_a_fact() -> None:
     assert result.diagnostics == ()
 
 
+@pytest.mark.public_regression
+def test_display_math_owns_nested_fence_without_hiding_later_live_fence() -> None:
+    source = "$$\n```math\nhidden = hidden\n$$\n\n```math\nlive = live\n```\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [(block.container, block.text) for block in legacy.blocks] == [
+        (MathContainer.MARKDOWN_DISPLAY, "```math\nhidden = hidden"),
+        (MathContainer.MARKDOWN_FENCE, "live = live"),
+    ]
+    assert [math.body for math in frontend.display_math if math.container == "dollar-dollar"] == [
+        "```math\nhidden = hidden"
+    ]
+    assert [fence.info_string for fence in frontend.fences] == ["math"]
+    assert legacy.diagnostics == ()
+
+
 def test_unterminated_math_fence_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
