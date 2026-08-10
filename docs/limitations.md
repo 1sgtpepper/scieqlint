@@ -97,9 +97,11 @@ point at the mathematical text rather than surrounding delimiter whitespace.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text
-until its first valid dollar close. Ordinary inline HTML tags protect only their
-tag lexemes, so inline content remains live. Their trimmed bodies and spans
-therefore agree.
+until its first valid dollar close. Matching same-tag HTML blocks remain opaque
+through nested blocks. Ordinary inline HTML tags protect only their tag lexemes,
+so inline content remains live. Structural headings, anchors, fences, and syntax
+diagnostics use the same opacity rules as math scanning. Their trimmed bodies and
+spans therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick

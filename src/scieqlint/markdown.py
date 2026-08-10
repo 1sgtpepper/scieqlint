@@ -31,7 +31,6 @@ _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 class _LexicalRanges:
     fences: tuple[OffsetRange, ...]
     html: tuple[OffsetRange, ...]
-    roles: tuple[OffsetRange, ...]
     code: tuple[OffsetRange, ...]
     display: tuple[DollarRange, ...]
     inline: tuple[DollarRange, ...]
@@ -84,49 +83,43 @@ def is_fence_closer(line: str, marker: str) -> bool:
 
 def inline_code_ranges(
     text: str,
-    occupied: Sequence[OffsetRange] = (),
 ) -> tuple[OffsetRange, ...]:
-    return _ordered_lexical_ranges(text, occupied, scan_math=True).code
+    return _ordered_lexical_ranges(text, ()).code
 
 
 def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
-    lines = _source_lines(text)
+    return _ordered_lexical_ranges(text, ()).fences
 
-    ranges: list[OffsetRange] = []
-    index = 0
-    while index < len(lines):
-        opener_start, _opener_end, opener_line = lines[index]
-        opener = parse_fence_opener(opener_line)
-        if opener is None:
-            index += 1
-            continue
-        marker, _info = opener
-        close_index = _fence_close_index(lines, index, marker)
-        range_end = lines[close_index][1] if close_index is not None else len(text)
-        ranges.append((opener_start, range_end))
-        index = close_index + 1 if close_index is not None else len(lines)
-    return tuple(ranges)
+
+def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
+    """Return source ranges whose contents cannot introduce Markdown structure."""
+
+    lexical = _ordered_lexical_ranges(text, ())
+    math_ranges = [
+        (start, end) for start, _body_start, _body_end, end in (*lexical.display, *lexical.inline)
+    ]
+    return _merge_ranges((*lexical.fences, *lexical.html, *lexical.code, *math_ranges))
 
 
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    return _ordered_lexical_ranges(text, occupied, scan_math=True).display
+    return _ordered_lexical_ranges(text, occupied).display
 
 
 def dollar_display_opener_positions(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[int, ...]:
-    return _ordered_lexical_ranges(text, occupied, scan_math=True).display_openers
+    return _ordered_lexical_ranges(text, occupied).display_openers
 
 
 def dollar_inline_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
 ) -> tuple[DollarRange, ...]:
-    return _ordered_lexical_ranges(text, occupied, scan_math=True).inline
+    return _ordered_lexical_ranges(text, occupied).inline
 
 
 def is_escaped(text: str, index: int) -> bool:
@@ -151,18 +144,15 @@ def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
 def _ordered_lexical_ranges(
     text: str,
     occupied: Sequence[OffsetRange],
-    *,
-    scan_math: bool,
 ) -> _LexicalRanges:
     """Scan Markdown regions in source order so the first opener owns the text."""
 
     lines = _source_lines(text)
     if not lines:
-        return _LexicalRanges((), (), (), (), (), (), ())
+        return _LexicalRanges((), (), (), (), (), ())
 
     fences: list[OffsetRange] = []
     html: list[OffsetRange] = []
-    roles: list[OffsetRange] = []
     code: list[OffsetRange] = []
     display: list[DollarRange] = []
     inline: list[DollarRange] = []
@@ -199,7 +189,6 @@ def _ordered_lexical_ranges(
 
         role_end = _myst_role_end_at(text, index)
         if role_end is not None:
-            roles.append((index, role_end))
             index = role_end
             continue
 
@@ -209,11 +198,7 @@ def _ordered_lexical_ranges(
             index = html_end
             continue
 
-        if (
-            scan_math
-            and text.startswith("$$", index)
-            and _is_display_opener(text, index, line_start)
-        ):
+        if text.startswith("$$", index) and _is_display_opener(text, index, line_start):
             display_openers.append(index)
             close = _find_ordered_display_close(text, index + 2)
             if close == -1:
@@ -223,7 +208,7 @@ def _ordered_lexical_ranges(
             index = close + 2
             continue
 
-        if scan_math and text[index] == "$" and _is_inline_opening(text, index):
+        if text[index] == "$" and _is_inline_opening(text, index):
             close = _find_ordered_inline_close(text, index + 1, line_content_end)
             if close == -1:
                 index = line_content_end
@@ -260,7 +245,6 @@ def _ordered_lexical_ranges(
     return _LexicalRanges(
         fences=_merge_ranges(fences),
         html=_merge_ranges(html),
-        roles=_merge_ranges(roles),
         code=_merge_ranges(code),
         display=tuple(display),
         inline=tuple(inline),
@@ -379,13 +363,9 @@ def _html_range_at(text: str, start: int) -> int | None:
     block = HTML_BLOCK_OPEN_RE.match(text, start)
     if block is not None:
         tag = block.group("tag").lower()
-        closing = re.search(
-            rf"</[ \t]*{re.escape(tag)}[ \t]*>",
-            text[block.end() :],
-            re.IGNORECASE,
-        )
+        closing = _matching_html_block_close(text, start, tag)
         if closing is not None:
-            return block.end() + closing.end()
+            return closing
         if tag in HTML_RAWTEXT_TAGS:
             return len(text)
         blank_line = re.search(r"\n[ \t]*\n", text[block.end() :])
@@ -393,6 +373,32 @@ def _html_range_at(text: str, start: int) -> int | None:
 
     tag = HTML_TAG_RE.match(text, start)
     return tag.end() if tag is not None else None
+
+
+def _matching_html_block_close(text: str, start: int, tag: str) -> int | None:
+    opener = HTML_TAG_RE.match(text, start)
+    search_start = opener.end() if opener is not None else start + 1
+    closing_pattern = re.compile(
+        rf"</[ \t]*{re.escape(tag)}[ \t]*>",
+        re.IGNORECASE,
+    )
+    if tag in HTML_RAWTEXT_TAGS:
+        closing = closing_pattern.search(text, search_start)
+        return closing.end() if closing is not None else None
+
+    tag_pattern = re.compile(
+        rf"<(?P<closing>/[ \t]*)?{re.escape(tag)}(?=[ \t/>])[^>]*>",
+        re.IGNORECASE,
+    )
+    depth = 1
+    for match in tag_pattern.finditer(text, search_start):
+        if match.group("closing") is not None:
+            depth -= 1
+            if depth == 0:
+                return match.end()
+        elif not match.group().rstrip().endswith("/>"):
+            depth += 1
+    return None
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:

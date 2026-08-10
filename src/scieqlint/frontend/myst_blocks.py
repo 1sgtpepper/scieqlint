@@ -45,13 +45,15 @@ def scan_fences(
     document: SourceDocument,
     smap: SourceMap,
     lines: Sequence[LineRange],
+    live_ranges: Sequence[OffsetRange],
 ) -> tuple[FenceFact, ...]:
+    live_starts = {start for start, _end in live_ranges}
     facts: list[FenceFact] = []
     index = 0
     while index < len(lines):
         start, end, line = lines[index]
         opener = parse_fence_opener(line)
-        if opener is None:
+        if opener is None or start not in live_starts:
             index += 1
             continue
 

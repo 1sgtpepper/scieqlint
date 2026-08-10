@@ -509,6 +509,35 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     ]
 
 
+def test_frontend_structure_uses_shared_markdown_opacity() -> None:
+    source = doc(
+        "$$\n"
+        "(math-hidden)=\n"
+        "# Math hidden\n"
+        "```\n"
+        "{eq}`\n"
+        "$$\n\n"
+        "<!--\n"
+        "(html-hidden)=\n"
+        "# HTML hidden\n"
+        "```\n"
+        "{ref}`\n"
+        "-->\n\n"
+        "(visible)=\n"
+        "# Visible\n"
+        "```python\n"
+        "pass\n"
+        "```\n"
+    )
+
+    snapshot = MySTFrontend().lower((source,))
+
+    assert [heading.text for heading in snapshot.headings] == ["Visible"]
+    assert [anchor.label for anchor in snapshot.target_anchors] == ["visible"]
+    assert [fence.language for fence in snapshot.fences] == ["python"]
+    assert snapshot.structure_syntax_issues == ()
+
+
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
     snapshot = MySTFrontend().lower(
         (
