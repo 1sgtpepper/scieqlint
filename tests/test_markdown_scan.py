@@ -8,7 +8,6 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
-    dollar_display_ranges,
     inline_code_ranges,
 )
 from scieqlint.scan.base import (
@@ -344,7 +343,7 @@ def test_display_delimiter_in_non_math_fence_does_not_emit_scan_warning() -> Non
     assert result.diagnostics == ()
 
 
-def test_display_math_closes_at_dollar_inside_code_like_text() -> None:
+def test_display_math_does_not_close_when_dollars_have_trailing_backtick_text() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "$$\na = a\n`$$`\n",
@@ -406,7 +405,7 @@ def test_legacy_and_frontend_display_math_ignore_unclosed_tilde_fences() -> None
     assert legacy.diagnostics == ()
 
 
-def test_display_math_closes_at_dollar_inside_multibacktick_like_text() -> None:
+def test_display_math_does_not_close_when_dollars_have_trailing_multibacktick_text() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         "$$\na = a\n``$$``\n",
