@@ -239,7 +239,9 @@ def test_latex_comment_only_math_is_not_a_block(source: str) -> None:
 def test_latex_source_alignment_preserves_lexical_boundaries() -> None:
     source = (
         "\\begin{align*}\n"
-        r"  x&y &= z \% literal % hidden \\"
+        r"  x&y &= z \% literal % hidden"
+        "\n"
+        r"  \\"
         "\n"
         r"  u \& v &= w \label{eq:w} \\"
         "\n"
