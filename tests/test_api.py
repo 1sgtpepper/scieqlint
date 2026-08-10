@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -90,6 +90,14 @@ def test_check_paths_renders_absolute_input_relative_to_cwd(tmp_path, monkeypatc
     diagnostic = result.diagnostics[0]
     assert diagnostic.span is not None
     assert diagnostic.span.path == PurePosixPath("../outside/bad.md")
+
+
+def test_default_path_presentation_rejects_different_native_roots() -> None:
+    with pytest.raises(ValueError, match="across native roots"):
+        app_module._lexical_relative_path(
+            PureWindowsPath("D:/outside/bad.md"),
+            PureWindowsPath("C:/workspace"),
+        )
 
 
 def test_check_and_graph_paths_preserve_symlink_spelling_in_baseline(tmp_path, monkeypatch) -> None:

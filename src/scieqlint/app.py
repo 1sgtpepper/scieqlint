@@ -6,7 +6,7 @@ import fnmatch
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar
 
 from scieqlint import __version__
@@ -488,7 +488,7 @@ def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
     return _lexical_relative_path(path, Path.cwd())
 
 
-def _lexical_relative_path(path: Path, base: Path) -> PurePosixPath:
+def _lexical_relative_path(path: PurePath, base: PurePath) -> PurePosixPath:
     """Relativize absolute paths by components while retaining their spelling."""
     if os.path.normcase(path.anchor) != os.path.normcase(base.anchor):
         raise ValueError(
