@@ -249,7 +249,8 @@ def _ordered_lexical_ranges(
         backtick_index = close_index + 1
 
     return _LexicalRanges(
-        fences=_merge_ranges(fences),
+        # Starts are semantic: adjacent fences must remain distinct for lowering.
+        fences=tuple(fences),
         html=_merge_ranges(html),
         code=_merge_ranges(code),
         display=tuple(display),

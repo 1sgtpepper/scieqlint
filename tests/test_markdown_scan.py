@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
+import pytest
+
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.frontend.myst import MySTFrontend
@@ -374,6 +376,72 @@ def test_legacy_and_frontend_share_source_order_for_math_and_backticks() -> None
         frontend.display_math[0].span.end,
     )
     assert legacy.diagnostics == ()
+
+
+@pytest.mark.public_regression
+def test_display_math_owns_nested_fence_without_hiding_later_live_fence() -> None:
+    text = "$$\n```math\nhidden = hidden\n$$\n\n```math\nlive = live\n```\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [(block.container, block.text) for block in legacy.blocks] == [
+        (MathContainer.MARKDOWN_DISPLAY, "```math\nhidden = hidden"),
+        (MathContainer.MARKDOWN_FENCE, "live = live"),
+    ]
+    assert [math.body for math in frontend.display_math] == ["```math\nhidden = hidden"]
+    assert [fence.info_string for fence in frontend.fences] == ["math"]
+    assert legacy.diagnostics == ()
+
+
+def test_shared_fence_closer_rules_keep_adjacent_math_fences_distinct() -> None:
+    text = "```math\nfirst = first\n````\n```math\nsecond = second\n```\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [block.text for block in legacy.blocks] == ["first = first", "second = second"]
+    assert [fence.info_string for fence in frontend.fences] == ["math", "math"]
+    assert legacy.diagnostics == ()
+
+
+@pytest.mark.parametrize(
+    ("opener", "closer", "expected"),
+    [
+        ("```math", "```", True),
+        ("```{math}", "```", True),
+        (" ```math", "```", False),
+        (" ```{math}", "```", False),
+        ("````math", "````", False),
+        ("````{math}", "````", False),
+    ],
+)
+def test_legacy_math_fence_opener_profile(opener: str, closer: str, expected: bool) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        f"{opener}\nx = x\n{closer}\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == (["x = x"] if expected else [])
+    assert result.diagnostics == ()
+
+
+def test_unclosed_display_suppresses_nested_math_fence_diagnostic() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n```math\nhidden = hidden\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert result.blocks == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
 
 
 def test_legacy_and_frontend_display_math_ignore_tilde_fence_delimiters() -> None:
