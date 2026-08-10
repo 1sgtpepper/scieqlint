@@ -69,7 +69,8 @@ Release notes must use these sections:
   fixtures can run without repository Git metadata.
 - Inline Markdown math spans now retain source offsets for the trimmed math body.
 - LaTeX symbol diagnostics now retain exact source offsets after comments, indentation,
-  blank lines, and alignment markers are removed during math normalization.
+  blank lines, and alignment markers are removed during math normalization, without
+  joining symbols that were separated by removed markers.
 - Algebraic parsing now applies exponentiation before unary signs, keeps
   symbolic square roots conservative, does not simplify symbolic root
   operands after cancellation, accepts integer exponents from `-1000` through
