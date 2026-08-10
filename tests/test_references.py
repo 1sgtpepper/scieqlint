@@ -11,12 +11,7 @@ from scieqlint.diag.model import Severity
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.markdown import (
-    attached_markdown_target_labels,
-    markdown_link_metadata_ranges,
-    markdown_link_tokens,
-    opaque_markdown_ranges,
-)
+from scieqlint.markdown import markdown_reference_snapshot
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner
 
@@ -28,6 +23,10 @@ def _scan(text: str):
         DocumentKind.MARKDOWN,
     )
     return MarkdownScanner().scan(document, Config())
+
+
+def _link_tokens(text: str):
+    return markdown_reference_snapshot(text).links
 
 
 def test_missing_reference_is_warning() -> None:
@@ -112,16 +111,16 @@ def test_roles_before_after_valid_and_unclosed_math_keep_their_context(
 
 
 def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
-    assert markdown_link_tokens("[x](\n\n)") == ()
-    assert markdown_link_tokens("[x](#dest\n\n)") == ()
-    assert len(markdown_link_tokens('[x](#dest "title\ncontinued")')) == 1
-    assert len(markdown_link_tokens('[x](#dest "title\r\ncontinued")')) == 1
-    assert len(markdown_link_tokens('[x](#dest "one\ntwo\nthree")')) == 1
-    assert len(markdown_link_tokens('[x](#dest\n "title")')) == 1
-    assert len(markdown_link_tokens("[x](#dest (title\ncontinued))")) == 1
-    assert markdown_link_tokens("[x](#dest with-space)") == ()
-    assert markdown_link_tokens("[x](#dest(with space))") == ()
-    assert markdown_link_tokens("[x](#dest\x01)") == ()
+    assert _link_tokens("[x](\n\n)") == ()
+    assert _link_tokens("[x](#dest\n\n)") == ()
+    assert len(_link_tokens('[x](#dest "title\ncontinued")')) == 1
+    assert len(_link_tokens('[x](#dest "title\r\ncontinued")')) == 1
+    assert len(_link_tokens('[x](#dest "one\ntwo\nthree")')) == 1
+    assert len(_link_tokens('[x](#dest\n "title")')) == 1
+    assert len(_link_tokens("[x](#dest (title\ncontinued))")) == 1
+    assert _link_tokens("[x](#dest with-space)") == ()
+    assert _link_tokens("[x](#dest(with space))") == ()
+    assert _link_tokens("[x](#dest\x01)") == ()
 
 
 def test_roles_in_valid_link_titles_are_opaque_but_invalid_links_are_not() -> None:
@@ -242,6 +241,30 @@ def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
     assert result.diagnostics == ()
 
 
+@pytest.mark.parametrize(
+    ("heading", "expected_codes"),
+    [
+        ("#", []),
+        ("# #", []),
+        ("## ##", []),
+        ("#Bad", ["REF002"]),
+    ],
+)
+def test_myst_anchor_attachment_uses_atx_heading_validity(
+    heading: str,
+    expected_codes: list[str],
+) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        f"(intro)=\n{heading}\n\nSee [](#intro).\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+
+
 def test_markdown_links_to_fenced_directive_anchors_are_not_equation_refs() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
@@ -351,7 +374,7 @@ def test_link_facts_follow_escaped_code_and_html_ownership(
     frontend = MySTFrontend().lower((document,))
     legacy = MarkdownScanner().scan(document, Config())
 
-    assert [token.fragment_target for token in markdown_link_tokens(text)] == targets
+    assert [token.fragment_target for token in _link_tokens(text)] == targets
     assert [ref.target for ref in frontend.generic_refs] == targets
     assert [ref.target for ref in legacy.references] == targets
 
@@ -393,7 +416,7 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "\\![See {eq}`active`](#target)",
     )
     for text in valid:
-        tokens = markdown_link_tokens(text)
+        tokens = _link_tokens(text)
 
         assert len(tokens) == 1, text
         token = tokens[0]
@@ -401,23 +424,23 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         assert text[token.start : token.end] == expected, text
         assert token.destination_start < token.destination_end, text
 
-    image = markdown_link_tokens("![alt](#target)")[0]
-    normal = markdown_link_tokens("[x](#target)")[0]
+    image = _link_tokens("![alt](#target)")[0]
+    normal = _link_tokens("[x](#target)")[0]
     assert image.is_image is True
     assert normal.is_image is False
     assert normal.destination == "#target"
-    assert markdown_link_metadata_ranges("![alt](#target)") == ((0, 15),)
-    assert markdown_link_metadata_ranges("[x](#target)") == ((4, 12),)
+    assert markdown_reference_snapshot("![alt](#target)").link_metadata_ranges == ((0, 15),)
+    assert markdown_reference_snapshot("[x](#target)").link_metadata_ranges == ((4, 12),)
 
-    nested = markdown_link_tokens("[outer [inner](#inner)](#outer)")
+    nested = _link_tokens("[outer [inner](#inner)](#outer)")
     assert len(nested) == 1
     assert nested[0].destination_start == 15
     assert nested[0].destination_end == 21
 
-    code = opaque_markdown_ranges("``[x](#hidden)`` and [x](#live)", ())
+    code = markdown_reference_snapshot("``[x](#hidden)`` and [x](#live)").opaque_ranges
     assert code == tuple(sorted(code))
     assert all(left[1] <= right[0] for left, right in zip(code, code[1:], strict=False))
-    assert markdown_link_tokens("[x][ref]") == ()
+    assert _link_tokens("[x][ref]") == ()
 
     invalid = (
         "[x] #target",
@@ -441,13 +464,13 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
         "\\[x](#target)",
     )
     for text in invalid:
-        assert markdown_link_tokens(text) == (), text
+        assert _link_tokens(text) == (), text
 
-    assert markdown_link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
-    assert markdown_link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
-    assert markdown_link_tokens("[x](#foo&amp;bar)")[0].destination == "#foo&bar"
-    assert markdown_link_tokens("[x](#foo&#x26;bar)")[0].destination == "#foo&bar"
-    assert markdown_link_tokens("[x](#foo&unknown;)")[0].destination == "#foo&unknown;"
+    assert _link_tokens("[x](#foo\\-bar)")[0].destination == "#foo-bar"
+    assert _link_tokens("[x](#a\\)b)")[0].destination == "#a)b"
+    assert _link_tokens("[x](#foo&amp;bar)")[0].destination == "#foo&bar"
+    assert _link_tokens("[x](#foo&#x26;bar)")[0].destination == "#foo&bar"
+    assert _link_tokens("[x](#foo&unknown;)")[0].destination == "#foo&unknown;"
 
 
 def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> None:
@@ -460,7 +483,7 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
         "[paren](#a\\)b)\n"
         "[entity](#foo&amp;bar)\n"
     )
-    tokens = markdown_link_tokens(text)
+    tokens = _link_tokens(text)
 
     assert [token.fragment_target for token in tokens] == [
         "raw",
@@ -514,7 +537,7 @@ def test_deeply_nested_images_are_parsed_without_recursion() -> None:
     for _ in range(600):
         text = f"![{text}](image.png)"
 
-    tokens = markdown_link_tokens(text)
+    tokens = _link_tokens(text)
 
     assert len(tokens) == 1
     assert tokens[0].is_image is True
@@ -526,7 +549,7 @@ def test_multiline_nested_images_do_not_invalidate_open_frames() -> None:
     for _ in range(300):
         text = f"![\n{text}\n](image.png)"
 
-    tokens = markdown_link_tokens(text)
+    tokens = _link_tokens(text)
 
     assert len(tokens) == 1
     assert tokens[0].is_image is True
@@ -651,16 +674,6 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
-
-
-def test_lone_myst_anchor_has_no_attached_heading_target() -> None:
-    document = SourceDocument.from_text(
-        PurePosixPath("lecture.md"),
-        "(lonely)=",
-        DocumentKind.MARKDOWN,
-    )
-
-    assert attached_markdown_target_labels(document.text) == frozenset()
 
 
 def test_empty_myst_role_is_malformed_syntax() -> None:

@@ -33,7 +33,9 @@ HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-_MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?:[ \t]+)?(?P<body>.*)$")
+_MARKDOWN_HEADING_RE = re.compile(
+    r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,14 +150,6 @@ def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
         if start not in closed_display_starts
     )
     return _merge_ranges((*lexical.fences, *lexical.html, *lexical.code, *math_ranges))
-
-
-def attached_markdown_target_labels(text: str) -> frozenset[str]:
-    """Return target labels attached to a heading or fenced block."""
-
-    lexical = _ordered_lexical_ranges(text, (), scan_math=True)
-    opaque = _opaque_ranges_from_lexical(lexical)
-    return _attached_markdown_target_labels_from_opaque(text, opaque)
 
 
 def _attached_markdown_target_labels_from_opaque(
@@ -360,8 +354,7 @@ def _is_heading_line(line: str) -> bool:
     match = _MARKDOWN_HEADING_RE.fullmatch(line)
     if match is None:
         return False
-    body = re.sub(r"[ \t]+#+[ \t]*$", "", match.group("body")).strip()
-    return bool(body)
+    return match.group("space") is not None or not match.group("body")
 
 
 def _fence_close_index(
@@ -771,10 +764,6 @@ def _decode_destination_span(
     return "".join(decoded), tuple(spans)
 
 
-def markdown_link_metadata_ranges(text: str) -> tuple[OffsetRange, ...]:
-    return markdown_reference_snapshot(text).link_metadata_ranges
-
-
 def _metadata_ranges_from_tokens(
     tokens: Sequence[MarkdownLinkToken],
 ) -> tuple[OffsetRange, ...]:
@@ -782,14 +771,6 @@ def _metadata_ranges_from_tokens(
     for token in tokens:
         ranges.extend(token.metadata_ranges)
     return _merge_ranges(ranges)
-
-
-def opaque_markdown_ranges(
-    text: str,
-    occupied: Sequence[OffsetRange],
-) -> tuple[OffsetRange, ...]:
-    lexical = _ordered_lexical_ranges(text, occupied, scan_math=True)
-    return _opaque_ranges_from_lexical(lexical, occupied)
 
 
 def _opaque_ranges_from_lexical(

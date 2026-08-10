@@ -82,10 +82,12 @@ labels and references.
 
 SciEqLint checks supported equation references and Markdown links to supported
 equation labels. Explicit MyST heading anchors written as `(label)=` immediately
-before a heading are treated as document-structure targets, so Markdown links such
-as `[](#label)` and `[#label](#label)` do not emit equation-reference
-diagnostics when that target exists. Orphaned `(label)=` lines are not treated as
-valid targets. MyST `{ref}` roles to missing or ambiguous generic targets use
+before a valid ATX heading, including a bare or closing-only empty heading, are
+treated as document-structure targets, so Markdown links such as `[](#label)` and
+`[#label](#label)` do not emit equation-reference diagnostics when that target
+exists. Missing-space forms such as `#Bad` are not headings, and orphaned
+`(label)=` lines are not treated as valid targets. MyST `{ref}` roles to missing or
+ambiguous generic targets use
 generic-reference diagnostics instead of equation-reference diagnostics. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
