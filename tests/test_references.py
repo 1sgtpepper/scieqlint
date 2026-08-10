@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import pytest
 
 from scieqlint.api import check_documents
 from scieqlint.check.references import check_references
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.diag.model import Severity
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
@@ -73,6 +73,21 @@ def test_equation_roles_follow_equal_length_and_multiline_code_spans() -> None:
 
     assert [reference.target for reference in legacy.references] == ["active"]
     assert [reference.target for reference in frontend.equation_refs] == ["active"]
+
+
+def test_myst_roles_do_not_cross_line_boundaries() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "{eq}`line\nbreak`\nSee {eq}`active`.",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [reference.target for reference in legacy.references] == ["active"]
+    assert [reference.target for reference in frontend.equation_refs] == ["active"]
+    assert [issue.kind for issue in frontend.structure_syntax_issues] == ["myst-role"]
 
 
 def test_escaped_dollar_does_not_make_an_adjacent_role_opaque() -> None:
@@ -143,6 +158,36 @@ def test_roles_in_valid_link_titles_are_opaque_but_invalid_links_are_not() -> No
     ]
     assert [ref.target for ref in valid_snapshot.equation_refs] == ["active"]
     assert [ref.target for ref in invalid_snapshot.equation_refs] == ["active"]
+
+
+def test_link_metadata_is_opaque_to_math_while_visible_labels_remain_live() -> None:
+    valid = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        '[$label$](https://example.invalid/$destination$ "$title$")\n'
+        "![alt $image$](image.png)\n"
+        '[site](https://example.invalid/ "\n'
+        "$$\nmetadata = metadata\n$$\n"
+        '")\n'
+        "$outside$\n",
+        DocumentKind.MARKDOWN,
+    )
+    invalid = SourceDocument.from_text(
+        PurePosixPath("invalid.md"),
+        "[site](#dest\n\n$$\nlive = live\n$$\n)",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(scanner=ScannerConfig(inline_math=True))
+
+    valid_legacy = MarkdownScanner().scan(valid, config)
+    valid_frontend = MySTFrontend().lower((valid,))
+    invalid_legacy = MarkdownScanner().scan(invalid, config)
+    invalid_frontend = MySTFrontend().lower((invalid,))
+
+    assert [block.text for block in valid_legacy.blocks] == ["label", "outside"]
+    assert [fact.body for fact in valid_frontend.inline_math] == ["label", "outside"]
+    assert valid_frontend.display_math == ()
+    assert [block.text for block in invalid_legacy.blocks] == ["live = live"]
+    assert [fact.body for fact in invalid_frontend.display_math] == ["live = live"]
 
 
 @pytest.mark.parametrize(
@@ -295,6 +340,7 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
     assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [
         ("eq", "active-label")
     ]
+    assert snapshot.structure_syntax_issues == ()
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
     scan = MarkdownScanner().scan(document, Config())
@@ -622,6 +668,26 @@ def test_orphaned_myst_anchor_does_not_suppress_markdown_missing_reference() -> 
     assert result.diagnostics[0].detail == "reference text: [](#loose-anchor)"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "(hidden)=\n<!--\n# Hidden\n-->\n\nSee [](#hidden).\n",
+        "See [](#orphan).\n\n(orphan)=\n<!-- trailing comment -->\n",
+    ],
+    ids=["heading-inside-comment", "comment-only-tail"],
+)
+def test_opaque_or_absent_structure_does_not_attach_myst_anchor(text: str) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("lecture.md"),
+        text,
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+
+
 def test_check_documents_reports_generic_ref_diagnostics_distinct_from_equation_refs() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
@@ -674,13 +740,26 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
 
 
-def test_empty_myst_role_is_malformed_syntax() -> None:
+def test_only_active_empty_myst_role_is_malformed_syntax() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
-        "{ref}`   `\n",
+        '\\{ref}`   `\n[x](#target "{eq}`   `")\n{ref}`   `\n',
         DocumentKind.MARKDOWN,
     )
 
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["DIR011"]
+
+
+def test_reference_fixture_covers_tokenized_contexts() -> None:
+    path = Path("tests/fixtures/good/references_good.md")
+    document = SourceDocument.from_text(
+        PurePosixPath(path.as_posix()),
+        path.read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert result.diagnostics == ()

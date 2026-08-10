@@ -2,12 +2,125 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+import pytest
+
+from scieqlint.api import check_documents, graph_documents
 from scieqlint.config.model import Config
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.graph.export import build_graph
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import LabelSource, ReferenceSource
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
+
+
+@pytest.mark.public_regression
+def test_graph_uses_only_tokenized_markdown_references() -> None:
+    source = (
+        "Literal \\{eq}`escaped-role`.\n"
+        "Literal \\[Eq.](#escaped-link).\n"
+        "![equation](#image-target)\n"
+        "[site](https://example.invalid/{eq}`destination-target`)\n"
+        '[site](https://example.invalid/ "{eq}`title-target`")\n'
+        "[See {eq}`active-label`](https://example.invalid/)\n"
+    )
+    document = _markdown("references.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    target_start = source.index("active-label")
+    target_end = target_start + len("active-label")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: active-label",
+            span=SourceSpan(
+                path=PurePosixPath("references.md"),
+                start=target_start,
+                end=target_end,
+                line=6,
+                col=11,
+                end_line=6,
+                end_col=22,
+            ),
+            detail="reference text: {eq}`active-label`",
+            rule="references",
+        ),
+    )
+    assert [
+        (node.id, node.kind, node.label, node.source, node.span.line, node.span.col)
+        for node in graph.nodes
+    ] == [
+        (
+            f"ref:references.md:{target_start}",
+            "reference",
+            "active-label",
+            ReferenceSource.MYST_EQ_ROLE.value,
+            6,
+            11,
+        )
+    ]
+    assert [
+        (edge.source, edge.target, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == [
+        (
+            f"ref:references.md:{target_start}",
+            "label:active-label",
+            "active-label",
+            "{eq}`active-label`",
+            ReferenceSource.MYST_EQ_ROLE.value,
+        )
+    ]
+
+
+@pytest.mark.public_regression
+def test_markdown_link_to_fenced_target_is_not_an_equation_reference() -> None:
+    source = (
+        "(tip)=\n"
+        "```{note}\n"
+        "Keep this note.\n"
+        "```\n\n"
+        "See {ref}`tip` and [the note](#tip).\n"
+        "See [missing](#missing).\n"
+    )
+    document = _markdown("paper.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    target_start = source.index("#missing") + 1
+    target_end = target_start + len("missing")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: missing",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=target_start,
+                end=target_end,
+                line=7,
+                col=16,
+                end_line=7,
+                end_col=22,
+            ),
+            detail="reference text: [missing](#missing)",
+            rule="references",
+        ),
+    )
+    assert [(node.kind, node.label) for node in graph.nodes] == [("reference", "missing")]
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
+        ("label:missing", "missing")
+    ]
 
 
 def test_graph_nodes_cover_markdown_myst_and_latex_labels() -> None:

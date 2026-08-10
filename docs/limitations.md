@@ -116,7 +116,8 @@ Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
 Only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
-references. The reference lexer supports inline links with balanced labels,
+references, math, structure facts, or structure diagnostics. MyST roles do not
+cross source-line boundaries. The reference lexer supports inline links with balanced labels,
 soft line breaks, bounded destinations, and nonblank multiline titles.
 Parenthesized titles require literal parentheses to be backslash-escaped, and
 valid named or numeric character references in destinations are decoded for

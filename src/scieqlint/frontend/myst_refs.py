@@ -8,8 +8,8 @@ from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     MarkdownLinkToken,
+    MarkdownReferenceSnapshot,
     is_escaped,
-    markdown_reference_snapshot,
 )
 from scieqlint.source.maps import SourceMap
 
@@ -24,25 +24,20 @@ from .myst_shared import (
 def scan_refs(
     document: SourceDocument,
     smap: SourceMap,
+    snapshot: MarkdownReferenceSnapshot,
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
-    snapshot = markdown_reference_snapshot(document.text)
-    occupied_with_code = snapshot.opaque_ranges
+    occupied = snapshot.opaque_ranges
     link_tokens = snapshot.links
-    link_metadata = snapshot.link_metadata_ranges
     for token in link_tokens:
-        if token.is_image or in_ranges(token.start, occupied_with_code):
+        if token.is_image:
             continue
         if token.fragment_target is None:
             continue
         generic.append(_markdown_link_ref_fact(document, smap, token))
     for match in ROLE_RE.finditer(document.text):
-        if (
-            in_ranges(match.start(), occupied_with_code)
-            or in_ranges(match.start(), link_metadata)
-            or is_escaped(document.text, match.start())
-        ):
+        if in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
             continue
         role = match.group("role")
         body = match.group("body")

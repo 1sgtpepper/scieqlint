@@ -40,6 +40,7 @@ _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<
 class _LexicalRanges:
     fences: tuple[OffsetRange, ...]
     html: tuple[OffsetRange, ...]
+    roles: tuple[OffsetRange, ...]
     code: tuple[OffsetRange, ...]
     display: tuple[DollarRange, ...]
     inline: tuple[DollarRange, ...]
@@ -77,7 +78,7 @@ class MarkdownLinkToken:
 class _LinkFrame:
     token_start: int
     is_image: bool
-    children: list[MarkdownLinkToken] = field(default_factory=lambda: list[MarkdownLinkToken]())
+    children: list[MarkdownLinkToken] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,24 +128,11 @@ def inline_code_ranges(
     return _ordered_lexical_ranges(text, ()).code
 
 
-def code_fence_ranges(text: str) -> tuple[OffsetRange, ...]:
-    return _ordered_lexical_ranges(text, ()).fences
-
-
-def markdown_opaque_ranges(text: str) -> tuple[OffsetRange, ...]:
-    """Return source ranges whose contents cannot introduce Markdown structure."""
-
-    lexical = _ordered_lexical_ranges(text, ())
-    closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
-    math_ranges = [
-        (start, end) for start, _body_start, _body_end, end in (*lexical.display, *lexical.inline)
-    ]
-    math_ranges.extend(
-        (start, len(text))
-        for start in lexical.display_openers
-        if start not in closed_display_starts
-    )
-    return _merge_ranges((*lexical.fences, *lexical.html, *lexical.code, *math_ranges))
+def code_fence_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange] = (),
+) -> tuple[OffsetRange, ...]:
+    return _ordered_lexical_ranges(text, occupied).fences
 
 
 def _attached_markdown_target_labels_from_opaque(
@@ -160,7 +148,7 @@ def _attached_markdown_target_labels_from_opaque(
         anchor = _MARKDOWN_ANCHOR_RE.fullmatch(line)
         if anchor is None:
             continue
-        next_index = _next_attachable_line_index(lines, index + 1)
+        next_index = _next_attachable_line_index(lines, index + 1, opaque)
         if next_index is None:
             continue
         next_line = lines[next_index][2]
@@ -218,10 +206,11 @@ def _ordered_lexical_ranges(
 
     lines = _source_lines(text)
     if not lines:
-        return _LexicalRanges((), (), (), (), (), ())
+        return _LexicalRanges((), (), (), (), (), (), ())
 
     fences: list[OffsetRange] = []
     html: list[OffsetRange] = []
+    roles: list[OffsetRange] = []
     code: list[OffsetRange] = []
     display: list[DollarRange] = []
     inline: list[DollarRange] = []
@@ -260,6 +249,7 @@ def _ordered_lexical_ranges(
         if text[index] == "{":
             role_end = _myst_role_end_at(text, index)
             if role_end is not None:
+                roles.append((index, role_end))
                 index = role_end
                 continue
 
@@ -315,6 +305,7 @@ def _ordered_lexical_ranges(
         # Starts are semantic: adjacent fences must remain distinct for lowering.
         fences=tuple(fences),
         html=_merge_ranges(html),
+        roles=_merge_ranges(roles),
         code=_merge_ranges(code),
         display=tuple(display),
         inline=tuple(inline),
@@ -336,10 +327,19 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
 def _next_attachable_line_index(
     lines: Sequence[tuple[int, int, str]],
     index: int,
+    occupied: Sequence[OffsetRange],
 ) -> int | None:
     while index < len(lines):
+        line_start = lines[index][0]
         stripped = lines[index][2].strip()
-        if stripped and not stripped.startswith("<!--"):
+        if not stripped or stripped.startswith("<!--"):
+            index += 1
+            continue
+        containing_start = next(
+            (start for start, end in occupied if start <= line_start < end),
+            None,
+        )
+        if containing_start is None or containing_start == line_start:
             return index
         index += 1
     return None
@@ -605,21 +605,16 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
 def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
-    lexical = _ordered_lexical_ranges(text, (), scan_math=True)
-    protected = (
-        *lexical.fences,
-        *lexical.html,
-        *lexical.roles,
-        *lexical.code,
-        *((start, close_end) for start, _body_start, _body_end, close_end in lexical.display),
-        *((start, close_end) for start, _body_start, _body_end, close_end in lexical.inline),
-    )
-    opaque = _opaque_ranges_from_lexical(lexical)
+    lexical = _ordered_lexical_ranges(text, ())
+    lexical_opaque = _opaque_ranges_from_lexical(lexical, len(text))
+    protected = (*lexical_opaque, *lexical.roles)
     links = _markdown_link_tokens_from_lexical(text, protected)
+    link_metadata = _metadata_ranges_from_tokens(links)
+    opaque = _merge_ranges((*lexical_opaque, *link_metadata))
     return MarkdownReferenceSnapshot(
         opaque_ranges=opaque,
         links=links,
-        link_metadata_ranges=_metadata_ranges_from_tokens(links),
+        link_metadata_ranges=link_metadata,
         attached_target_labels=_attached_markdown_target_labels_from_opaque(text, opaque),
     )
 
@@ -767,13 +762,19 @@ def _metadata_ranges_from_tokens(
 
 def _opaque_ranges_from_lexical(
     lexical: _LexicalRanges,
-    occupied: Sequence[OffsetRange] = (),
+    text_length: int,
 ) -> tuple[OffsetRange, ...]:
-    ranges = [*occupied, *lexical.fences, *lexical.html, *lexical.code]
+    ranges = [*lexical.fences, *lexical.html, *lexical.code]
     ranges.extend(
         (start, close_end) for start, _body_start, _body_end, close_end in lexical.display
     )
     ranges.extend((start, close_end) for start, _body_start, _body_end, close_end in lexical.inline)
+    closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
+    ranges.extend(
+        (start, text_length)
+        for start in lexical.display_openers
+        if start not in closed_display_starts
+    )
     return _merge_ranges(ranges)
 
 

@@ -10,6 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
+    MarkdownReferenceSnapshot,
     code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
@@ -36,7 +37,7 @@ from scieqlint.scan.symbols import parse_symbol_directive
 TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
-EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
+EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`\n]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -53,12 +54,14 @@ class MarkdownScanner:
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
+        reference_snapshot = markdown_reference_snapshot(document.text)
+        link_metadata = reference_snapshot.link_metadata_ranges
 
-        for block in _display_blocks(document):
+        for block in _display_blocks(document, link_metadata):
             blocks.append(block)
             labels.extend(_tex_labels(document, block))
             labels.extend(_display_tail_labels(document, block))
-        diagnostics.extend(_unterminated_display_diagnostics(document))
+        diagnostics.extend(_unterminated_display_diagnostics(document, link_metadata))
 
         if config.scanner.math_fences:
             math_fences = _math_fence_ranges(document.text)
@@ -69,9 +72,9 @@ class MarkdownScanner:
             diagnostics.extend(_unterminated_fence_diagnostics(document, math_fences))
 
         if config.scanner.inline_math:
-            blocks.extend(_inline_blocks(document, blocks))
+            blocks.extend(_inline_blocks(document, blocks, link_metadata))
 
-        references = tuple(_references(document))
+        references = tuple(_references(document, reference_snapshot))
         symbol_directives, symbol_diagnostics = _symbol_directives(document)
         diagnostics.extend(symbol_diagnostics)
         return ScanResult(
@@ -83,8 +86,11 @@ class MarkdownScanner:
         )
 
 
-def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for _start, body_start, body_end, _end in _display_ranges(document):
+def _display_blocks(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[MathBlock]:
+    for _start, body_start, body_end, _end in _display_ranges(document, occupied):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
         if not text:
@@ -99,17 +105,25 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
         )
 
 
-def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
+def _unterminated_display_diagnostics(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[Diagnostic]:
     # Both lexical results identify a display opener by its exact source start.
-    closed_starts = {start for start, _body_start, _body_end, _end in _display_ranges(document)}
-    for start in dollar_display_opener_positions(document.text, ()):
+    closed_starts = {
+        start for start, _body_start, _body_end, _end in _display_ranges(document, occupied)
+    }
+    for start in dollar_display_opener_positions(document.text, occupied):
         if start in closed_starts:
             continue
         yield _scan_diagnostic(document, start, start + 2)
 
 
-def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
-    return iter(dollar_display_ranges(document.text, ()))
+def _display_ranges(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[tuple[int, int, int, int]]:
+    return iter(dollar_display_ranges(document.text, occupied))
 
 
 def _inline_ranges(
@@ -163,7 +177,8 @@ def math_container_opener_lines(
         (block.container, block.span.start, block.span.end): block.block_id for block in blocks
     }
     opener_lines: dict[str, int] = {}
-    for opener_start, body_start, body_end, _end in _display_ranges(document):
+    link_metadata = markdown_reference_snapshot(document.text).link_metadata_ranges
+    for opener_start, body_start, body_end, _end in _display_ranges(document, link_metadata):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         block_id = block_ids.get((MathContainer.MARKDOWN_DISPLAY, span_start, span_end))
         if block_id is not None:
@@ -202,8 +217,12 @@ def _unterminated_fence_diagnostics(
 def _inline_blocks(
     document: SourceDocument,
     existing_blocks: list[MathBlock],
+    link_metadata: tuple[tuple[int, int], ...],
 ) -> Iterable[MathBlock]:
-    occupied = tuple((block.span.start, block.span.end) for block in existing_blocks)
+    occupied = (
+        *link_metadata,
+        *((block.span.start, block.span.end) for block in existing_blocks),
+    )
     for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
         body = document.text[body_start:body_end]
         text = body.strip()
@@ -297,14 +316,15 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
         offset += len(line)
 
 
-def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    snapshot = markdown_reference_snapshot(document.text)
+def _references(
+    document: SourceDocument,
+    snapshot: MarkdownReferenceSnapshot,
+) -> Iterable[EquationReference]:
     attached_myst_anchors = snapshot.attached_target_labels
     occupied = snapshot.opaque_ranges
     link_tokens = snapshot.links
-    link_metadata = snapshot.link_metadata_ranges
     for token in link_tokens:
-        if token.is_image or _in_ranges(token.start, occupied):
+        if token.is_image:
             continue
         if token.fragment_target is None:
             continue
@@ -321,11 +341,7 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
-        if (
-            _in_ranges(match.start(), occupied)
-            or _in_ranges(match.start(), link_metadata)
-            or is_escaped(document.text, match.start())
-        ):
+        if _in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
             continue
         role = match.group("role")
         body = match.group("body")
