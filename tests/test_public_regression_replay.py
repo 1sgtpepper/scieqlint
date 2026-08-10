@@ -81,6 +81,15 @@ import pytest
 def test_public_behavior(expected: str) -> None:
     assert demo.VALUE == expected
 """
+SKIP_MARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.public_regression
+@pytest.mark.skip(reason="not enforcing")
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
 CONTROL_TEST = """
 
 def test_normative_control() -> None:
@@ -148,6 +157,20 @@ def test_replay_rejects_expected_failure_marker(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
     assert "xpassed" in result.stdout.lower()
+
+
+def test_replay_rejects_skipped_marker(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=SKIP_MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
+    assert "skipped" in result.stdout.lower()
 
 
 def test_replay_reports_head_api_incompatibility(tmp_path: Path) -> None:
@@ -267,6 +290,32 @@ def test_replay_rejects_invalid_base_checkout_with_role(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert result.stdout == ""
     assert f"base checkout must contain src/ and tests/: {missing_base}" in result.stderr
+
+
+def test_replay_internal_modes_require_role_arguments(tmp_path: Path) -> None:
+    config = tmp_path / "pytest.ini"
+    config.write_text("[pytest]\n", encoding="utf-8")
+    common = ["--root", str(tmp_path), "--config", str(config)]
+
+    collect = subprocess.run(
+        [sys.executable, str(REPLAY_COMMAND), "_collect", *common],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    run = subprocess.run(
+        [sys.executable, str(REPLAY_COMMAND), "_run", *common],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert collect.returncode == 2
+    assert "_collect requires --output" in collect.stderr
+    assert run.returncode == 2
+    assert "_run requires --selector" in run.stderr
 
 
 def test_replay_reports_base_collection_failure_for_exact_head_node(tmp_path: Path) -> None:
