@@ -837,6 +837,52 @@ jobs:
             False,
         ),
         (
+            "step shell override is not blocking evidence",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash -c 'source "$1" || true' -- {0}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "job run defaults are not blocking evidence",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -c 'source "$1" || true' -- {0}
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "workflow run defaults are not blocking evidence",
+            """name: CI
+on: [push]
+defaults:
+  run:
+    shell: bash -c 'source "$1" || true' -- {0}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
             "quoted job boundary stays in the disabled job",
             """name: CI
 on: [push]

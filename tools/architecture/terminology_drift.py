@@ -354,7 +354,8 @@ def scan_release_gate(loaded: list[LoadedInput]) -> list[dict[str, Any]]:
 
 def has_blocking_release_gate(text: str) -> bool:
     # This intentionally proves only canonical gate wiring and direct failure controls.
-    # Full workflow validity and process resolution belong to GitHub Actions validation.
+    # Shell overrides can replace exit propagation, so only the default run shell is
+    # evidence; full workflow validity still belongs to GitHub Actions validation.
     lines = text.splitlines()
     ignored: set[int] = set()
     block_indent: int | None = None
@@ -512,7 +513,17 @@ def has_blocking_release_gate(text: str) -> bool:
         and re.fullmatch(r"(?:---|\.\.\.)(?:[ \t]*(?:#.*)?)?", lines[index].strip())
         for index in range(len(lines))
     )
-    if len(root_jobs) != 1 or has_document_boundary:
+    has_workflow_run_defaults = any(
+        index not in ignored
+        and leading_indent(lines[index]) == 0
+        and re.fullmatch(
+            r"(?:defaults|'defaults'|\"defaults\")[ \t]*:(?:[ \t]+.*)?",
+            lines[index],
+        )
+        is not None
+        for index in range(len(lines))
+    )
+    if len(root_jobs) != 1 or has_document_boundary or has_workflow_run_defaults:
         return False
 
     jobs_indent: int | None = None
@@ -615,17 +626,18 @@ def has_blocking_release_gate(text: str) -> bool:
         if item[0] != step_property_indent:
             return
         key, value = item[1], item[2]
-        if key.casefold() in {"run", "if", "continue-on-error", "uses"} and key not in {
+        if key.casefold() in {"run", "if", "continue-on-error", "uses", "shell"} and key not in {
             "run",
             "if",
             "continue-on-error",
             "uses",
+            "shell",
         }:
             step_unsupported = True
         if key in step_properties:
             step_unsupported = True
         step_properties.setdefault(key, []).append(value)
-        if key == "uses":
+        if key in {"uses", "shell"}:
             step_unsupported = True
         if key == "run":
             step_run_count += 1
@@ -655,11 +667,18 @@ def has_blocking_release_gate(text: str) -> bool:
         if item[0] != job_property_indent:
             return
         key, value = item[1], item[2]
-        if key.casefold() in {"steps", "if", "continue-on-error", "uses"} and key not in {
+        if key.casefold() in {
             "steps",
             "if",
             "continue-on-error",
             "uses",
+            "defaults",
+        } and key not in {
+            "steps",
+            "if",
+            "continue-on-error",
+            "uses",
+            "defaults",
         }:
             job_unsupported = True
         if key in job_properties:
@@ -671,7 +690,7 @@ def has_blocking_release_gate(text: str) -> bool:
             step_child_indent = None
         else:
             steps_active = False
-        if key == "uses":
+        if key in {"uses", "defaults"}:
             job_unsupported = True
 
     for index, line in enumerate(lines):

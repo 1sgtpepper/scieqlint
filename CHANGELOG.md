@@ -26,7 +26,8 @@ Release notes must use these sections:
 
 - Terminology-gate detection now counts only canonical gate wiring with direct
   failure controls that are statically proven blocking. Explicitly disabled or
-  continue-on-error steps and parent jobs are excluded; general GitHub Actions
+  continue-on-error steps and parent jobs are excluded, as are step shell
+  overrides and inherited workflow or job run defaults; general GitHub Actions
   validation remains outside this scanner.
 - The development Ruff requirement now stays within the formatter version
   supported by the checked-in sources and documentation.
