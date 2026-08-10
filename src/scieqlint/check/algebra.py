@@ -174,7 +174,13 @@ class _Parser:
                 code="PARSE021" if value in UNSUPPORTED_FUNCTIONS else "PARSE020",
             )
         if re.fullmatch(r"\d+(?:/\d+)?", value):
-            return {(): Fraction(value)}
+            try:
+                number = Fraction(value)
+            except ZeroDivisionError as exc:
+                raise UnsupportedExpressionError("division by zero") from exc
+            except ValueError as exc:
+                raise UnsupportedExpressionError("invalid rational literal") from exc
+            return {(): number}
         if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", value):
             return {((value, 1),): Fraction(1)}
         raise UnsupportedExpressionError(value)
@@ -234,7 +240,9 @@ class _Parser:
 
 def _is_atom_start(token: str) -> bool:
     return token not in TEX_MULTIPLY and (
-        token.startswith("\\") or token.isdigit() or token[0].isalpha()
+        token.startswith("\\")
+        or re.fullmatch(r"\d+(?:/\d+)?", token) is not None
+        or token[0].isalpha()
     )
 
 
