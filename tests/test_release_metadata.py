@@ -29,6 +29,13 @@ def test_implementation_status_uses_the_current_release_version() -> None:
         assert "v0.1.5 analyzer" not in text, path
 
 
+def test_current_release_remains_pre_alpha() -> None:
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+
+    assert "Development Status :: 2 - Pre-Alpha" in project["classifiers"]
+    assert not any("Production/Stable" in classifier for classifier in project["classifiers"])
+
+
 def test_documentation_url_points_to_current_repository_docs() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
 
