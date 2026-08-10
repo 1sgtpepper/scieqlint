@@ -374,11 +374,9 @@ def _lexical_ranges(
             continue
         if text[index] == "%" and not _is_escaped(text, index):
             line_end = index + 1
-            while line_end < len(text) and text[line_end] not in "\r\n":
+            while line_end < len(text) and text[line_end] != "\n":
                 line_end += 1
-            if text.startswith("\r\n", line_end):
-                line_end += 2
-            elif line_end < len(text):
+            if line_end < len(text):
                 line_end += 1
             comments.append((index, line_end))
             index = line_end
@@ -390,8 +388,6 @@ def _lexical_ranges(
             index = match.end()
             continue
         index += 1
-    if active_start is not None:
-        verbatim.append((active_start, len(text)))
     return tuple(comments), tuple(verbatim)
 
 

@@ -459,9 +459,10 @@ def test_malformed_latex_symbol_directive_warns_and_verbatim_is_ignored() -> Non
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN010"]
 
 
-def test_latex_symbol_directive_accepts_tex_macro_symbol() -> None:
+@pytest.mark.parametrize("ending", ["\n", ""], ids=["newline", "eof"])
+def test_latex_symbol_directive_accepts_tex_macro_symbol(ending: str) -> None:
     result = LatexScanner().scan(
-        _document('% scieqlint-symbol: \\alpha = angle, dim="1"\n'),
+        _document(f'% scieqlint-symbol: \\alpha = angle, dim="1"{ending}'),
         Config(),
     )
 
