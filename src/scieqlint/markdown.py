@@ -31,7 +31,7 @@ HTML_BLOCK_OPEN_RE = re.compile(
 )
 HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
-_MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
+_MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 
@@ -78,7 +78,7 @@ class MarkdownLinkToken:
 class _LinkFrame:
     token_start: int
     is_image: bool
-    children: list[MarkdownLinkToken] = field(default_factory=list)
+    children: list[MarkdownLinkToken] = field(default_factory=lambda: list[MarkdownLinkToken]())
 
 
 @dataclass(frozen=True, slots=True)
@@ -605,7 +605,22 @@ def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
 def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
-    lexical = _ordered_lexical_ranges(text, ())
+    baseline_lexical = _ordered_lexical_ranges(text, ())
+    baseline_opaque = _opaque_ranges_from_lexical(baseline_lexical, len(text))
+    baseline_cursor = _RangeCursor((*baseline_opaque, *baseline_lexical.roles))
+    candidate_metadata_ranges: list[OffsetRange] = []
+    for token in _markdown_link_tokens_from_lexical(text, ()):
+        if baseline_cursor.end_at(token.start) is not None:
+            continue
+        for start, end in token.metadata_ranges:
+            if baseline_cursor.end_at(start) is None:
+                candidate_metadata_ranges.append((start, end))
+
+    # Metadata that starts before a lexical opener owns that opener. Conversely,
+    # a link-like candidate cannot escape an owner that started before the link
+    # or its metadata.
+    candidate_metadata = _merge_ranges(candidate_metadata_ranges)
+    lexical = _ordered_lexical_ranges(text, candidate_metadata)
     lexical_opaque = _opaque_ranges_from_lexical(lexical, len(text))
     protected = (*lexical_opaque, *lexical.roles)
     links = _markdown_link_tokens_from_lexical(text, protected)
@@ -677,7 +692,7 @@ def _markdown_link_tokens_from_lexical(
 
     while stack:
         tokens.extend(stack.pop().children)
-    return tuple(tokens)
+    return tuple(sorted(tokens, key=lambda token: token.start))
 
 
 def _make_link_token(

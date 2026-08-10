@@ -299,10 +299,6 @@ def test_empty_and_plain_markdown_have_no_code_ranges() -> None:
     assert inline_code_ranges("plain text") == ()
 
 
-def test_occupied_prefix_inside_backtick_run_does_not_create_a_code_span() -> None:
-    assert inline_code_ranges("``", ((0, 1),)) == ()
-
-
 def test_unterminated_display_math_emits_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

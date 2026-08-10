@@ -80,6 +80,35 @@ def test_graph_uses_only_tokenized_markdown_references() -> None:
 
 
 @pytest.mark.public_regression
+def test_link_metadata_does_not_claim_later_live_math() -> None:
+    source = (
+        '[site](https://example.invalid/ "\n'
+        "$$\nmetadata = metadata\n"
+        '")\n'
+        "$$\ny = y\n$$\n"
+        "See {eq}`active`.\n"
+    )
+    document = _markdown("paper.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    target_start = source.index("active")
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+    assert result.diagnostics[0].span == SourceSpan(
+        path=PurePosixPath("paper.md"),
+        start=target_start,
+        end=target_start + len("active"),
+        line=8,
+        col=10,
+        end_line=8,
+        end_col=15,
+    )
+    assert [(node.kind, node.label) for node in graph.nodes] == [("reference", "active")]
+
+
+@pytest.mark.public_regression
 def test_markdown_link_to_fenced_target_is_not_an_equation_reference() -> None:
     source = (
         "(tip)=\n"

@@ -191,6 +191,75 @@ def test_link_metadata_is_opaque_to_math_while_visible_labels_remain_live() -> N
 
 
 @pytest.mark.parametrize(
+    "metadata",
+    [
+        "$$\nmetadata",
+        "```math\nmetadata",
+        "<div>\nmetadata",
+    ],
+    ids=["display", "fence", "html"],
+)
+def test_unclosed_link_metadata_does_not_hide_later_live_references(
+    metadata: str,
+) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        f'[site](https://example.invalid/ "\n{metadata}\n'
+        '<!-- scieqlint-symbol: hidden = hidden -->\n")\n'
+        "```math\ny = y\n```\n"
+        "See [live](#live) and {eq}`active`.\n"
+        "<!-- scieqlint-symbol: live = live -->\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [block.text for block in legacy.blocks] == ["y = y"]
+    assert [reference.target for reference in legacy.references] == ["live", "active"]
+    assert [directive.symbol for directive in legacy.symbol_directives] == ["live"]
+    assert legacy.diagnostics == ()
+    assert [(reference.role_kind, reference.target) for reference in frontend.generic_refs] == [
+        ("markdown-link", "live")
+    ]
+    assert [reference.target for reference in frontend.equation_refs] == ["active"]
+    assert [fact.body for fact in frontend.display_math] == ["y = y"]
+    assert frontend.structure_syntax_issues == ()
+
+
+def test_link_like_code_cannot_claim_later_lexical_content() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        '`[x](#target` " ` {eq}`hidden` `")\nSee {eq}`active`.\n',
+        DocumentKind.MARKDOWN,
+    )
+
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [(reference.source.value, reference.target) for reference in legacy.references] == [
+        ("myst_eq_role", "active")
+    ]
+    assert [(reference.ref_kind, reference.target) for reference in frontend.equation_refs] == [
+        ("eq", "active")
+    ]
+    assert frontend.generic_refs == ()
+
+
+def test_unmatched_nested_link_frames_preserve_source_order() -> None:
+    text = "[outer [unmatched [before](#before) [inner [later](#later)"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+
+    tokens = _link_tokens(text)
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+
+    assert [token.fragment_target for token in tokens] == ["before", "later"]
+    assert [reference.target for reference in legacy.references] == ["before", "later"]
+    assert [reference.target for reference in frontend.generic_refs] == ["before", "later"]
+
+
+@pytest.mark.parametrize(
     "text",
     [
         "<div>\n{eq}`block-html`",
@@ -743,7 +812,7 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
 def test_only_active_empty_myst_role_is_malformed_syntax() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
-        '\\{ref}`   `\n[x](#target "{eq}`   `")\n{ref}`   `\n',
+        '\\{ref}`   `\n[x](https://example.invalid/ "{eq}`   `")\n{ref}`   `\n',
         DocumentKind.MARKDOWN,
     )
 
