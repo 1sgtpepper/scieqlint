@@ -16,6 +16,27 @@ Tests protect documented behavior, not just code coverage.
   that suite from an extracted archive; the repository-only pack-manifest inventory
   check is skipped when Git metadata is unavailable.
 
+## Public bug regressions
+
+Keep regressions beside the component that owns the behavior and exercise the public
+in-memory analysis path. Assert the complete ordered diagnostic semantics, relevant
+result counts, and source spans derived independently from the input. A clean regression
+must include a nearby active control that would fail if the scanner, parser, or checker
+were disabled. Use pytest node or parameter IDs as the runnable case identity.
+
+Mark only a newly added test that reproduces a public bug with
+`@pytest.mark.public_regression`. Do not mark active controls, normative contract tests,
+or existing tests being strengthened. Pull-request CI runs each new marked node against
+the head and base package sources. The node is accepted only when head passes and base
+fails by assertion; a base pass or API incompatibility is rejected and reported with the
+exact node ID.
+
+To replay against an existing base checkout directly:
+
+```bash
+python tools/public_regression_replay.py --base ../scieqlint-base
+```
+
 ## Local loop
 
 ```bash

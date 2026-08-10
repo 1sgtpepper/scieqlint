@@ -36,6 +36,28 @@ jobs:
       - name: Architecture terminology drift (release blocking)
         run: python tools/architecture/terminology_drift.py --format json
 
+  public-regression-replay:
+    name: public regression replay
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out head revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Check out base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .base
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+      - name: Install test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Replay new public regressions
+        run: python tools/public_regression_replay.py --base .base
+
   test-matrix:
     name: test (${{ matrix.python-version }})
     runs-on: ubuntu-latest

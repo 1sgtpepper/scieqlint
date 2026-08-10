@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.notebook import NotebookScanner
 
@@ -241,12 +242,58 @@ def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
         config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
     )
 
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 0
     assert result.diagnostics == ()
     scan = NotebookScanner().scan(document, Config())
     assert [
         (directive.symbol, directive.span.cell, directive.span.cell_line)
         for directive in scan.symbol_directives
     ] == [("x", 1, 1)]
+
+
+def test_notebook_symbol_directive_has_active_undefined_symbol_control() -> None:
+    cell_source = "<!-- scieqlint-symbol: x = variable -->\n$$\ny = y\n$$\n"
+    document = _notebook(
+        [
+            _markdown_cell("introductory text\n"),
+            _markdown_cell(cell_source),
+        ]
+    )
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+
+    expected_start = cell_source.index("y = y")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="SYM001",
+            severity=Severity.WARNING,
+            message="undefined symbol: y",
+            span=SourceSpan(
+                path=PurePosixPath("notes.ipynb"),
+                start=expected_start,
+                end=expected_start + 1,
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=1,
+                cell=1,
+                cell_line=3,
+            ),
+            detail="y",
+            rule="symbols",
+        ),
+    )
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert cell_source[span.start : span.end] == "y"
 
 
 def test_duplicate_notebook_symbol_directives_keep_each_cell_identity() -> None:

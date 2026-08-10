@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+import pytest
 from click.testing import CliRunner
 
 from scieqlint.api import check_documents
 from scieqlint.cli import main
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -74,35 +76,97 @@ def test_symbol_check_ignores_label_text_and_tex_operators() -> None:
     assert result.diagnostics == ()
 
 
-def test_symbol_check_ignores_unsupported_tex_function_names() -> None:
-    for function in ("sin", "cos", "tan", "log", "ln", "exp"):
-        result = check_documents(
-            [
-                _document(
-                    "paper.md",
-                    f"<!-- scieqlint-symbol: x = quantity -->\n$$\n\\{function}(x) = x\n$$\n",
-                )
-            ],
-            config=_symbols_config(enabled=True),
-        )
+@pytest.mark.parametrize("function", ("sin", "cos", "tan", "log", "ln", "exp"))
+def test_symbol_check_ignores_unsupported_tex_function_names(function: str) -> None:
+    equation = f"\\{function}(x) = x"
+    document = _document(
+        "paper.md",
+        f"<!-- scieqlint-symbol: x = quantity -->\n$$\n{equation}\n$$\n",
+    )
 
-        assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"], function
+    result = check_documents([document], config=_symbols_config(enabled=True))
+
+    expected_start = document.text.index(equation)
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="PARSE021",
+            severity=Severity.INFO,
+            message="unsupported function; check skipped",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=expected_start,
+                end=expected_start + len(equation),
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=len(equation),
+            ),
+            equation=equation,
+            rule="parser",
+        ),
+    )
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert document.text[span.start : span.end] == equation
 
 
 def test_symbol_check_does_not_ignore_user_macro_with_function_prefix() -> None:
-    result = check_documents(
-        [
-            _document(
-                "paper.md",
-                "<!-- scieqlint-symbol: x = quantity -->\n$$\n\\sincustom(x) = x\n$$\n",
-            )
-        ],
-        config=_symbols_config(enabled=True),
+    equation = "\\sincustom(x) = x"
+    document = _document(
+        "paper.md",
+        f"<!-- scieqlint-symbol: x = quantity -->\n$$\n{equation}\n$$\n",
     )
 
-    assert [
-        diagnostic.detail for diagnostic in result.diagnostics if diagnostic.code == "SYM001"
-    ] == ["\\sincustom"]
+    result = check_documents([document], config=_symbols_config(enabled=True))
+
+    equation_start = document.text.index(equation)
+    symbol_start = document.text.index("\\sincustom")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="PARSE020",
+            severity=Severity.INFO,
+            message="unsupported syntax; check skipped",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=equation_start,
+                end=equation_start + len(equation),
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=len(equation),
+            ),
+            equation=equation,
+            rule="parser",
+        ),
+        Diagnostic(
+            code="SYM001",
+            severity=Severity.WARNING,
+            message="undefined symbol: \\sincustom",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=symbol_start,
+                end=symbol_start + len("\\sincustom"),
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=len("\\sincustom"),
+            ),
+            detail="\\sincustom",
+            rule="symbols",
+        ),
+    )
+    parser_span = result.diagnostics[0].span
+    symbol_span = result.diagnostics[1].span
+    assert parser_span is not None
+    assert symbol_span is not None
+    assert document.text[parser_span.start : parser_span.end] == equation
+    assert document.text[symbol_span.start : symbol_span.end] == "\\sincustom"
 
 
 def test_symbol_check_reports_multiline_symbol_columns() -> None:

@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).parents[1]
+REPLAY_COMMAND = REPOSITORY_ROOT / "tools" / "public_regression_replay.py"
+NODE_ID = "tests/test_behavior.py::test_public_behavior[new-value]"
+MARKER = (
+    "public_regression: new public bug regression that must fail by assertion on the "
+    "pull request base"
+)
+UNMARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
+MARKED_TEST = """import demo
+import pytest
+
+@pytest.mark.public_regression
+@pytest.mark.parametrize("expected", ["new"], ids=["new-value"])
+def test_public_behavior(expected: str) -> None:
+    assert demo.VALUE == expected
+"""
+CONTROL_TEST = """
+
+def test_normative_control() -> None:
+    assert True
+"""
+BROKEN_COLLECTION_TEST = 'raise RuntimeError("base collection failed")\n'
+
+
+def test_replay_accepts_base_mismatch_and_head_pass(tmp_path: Path) -> None:
+    base, head = _write_revisions(tmp_path, base_module='VALUE = "old"\n')
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.splitlines() == [f"HEAD PASS {NODE_ID}", f"BASE MISMATCH {NODE_ID}"]
+
+
+def test_replay_rejects_node_that_passes_both_revisions(tmp_path: Path) -> None:
+    base, head = _write_revisions(tmp_path, base_module='VALUE = "new"\n')
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines() == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE PASS {NODE_ID}: rejected because the regression also passes on base",
+    ]
+
+
+def test_replay_rejects_head_assertion_failure(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_module='VALUE = "old"\n',
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines() == [f"HEAD MISMATCH {NODE_ID}"]
+
+
+def test_replay_reports_base_api_incompatibility(tmp_path: Path) -> None:
+    base, head = _write_revisions(tmp_path, base_module="OTHER = 1\n")
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[:2] == [
+        f"HEAD PASS {NODE_ID}",
+        f"BASE API INCOMPATIBLE {NODE_ID}",
+    ]
+    assert "AttributeError" in result.stdout
+
+
+def test_replay_ignores_existing_and_unmarked_nodes(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        base_test=MARKED_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout == "No newly added public regressions.\n"
+
+
+def test_replay_skips_base_collection_without_head_markers(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        base_test=BROKEN_COLLECTION_TEST,
+        head_test=UNMARKED_TEST + CONTROL_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 0, result.stdout
+    assert result.stdout == "No newly added public regressions.\n"
+
+
+def test_replay_reports_base_collection_failure_for_exact_head_node(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        base_test=BROKEN_COLLECTION_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == (
+        f"BASE API INCOMPATIBLE {NODE_ID}: marker collection failed"
+    )
+    assert "base collection failed" in result.stdout
+
+
+def test_replay_marker_command_and_pull_request_job_are_wired() -> None:
+    config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    pytest_options = config["tool"]["pytest"]["ini_options"]
+    sdist_include = config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert pytest_options["markers"] == [MARKER]
+    assert "tools/public_regression_replay.py" in sdist_include
+    assert "  public-regression-replay:\n" in workflow
+    assert "    if: github.event_name == 'pull_request'\n" in workflow
+    assert "          ref: ${{ github.event.pull_request.base.sha }}\n" in workflow
+    assert "        run: python tools/public_regression_replay.py --base .base\n" in workflow
+
+
+def _write_revisions(
+    tmp_path: Path,
+    *,
+    base_module: str,
+    head_module: str = 'VALUE = "new"\n',
+    base_test: str = UNMARKED_TEST,
+    head_test: str = MARKED_TEST + CONTROL_TEST,
+) -> tuple[Path, Path]:
+    base = tmp_path / "base"
+    head = tmp_path / "head"
+    _write_revision(
+        base,
+        module=base_module,
+        test_source=base_test,
+    )
+    _write_revision(
+        head,
+        module=head_module,
+        test_source=head_test,
+    )
+    return base, head
+
+
+def _write_revision(
+    root: Path,
+    *,
+    module: str,
+    test_source: str,
+) -> None:
+    package = root / "src" / "demo"
+    tests = root / "tests"
+    package.mkdir(parents=True)
+    tests.mkdir()
+    (package / "__init__.py").write_text(module, encoding="utf-8")
+    (tests / "test_behavior.py").write_text(test_source, encoding="utf-8")
+
+
+def _run_replay(base: Path, head: Path) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    environment.pop("PYTEST_ADDOPTS", None)
+    return subprocess.run(
+        [
+            sys.executable,
+            str(REPLAY_COMMAND),
+            "--base",
+            str(base),
+            "--head",
+            str(head),
+        ],
+        cwd=head,
+        env=environment,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
