@@ -356,17 +356,9 @@ def _lexical_ranges(
     verbatim: list[tuple[int, int]] = []
     text = document.text
     index = 0
-    comment_start: int | None = None
     active_start: int | None = None
     active_star = ""
     while index < len(text):
-        if comment_start is not None:
-            line_end = text.find("\n", index)
-            line_end = len(text) if line_end == -1 else line_end + 1
-            comments.append((comment_start, line_end))
-            comment_start = None
-            index = line_end
-            continue
         if active_start is not None:
             # LaTeX reads verbatim with an exact delimited terminator, so escape
             # parity and comment syntax are not active until that terminator.
@@ -381,7 +373,15 @@ def _lexical_ranges(
             index = match.end()
             continue
         if text[index] == "%" and not _is_escaped(text, index):
-            comment_start = index
+            line_end = index + 1
+            while line_end < len(text) and text[line_end] not in "\r\n":
+                line_end += 1
+            if text.startswith("\r\n", line_end):
+                line_end += 2
+            elif line_end < len(text):
+                line_end += 1
+            comments.append((index, line_end))
+            index = line_end
             continue
         match = VERBATIM_CONTROL_RE.match(text, index)
         if match is not None and match.group("kind") == "begin" and not _is_escaped(text, index):

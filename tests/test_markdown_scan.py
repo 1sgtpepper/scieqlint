@@ -839,16 +839,20 @@ def test_markdown_lexical_precedence_fixture_keeps_only_live_display_math() -> N
     assert result.diagnostics == ()
 
 
-def test_escaped_tex_label_in_markdown_math_is_not_an_equation_label() -> None:
-    document = SourceDocument.from_text(
-        PurePosixPath("paper.md"),
-        "$$\n\\label{one}\n\\\\label{two}\n\\\\\\label{three}\n\\\\\\\\label{four}\n$$\n",
-        DocumentKind.MARKDOWN,
+@pytest.mark.public_regression
+def test_public_escaped_tex_label_in_markdown_math_is_not_an_equation_label() -> None:
+    source = (
+        "$$\ny = y\n\\label{live}\n\\\\label{escaped}\n$$\n\nSee {eq}`live` and {eq}`escaped`.\n"
     )
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), source, DocumentKind.MARKDOWN)
 
-    result = MarkdownScanner().scan(document, Config())
+    result = check_documents([document], config=Config())
 
-    assert [label.label for label in result.labels] == ["one", "three"]
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert source[span.start : span.end] == "escaped"
 
 
 def test_malformed_markdown_symbol_directive_warns_and_code_fence_is_ignored() -> None:

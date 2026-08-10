@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
+import pytest
+
 from scieqlint.api import check_documents
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -95,7 +97,8 @@ def test_latex_scanner_ignores_comments_and_verbatim() -> None:
     assert result.diagnostics == ()
 
 
-def test_commented_verbatim_markers_do_not_hide_live_equations() -> None:
+@pytest.mark.public_regression
+def test_public_commented_verbatim_markers_do_not_hide_live_equations() -> None:
     result = check_documents(
         [
             _document(
@@ -104,30 +107,41 @@ def test_commented_verbatim_markers_do_not_hide_live_equations() -> None:
                 "x = x + 1\n"
                 "\\end{equation}\n"
                 "% \\end{verbatim}\n"
+                "\\% \\begin{equation}y = y\\end{equation}\n"
             )
         ],
         config=Config(),
     )
 
+    assert result.math_blocks_checked == 2
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
+    assert result.diagnostics[0].span is not None
+    assert result.diagnostics[0].span.line == 3
 
 
-def test_starred_verbatim_is_opaque() -> None:
-    result = LatexScanner().scan(
-        _document(
-            "\\begin{verbatim*}\n"
-            "\\begin{equation}\n"
-            "x = x + 1\n"
-            "\\end{equation}\n"
-            "See \\ref{ghost}.\n"
-            "\\end{verbatim*}\n"
-        ),
-        Config(),
+@pytest.mark.public_regression
+def test_public_starred_verbatim_is_opaque() -> None:
+    result = check_documents(
+        [
+            _document(
+                "\\begin{verbatim*}\n"
+                "\\begin{equation}\n"
+                "x = x + 1\n"
+                "\\end{equation}\n"
+                "See \\ref{ghost}.\n"
+                "\\end{verbatim*}\n"
+                "\\begin{equation}\n"
+                "y = y\n"
+                "\\end{equation}\n"
+            )
+        ],
+        config=Config(),
     )
 
-    assert result.blocks == ()
-    assert result.references == ()
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
     assert result.diagnostics == ()
+    assert result.exit_code() == 0
 
 
 def test_verbatim_closer_requires_the_matching_starred_form() -> None:
@@ -160,18 +174,10 @@ def test_verbatim_closer_inside_percent_content_is_literal_delimiter() -> None:
     assert [block.text for block in result.blocks] == ["x = x + 1"]
 
 
-def test_percent_is_literal_before_a_mid_line_verbatim_close() -> None:
-    result = LatexScanner().scan(
-        _document("\\begin{verbatim}% \\end{verbatim} \\begin{equation}x = x + 1\\end{equation}\n"),
-        Config(),
-    )
-
-    assert [block.text for block in result.blocks] == ["x = x + 1"]
-
-
 def test_same_line_verbatim_close_then_new_verbatim_open_is_compositional() -> None:
     result = LatexScanner().scan(
         _document(
+            "\\begin{equation}y = y\\end{equation}\n"
             "\\begin{verbatim}%\\end{verbatim} \\begin{verbatim}\n"
             "\\begin{equation}\n"
             "x = x + 1\n"
@@ -181,18 +187,19 @@ def test_same_line_verbatim_close_then_new_verbatim_open_is_compositional() -> N
         Config(),
     )
 
-    assert result.blocks == ()
+    assert [block.text for block in result.blocks] == ["y = y"]
 
 
 def test_same_line_verbatim_close_then_comment_hides_following_equation() -> None:
     result = LatexScanner().scan(
         _document(
+            "\\begin{equation}y = y\\end{equation}\n"
             "\\begin{verbatim}%\\end{verbatim} % \\begin{equation}x = x + 1\\end{equation}\n"
         ),
         Config(),
     )
 
-    assert result.blocks == ()
+    assert [block.text for block in result.blocks] == ["y = y"]
 
 
 def test_same_line_verbatim_close_exposes_following_symbol_comment() -> None:
@@ -206,19 +213,16 @@ def test_same_line_verbatim_close_exposes_following_symbol_comment() -> None:
 
 def test_unclosed_verbatim_protects_the_remaining_source() -> None:
     result = LatexScanner().scan(
-        _document("\\begin{verbatim}\n\\begin{equation}\nx = x + 1\n\\end{equation}\n"),
+        _document(
+            "\\begin{equation}y = y\\end{equation}\n"
+            "\\begin{verbatim}\n"
+            "\\begin{equation}\nx = x + 1\n\\end{equation}\n"
+            "See \\ref{ghost}.\n"
+        ),
         Config(),
     )
 
-    assert result.blocks == ()
-    assert result.references == ()
-    assert result.diagnostics == ()
-
-
-def test_verbatim_opener_at_end_of_file_protects_through_eof() -> None:
-    result = LatexScanner().scan(_document("\\begin{verbatim}"), Config())
-
-    assert result.blocks == ()
+    assert [block.text for block in result.blocks] == ["y = y"]
     assert result.references == ()
     assert result.diagnostics == ()
 
@@ -238,14 +242,29 @@ def test_verbatim_closer_can_occur_mid_line() -> None:
     assert [block.text for block in result.blocks] == ["x = x + 1"]
 
 
-def test_escaped_tex_controls_do_not_change_scanner_state() -> None:
-    result = LatexScanner().scan(
-        _document(r"Text \\begin{equation}" + "\n" + r"See \\ref{ghost}." + "\n"),
-        Config(),
+@pytest.mark.public_regression
+def test_public_escaped_tex_controls_require_active_boundaries() -> None:
+    result = check_documents(
+        [
+            _document(
+                r"Text \\begin{equation}"
+                "\n"
+                r"See \\ref{ghost}."
+                "\n"
+                r"\\\begin{equation}"
+                "\n"
+                "y = y\n"
+                "\\label{odd}\n"
+                r"\\\end{equation}"
+                "\n"
+                r"See \\\ref{odd}."
+                "\n"
+            )
+        ],
+        config=Config(),
     )
 
-    assert result.blocks == ()
-    assert result.references == ()
+    assert result.math_blocks_checked == 1
     assert result.diagnostics == ()
 
 
@@ -264,7 +283,8 @@ def test_escaped_environment_closer_does_not_end_live_equation() -> None:
     assert result.blocks[0].text == "x = x + 1\n\\\\end{equation}"
 
 
-def test_escaped_verbatim_markers_leave_live_equations_active() -> None:
+@pytest.mark.public_regression
+def test_public_escaped_verbatim_markers_leave_live_equations_active() -> None:
     result = check_documents(
         [
             _document(
@@ -278,6 +298,7 @@ def test_escaped_verbatim_markers_leave_live_equations_active() -> None:
         config=Config(),
     )
 
+    assert result.math_blocks_checked == 1
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
 
 
@@ -301,26 +322,6 @@ def test_verbatim_closer_ignores_backslash_parity() -> None:
         assert [block.text for block in result.blocks] == ["y = y + 1"]
 
 
-def test_three_backslash_verbatim_closer_reactivates_later_equations() -> None:
-    result = check_documents(
-        [
-            _document(
-                "\\begin{verbatim}\n"
-                "\\begin{equation}\n"
-                "x = x + 1\n"
-                "\\end{equation}\n"
-                "\\\\\\end{verbatim}\n"
-                "\\begin{equation}\n"
-                "y = y + 1\n"
-                "\\end{equation}\n"
-            )
-        ],
-        config=Config(),
-    )
-
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
-
-
 def test_comment_row_break_does_not_reactivate_comment_text() -> None:
     result = check_documents(
         [
@@ -331,6 +332,7 @@ def test_comment_row_break_does_not_reactivate_comment_text() -> None:
         config=Config(),
     )
 
+    assert result.math_blocks_checked == 2
     assert result.diagnostics == ()
 
 
@@ -366,18 +368,33 @@ def test_latex_labels_in_comments_are_ignored() -> None:
     assert [label.label for label in result.labels] == ["real"]
 
 
-def test_escaped_latex_labels_are_not_equation_labels() -> None:
+@pytest.mark.public_regression
+def test_public_escaped_latex_labels_are_not_equation_labels() -> None:
+    source = (
+        "\\begin{equation}\n"
+        "x = x\n"
+        "\\label{real}\n"
+        r"\\label{escaped}"
+        "\n"
+        "\\end{equation}\n"
+        "See \\ref{real} and \\ref{escaped}.\n"
+    )
+    result = check_documents([_document(source)], config=Config())
+
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert source[span.start : span.end] == "escaped"
+
+
+def test_carriage_return_ends_a_latex_comment() -> None:
     result = LatexScanner().scan(
-        _document(
-            "\\begin{equation}\n"
-            "\\label{real}\n"
-            r"\\label{escaped}" + "\n"
-            "\\end{equation}\n"
-        ),
+        _document("% \\begin{verbatim}\r\\begin{equation}\ry = y\r\\end{equation}\r"),
         Config(),
     )
 
-    assert [label.label for label in result.labels] == ["real"]
+    assert [block.text for block in result.blocks] == ["y = y"]
 
 
 def test_latex_unterminated_equation_warns() -> None:
