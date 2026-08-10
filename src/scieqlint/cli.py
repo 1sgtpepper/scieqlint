@@ -342,8 +342,8 @@ def _write_output(
     output_path: Path | None,
     stdout: TextIO,
     *,
-    consumed_inputs: tuple[_ConsumedIdentity, ...] = (),
-    input_identities_complete: bool = True,
+    consumed_inputs: tuple[_ConsumedIdentity, ...],
+    input_identities_complete: bool,
 ) -> None:
     if output_path is None:
         if rendered:

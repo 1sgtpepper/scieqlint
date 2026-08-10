@@ -46,7 +46,7 @@ class _AnalysisRun(Generic[_ResultT]):
 
     result: _ResultT
     consumed_inputs: tuple[ConsumedInput, ...]
-    input_identities_complete: bool = True
+    input_identities_complete: bool
 
 
 def check_paths(

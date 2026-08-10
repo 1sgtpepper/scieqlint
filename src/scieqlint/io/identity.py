@@ -31,7 +31,7 @@ class ConsumedInput:
     path_key: str
     normalized_path_key: str | None
     identity: FileIdentity | None
-    path_metadata_complete: bool = True
+    path_metadata_complete: bool
 
     def matches_path(self, path: Path) -> bool:
         if self.path_key == _lexical_path_key(path):
