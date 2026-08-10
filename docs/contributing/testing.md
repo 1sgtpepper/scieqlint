@@ -10,6 +10,8 @@ Tests protect documented behavior, not just code coverage.
 - Checker tests for exact behavior.
 - Golden tests for text, JSON, GitHub, and SARIF outputs.
 - Package-resource tests for installed wheels.
+- Pre-commit integration tests build a temporary hook repository from the source
+  under test, so they do not depend on the checkout's Git revision.
 
 ## Local loop
 

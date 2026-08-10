@@ -1,19 +1,19 @@
 # Pack Manifest
 
-This repository contains the SciEqLint v11.1 specification handoff, public docs, examples,
-tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
+This repository contains the SciEqLint v1.1.0 implementation handoff, public
+docs, examples, tests, schemas, CI templates, and release checks.
 
 ## Important distinction
 
-- SPEC.md defines the full release ladder through v1.0.0.
-- src/scieqlint/ implements the v0.1.5 analyzer slice.
-- Later release features still need fixtures, docs, golden outputs, and release
-  acceptance gates before they are claimed.
+- SPEC.md defines the core implementation and release contracts.
+- src/scieqlint/ implements the v1.1.0 analyzer and graph/API surfaces.
+- `docs/releases/v1.1.0-checklist.md` records the v1.1.0 scope and acceptance
+  checks.
 
-## Validation Performed
+## Validation
 
-- Python compile smoke passed.
-- Pytest passed for the v0.1.5 analyzer slice.
+- CI defines the authoritative compile, test, lint, and type-check validation for
+  each revision.
 - Ruff and Pyright are configured in CI; run them where the full dev environment is
   available.
 
@@ -180,6 +180,7 @@ tests, schemas, CI templates, and the working v0.1.5 analyzer slice.
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/pre_commit.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/generated-myst.toml`
 - `src/scieqlint/presets/mechanics.toml`

@@ -41,13 +41,13 @@ E = mc^2
 | symbols | supported |
 | `+`, `-`, `*`, `/` | supported |
 | implicit multiplication | supported within documented parser rules |
-| integer powers | supported |
+| integer powers | supported for exponents from `-1000` through `1000` |
 | `\frac{a}{b}` | supported |
-| `\sqrt{x}` | supported when exact handling is possible |
+| `\sqrt{n}` | supported for numeric perfect-square rational operands only |
 | trig/log/exp | deferred |
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |
-| non-integer powers except `sqrt` | deferred |
+| non-integer powers and symbolic square roots | deferred |
 | user TeX macros | deferred |
 
 Configured dimension aliases match complete surface tokens and do not split a
@@ -100,10 +100,15 @@ non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
 syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+Malformed ATX candidates are syntax issues only and do not enter heading, section,
+slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
+such as `# #` are valid empty headings.
 
 This is a conservative lint subset, not a full MyST parser. Unknown custom
 directive names remain allowed. Valid MyST target anchors such as `(label)=`
 before headings are treated as anchors, not headings or malformed prose.
+When the Markdown scanner is disabled, Markdown frontend and document-level
+reference/structure analysis are skipped as well.
 
 ## Suppression comments
 

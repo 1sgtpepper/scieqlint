@@ -13,7 +13,9 @@ SciEqLint is a deterministic quality linter for scientific documents. It scans s
 
 Initial releases implement Markdown/MyST equation diagnostics, reference validation, deterministic output, and documented scanner boundaries.
 
-Complete pack note: this repository tracks the release ladder through v1.0.0. The current implementation covers the v0.1.5 analyzer slice behind fixtures, docs, CI, and release checks.
+Complete pack note: this repository tracks the core release ladder through v1.0.0;
+the current implementation also contains the v1.1.0 generated-MyST scope behind
+fixtures, docs, CI, and release checks.
 
 ---
 
@@ -292,9 +294,9 @@ equation_group : equation (line_sep equation)*
 equation       : expr "=" expr ("=" expr)*
 expr           : sum
 sum            : product (("+" | "-") product)*
-product        : power (("*" | "/" | implicit_mul) power)*
-power          : unary ("^" signed_integer)?
-unary          : ("+" | "-") unary | atom
+product        : unary (("*" | "/" | implicit_mul) unary)*
+power          : atom ("^" signed_integer)?
+unary          : ("+" | "-") unary | power
 atom           : NUMBER | SYMBOL | group | frac | sqrt
 group          : "(" expr ")" | "{" expr "}"
 frac           : "\\frac" group group
@@ -313,6 +315,11 @@ Supported aliases:
 - `{...}` as grouping
 - `^2`, `^{-1}`, `^-1`
 
+Exponentiation binds more tightly than unary signs, so `-x^2` means
+`-(x^2)`. Parentheses are required for `(-x)^2`.
+Integer exponents are supported from `-1000` through `1000`; values outside
+that range produce the unsupported-syntax diagnostic before evaluation.
+
 Unsupported in v0.1.0:
 
 - trigonometric functions,
@@ -325,7 +332,8 @@ Unsupported in v0.1.0:
 - vectors/tensors,
 - inequalities,
 - approximate equality,
-- non-integer powers except `sqrt`,
+- non-integer powers and symbolic square roots,
+- integer exponents outside `-1000` through `1000`,
 - user-defined TeX macros,
 - Greek alias normalization.
 
@@ -343,7 +351,7 @@ Algebra check supports:
 - division,
 - unary signs,
 - integer powers,
-- `sqrt` only when exact handling is possible.
+- `\sqrt{n}` only for numeric perfect-square rational operands.
 
 Algorithm:
 
@@ -1918,13 +1926,31 @@ Exit codes:
 - id: scieqlint
   name: SciEqLint
   description: Check equations and equation references in supported scientific documents.
-  entry: scieqlint check
+  entry: python -I -m scieqlint.pre_commit
+  args: ["--"]
   language: python
-  files: '\.(md|markdown)$'
-  require_serial: true
+  stages: [pre-commit]
+  minimum_pre_commit_version: "3.2.0"
+  always_run: true
+  pass_filenames: false
 ```
 
-v0.1.1 hook metadata must target only `.md` and `.markdown`. v0.1.3 expands the pattern to include `.tex`; v0.1.4 expands it to include `.ipynb`.
+During ordinary pre-commit runs, the hook runs one complete project-context check per
+invocation, including clean `--all-files`, explicit `--files`, and unsupported-only
+staged changes. For a normal commit hook invocation, pre-commit temporarily removes
+tracked unstaged changes before the check; untracked supported files remain visible to
+project discovery. `--all-files` and `--files` runs do not stash unstaged changes, so
+those modes check the current worktree. The hook does not receive candidate filenames
+because each invocation must run exactly once; consumer `--files`, `exclude`, `types`,
+and `exclude_types` settings do not scope the project check. The pre-boundary arguments
+are validated with the `check` command parser; positional paths before or after the `--`
+boundary are rejected. The published hook is
+eligible only for the `pre-commit` stage and requires pre-commit 3.2.0 or newer.
+Pre-push and generic revision-range runs are not supported because the adapter does not
+validate arbitrary revision snapshots.
+Python isolated mode also ignores inherited Python path variables and prevents a
+consumer-side `scieqlint.py` or `scieqlint/` package from shadowing the installed hook
+package at either Python module-launch boundary.
 
 ### v0.1.5 SARIF workflow
 
@@ -2730,6 +2756,6 @@ diagnostic instead of an inferred result.
 
 The companion ZIP includes `PACK_MANIFEST.md`, which lists every repository scaffold file. The pack is intentionally split into specification, governance, docs, CI, package scaffold, tests, schemas, examples, and release checklists.
 
-The included code is a v0.1.5 analyzer slice. It exists so contributors can install,
-run, test, and extend real equation and reference checks while preserving the
-documented release boundaries.
+The included code is the current v1.1.0 analyzer. It exists so contributors can
+install, run, test, and extend real equation, reference, and MyST structure checks
+while preserving the documented release boundaries.
