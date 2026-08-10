@@ -16,6 +16,7 @@ Polynomial = dict[Monomial, Fraction]
 
 TOKEN_RE = re.compile(r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]")
 TEX_MULTIPLY = {"\\cdot", "\\times"}
+_MAX_ABS_EXPONENT = 1_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,10 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
                 right = _Parser(right_raw).parse()
             except UnsupportedExpressionError as exc:
                 diagnostics.append(_unsupported_diagnostic(span, equation.text, exc.code))
+                continue
+            except RecursionError:
+                # Deeply nested groups are unsupported, not checker failures.
+                diagnostics.append(_unsupported_diagnostic(span, equation.text, "PARSE020"))
                 continue
 
             if _symbols(left) != _symbols(right):
@@ -128,19 +133,19 @@ class _Parser:
                 return value
 
     def _power(self) -> Polynomial:
+        sign = 1
+        while self._peek_value() in {"+", "-"}:
+            if self._take().value == "-":
+                sign = -sign
         value = self._atom()
         if self._peek_value() == "^":
             self._take()
             value = _pow(value, self._signed_integer())
-        return value
+        return _neg(value) if sign == -1 else value
 
     def _atom(self) -> Polynomial:
         token = self._take()
         value = token.value
-        if value == "+":
-            return self._atom()
-        if value == "-":
-            return _neg(self._atom())
         if value == "(":
             expression = self._expr()
             if self._peek_value() != ")":
@@ -150,7 +155,17 @@ class _Parser:
         if value == "\\frac":
             return _div(self._group(), self._group())
         if value == "\\sqrt":
-            return _sqrt(self._group())
+            operand_start = self.index
+            operand = self._group()
+            root = _sqrt(operand)
+            # Preserve the original root operand's symbol information before
+            # normalization can erase it through cancellation or exponent zero.
+            if any(
+                re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token.value)
+                for token in self.tokens[operand_start : self.index]
+            ):
+                raise UnsupportedExpressionError("sqrt of symbolic expression")
+            return root
         if value in TEX_MULTIPLY:
             raise UnsupportedExpressionError("unexpected multiplication operator")
         if value.startswith("\\"):
@@ -179,7 +194,14 @@ class _Parser:
             number = self._take()
         if not number.value.isdigit():
             raise UnsupportedExpressionError("non-integer exponent")
-        return sign * int(number.value)
+        try:
+            exponent = int(number.value)
+        except ValueError as exc:
+            raise UnsupportedExpressionError("invalid integer exponent") from exc
+        exponent *= sign
+        if abs(exponent) > _MAX_ABS_EXPONENT:
+            raise UnsupportedExpressionError("integer exponent outside supported range")
+        return exponent
 
     def _group(self) -> Polynomial:
         if self._peek_value() != "(":
@@ -317,47 +339,17 @@ def _pow(value: Polynomial, exponent: int) -> Polynomial:
 
 
 def _sqrt(value: Polynomial) -> Polynomial:
-    square_root = _square_root(value)
-    if square_root is not None:
-        return square_root
-    raise UnsupportedExpressionError("sqrt of non-square expression")
-
-
-def _square_root(value: Polynomial) -> Polynomial | None:
+    if not value:
+        return {(): Fraction(0)}
     if len(value) != 1:
-        return _binomial_square_root(value)
+        raise UnsupportedExpressionError("sqrt of non-constant expression")
     monomial, coefficient = next(iter(value.items()))
+    if monomial:
+        raise UnsupportedExpressionError("sqrt of non-constant expression")
     root = _integer_sqrt(coefficient)
     if root is None:
-        return None
-    factors: list[tuple[str, int]] = []
-    for name, power in monomial:
-        if power % 2:
-            return None
-        factors.append((name, power // 2))
-    return {tuple(factors): root}
-
-
-def _binomial_square_root(value: Polynomial) -> Polynomial | None:
-    if len(value) != 3:
-        return None
-    for monomial, coefficient in value.items():
-        if coefficient <= 0:
-            continue
-        first = _square_root({monomial: coefficient})
-        if first is None:
-            continue
-        remaining = _sub(value, _pow(first, 2))
-        for other_monomial, other_coefficient in remaining.items():
-            if other_coefficient <= 0:
-                continue
-            second = _square_root({other_monomial: other_coefficient})
-            if second is None:
-                continue
-            for root in (_add(first, second), _sub(first, second)):
-                if _clean(_sub(_pow(root, 2), value)) == {}:
-                    return root
-    return None
+        raise UnsupportedExpressionError("sqrt of non-square constant")
+    return {(): root}
 
 
 def _integer_sqrt(value: Fraction) -> Fraction | None:

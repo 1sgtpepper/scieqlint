@@ -41,13 +41,13 @@ E = mc^2
 | symbols | supported |
 | `+`, `-`, `*`, `/` | supported |
 | implicit multiplication | supported within documented parser rules |
-| integer powers | supported |
+| integer powers | supported for exponents from `-1000` through `1000` |
 | `\frac{a}{b}` | supported |
-| `\sqrt{x}` | supported when exact handling is possible |
+| `\sqrt{n}` | supported for numeric perfect-square rational operands only |
 | trig/log/exp | deferred |
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |
-| non-integer powers except `sqrt` | deferred |
+| non-integer powers and symbolic square roots | deferred |
 | user TeX macros | deferred |
 
 Configured dimension aliases match complete surface tokens and do not split a
