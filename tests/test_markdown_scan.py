@@ -275,7 +275,10 @@ def test_public_dollar_math_boundaries_ignore_escaped_and_prose_delimiters() -> 
 
     result = check_documents(
         [document],
-        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+        config=Config(
+            scanner=ScannerConfig(inline_math=True),
+            checks=ChecksConfig(symbols=SymbolsConfig(enabled=True)),
+        ),
     )
 
     symbol_start = source.index("y = y")
