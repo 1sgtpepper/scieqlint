@@ -33,7 +33,7 @@ CONTROL_TEST = """
 def test_normative_control() -> None:
     assert True
 """
-BROKEN_COLLECTION_TEST = 'raise RuntimeError("base collection failed")\n'
+BROKEN_COLLECTION_TEST = 'raise RuntimeError("collection failed")\n'
 
 
 def test_replay_accepts_base_mismatch_and_head_pass(tmp_path: Path) -> None:
@@ -68,6 +68,20 @@ def test_replay_rejects_head_assertion_failure(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert result.stdout.splitlines() == [f"HEAD MISMATCH {NODE_ID}"]
+
+
+def test_replay_reports_head_api_incompatibility(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_module="OTHER = 1\n",
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == f"HEAD API INCOMPATIBLE {NODE_ID}"
+    assert "AttributeError" in result.stdout
 
 
 def test_replay_reports_base_api_incompatibility(tmp_path: Path) -> None:
@@ -123,7 +137,21 @@ def test_replay_reports_base_collection_failure_for_exact_head_node(tmp_path: Pa
     assert result.stdout.splitlines()[0] == (
         f"BASE API INCOMPATIBLE {NODE_ID}: marker collection failed"
     )
-    assert "base collection failed" in result.stdout
+    assert "collection failed" in result.stdout
+
+
+def test_replay_reports_head_collection_failure(tmp_path: Path) -> None:
+    base, head = _write_revisions(
+        tmp_path,
+        base_module='VALUE = "old"\n',
+        head_test=BROKEN_COLLECTION_TEST,
+    )
+
+    result = _run_replay(base, head)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == "HEAD API INCOMPATIBLE: marker collection failed"
+    assert "collection failed" in result.stdout
 
 
 def test_replay_marker_command_and_pull_request_job_are_wired() -> None:
