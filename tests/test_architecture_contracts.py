@@ -453,22 +453,755 @@ def test_architecture_terminology_scanner_preserves_lines_while_ignoring_code(
 
 
 @pytest.mark.parametrize(
-    "ci_text",
+    ("case_name", "ci_text", "expected_gate_violation"),
     [
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
-            "      # run: python tools/architecture/terminology_drift.py --format json\n"
+            "comment is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      # run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
         ),
         (
-            "name: CI\n\njobs:\n  quality:\n    steps:\n"
-            "      - continue-on-error: true\n"
-            "        run: python tools/architecture/terminology_drift.py --format json\n"
+            "step continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - continue-on-error: true
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "step literal false condition",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: false
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "step false expression",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ false }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-mismatched step if is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - IF: false
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-mismatched step continue-on-error is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - CONTINUE-ON-ERROR: true
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "parent job literal false condition",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-mismatched parent job if is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    IF: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-mismatched parent continue-on-error is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    CONTINUE-ON-ERROR: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "parent job continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "step false continue-on-error is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - continue-on-error: false
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "step true condition is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: true
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "step true condition expression is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ true }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "parent job false continue-on-error is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "parent job true condition is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: true
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "parent job false continue-on-error expression is blocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    continue-on-error: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "parent false condition after steps is nonblocking",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+    if: false
+""",
+            True,
+        ),
+        (
+            "four-space parent job false condition",
+            """name: CI
+on: [push]
+
+jobs:
+    quality:
+        if: false
+        runs-on: ubuntu-latest
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "four-space parent job continue-on-error",
+            """name: CI
+on: [push]
+
+jobs:
+    quality:
+        continue-on-error: true
+        runs-on: ubuntu-latest
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "four-space enabled parent job",
+            """name: CI
+on: [push]
+
+jobs:
+    quality:
+        runs-on: ubuntu-latest
+        steps:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "unknown step condition is not proof",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ github.ref == 'refs/heads/main' }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unknown parent job condition is not proof",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "unknown continue-on-error is not proof",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - continue-on-error: ${{ matrix.allow_failure }}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted direct status key is not proof",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - "if": false
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "aliased continue-on-error is not proof",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: optional-check
+        continue-on-error: &optional true
+      - run: python tools/architecture/terminology_drift.py --format json
+        continue-on-error: *optional
+""",
+            True,
+        ),
+        (
+            "nested status properties are unrelated",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          if: false
+          continue-on-error: true
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "named direct run step is canonical",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: architecture gate
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "step shell override is not blocking evidence",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash -c 'source "$1" || true' -- {0}
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "job run defaults are not blocking evidence",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -c 'source "$1" || true' -- {0}
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "workflow run defaults are not blocking evidence",
+            """name: CI
+on: [push]
+defaults:
+  run:
+    shell: bash -c 'source "$1" || true' -- {0}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted job boundary stays in the disabled job",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: false
+    runs-on: ubuntu-latest
+    name: "x
+  fake:
+    y"
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted step boundary stays in the disabled step",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: false
+        name: "x
+      - fake:
+        y"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "block scalar command is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: documentation
+        run: |
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "explicitly indented block scalar command is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |2-
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped quote does not end quoted job content",
+            r"""name: CI
+on: [push]
+
+jobs:
+  quality:
+    if: false
+    runs-on: ubuntu-latest
+    name: "x
+  fake:
+    y \"
+  decoy:
+    z"
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "escaped quote does not end quoted step content",
+            r"""name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - if: false
+        name: "x
+      - fake:
+        y \"
+      - decoy:
+        z"
+        run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "nested with run is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: decoy
+        with:
+          run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "nested list run is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: decoy
+        with:
+          options:
+            - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "missing mapping separation is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run:python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "case-mismatched run key is not a gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - RUN: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "quoted command value is canonical",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: "python tools/architecture/terminology_drift.py --format json" # exact command
+""",
+            False,
+        ),
+        (
+            "unrelated optional step does not change the gate",
+            """name: CI
+on: [push]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: optional-check
+        continue-on-error: true
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            False,
+        ),
+        (
+            "nested jobs mapping is not a workflow gate",
+            """name: CI
+config:
+  jobs:
+    quality:
+      steps:
+        - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "duplicate steps mapping is not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "plain scalar continuation is not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+        continuation
+""",
+            True,
+        ),
+        (
+            "list-shaped jobs mapping is not a gate",
+            """name: CI
+jobs:
+  - quality:
+      runs-on: ubuntu-latest
+      steps:
+        - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "duplicate root jobs mapping is not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+jobs:
+  decoy:
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "duplicate job id is not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+  quality:
+    steps:
+      - run: echo decoy
+""",
+            True,
+        ),
+        (
+            "stray job entry is not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+  stray
+""",
+            True,
+        ),
+        (
+            "nested mapping after jobs is not a gate",
+            """name: CI
+jobs:
+  quality:
+    if: false
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+config:
+  fake:
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
+        ),
+        (
+            "multiple YAML documents are not a gate",
+            """name: CI
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+---
+name: decoy
+""",
+            True,
+        ),
+        (
+            "reusable job with local steps is not a gate",
+            """name: CI
+jobs:
+  quality:
+    uses: org/repo/.github/workflows/reusable.yml@main
+    steps:
+      - run: python tools/architecture/terminology_drift.py --format json
+""",
+            True,
         ),
     ],
 )
-def test_architecture_terminology_scanner_rejects_nonblocking_gate(
+def test_architecture_terminology_scanner_requires_direct_blocking_gate(
     tmp_path: Path,
+    case_name: str,
     ci_text: str,
+    expected_gate_violation: bool,
 ):
     fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
     (fixture / ".github" / "workflows" / "ci.yml").write_text(
@@ -478,26 +1211,11 @@ def test_architecture_terminology_scanner_rejects_nonblocking_gate(
 
     result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
 
-    assert result.returncode == 1
+    assert result.returncode == int(expected_gate_violation), case_name
     report = json.loads(result.stdout)
-    assert [item["id"] for item in report["violations"]] == ["ARCH-TERM-CI-GATE-MISSING"]
-
-
-def test_architecture_terminology_scanner_ignores_unrelated_nonblocking_step(
-    tmp_path: Path,
-):
-    fixture = write_architecture_term_fixture(tmp_path, ci_gate=True)
-    (fixture / ".github" / "workflows" / "ci.yml").write_text(
-        "name: CI\n\njobs:\n  quality:\n    steps:\n"
-        "      - run: optional-check\n"
-        "        continue-on-error: true\n"
-        "      - run: python tools/architecture/terminology_drift.py --format json\n",
-        encoding="utf-8",
-    )
-
-    result = run_architecture_term_scanner("--root", str(fixture), "--format", "json")
-
-    assert result.returncode == 0
+    assert [item["id"] for item in report["violations"]] == (
+        ["ARCH-TERM-CI-GATE-MISSING"] if expected_gate_violation else []
+    ), case_name
 
 
 def test_architecture_terminology_scanner_fails_when_release_gate_is_missing(
@@ -556,7 +1274,16 @@ forbidden_modules = ["scieqlint.scan"]
     )
     gate = "python tools/architecture/terminology_drift.py --format json" if ci_gate else "pytest"
     (workflows / "ci.yml").write_text(
-        f"name: CI\n\njobs:\n  quality:\n    steps:\n      - run: {gate}\n",
+        (
+            "name: CI\n"
+            "on: [push]\n"
+            "\n"
+            "jobs:\n"
+            "  quality:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps:\n"
+            f"      - run: {gate}\n"
+        ),
         encoding="utf-8",
     )
     return root
