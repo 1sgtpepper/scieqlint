@@ -97,8 +97,8 @@ Release notes must use these sections:
 - Source distributions now include the files required by their shipped test suite,
   and CI executes that suite from an extracted archive.
 - Dollar math now honors escaped delimiters, block placement, and complete label
-  suffixes, while Markdown code spans and fenced-code regions follow their
-  delimiter and indentation boundaries.
+  suffixes, ignores empty bodies, and keeps Markdown code spans and fenced-code
+  regions within their delimiter and indentation boundaries.
 - Markdown code, raw HTML, fence, and dollar regions now resolve in source order,
   so the first valid opener owns later delimiters until its matching close.
 - Escaped Markdown backticks no longer open code spans, ordinary inline HTML tags
