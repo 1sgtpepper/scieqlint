@@ -29,12 +29,15 @@ import pytest
 def test_public_behavior(expected: str) -> None:
     assert demo.VALUE == expected
 """
-MULTIPLE_MARKED_TEST = MARKED_TEST + """
+MULTIPLE_MARKED_TEST = (
+    MARKED_TEST
+    + """
 
 @pytest.mark.public_regression
 def test_second_public_behavior() -> None:
     assert demo.SECOND == "new"
 """
+)
 SETUP_MARKED_TEST = """import demo
 import pytest
 
