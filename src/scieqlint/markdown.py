@@ -33,9 +33,7 @@ HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-_MARKDOWN_HEADING_RE = re.compile(
-    r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$"
-)
+_MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 
 
 @dataclass(frozen=True, slots=True)

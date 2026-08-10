@@ -247,7 +247,7 @@ def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
         ("#", []),
         ("# #", []),
         ("## ##", []),
-        ("#Bad", ["REF002"]),
+        ("#Bad", ["STR001", "REF002"]),
     ],
 )
 def test_myst_anchor_attachment_uses_atx_heading_validity(
