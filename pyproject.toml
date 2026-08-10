@@ -87,6 +87,7 @@ include = [
   "examples",
   "benchmarks",
   "schemas",
+  "IMPLEMENTATION_STATUS.md",
   "README.md",
   "PACK_MANIFEST.md",
   "SPEC.md",

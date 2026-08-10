@@ -7,8 +7,9 @@ from pathlib import Path
 import pytest
 
 
-def test_pack_manifest_is_shipped() -> None:
-    assert Path("PACK_MANIFEST.md").is_file()
+@pytest.mark.parametrize("path", ("IMPLEMENTATION_STATUS.md", "PACK_MANIFEST.md"))
+def test_repository_contract_file_is_shipped(path: str) -> None:
+    assert Path(path).is_file()
 
 
 def test_pack_manifest_matches_repository_inventory() -> None:
