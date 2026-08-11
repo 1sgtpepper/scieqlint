@@ -199,7 +199,7 @@ def _ordered_lexical_ranges(
                 index = role_end
                 continue
 
-        if text[index] == "<" and not is_escaped(text, index):
+        if (index == line_start or text[index] == "<") and not is_escaped(text, index):
             html_end = _html_range_at(text, index)
             if html_end is not None:
                 html.append((index, html_end))
@@ -349,14 +349,22 @@ def _display_close_on_line(text: str, start: int, end: int) -> int:
     label_start = content_end
     if content_end > start and text[content_end - 1] == "}":
         label_start = text.rfind("{#", start, content_end)
-        if label_start == -1 or label_start + 2 >= content_end - 1 or any(
-            char == "}" or char.isspace() for char in text[label_start + 2 : content_end - 1]
+        if (
+            label_start == -1
+            or label_start + 2 >= content_end - 1
+            or any(
+                char == "}" or char.isspace() for char in text[label_start + 2 : content_end - 1]
+            )
         ):
             label_start = content_end
     elif content_end > start and text[content_end - 1] == ")":
         label_start = text.rfind("(", start, content_end)
-        if label_start == -1 or label_start + 1 >= content_end - 1 or any(
-            char in "()" or char.isspace() for char in text[label_start + 1 : content_end - 1]
+        if (
+            label_start == -1
+            or label_start + 1 >= content_end - 1
+            or any(
+                char in "()" or char.isspace() for char in text[label_start + 1 : content_end - 1]
+            )
         ):
             label_start = content_end
 
