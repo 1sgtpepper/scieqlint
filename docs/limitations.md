@@ -106,6 +106,8 @@ Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced-code closers require the matching marker,
 at least the opener length, and no more than three leading spaces; a backtick
 fence info string cannot contain a backtick.
+TeX `\label{...}` inside Markdown math creates a label only when its backslash
+begins an active control sequence.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
@@ -175,6 +177,12 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 For `align`, rows are split on unescaped `\\` and alignment markers are removed before
 equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
 for reference checks. LaTeX macro expansion and full environment parsing are deferred.
+Both `verbatim` and `verbatim*` environments are opaque. TeX controls are recognized
+only when their backslash begins an active control sequence outside verbatim. Inside a
+live verbatim range, every character is literal and the range ends at the first exact
+matching `\end{verbatim}` or `\end{verbatim*}` sequence, regardless of line position,
+percent signs, or preceding backslashes; mismatched starred forms remain literal
+content. An unclosed range stays protected through end of file.
 
 ## Dimensions
 

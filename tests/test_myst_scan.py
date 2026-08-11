@@ -149,6 +149,18 @@ def test_myst_dollar_math_respects_escape_and_block_boundaries() -> None:
     assert snapshot.inline_math == ()
 
 
+def test_myst_tex_labels_require_active_control_sequences() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n\\label{one}\n\\\\label{two}\n\\\\\\label{three}\n\\\\\\\\label{four}\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [label.label for label in snapshot.equation_labels] == ["one", "three"]
+
+
 @pytest.mark.public_regression
 def test_public_dollar_math_boundaries_ignore_escaped_and_prose_delimiters() -> None:
     source = "Literal \\$x=x+1$.\nProse $$x=x+1$$ tail.\n\n$$\ny = y\n$$\n"
