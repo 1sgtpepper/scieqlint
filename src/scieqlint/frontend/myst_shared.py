@@ -8,8 +8,8 @@ from collections.abc import Sequence
 from scieqlint.markdown import (
     dollar_display_ranges as _dollar_display_ranges,
     dollar_inline_ranges as _dollar_inline_ranges,
-    range_contains,
 )
+from scieqlint.markdown import range_contains
 
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
