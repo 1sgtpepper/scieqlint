@@ -378,8 +378,6 @@ def _display_close_on_line(text: str, start: int, end: int) -> int:
         return -1
     if candidate > 0 and text[candidate - 1] == "$":
         return -1
-    if candidate + 2 < len(text) and text[candidate + 2] == "$":
-        return -1
     return candidate
 
 

@@ -352,6 +352,35 @@ def test_dollar_tail_accepts_only_a_complete_label_suffix() -> None:
     assert [label.label for label in result.labels] == ["real"]
 
 
+def test_display_dollar_math_skips_invalid_candidate_closers() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\nx = x\n$$ (bad label)\n\\$$\n$$$\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["x = x\n$$ (bad label)\n\\$$\n$$$"]
+    assert result.diagnostics == ()
+
+
+def test_escaped_myst_role_keeps_following_math_active() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "\\{ref}`target` and $x$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["x"]
+    assert result.diagnostics == ()
+
+
 def test_display_delimiter_in_inline_code_does_not_emit_scan_warning() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
