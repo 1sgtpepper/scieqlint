@@ -132,8 +132,11 @@ def test_scans_display_math_label_and_markdown_reference() -> None:
     )
     result = MarkdownScanner().scan(document, Config())
     assert len(result.blocks) == 1
-    assert result.blocks[0].container is MathContainer.MARKDOWN_DISPLAY
-    assert result.blocks[0].span.line == 2
+    block = result.blocks[0]
+    assert block.container is MathContainer.MARKDOWN_DISPLAY
+    assert block.span.line == 2
+    assert block.source_aligned_text == block.text
+    assert document.text[block.span.start : block.span.end] == block.source_aligned_text
     assert [label.label for label in result.labels] == ["eq-energy"]
     assert [(ref.target, ref.source) for ref in result.references] == [
         ("eq-energy", ReferenceSource.MARKDOWN_ANCHOR),
@@ -169,8 +172,9 @@ def test_inline_dollar_math_span_tracks_trimmed_source_body() -> None:
 
     block = result.blocks[0]
     assert block.text == "x = y"
+    assert block.source_aligned_text == block.text
     assert block.span.col == 9
-    assert document.text[block.span.start : block.span.end] == block.text
+    assert document.text[block.span.start : block.span.end] == block.source_aligned_text
 
 
 def test_inline_dollar_math_span_preserves_tabs_and_combining_unicode() -> None:
@@ -187,7 +191,8 @@ def test_inline_dollar_math_span_preserves_tabs_and_combining_unicode() -> None:
 
     block = result.blocks[0]
     assert block.text == "x\u0301 = y"
-    assert document.text[block.span.start : block.span.end] == block.text
+    assert block.source_aligned_text == block.text
+    assert document.text[block.span.start : block.span.end] == block.source_aligned_text
 
 
 def test_inline_dollar_math_whitespace_only_body_is_not_a_fact() -> None:

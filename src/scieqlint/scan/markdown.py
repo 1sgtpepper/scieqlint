@@ -93,6 +93,7 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
+            source_aligned_text=text,
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_DISPLAY),
             container=MathContainer.MARKDOWN_DISPLAY,
@@ -145,8 +146,10 @@ def _fenced_blocks(
             continue
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         span = _span(document, span_start, span_end)
+        text = document.text[span_start:span_end]
         yield MathBlock(
-            text=document.text[span_start:span_end],
+            text=text,
+            source_aligned_text=text,
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_FENCE),
             container=MathContainer.MARKDOWN_FENCE,
@@ -212,6 +215,7 @@ def _inline_blocks(
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
+            source_aligned_text=text,
             span=span,
             block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
             container=MathContainer.MARKDOWN_INLINE,

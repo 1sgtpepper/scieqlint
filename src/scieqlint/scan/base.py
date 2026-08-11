@@ -44,6 +44,8 @@ class SymbolDirectiveSource(Enum):
 @dataclass(frozen=True, slots=True)
 class MathBlock:
     text: str
+    # One character per position in span; retained newlines keep their source indices.
+    source_aligned_text: str
     span: SourceSpan
     block_id: str
     container: MathContainer

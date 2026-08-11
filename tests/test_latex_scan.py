@@ -6,7 +6,7 @@ import pytest
 
 from scieqlint import __version__
 from scieqlint.api import check_documents
-from scieqlint.config.model import Config
+from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan import latex as latex_module
@@ -67,6 +67,233 @@ def test_latex_align_environment_splits_rows_and_removes_alignment_markers() -> 
         MathContainer.LATEX_ALIGN,
     ]
     assert result.diagnostics == ()
+
+
+@pytest.mark.public_regression
+def test_latex_normalization_preserves_symbol_source_spans() -> None:
+    source = "\\begin{align}\n  % removed comment\n  x &= y\n\\end{align}\n"
+    document = _document(source)
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+
+    x_start = source.index("x &=")
+    y_start = source.index("y", x_start)
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.config_path is None
+    assert result.show_suppressed is False
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="SYM001",
+            severity=Severity.WARNING,
+            message="undefined symbol: x",
+            span=SourceSpan(
+                path=PurePosixPath("paper.tex"),
+                start=x_start,
+                end=x_start + 1,
+                line=3,
+                col=3,
+                end_line=3,
+                end_col=3,
+            ),
+            detail="x",
+            rule="symbols",
+        ),
+        Diagnostic(
+            code="SYM001",
+            severity=Severity.WARNING,
+            message="undefined symbol: y",
+            span=SourceSpan(
+                path=PurePosixPath("paper.tex"),
+                start=y_start,
+                end=y_start + 1,
+                line=3,
+                col=8,
+                end_line=3,
+                end_col=8,
+            ),
+            detail="y",
+            rule="symbols",
+        ),
+    )
+    assert [
+        document.text[diagnostic.span.start : diagnostic.span.end]
+        for diagnostic in result.diagnostics
+        if diagnostic.span is not None
+    ] == ["x", "y"]
+
+
+def test_latex_symbol_source_span_control() -> None:
+    source = "\\begin{equation}\nq = r\n\\end{equation}\n"
+    document = _document(source)
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+
+    assert [
+        (
+            diagnostic.detail,
+            diagnostic.span.line,
+            diagnostic.span.col,
+            document.text[diagnostic.span.start : diagnostic.span.end],
+        )
+        for diagnostic in result.diagnostics
+        if diagnostic.span is not None
+    ] == [("q", 2, 1, "q"), ("r", 2, 5, "r")]
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_text", "expected_aligned_text", "expected_container"),
+    [
+        pytest.param(
+            "\\begin{equation}\n  % note\n  E = m c^2 % tail\n\\end{equation}\n",
+            "E = m c^2",
+            " " * len("% note") + "\n  E = m c^2 " + " " * len("% tail"),
+            MathContainer.LATEX_EQUATION,
+            id="equation",
+        ),
+        pytest.param(
+            "\\begin{equation*}\na = b\n\\end{equation*}\n",
+            "a = b",
+            "a = b",
+            MathContainer.LATEX_EQUATION,
+            id="equation-star",
+        ),
+        pytest.param(
+            "\\[\nc = d\n\\]\n",
+            "c = d",
+            "c = d",
+            MathContainer.LATEX_DISPLAY,
+            id="display",
+        ),
+        pytest.param(
+            "$$\ne = f\n$$\n",
+            "e = f",
+            "e = f",
+            MathContainer.LATEX_DISPLAY,
+            id="dollars",
+        ),
+        pytest.param(
+            "\\begin{align}\nA &= B\n\\end{align}\n",
+            "A = B",
+            "A  = B",
+            MathContainer.LATEX_ALIGN,
+            id="align",
+        ),
+        pytest.param(
+            "\\begin{align*}\nC &= D\n\\end{align*}\n",
+            "C = D",
+            "C  = D",
+            MathContainer.LATEX_ALIGN,
+            id="align-star",
+        ),
+    ],
+)
+def test_latex_blocks_keep_normalized_and_source_aligned_text(
+    source: str,
+    expected_text: str,
+    expected_aligned_text: str,
+    expected_container: MathContainer,
+) -> None:
+    document = _document(source)
+
+    result = LatexScanner().scan(document, Config())
+
+    assert len(result.blocks) == 1
+    block = result.blocks[0]
+    raw_text = document.text[block.span.start : block.span.end]
+    assert (block.text, block.source_aligned_text, block.container) == (
+        expected_text,
+        expected_aligned_text,
+        expected_container,
+    )
+    assert len(block.source_aligned_text) == len(raw_text)
+    assert block.source_aligned_text.count("\n") == raw_text.count("\n")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(
+            "\\begin{equation}\n% comment\n\\end{equation}\n",
+            id="equation",
+        ),
+        pytest.param(
+            "\\begin{align}\n% comment\n\\end{align}\n",
+            id="align",
+        ),
+    ],
+)
+def test_latex_comment_only_math_is_not_a_block(source: str) -> None:
+    result = LatexScanner().scan(_document(source), Config())
+
+    assert result.blocks == ()
+
+
+def test_latex_source_alignment_preserves_lexical_boundaries() -> None:
+    source = (
+        "\\begin{align*}\n"
+        r"  x&y &= z \% literal % hidden"
+        "\n"
+        r"  \\"
+        "\n"
+        r"  u \& v &= w \label{eq:w} \\"
+        "\n"
+        "  p\u0301 &= q\n"
+        "\\end{align*}\n"
+    )
+    document = _document(source)
+
+    scan = LatexScanner().scan(document, Config())
+
+    assert len(scan.blocks) == 3
+    assert [block.source_aligned_text for block in scan.blocks] == [
+        r"x y  = z \% literal " + " " * len("% hidden"),
+        r"u \& v  = w \label{eq:w}",
+        "p\u0301  = q",
+    ]
+    for block in scan.blocks:
+        assert len(block.source_aligned_text) == block.span.end - block.span.start
+
+    result = check_documents(
+        [document],
+        config=Config(checks=ChecksConfig(symbols=SymbolsConfig(enabled=True))),
+    )
+    symbol_diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "SYM001"
+    )
+    assert [diagnostic.detail for diagnostic in symbol_diagnostics] == [
+        "x",
+        "y",
+        "z",
+        "literal",
+        "u",
+        "v",
+        "w",
+        "p",
+        "q",
+    ]
+    for diagnostic in symbol_diagnostics:
+        assert diagnostic.span is not None
+        assert document.text[diagnostic.span.start : diagnostic.span.end] == diagnostic.detail
+
+
+def test_latex_alignment_marker_after_row_break_uses_new_row_coordinates() -> None:
+    result = LatexScanner().scan(
+        _document("\\begin{align}\na \\\\&= b\n\\end{align}\n"),
+        Config(),
+    )
+
+    assert [(block.text, block.source_aligned_text) for block in result.blocks] == [
+        ("a", "a"),
+        ("= b", " = b"),
+    ]
 
 
 def test_latex_display_delimiters_are_extracted() -> None:

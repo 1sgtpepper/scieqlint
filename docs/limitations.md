@@ -174,9 +174,12 @@ SciEqLint scans supported LaTeX display containers in `.tex` files:
 - `equation` and `equation*`
 - `align` and `align*`
 
-For `align`, rows are split on unescaped `\\` and alignment markers are removed before
-equation checks run. SciEqLint extracts `\label{...}`, `\ref{...}`, and `\eqref{...}`
-for reference checks. LaTeX macro expansion and full environment parsing are deferred.
+For `align`, rows are split on unescaped `\\` and alignment markers are removed from
+normalized equation text. Symbol diagnostics retain exact source positions across
+removed comments, indentation, blank lines, and alignment markers; removed markers
+remain lexical boundaries rather than joining adjacent symbol tokens. SciEqLint extracts
+`\label{...}`, `\ref{...}`, and `\eqref{...}` for reference checks. LaTeX macro
+expansion and full environment parsing are deferred.
 Both `verbatim` and `verbatim*` environments are opaque. TeX controls are recognized
 only when their backslash begins an active control sequence outside verbatim. Inside a
 live verbatim range, every character is literal and the range ends at the first exact

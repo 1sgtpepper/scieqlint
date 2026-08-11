@@ -626,7 +626,9 @@ $$ ... $$
 \begin{align*} ... \end{align*}
 ```
 
-For `align`, scanner must split rows on unescaped `\\` and remove `&` alignment markers before creating `MathBlock` objects.
+For `align`, scanner must split rows on unescaped `\\` and remove `&` alignment markers
+from normalized math. The source-aligned representation keeps one character position
+per original source character, including each removed marker, for diagnostics.
 
 LaTeX scanner must ignore:
 
@@ -1245,6 +1247,7 @@ class MathBlock:
     document: SourceDocument
     raw: str
     normalized: str
+    source_aligned_text: str
     span: SourceSpan
     syntax: MathSyntax
     container: MathContainer
@@ -1252,6 +1255,9 @@ class MathBlock:
 ```
 
 `raw` is the original math payload without delimiters where possible. `normalized` is scanner-level cleanup only. Parser-level normalization belongs in `parse.normalize`.
+`source_aligned_text` is a same-length source projection for `span`: scanner cleanup
+replaces removed lexical content with whitespace while retaining source positions and
+newlines for diagnostics. It is not parser input.
 
 ```python
 class MathSyntax(Enum):

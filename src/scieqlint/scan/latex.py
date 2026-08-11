@@ -35,15 +35,32 @@ class LatexScanner:
         _ = config
         comments, verbatim = _lexical_ranges(document)
         ignored = tuple(sorted((*comments, *verbatim)))
+        source_aligned_text = _source_aligned_math_text(document.text, comments)
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
 
         blocks.extend(
-            _delimited_blocks(document, ignored, r"\[", r"\]", MathContainer.LATEX_DISPLAY)
+            _delimited_blocks(
+                document,
+                source_aligned_text,
+                ignored,
+                r"\[",
+                r"\]",
+                MathContainer.LATEX_DISPLAY,
+            )
         )
-        blocks.extend(_delimited_blocks(document, ignored, "$$", "$$", MathContainer.LATEX_DISPLAY))
-        env_blocks, env_diagnostics = _environment_blocks(document, ignored)
+        blocks.extend(
+            _delimited_blocks(
+                document,
+                source_aligned_text,
+                ignored,
+                "$$",
+                "$$",
+                MathContainer.LATEX_DISPLAY,
+            )
+        )
+        env_blocks, env_diagnostics = _environment_blocks(document, source_aligned_text, ignored)
         blocks.extend(env_blocks)
         diagnostics.extend(env_diagnostics)
         diagnostics.extend(_unterminated_delimiters(document, ignored, r"\[", r"\]"))
@@ -64,6 +81,7 @@ class LatexScanner:
 
 def _delimited_blocks(
     document: SourceDocument,
+    source_aligned_text: str,
     ignored: tuple[tuple[int, int], ...],
     opening: str,
     closing: str,
@@ -85,7 +103,7 @@ def _delimited_blocks(
         if close == -1:
             cursor = body_start
             continue
-        block = _math_block(document, body_start, close, container)
+        block = _math_block(document, source_aligned_text, body_start, close, container)
         if block is not None:
             yield block
         cursor = close + len(closing)
@@ -93,6 +111,7 @@ def _delimited_blocks(
 
 def _environment_blocks(
     document: SourceDocument,
+    source_aligned_text: str,
     ignored: tuple[tuple[int, int], ...],
 ) -> tuple[list[MathBlock], list[Diagnostic]]:
     blocks: list[MathBlock] = []
@@ -110,9 +129,9 @@ def _environment_blocks(
             MathContainer.LATEX_ALIGN if name.startswith("align") else MathContainer.LATEX_EQUATION
         )
         if container is MathContainer.LATEX_ALIGN:
-            blocks.extend(_align_blocks(document, match.end(), close, ignored))
+            blocks.extend(_align_blocks(document, source_aligned_text, match.end(), close, ignored))
         else:
-            block = _math_block(document, match.end(), close, container)
+            block = _math_block(document, source_aligned_text, match.end(), close, container)
             if block is not None:
                 blocks.append(block)
     return blocks, diagnostics
@@ -120,17 +139,24 @@ def _environment_blocks(
 
 def _align_blocks(
     document: SourceDocument,
+    source_aligned_text: str,
     start: int,
     end: int,
     ignored: tuple[tuple[int, int], ...],
 ) -> Iterable[MathBlock]:
     for row_start, row_end in _align_rows(document.text, start, end, ignored):
-        text = _clean_math_text(document.text[row_start:row_end]).replace("&", "").strip()
+        aligned_row = source_aligned_text[row_start:row_end]
+        text = _clean_math_text(aligned_row).replace("&", "").strip()
         if not text:
             continue
+        aligned_row = "".join(
+            " " if char == "&" and not _is_escaped(aligned_row, index) else char
+            for index, char in enumerate(aligned_row)
+        )
         span = _span(document, row_start, row_end)
         yield MathBlock(
             text=text,
+            source_aligned_text=aligned_row,
             span=span,
             block_id=_block_id(document, span, MathContainer.LATEX_ALIGN),
             container=MathContainer.LATEX_ALIGN,
@@ -174,17 +200,20 @@ def _align_rows(
 
 def _math_block(
     document: SourceDocument,
+    source_aligned_text: str,
     start: int,
     end: int,
     container: MathContainer,
 ) -> MathBlock | None:
-    text = _clean_math_text(document.text[start:end])
+    span_start, span_end = _trim_span(document.text, start, end)
+    aligned_block = source_aligned_text[span_start:span_end]
+    text = _clean_math_text(aligned_block)
     if not text:
         return None
-    span_start, span_end = _trim_span(document.text, start, end)
     span = _span(document, span_start, span_end)
     return MathBlock(
         text=text,
+        source_aligned_text=aligned_block,
         span=span,
         block_id=_block_id(document, span, container),
         container=container,
@@ -194,17 +223,22 @@ def _math_block(
 def _clean_math_text(text: str) -> str:
     cleaned_lines: list[str] = []
     for line in text.splitlines():
-        cleaned = _strip_comment(line).strip()
+        cleaned = line.strip()
         if cleaned:
             cleaned_lines.append(cleaned)
     return "\n".join(cleaned_lines)
 
 
-def _strip_comment(line: str) -> str:
-    for index, char in enumerate(line):
-        if char == "%" and not _is_escaped(line, index):
-            return line[:index]
-    return line
+def _source_aligned_math_text(
+    text: str,
+    comments: tuple[tuple[int, int], ...],
+) -> str:
+    aligned = list(text)
+    for start, end in comments:
+        for index in range(start, end):
+            if not aligned[index].isspace():
+                aligned[index] = " "
+    return "".join(aligned)
 
 
 def _labels(
