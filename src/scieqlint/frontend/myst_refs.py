@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import (
-    MarkdownLinkToken,
-    MarkdownReferenceSnapshot,
-    is_escaped,
-)
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
+    MD_LINK_RE,
     ROLE_RE,
+    OffsetRange,
     extract_role_target_and_title,
     in_ranges,
+    inline_code_ranges,
     normalize_label,
 )
 
@@ -24,20 +23,17 @@ from .myst_shared import (
 def scan_refs(
     document: SourceDocument,
     smap: SourceMap,
-    snapshot: MarkdownReferenceSnapshot,
+    occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
-    occupied = snapshot.opaque_ranges
-    link_tokens = snapshot.links
-    for token in link_tokens:
-        if token.is_image:
+    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
+    for match in MD_LINK_RE.finditer(document.text):
+        if in_ranges(match.start(), occupied_with_code):
             continue
-        if token.fragment_target is None:
-            continue
-        generic.append(_markdown_link_ref_fact(document, smap, token))
+        generic.append(_markdown_link_ref_fact(document, smap, match))
     for match in ROLE_RE.finditer(document.text):
-        if in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
+        if in_ranges(match.start(), occupied_with_code):
             continue
         role = match.group("role")
         body = match.group("body")
@@ -59,23 +55,19 @@ def scan_refs(
 def _markdown_link_ref_fact(
     document: SourceDocument,
     smap: SourceMap,
-    token: MarkdownLinkToken,
+    match: re.Match[str],
 ) -> GenericRefFact:
-    assert token.fragment_target is not None
-    assert token.fragment_target_start is not None
-    assert token.fragment_target_end is not None
-    target_start = token.fragment_target_start
-    target = token.fragment_target
+    target = match.group("target")
     return GenericRefFact(
-        fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
+        fact_id=f"{document.path.as_posix()}::md-ref::{match.start('target')}",
         document_id=document.path.as_posix(),
-        span=smap.span(token.start, token.end),
-        raw=document.text[token.start : token.end],
+        span=smap.span(match.start(), match.end()),
+        raw=match.group(0),
         role_kind="markdown-link",
         target=target,
         normalized_target=normalize_label(target),
-        role_span=smap.span(token.start, token.end),
-        target_span=smap.span(target_start, token.fragment_target_end),
+        role_span=smap.span(match.start(), match.end()),
+        target_span=smap.span(match.start("target"), match.end("target")),
     )
 
 

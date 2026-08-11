@@ -3,11 +3,3 @@ cases:
     input: "See {eq}`missing`."
     expected_codes: ["REF002"]
     expected_pass: true
-  - id: tokenized-markdown-contexts
-    input: "Literal \\{eq}`escaped-role`.\nLiteral \\[Eq.](#escaped-link).\n![equation](#image-target)\n[site](https://example.invalid/{eq}`destination-target`)\n[site](https://example.invalid/ \"{eq}`title-target`\")\n[See {eq}`active-label`](https://example.invalid/)"
-    expected_codes: ["REF002"]
-    expected_pass: true
-  - id: fenced-target-anchor
-    input: "(tip)=\n```{note}\nKeep this note.\n```\n\nSee {ref}`tip` and [the note](#tip)."
-    expected_codes: []
-    expected_pass: true

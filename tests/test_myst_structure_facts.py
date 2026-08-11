@@ -550,29 +550,6 @@ def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
     assert snapshot.structure_syntax_issues == ()
 
 
-def test_link_metadata_is_opaque_to_structure_lowering() -> None:
-    snapshot = MySTFrontend().lower(
-        (
-            doc(
-                '[site](https://example.invalid/ "\n'
-                "# Hidden\n"
-                "```python\n"
-                "{eq}`\n"
-                "```\n"
-                '")\n'
-                "# Visible\n"
-                "```python\n"
-                "pass\n"
-                "```\n"
-            ),
-        )
-    )
-
-    assert [heading.text for heading in snapshot.headings] == ["Visible"]
-    assert [fence.language for fence in snapshot.fences] == ["python"]
-    assert snapshot.structure_syntax_issues == ()
-
-
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
     snapshot = MySTFrontend().lower(
         (

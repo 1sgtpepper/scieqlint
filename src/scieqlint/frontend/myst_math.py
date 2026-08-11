@@ -33,7 +33,6 @@ def scan_display_math(
     document: SourceDocument,
     smap: SourceMap,
     fences: Sequence[FenceFact],
-    occupied: Sequence[OffsetRange],
 ) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
     display: list[DisplayMathFact] = []
     labels: list[EquationLabelFact] = []
@@ -44,7 +43,7 @@ def scan_display_math(
         display.append(math_fact)
         labels.extend(label_facts)
 
-    dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied)
+    dollar_display, dollar_labels = _dollar_display_math(document, smap, ())
     display.extend(dollar_display)
     labels.extend(dollar_labels)
     return tuple(display), tuple(labels)
