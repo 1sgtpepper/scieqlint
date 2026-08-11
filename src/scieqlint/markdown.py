@@ -196,6 +196,23 @@ def is_escaped(text: str, index: int) -> bool:
     return slash_count % 2 == 1
 
 
+def range_contains(position: int, ranges: Sequence[OffsetRange]) -> bool:
+    """Return membership in source-ordered, non-overlapping ranges."""
+
+    low = 0
+    high = len(ranges)
+    while low < high:
+        middle = (low + high) // 2
+        if ranges[middle][0] <= position:
+            low = middle + 1
+        else:
+            high = middle
+    if low == 0:
+        return False
+    start, end = ranges[low - 1]
+    return start <= position < end
+
+
 def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
     merged: list[OffsetRange] = []
     for start, end in sorted((start, end) for start, end in ranges if start < end):

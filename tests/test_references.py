@@ -48,6 +48,10 @@ class _RangeWork(tuple[tuple[int, int], ...]):
             self.item_reads += 1
             yield item
 
+    def __getitem__(self, index):
+        self.item_reads += 1
+        return super().__getitem__(index)
+
 
 def _scan(text: str):
     document = SourceDocument.from_text(
@@ -93,6 +97,16 @@ def test_anchor_attachment_consumes_occupied_ranges_monotonically() -> None:
 
     assert len(labels) == 256
     assert tracked_ranges.item_reads <= 3 * len(tracked_ranges)
+
+
+def test_ordered_range_membership_bounds_item_reads() -> None:
+    ranges = _RangeWork(tuple((index * 2, index * 2 + 1) for index in range(2_048)))
+    query_count = 2 * len(ranges)
+
+    for position in range(query_count):
+        assert markdown_module.range_contains(position, ranges) is (position % 2 == 0)
+
+    assert ranges.item_reads <= 16 * query_count
 
 
 def test_missing_reference_is_warning() -> None:

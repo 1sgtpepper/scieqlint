@@ -19,6 +19,7 @@ from scieqlint.markdown import (
     is_escaped,
     is_fence_closer,
     markdown_reference_snapshot,
+    range_contains,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -253,10 +254,6 @@ def _inline_blocks(
         )
 
 
-def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
-    return any(start <= position < end for start, end in ranges)
-
-
 def _tex_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
     for match in TEX_LABEL_RE.finditer(block.text):
         if is_escaped(block.text, match.start()):
@@ -347,7 +344,7 @@ def _references(
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
-        if _in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
+        if range_contains(match.start(), occupied) or is_escaped(document.text, match.start()):
             continue
         role = match.group("role")
         body = match.group("body")
