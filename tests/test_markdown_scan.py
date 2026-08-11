@@ -669,6 +669,31 @@ def test_unclosed_rawtext_html_keeps_math_content_opaque() -> None:
     assert result.diagnostics == ()
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "</script>\n<script>\n$x$\n</script>\n$y$\n",
+        "</div>\n<div/>\n$x$\n</div>\n$y$\n",
+        "<span>\n<div>\n$x$\n</div>\n$y$\n",
+    ],
+    ids=["earlier-raw-close", "self-closing-block", "unrelated-tag"],
+)
+def test_html_block_close_index_preserves_edge_semantics(source: str) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(
+        document,
+        Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert [block.text for block in result.blocks] == ["y"]
+    assert result.diagnostics == ()
+
+
 def test_inline_math_stays_opaque_inside_a_longer_backtick_span() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
