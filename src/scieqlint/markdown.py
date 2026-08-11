@@ -15,6 +15,11 @@ HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOT
 HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
 HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?(?:\]\]>|$)", re.DOTALL)
 HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
+HTML_TAG_EVENT_RE = re.compile(
+    r"<(?P<closing>/[ \t]*)?(?P<tag>[A-Za-z][A-Za-z0-9:-]*)(?=[ \t/>])"
+    r"(?P<tail>[^<>]*)>",
+    re.IGNORECASE,
+)
 HTML_BLOCK_OPEN_RE = re.compile(
     r"^[ \t]{0,3}<(?P<tag>address|article|aside|base|basefont|blockquote|body|caption|"
     r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|"
@@ -23,6 +28,7 @@ HTML_BLOCK_OPEN_RE = re.compile(
     r"track|ul)(?:[ \t/>]|$)",
     re.IGNORECASE | re.MULTILINE,
 )
+HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\n]+`")
 
@@ -166,6 +172,7 @@ def _ordered_lexical_ranges(
     occupied_cursor = _RangeCursor(occupied)
     backtick_runs = _backtick_runs(text)
     next_same_backtick = _next_same_backtick_runs(backtick_runs)
+    html_block_closes = _html_block_close_positions(text)
     backtick_index = 0
     line_index = 0
     index = 0
@@ -200,7 +207,7 @@ def _ordered_lexical_ranges(
                 continue
 
         if (index == line_start or text[index] == "<") and not is_escaped(text, index):
-            html_end = _html_range_at(text, index)
+            html_end = _html_range_at(text, index, html_block_closes)
             if html_end is not None:
                 html.append((index, html_end))
                 index = html_end
@@ -388,7 +395,11 @@ def _myst_role_end_at(text: str, start: int) -> int | None:
     return match.end() if match is not None else None
 
 
-def _html_range_at(text: str, start: int) -> int | None:
+def _html_range_at(
+    text: str,
+    start: int,
+    block_closes: dict[int, int],
+) -> int | None:
     for pattern in (
         HTML_COMMENT_RE,
         HTML_DECLARATION_RE,
@@ -404,42 +415,95 @@ def _html_range_at(text: str, start: int) -> int | None:
         tag = block.group("tag").lower()
         tag_start = text.find("<", start, block.end())
         assert tag_start != -1
-        closing = _matching_html_block_close(text, tag_start, tag)
+        closing = block_closes.get(tag_start)
         if closing is not None:
             return closing
         if tag in HTML_RAWTEXT_TAGS:
             return len(text)
-        blank_line = re.search(r"\n[ \t]*\n", text[block.end() :])
-        return len(text) if blank_line is None else block.end() + blank_line.start() + 1
+        blank_line = HTML_BLANK_LINE_RE.search(text, block.end())
+        return len(text) if blank_line is None else blank_line.start() + 1
 
     tag = HTML_TAG_RE.match(text, start)
     return tag.end() if tag is not None else None
 
 
-def _matching_html_block_close(text: str, start: int, tag: str) -> int | None:
-    opener = HTML_TAG_RE.match(text, start)
-    search_start = opener.end() if opener is not None else start + 1
-    closing_pattern = re.compile(
-        rf"</[ \t]*{re.escape(tag)}[ \t]*>",
-        re.IGNORECASE,
-    )
-    if tag in HTML_RAWTEXT_TAGS:
-        closing = closing_pattern.search(text, search_start)
-        return closing.end() if closing is not None else None
+def _html_block_close_positions(text: str) -> dict[int, int]:
+    candidates_by_tag: dict[str, list[int]] = {}
+    for match in HTML_BLOCK_OPEN_RE.finditer(text):
+        tag_start = text.find("<", match.start(), match.end())
+        assert tag_start != -1
+        candidates_by_tag.setdefault(match.group("tag").lower(), []).append(tag_start)
+    if not candidates_by_tag:
+        return {}
 
-    tag_pattern = re.compile(
-        rf"<(?P<closing>/[ \t]*)?{re.escape(tag)}(?=[ \t/>])[^>]*>",
-        re.IGNORECASE,
-    )
-    depth = 1
-    for match in tag_pattern.finditer(text, search_start):
-        if match.group("closing") is not None:
-            depth -= 1
-            if depth == 0:
-                return match.end()
-        elif not match.group().rstrip().endswith("/>"):
-            depth += 1
-    return None
+    events_by_tag: dict[str, list[tuple[int, int, bool, bool, bool]]] = {
+        tag: [] for tag in candidates_by_tag
+    }
+    for match in HTML_TAG_EVENT_RE.finditer(text):
+        tag = match.group("tag").lower()
+        if tag not in events_by_tag:
+            continue
+        closing = match.group("closing") is not None
+        tail = match.group("tail")
+        events_by_tag[tag].append(
+            (
+                match.start(),
+                match.end(),
+                closing,
+                not closing and tail.rstrip().endswith("/"),
+                closing and not tail.strip(),
+            )
+        )
+
+    closes: dict[int, int] = {}
+    for tag, candidates in candidates_by_tag.items():
+        events = events_by_tag[tag]
+        if tag in HTML_RAWTEXT_TAGS:
+            close_index = 0
+            raw_closes = [event for event in events if event[4]]
+            for candidate in candidates:
+                while close_index < len(raw_closes) and raw_closes[close_index][0] <= candidate:
+                    close_index += 1
+                if close_index < len(raw_closes):
+                    closes[candidate] = raw_closes[close_index][1]
+            continue
+
+        stack: list[int] = []
+        pending: dict[int, list[int]] = {}
+        candidate_index = 0
+        event_index = 0
+        while candidate_index < len(candidates) or event_index < len(events):
+            candidate = (
+                candidates[candidate_index]
+                if candidate_index < len(candidates)
+                else len(text)
+            )
+            event = events[event_index] if event_index < len(events) else None
+            event_start = event[0] if event is not None else len(text)
+            position = min(candidate, event_start)
+            is_candidate = candidate == position
+            is_event = event_start == position
+
+            # Incomplete and self-closing block openers historically use the next
+            # same-tag close at their current nesting depth, without becoming nested.
+            if is_candidate and (not is_event or event is None or event[2] or event[3]):
+                pending.setdefault(len(stack), []).append(candidate)
+            if is_event and event is not None:
+                _start, end, closing, self_closing, _raw_closing = event
+                if closing:
+                    depth = len(stack)
+                    if stack:
+                        closes[stack.pop()] = end
+                    for pending_start in pending.pop(depth, []):
+                        closes[pending_start] = end
+                elif not self_closing:
+                    stack.append(event_start)
+
+            if is_candidate:
+                candidate_index += 1
+            if is_event:
+                event_index += 1
+    return closes
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:

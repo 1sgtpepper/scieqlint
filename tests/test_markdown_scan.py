@@ -4,6 +4,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+from scieqlint import markdown as markdown_module
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.frontend.myst import MySTFrontend
@@ -36,6 +37,23 @@ class _CharacterWorkText(str):
         return super().__getitem__(key)
 
 
+class _RegexTraversal:
+    def __init__(self, pattern, work: list[int]) -> None:
+        self._pattern = pattern
+        self._work = work
+
+    def finditer(self, string: str, pos: int = 0, endpos: int | None = None):
+        search_end = len(string) if endpos is None else endpos
+        self._work[0] += search_end - pos
+        return self._pattern.finditer(string, pos, search_end)
+
+    def search(self, string: str, pos: int = 0, endpos: int | None = None):
+        search_end = len(string) if endpos is None else endpos
+        match = self._pattern.search(string, pos, search_end)
+        self._work[0] += (match.end() if match is not None else search_end) - pos
+        return match
+
+
 @pytest.mark.parametrize(
     "source",
     [
@@ -51,6 +69,30 @@ def test_ordered_markdown_lexer_bounds_explicit_character_work(source: str) -> N
     markdown_opaque_ranges(tracked)
 
     assert tracked.character_work <= 20 * len(tracked)
+
+
+def test_repeated_unclosed_html_blocks_bound_regex_traversal(monkeypatch) -> None:
+    source = "<div>\n\n" * 512
+    regex_work = [0]
+    original_compile = markdown_module.re.compile
+
+    tag_events = getattr(markdown_module, "HTML_TAG_EVENT_RE", None)
+    if tag_events is not None:
+        monkeypatch.setattr(
+            markdown_module,
+            "HTML_TAG_EVENT_RE",
+            _RegexTraversal(tag_events, regex_work),
+        )
+    monkeypatch.setattr(
+        markdown_module.re,
+        "compile",
+        lambda pattern, flags=0: _RegexTraversal(original_compile(pattern, flags), regex_work),
+    )
+
+    ranges = markdown_opaque_ranges(source)
+
+    assert len(ranges) == 512
+    assert regex_work[0] <= 2 * len(source)
 
 
 def test_scans_display_math_label_and_markdown_reference() -> None:
