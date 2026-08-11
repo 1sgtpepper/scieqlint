@@ -4,6 +4,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 
 import pytest
 
+from scieqlint import __version__
 from scieqlint import app as app_module
 from scieqlint.api import check_documents, check_paths, graph_paths
 from scieqlint.config.model import (
@@ -14,6 +15,7 @@ from scieqlint.config.model import (
     ReferencesConfig,
     ScannerConfig,
 )
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io import identity as identity_module
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.json import JsonReporter
@@ -82,14 +84,38 @@ def test_check_paths_renders_absolute_input_relative_to_cwd(tmp_path, monkeypatc
     workspace.mkdir()
     outside.mkdir()
     path = outside / "bad.md"
-    path.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
+    source = "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+    path.write_text(source, encoding="utf-8")
     monkeypatch.chdir(workspace)
 
     result = check_paths([path])
 
-    diagnostic = result.diagnostics[0]
-    assert diagnostic.span is not None
-    assert diagnostic.span.path == PurePosixPath("../outside/bad.md")
+    equation_start = source.index("(a+b)^2")
+    equation = "(a+b)^2 = a^2 + b^2"
+    equation_end = equation_start + len(equation)
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.config_path is None
+    assert result.version == __version__
+    assert result.diagnostics == (
+        Diagnostic(
+            code="ALG001",
+            severity=Severity.ERROR,
+            message="algebraic identity does not hold",
+            span=SourceSpan(
+                path=PurePosixPath("../outside/bad.md"),
+                start=equation_start,
+                end=equation_end,
+                line=2,
+                col=1,
+                end_line=2,
+                end_col=len(equation),
+            ),
+            equation=equation,
+            detail="left - right = 2*a*b",
+            rule="algebra",
+        ),
+    )
 
 
 def test_default_path_presentation_rejects_different_native_roots() -> None:
