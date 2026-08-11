@@ -4,9 +4,12 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+from scieqlint import __version__
 from scieqlint.api import check_documents
 from scieqlint.config.model import Config
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.scan import latex as latex_module
 from scieqlint.scan.base import (
     LabelSource,
     MathContainer,
@@ -14,6 +17,30 @@ from scieqlint.scan.base import (
     SymbolDirectiveSource,
 )
 from scieqlint.scan.latex import LatexScanner
+
+
+class _CharacterWorkText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.character_work = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            self.character_work += len(range(start, stop, step))
+        else:
+            self.character_work += 1
+        return super().__getitem__(key)
+
+
+def test_align_row_scanning_bounds_backslash_character_work() -> None:
+    source = _CharacterWorkText("\\" * 2_048)
+
+    rows = tuple(latex_module._align_rows(source, 0, len(source), ()))
+
+    assert len(rows) == 1_025
+    assert source.character_work <= 10 * len(source)
 
 
 def test_latex_equation_environment_is_extracted() -> None:
@@ -99,24 +126,44 @@ def test_latex_scanner_ignores_comments_and_verbatim() -> None:
 
 @pytest.mark.public_regression
 def test_public_commented_verbatim_markers_do_not_hide_live_equations() -> None:
+    source = (
+        "% \\begin{verbatim}\n"
+        "\\begin{equation}\n"
+        "x = x + 1\n"
+        "\\end{equation}\n"
+        "% \\end{verbatim}\n"
+        "\\% \\begin{equation}y = y\\end{equation}\n"
+    )
     result = check_documents(
-        [
-            _document(
-                "% \\begin{verbatim}\n"
-                "\\begin{equation}\n"
-                "x = x + 1\n"
-                "\\end{equation}\n"
-                "% \\end{verbatim}\n"
-                "\\% \\begin{equation}y = y\\end{equation}\n"
-            )
-        ],
+        [_document(source)],
         config=Config(),
     )
 
+    equation_start = source.index("x = x + 1")
+    equation_end = equation_start + len("x = x + 1")
+    assert result.files_checked == 1
     assert result.math_blocks_checked == 2
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
-    assert result.diagnostics[0].span is not None
-    assert result.diagnostics[0].span.line == 3
+    assert result.config_path is None
+    assert result.version == __version__
+    assert result.diagnostics == (
+        Diagnostic(
+            code="ALG001",
+            severity=Severity.ERROR,
+            message="algebraic identity does not hold",
+            span=SourceSpan(
+                path=PurePosixPath("paper.tex"),
+                start=equation_start,
+                end=equation_end,
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=len("x = x + 1"),
+            ),
+            equation="x = x + 1",
+            detail="left - right = -1",
+            rule="algebra",
+        ),
+    )
 
 
 @pytest.mark.public_regression
@@ -300,21 +347,47 @@ def test_escaped_environment_closer_does_not_end_live_equation() -> None:
 
 @pytest.mark.public_regression
 def test_public_escaped_verbatim_markers_leave_live_equations_active() -> None:
+    source = (
+        r"\\begin{verbatim}"
+        "\n"
+        r"\begin{equation}"
+        "\n"
+        "x = x + 1\n"
+        r"\end{equation}"
+        "\n"
+        r"\\end{verbatim}"
+        "\n"
+    )
     result = check_documents(
-        [
-            _document(
-                r"\\begin{verbatim}" + "\n"
-                r"\begin{equation}" + "\n"
-                "x = x + 1\n"
-                r"\end{equation}" + "\n"
-                r"\\end{verbatim}" + "\n"
-            )
-        ],
+        [_document(source)],
         config=Config(),
     )
 
+    equation_start = source.index("x = x + 1")
+    equation_end = equation_start + len("x = x + 1")
+    assert result.files_checked == 1
     assert result.math_blocks_checked == 1
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
+    assert result.config_path is None
+    assert result.version == __version__
+    assert result.diagnostics == (
+        Diagnostic(
+            code="ALG001",
+            severity=Severity.ERROR,
+            message="algebraic identity does not hold",
+            span=SourceSpan(
+                path=PurePosixPath("paper.tex"),
+                start=equation_start,
+                end=equation_end,
+                line=3,
+                col=1,
+                end_line=3,
+                end_col=len("x = x + 1"),
+            ),
+            equation="x = x + 1",
+            detail="left - right = -1",
+            rule="algebra",
+        ),
+    )
 
 
 def test_verbatim_closer_ignores_backslash_parity() -> None:
@@ -396,11 +469,30 @@ def test_public_escaped_latex_labels_are_not_equation_labels() -> None:
     )
     result = check_documents([_document(source)], config=Config())
 
+    target_start = source.rindex("escaped")
+    target_end = target_start + len("escaped")
+    assert result.files_checked == 1
     assert result.math_blocks_checked == 1
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
-    span = result.diagnostics[0].span
-    assert span is not None
-    assert source[span.start : span.end] == "escaped"
+    assert result.config_path is None
+    assert result.version == __version__
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: escaped",
+            span=SourceSpan(
+                path=PurePosixPath("paper.tex"),
+                start=target_start,
+                end=target_end,
+                line=6,
+                col=25,
+                end_line=6,
+                end_col=31,
+            ),
+            detail=r"reference text: \ref{escaped}",
+            rule="references",
+        ),
+    )
 
 
 def test_carriage_return_ends_a_latex_comment() -> None:

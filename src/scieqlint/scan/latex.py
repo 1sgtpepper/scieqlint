@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections.abc import Iterable
 
 from scieqlint.config.model import Config
@@ -144,7 +145,7 @@ def _align_rows(
 ) -> Iterable[tuple[int, int]]:
     row_start = start
     cursor = start
-    ignored_index = 0
+    ignored_index = bisect_right(ignored, start, key=lambda item: item[1])
     while cursor < end:
         while ignored_index < len(ignored) and ignored[ignored_index][1] <= cursor:
             ignored_index += 1
@@ -153,12 +154,21 @@ def _align_rows(
             if ignored_start <= cursor < ignored_end:
                 cursor = min(ignored_end, end)
                 continue
-        if text.startswith(r"\\", cursor) and not _is_escaped(text, cursor):
-            yield _trim_span(text, row_start, cursor)
-            row_start = _row_break_end(text, cursor + 2, end)
-            cursor = row_start
+        if text[cursor] != "\\":
+            cursor += 1
             continue
-        cursor += 1
+
+        run_end = cursor + 1
+        while run_end < end and text[run_end] == "\\":
+            run_end += 1
+        separator = cursor
+        while separator + 1 < run_end:
+            yield _trim_span(text, row_start, separator)
+            row_start = separator + 2
+            separator += 2
+        if separator == run_end:
+            row_start = _row_break_end(text, row_start, end)
+        cursor = max(run_end, row_start)
     yield _trim_span(text, row_start, end)
 
 
