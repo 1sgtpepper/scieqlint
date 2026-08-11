@@ -739,8 +739,10 @@ def _block_quote_content(line: str) -> tuple[int, str]:
 
 def _is_thematic_or_setext_line(line: str) -> bool:
     candidate = line.strip(" \t")
-    if not candidate or candidate[0] not in "*_-=" or any(
-        char not in {candidate[0], " ", "\t"} for char in candidate
+    if (
+        not candidate
+        or candidate[0] not in "*_-="
+        or any(char not in {candidate[0], " ", "\t"} for char in candidate)
     ):
         return False
     marker_count = sum(char == candidate[0] for char in candidate)
