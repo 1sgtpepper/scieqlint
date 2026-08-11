@@ -84,6 +84,14 @@ def test_failed_link_bodies_bound_character_work_and_keep_later_links() -> None:
     assert source.character_work <= 200 * len(source)
 
 
+def test_link_destination_parenthesis_nesting_limit() -> None:
+    supported = "[x](#" + "(" * 32 + "target" + ")" * 32 + ")"
+    unsupported = "[x](#" + "(" * 33 + "target" + ")" * 33 + ")"
+
+    assert len(_link_tokens(supported)) == 1
+    assert _link_tokens(unsupported) == ()
+
+
 def test_anchor_attachment_consumes_occupied_ranges_monotonically() -> None:
     parts: list[str] = []
     ranges: list[tuple[int, int]] = []
