@@ -116,8 +116,9 @@ Release notes must use these sections:
 - Markdown links and MyST roles now respect escapes, image syntax, and link metadata
   when creating reference facts; active role bodies are not reparsed as links, and
   decoded backslash/entity destinations retain their original source offsets for
-  diagnostics. Link metadata is also opaque to math and structure lowering. Link
-  facts share one immutable lexical snapshot across producers,
+  diagnostics. Link labels stop at paragraph and block boundaries. Link metadata is
+  also opaque to math and structure lowering, and link facts share one immutable
+  lexical snapshot across producers,
   and heading-target classification accepts valid empty ATX headings without
   accepting missing-space forms.
 

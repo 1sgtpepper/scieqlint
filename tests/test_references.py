@@ -4,7 +4,8 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-from scieqlint.api import check_documents
+from scieqlint import markdown as markdown_module
+from scieqlint.api import check_documents, graph_documents
 from scieqlint.check.references import check_references
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.diag.model import Severity
@@ -14,6 +15,38 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import markdown_reference_snapshot
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner
+
+
+class _CharacterWorkText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.character_work = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            self.character_work += len(range(start, stop, step))
+        else:
+            self.character_work += 1
+        return super().__getitem__(key)
+
+    def find(self, sub: str, start: int = 0, end: int | None = None) -> int:
+        search_end = len(self) if end is None else end
+        self.character_work += max(0, search_end - start)
+        return super().find(sub, start, search_end)
+
+
+class _RangeWork(tuple[tuple[int, int], ...]):
+    def __new__(cls, ranges: tuple[tuple[int, int], ...]):
+        instance = super().__new__(cls, ranges)
+        instance.item_reads = 0
+        return instance
+
+    def __iter__(self):
+        for item in super().__iter__():
+            self.item_reads += 1
+            yield item
 
 
 def _scan(text: str):
@@ -27,6 +60,38 @@ def _scan(text: str):
 
 def _link_tokens(text: str):
     return markdown_reference_snapshot(text).links
+
+
+def test_entity_decoding_bounds_ampersand_character_work() -> None:
+    source = _CharacterWorkText("[label](#" + "&" * 2_048 + ")")
+
+    tokens = markdown_reference_snapshot(source).links
+
+    assert len(tokens) == 1
+    assert source.character_work <= 100 * len(source)
+
+
+def test_anchor_attachment_consumes_occupied_ranges_monotonically() -> None:
+    parts: list[str] = []
+    ranges: list[tuple[int, int]] = []
+    offset = 0
+    for index in range(256):
+        anchor = f"(target-{index})=\n"
+        fence = "```{note}\nbody\n```\n"
+        parts.extend((anchor, fence))
+        fence_start = offset + len(anchor)
+        ranges.append((fence_start, fence_start + len(fence)))
+        offset += len(anchor) + len(fence)
+    source = "".join(parts)
+    tracked_ranges = _RangeWork(tuple(ranges))
+
+    labels = markdown_module._attached_markdown_target_labels_from_opaque(
+        source,
+        tracked_ranges,
+    )
+
+    assert len(labels) == 256
+    assert tracked_ranges.item_reads <= 3 * len(tracked_ranges)
 
 
 def test_missing_reference_is_warning() -> None:
@@ -136,6 +201,46 @@ def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() ->
     assert _link_tokens("[x](#dest with-space)") == ()
     assert _link_tokens("[x](#dest(with space))") == ()
     assert _link_tokens("[x](#dest\x01)") == ()
+
+
+def test_markdown_link_label_accepts_one_soft_line_break() -> None:
+    assert [token.fragment_target for token in _link_tokens("[label\ncontinued](#target)")] == [
+        "target"
+    ]
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        "",
+        "```text\ncode\n```",
+        "<div>\nbody\n</div>",
+        "# Heading",
+        "- list item",
+        "> block quote",
+        "---",
+        "===",
+    ],
+    ids=["blank", "fence", "html", "heading", "list", "quote", "thematic", "setext"],
+)
+def test_markdown_link_labels_end_at_block_boundaries(boundary: str) -> None:
+    source = f"[label\n{boundary}\ncontinued](#ghost)\nSee [active](#active).\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    assert [diagnostic.message for diagnostic in result.diagnostics] == [
+        "equation reference target not found: active"
+    ]
+    assert [(node.kind, node.label) for node in graph.nodes] == [("reference", "active")]
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
+        ("label:active", "active")
+    ]
 
 
 def test_roles_in_valid_link_titles_are_opaque_but_invalid_links_are_not() -> None:

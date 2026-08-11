@@ -94,18 +94,149 @@ def test_link_metadata_does_not_claim_later_live_math() -> None:
     graph = graph_documents([document], config=Config())
 
     target_start = source.index("active")
+    target_end = target_start + len("active")
+    assert result.files_checked == 1
     assert result.math_blocks_checked == 1
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
-    assert result.diagnostics[0].span == SourceSpan(
-        path=PurePosixPath("paper.md"),
-        start=target_start,
-        end=target_start + len("active"),
-        line=8,
-        col=10,
-        end_line=8,
-        end_col=15,
+    assert result.config_path is None
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: active",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=target_start,
+                end=target_end,
+                line=8,
+                col=10,
+                end_line=8,
+                end_col=15,
+            ),
+            detail="reference text: {eq}`active`",
+            rule="references",
+        ),
     )
-    assert [(node.kind, node.label) for node in graph.nodes] == [("reference", "active")]
+    assert [
+        (node.id, node.kind, node.label, node.source, node.span.line, node.span.col)
+        for node in graph.nodes
+    ] == [
+        (
+            f"ref:paper.md:{target_start}",
+            "reference",
+            "active",
+            ReferenceSource.MYST_EQ_ROLE.value,
+            8,
+            10,
+        )
+    ]
+    assert [
+        (edge.source, edge.target, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == [
+        (
+            f"ref:paper.md:{target_start}",
+            "label:active",
+            "active",
+            "{eq}`active`",
+            ReferenceSource.MYST_EQ_ROLE.value,
+        )
+    ]
+
+
+@pytest.mark.public_regression
+def test_markdown_link_labels_do_not_cross_block_boundaries() -> None:
+    source = (
+        "[soft\ncontinued](#soft)\n"
+        "[blank\n\ncontinued](#blank)\n"
+        "[fence\n```text\ncode\n```\ncontinued](#fence)\n"
+        "See {eq}`control`.\n"
+    )
+    document = _markdown("paper.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    soft_start = source.index("#soft") + 1
+    control_start = source.index("control")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path is None
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: soft",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=soft_start,
+                end=soft_start + len("soft"),
+                line=2,
+                col=13,
+                end_line=2,
+                end_col=16,
+            ),
+            detail="reference text: [soft\ncontinued](#soft)",
+            rule="references",
+        ),
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: control",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=control_start,
+                end=control_start + len("control"),
+                line=11,
+                col=10,
+                end_line=11,
+                end_col=16,
+            ),
+            detail="reference text: {eq}`control`",
+            rule="references",
+        ),
+    )
+    assert [
+        (node.id, node.kind, node.label, node.source, node.span.line, node.span.col)
+        for node in graph.nodes
+    ] == [
+        (
+            f"ref:paper.md:{soft_start}",
+            "reference",
+            "soft",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+            2,
+            13,
+        ),
+        (
+            f"ref:paper.md:{control_start}",
+            "reference",
+            "control",
+            ReferenceSource.MYST_EQ_ROLE.value,
+            11,
+            10,
+        ),
+    ]
+    assert [
+        (edge.source, edge.target, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == [
+        (
+            f"ref:paper.md:{soft_start}",
+            "label:soft",
+            "soft",
+            "[soft\ncontinued](#soft)",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+        ),
+        (
+            f"ref:paper.md:{control_start}",
+            "label:control",
+            "control",
+            "{eq}`control`",
+            ReferenceSource.MYST_EQ_ROLE.value,
+        ),
+    ]
 
 
 @pytest.mark.public_regression

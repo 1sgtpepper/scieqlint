@@ -34,6 +34,7 @@ HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
+_LIST_ITEM_RE = re.compile(r"^[ \t]{0,3}(?:[*+-]|[0-9]{1,9}[.)])(?:[ \t]+|$)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,20 +142,26 @@ def _attached_markdown_target_labels_from_opaque(
 ) -> frozenset[str]:
     lines = _source_lines(text)
     occupied_cursor = _RangeCursor(opaque)
+    occupied_starts = {start for start, _end in opaque}
     labels: set[str] = set()
-    for index, (start, _end, line) in enumerate(lines):
-        if occupied_cursor.end_at(start) is not None:
+    pending_label: str | None = None
+    for start, _end, line in lines:
+        occupied_end = occupied_cursor.end_at(start)
+        if occupied_end is not None and start not in occupied_starts:
             continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith("<!--"):
+            continue
+
+        if pending_label is not None:
+            if parse_fence_opener(line) is not None or _is_heading_line(line):
+                labels.add(pending_label)
+            pending_label = None
+
         anchor = _MARKDOWN_ANCHOR_RE.fullmatch(line)
-        if anchor is None:
-            continue
-        next_index = _next_attachable_line_index(lines, index + 1, opaque)
-        if next_index is None:
-            continue
-        next_line = lines[next_index][2]
-        if parse_fence_opener(next_line) is not None or _is_heading_line(next_line):
+        if anchor is not None:
             label = anchor.group("label").strip()
-            labels.add(label[1:] if label.startswith("#") else label)
+            pending_label = label[1:] if label.startswith("#") else label
     return frozenset(labels)
 
 
@@ -322,27 +329,6 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
         lines.append((start, end, line))
         start = end
     return lines
-
-
-def _next_attachable_line_index(
-    lines: Sequence[tuple[int, int, str]],
-    index: int,
-    occupied: Sequence[OffsetRange],
-) -> int | None:
-    while index < len(lines):
-        line_start = lines[index][0]
-        stripped = lines[index][2].strip()
-        if not stripped or stripped.startswith("<!--"):
-            index += 1
-            continue
-        containing_start = next(
-            (start for start, end in occupied if start <= line_start < end),
-            None,
-        )
-        if containing_start is None or containing_start == line_start:
-            return index
-        index += 1
-    return None
 
 
 def _is_heading_line(line: str) -> bool:
@@ -641,8 +627,14 @@ def _markdown_link_tokens_from_lexical(
     tokens: list[MarkdownLinkToken] = []
     protected_cursor = _RangeCursor(protected)
     stack: list[_LinkFrame] = []
+    boundaries = _link_label_boundaries(text)
+    boundary_index = 0
     index = 0
     while index < len(text):
+        while boundary_index < len(boundaries) and boundaries[boundary_index] <= index:
+            _flush_link_frames(stack, tokens)
+            boundary_index += 1
+
         protected_end = protected_cursor.end_at(index)
         if protected_end is not None:
             index = protected_end
@@ -690,9 +682,89 @@ def _markdown_link_tokens_from_lexical(
             tokens.extend(visible_children)
         index = next_index
 
+    _flush_link_frames(stack, tokens)
+    return tuple(sorted(tokens, key=lambda token: token.start))
+
+
+def _flush_link_frames(
+    stack: list[_LinkFrame],
+    tokens: list[MarkdownLinkToken],
+) -> None:
     while stack:
         tokens.extend(stack.pop().children)
-    return tuple(sorted(tokens, key=lambda token: token.start))
+
+
+def _link_label_boundaries(text: str) -> tuple[int, ...]:
+    boundaries: set[int] = set()
+    previous_quote_depth = 0
+    for start, end, line in _source_lines(text):
+        content = line.rstrip("\r")
+        if not content.strip(" \t"):
+            boundaries.add(start)
+            previous_quote_depth = 0
+            continue
+
+        quote_depth, block_content = _block_quote_content(content)
+        if quote_depth and quote_depth != previous_quote_depth:
+            boundaries.add(start)
+        previous_quote_depth = quote_depth
+
+        if _is_heading_line(block_content) or _is_thematic_or_setext_line(block_content):
+            boundaries.update((start, end))
+            continue
+        if (
+            _LIST_ITEM_RE.match(block_content) is not None
+            or parse_fence_opener(block_content) is not None
+            or _starts_html_block(block_content)
+            or _starts_display_block(block_content)
+        ):
+            boundaries.add(start)
+    return tuple(sorted(boundaries))
+
+
+def _block_quote_content(line: str) -> tuple[int, str]:
+    depth = 0
+    index = 0
+    while True:
+        marker = index
+        while marker < len(line) and marker - index < 3 and line[marker] == " ":
+            marker += 1
+        if marker >= len(line) or line[marker] != ">":
+            return depth, line[index:]
+        depth += 1
+        index = marker + 1
+        if index < len(line) and line[index] in " \t":
+            index += 1
+
+
+def _is_thematic_or_setext_line(line: str) -> bool:
+    candidate = line.strip(" \t")
+    if not candidate or candidate[0] not in "*_-=" or any(
+        char not in {candidate[0], " ", "\t"} for char in candidate
+    ):
+        return False
+    marker_count = sum(char == candidate[0] for char in candidate)
+    return marker_count >= (1 if candidate[0] == "=" else 3)
+
+
+def _starts_html_block(line: str) -> bool:
+    candidate = line.lstrip(" \t")
+    if len(line) - len(candidate) > 3:
+        return False
+    return (
+        HTML_BLOCK_OPEN_RE.match(line) is not None
+        or candidate.startswith(("<!--", "<?", "<![CDATA["))
+        or re.match(r"<![A-Z]", candidate, re.IGNORECASE) is not None
+    )
+
+
+def _starts_display_block(line: str) -> bool:
+    candidate = line.lstrip(" ")
+    return (
+        len(line) - len(candidate) <= 3
+        and candidate.startswith("$$")
+        and not candidate.startswith("$$$")
+    )
 
 
 def _make_link_token(
@@ -751,8 +823,8 @@ def _decode_destination_span(
             spans.append((index, index + 2))
             index += 2
             continue
-        entity_end = text.find(";", index + 1, end) if text[index] == "&" else -1
-        if entity_end != -1:
+        entity_end = _entity_end_at(text, index, end) if text[index] == "&" else None
+        if entity_end is not None:
             entity = text[index : entity_end + 1]
             decoded_entity = _decode_entity(entity)
             if decoded_entity is not None:
@@ -764,6 +836,30 @@ def _decode_destination_span(
         spans.append((index, index + 1))
         index += 1
     return "".join(decoded), tuple(spans)
+
+
+def _entity_end_at(text: str, start: int, end: int) -> int | None:
+    cursor = start + 1
+    if cursor >= end:
+        return None
+    if text[cursor] == "#":
+        cursor += 1
+        is_hex = cursor < end and text[cursor] in "xX"
+        if is_hex:
+            cursor += 1
+        digits_start = cursor
+        valid_digits = "0123456789abcdefABCDEF" if is_hex else "0123456789"
+        while cursor < end and text[cursor] in valid_digits:
+            cursor += 1
+        if cursor == digits_start:
+            return None
+    else:
+        name_start = cursor
+        while cursor < end and text[cursor].isascii() and text[cursor].isalnum():
+            cursor += 1
+        if cursor == name_start:
+            return None
+    return cursor if cursor < end and text[cursor] == ";" else None
 
 
 def _metadata_ranges_from_tokens(

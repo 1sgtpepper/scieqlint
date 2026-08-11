@@ -118,7 +118,8 @@ Only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
 references, math, structure facts, or structure diagnostics. MyST roles do not
 cross source-line boundaries. The reference lexer supports inline links with balanced labels,
-soft line breaks, bounded destinations, and nonblank multiline titles.
+soft line breaks within one inline container, bounded destinations, and nonblank multiline
+titles. Blank lines and Markdown block starts end unmatched link labels.
 Parenthesized titles require literal parentheses to be backslash-escaped, and
 valid named or numeric character references in destinations are decoded for
 resolution. Reference-link definitions, autolinks, and the full CommonMark
