@@ -52,6 +52,17 @@ def test_check_clean_file_reports_empty_success(tmp_path) -> None:
     assert "files checked: 1" in result.output
 
 
+def test_check_accepts_markdown_lexical_precedence_fixture() -> None:
+    result = CliRunner().invoke(
+        main,
+        ["check", "tests/fixtures/good/markdown_lexical_precedence.md"],
+    )
+
+    assert result.exit_code == 0
+    assert "found no diagnostics" in result.output
+    assert "files checked: 1" in result.output
+
+
 def test_check_quiet_suppresses_empty_success_text(tmp_path) -> None:
     doc = tmp_path / "README.md"
     doc.write_text("# Example\n", encoding="utf-8")

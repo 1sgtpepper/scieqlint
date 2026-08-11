@@ -181,6 +181,14 @@ def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None
     assert disabled.diagnostics == ()
 
 
+def test_four_space_fence_closer_remains_inside_the_fence():
+    snapshot = MySTFrontend().lower((doc("```{math}\nx = x\n    ```\ny = y\n```\n"),))
+
+    assert len(snapshot.fences) == 1
+    assert snapshot.fences[0].is_closed is True
+    assert "    ```" in snapshot.fences[0].raw
+
+
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
     snapshot = MySTFrontend().lower((fixture_doc(GOOD_FIXTURE),))
     query = QueryHost(snapshot)
@@ -491,16 +499,55 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
     assert [(ref.target, ref.normalized_target) for ref in snapshot.generic_refs] == [
         ("#part-one", "part-one")
     ]
-    assert [(label.label, label.label_syntax_kind) for label in snapshot.equation_labels] == [
-        ("eq-end", "dollar-tail")
-    ]
-    assert [math.body for math in snapshot.display_math] == ["visible\n```\n$$\n```"]
+    assert snapshot.equation_labels == ()
+    assert [math.body for math in snapshot.display_math] == ["visible\n```"]
     assert [diagnostic.code for diagnostic in diagnostics] == [
         "STR005",
+        "STR002",
         "STR003",
         "STR003",
         "DIR010",
     ]
+
+
+def test_frontend_structure_uses_shared_markdown_opacity() -> None:
+    source = doc(
+        "$$\n"
+        "(math-hidden)=\n"
+        "# Math hidden\n"
+        "```\n"
+        "{eq}`\n"
+        "$$\n\n"
+        "<!--\n"
+        "(html-hidden)=\n"
+        "# HTML hidden\n"
+        "```\n"
+        "{ref}`\n"
+        "-->\n\n"
+        "(visible)=\n"
+        "# Visible\n"
+        "```python\n"
+        "pass\n"
+        "```\n"
+    )
+
+    snapshot = MySTFrontend().lower((source,))
+
+    assert [heading.text for heading in snapshot.headings] == ["Visible"]
+    assert [anchor.label for anchor in snapshot.target_anchors] == ["visible"]
+    assert [fence.language for fence in snapshot.fences] == ["python"]
+    assert snapshot.structure_syntax_issues == ()
+
+
+def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
+    snapshot = MySTFrontend().lower(
+        (doc("$$\n(hidden)=\n# Hidden\n```python\npass\n```\n{eq}`\n"),)
+    )
+
+    assert snapshot.headings == ()
+    assert snapshot.target_anchors == ()
+    assert snapshot.fences == ()
+    assert snapshot.structure_syntax_issues == ()
 
 
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():

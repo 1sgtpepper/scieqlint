@@ -9,6 +9,14 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import (
+    code_fence_ranges,
+    dollar_display_opener_positions,
+    dollar_display_ranges,
+    dollar_inline_ranges,
+    inline_code_ranges,
+    is_fence_closer,
+)
 from scieqlint.scan.base import (
     EquationLabel,
     EquationReference,
@@ -22,17 +30,6 @@ from scieqlint.scan.base import (
 )
 from scieqlint.scan.symbols import parse_symbol_directive
 
-DISPLAY_RE = re.compile(r"\$\$(?P<body>.*?)(?P<close>\$\$)(?P<tail>[^\n]*)", re.DOTALL)
-INLINE_RE = re.compile(r"(?<!\$)\$(?!\$)(?P<body>[^\n$]+?)(?<!\$)\$(?!\$)")
-INLINE_CODE_RE = re.compile(r"(?P<ticks>`+)[^`\n]*(?P=ticks)")
-CODE_FENCE_RE = re.compile(
-    r"^```(?!math|\{math\})[^\n]*\n.*?^```[ \t]*$",
-    re.MULTILINE | re.DOTALL,
-)
-FENCE_RE = re.compile(
-    r"^```(?P<kind>math|\{math\})[ \t]*\n(?P<body>.*?)(?P<close>^```[ \t]*$)",
-    re.MULTILINE | re.DOTALL,
-)
 TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
@@ -44,6 +41,8 @@ SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
 )
+
+_MathFenceRange = tuple[int, int, int, int | None]
 
 
 class MarkdownScanner:
@@ -62,11 +61,12 @@ class MarkdownScanner:
         diagnostics.extend(_unterminated_display_diagnostics(document))
 
         if config.scanner.math_fences:
-            for block in _fenced_blocks(document):
+            math_fences = _math_fence_ranges(document.text)
+            for block in _fenced_blocks(document, math_fences):
                 blocks.append(block)
                 labels.extend(_tex_labels(document, block))
                 labels.extend(_myst_directive_labels(document, block))
-            diagnostics.extend(_unterminated_fence_diagnostics(document))
+            diagnostics.extend(_unterminated_fence_diagnostics(document, math_fences))
 
         if config.scanner.inline_math:
             blocks.extend(_inline_blocks(document, blocks))
@@ -87,6 +87,8 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
     for _start, body_start, body_end, _end in _display_ranges(document):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
+        if not text:
+            continue
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=text,
@@ -97,58 +99,50 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 
 
 def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
-    closed = {(start, end) for start, _body_start, _body_end, end in _display_ranges(document)}
-    occupied = _code_spans(document)
-    for match in re.finditer(r"\$\$", document.text):
-        if any(start <= match.start() < end for start, end in closed):
+    # Both lexical results identify a display opener by its exact source start.
+    closed_starts = {start for start, _body_start, _body_end, _end in _display_ranges(document)}
+    for start in dollar_display_opener_positions(document.text, ()):
+        if start in closed_starts:
             continue
-        if any(start <= match.start() < end for start, end in occupied):
-            continue
-        next_close = _find_display_close(document, match.end(), occupied)
-        if next_close == -1:
-            yield _scan_diagnostic(document, match.start(), match.end())
+        yield _scan_diagnostic(document, start, start + 2)
 
 
 def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
-    occupied = _code_spans(document)
-    cursor = 0
-    while True:
-        start = document.text.find("$$", cursor)
-        if start == -1:
-            return
-        if _in_ranges(start, occupied):
-            cursor = start + 2
-            continue
-        close = _find_display_close(document, start + 2, occupied)
-        if close == -1:
-            cursor = start + 2
-            continue
-        yield (start, start + 2, close, close + 2)
-        cursor = close + 2
+    return iter(dollar_display_ranges(document.text, ()))
 
 
-def _find_display_close(
+def _inline_ranges(
     document: SourceDocument,
-    start: int,
     occupied: tuple[tuple[int, int], ...],
-) -> int:
-    cursor = start
-    while True:
-        close = document.text.find("$$", cursor)
-        if close == -1:
-            return -1
-        if not _in_ranges(close, occupied):
-            return close
-        cursor = close + 2
+) -> Iterable[tuple[int, int, int, int]]:
+    return iter(dollar_inline_ranges(document.text, occupied))
 
 
-def _fenced_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for match in FENCE_RE.finditer(document.text):
-        span_start, span_end = _trimmed_body_range(
-            document,
-            match.start("body"),
-            match.end("body"),
-        )
+def _math_fence_ranges(text: str) -> tuple[_MathFenceRange, ...]:
+    """Derive supported math fences from the shared lexical ownership result."""
+    ranges: list[_MathFenceRange] = []
+    for opener_start, range_end in code_fence_ranges(text):
+        source = text[opener_start:range_end]
+        opener_line, newline, _body = source.partition("\n")
+        if opener_line.removeprefix("```").rstrip(" \t") not in {"math", "{math}"}:
+            continue
+        marker = "```"
+        opener_end = opener_start + len(opener_line)
+        body_start = opener_end + len(newline)
+        lines = source.splitlines(keepends=True)
+        body_end = range_end - len(lines[-1]) if is_fence_closer(lines[-1], marker) else None
+        ranges.append((opener_start, opener_end, body_start, body_end))
+    return tuple(ranges)
+
+
+def _fenced_blocks(
+    document: SourceDocument,
+    fences: Iterable[_MathFenceRange],
+) -> Iterable[MathBlock]:
+    for _opener_start, _opener_end, body_start, body_end in fences:
+        if body_end is None:
+            continue
+        span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         span = _span(document, span_start, span_end)
         yield MathBlock(
             text=document.text[span_start:span_end],
@@ -171,15 +165,13 @@ def math_container_opener_lines(
         block_id = block_ids.get((MathContainer.MARKDOWN_DISPLAY, span_start, span_end))
         if block_id is not None:
             opener_lines[block_id] = document.line_index.position(opener_start)[0]
-    for match in FENCE_RE.finditer(document.text):
-        span_start, span_end = _trimmed_body_range(
-            document,
-            match.start("body"),
-            match.end("body"),
-        )
+    for opener_start, _opener_end, body_start, body_end in _math_fence_ranges(document.text):
+        if body_end is None:
+            continue
+        span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         block_id = block_ids.get((MathContainer.MARKDOWN_FENCE, span_start, span_end))
         if block_id is not None:
-            opener_lines[block_id] = document.line_index.position(match.start())[0]
+            opener_lines[block_id] = document.line_index.position(opener_start)[0]
     return opener_lines
 
 
@@ -195,29 +187,22 @@ def _trimmed_body_range(
     )
 
 
-def _unterminated_fence_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
-    closed = {(match.start(), match.end()) for match in FENCE_RE.finditer(document.text)}
-    for match in re.finditer(r"^```(?:math|\{math\})[ \t]*$", document.text, re.MULTILINE):
-        if any(start <= match.start() < end for start, end in closed):
-            continue
-        next_close = re.search(r"^```[ \t]*$", document.text[match.end() :], re.MULTILINE)
-        if next_close is None:
-            yield _scan_diagnostic(document, match.start(), match.end())
+def _unterminated_fence_diagnostics(
+    document: SourceDocument,
+    fences: Iterable[_MathFenceRange],
+) -> Iterable[Diagnostic]:
+    for opener_start, opener_end, _body_start, body_end in fences:
+        if body_end is None:
+            yield _scan_diagnostic(document, opener_start, opener_end)
 
 
 def _inline_blocks(
     document: SourceDocument,
     existing_blocks: list[MathBlock],
 ) -> Iterable[MathBlock]:
-    occupied = (
-        *((block.span.start, block.span.end) for block in existing_blocks),
-        *_code_spans(document),
-    )
-    for match in INLINE_RE.finditer(document.text):
-        body_start = match.start("body")
-        if any(start <= body_start < end for start, end in occupied):
-            continue
-        body = match.group("body")
+    occupied = tuple((block.span.start, block.span.end) for block in existing_blocks)
+    for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
+        body = document.text[body_start:body_end]
         text = body.strip()
         if not text:
             continue
@@ -234,8 +219,8 @@ def _inline_blocks(
 
 def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
     return (
-        *((match.start(), match.end()) for match in INLINE_CODE_RE.finditer(document.text)),
-        *((match.start(), match.end()) for match in CODE_FENCE_RE.finditer(document.text)),
+        *inline_code_ranges(document.text),
+        *code_fence_ranges(document.text),
     )
 
 
@@ -264,20 +249,23 @@ def _display_tail_labels(document: SourceDocument, block: MathBlock) -> Iterable
     if line_end == -1:
         line_end = len(document.text)
     tail = document.text[tail_start:line_end]
-    for match in DOLLAR_LABEL_RE.finditer(tail):
-        raw = match.group(1) or match.group(2)
-        if raw is None:
-            continue
-        label_start = tail_start + match.start(1 if match.group(1) else 2)
-        label_end = tail_start + match.end(1 if match.group(1) else 2)
-        yield EquationLabel(
-            label=_normalize_label(raw),
-            span=_span(document, label_start, label_end),
-            block_id=block.block_id,
-            source=(
-                LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR
-            ),
-        )
+    leading = len(tail) - len(tail.lstrip(" \t"))
+    trailing = len(tail.rstrip(" \t"))
+    candidate = tail[leading:trailing]
+    match = DOLLAR_LABEL_RE.fullmatch(candidate)
+    if match is None:
+        return
+    group_name = 1 if match.group(1) else 2
+    raw = match.group(group_name)
+    assert raw is not None
+    label_start = tail_start + leading + match.start(group_name)
+    label_end = tail_start + leading + match.end(group_name)
+    yield EquationLabel(
+        label=_normalize_label(raw),
+        span=_span(document, label_start, label_end),
+        block_id=block.block_id,
+        source=(LabelSource.MYST_DOLLAR_LABEL if match.group(2) else LabelSource.MARKDOWN_ANCHOR),
+    )
 
 
 def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:

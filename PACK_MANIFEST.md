@@ -61,6 +61,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `benchmarks/accuracy/algebra.yml`
 - `benchmarks/accuracy/dimensions.yml`
 - `benchmarks/accuracy/latex.yml`
+- `benchmarks/accuracy/markdown.yml`
 - `benchmarks/accuracy/notebook.yml`
 - `benchmarks/accuracy/parse_unknown.yml`
 - `benchmarks/accuracy/references.yml`
@@ -173,6 +174,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/ir/__init__.py`
 - `src/scieqlint/ir/model.py`
+- `src/scieqlint/markdown.py`
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
@@ -227,6 +229,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/alias_dimensions_good.md`
 - `tests/fixtures/good/architecture_myst_good.md`
 - `tests/fixtures/good/graph_refs.md`
+- `tests/fixtures/good/markdown_lexical_precedence.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
 - `tests/fixtures/good/symbol_directives.md`

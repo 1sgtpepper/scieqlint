@@ -12,6 +12,7 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import code_fence_ranges, markdown_opaque_ranges
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import (
@@ -73,21 +74,22 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
 def _lower_document(document: SourceDocument) -> FactSnapshot:
     smap = SourceMap.for_document(document)
     lines = line_ranges(document.text)
-    fences = scan_fences(document, smap, lines)
+    live_fence_ranges = code_fence_ranges(document.text)
+    fences = scan_fences(document, smap, lines, live_fence_ranges)
     occupied_fence_ranges = fence_ranges(fences, document.text)
+    occupied_structure_ranges = markdown_opaque_ranges(document.text)
     directives, code_cells = directive_and_code_cell_facts(document, fences)
     structure_syntax_issues = (
-        *scan_structure_syntax_issues(document, smap, occupied_fence_ranges, fences),
-        *scan_heading_syntax_issues(document, smap, lines, occupied_fence_ranges),
+        *scan_structure_syntax_issues(document, smap, occupied_structure_ranges, fences),
+        *scan_heading_syntax_issues(document, smap, lines, occupied_structure_ranges),
     )
-    headings = tuple(scan_headings(document, smap, lines, occupied_fence_ranges))
-    anchors = tuple(scan_anchors(document, smap, lines, occupied_fence_ranges))
+    headings = tuple(scan_headings(document, smap, lines, occupied_structure_ranges))
+    anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
     target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
     sections = tuple(sections_for_headings(headings))
     display_math, equation_labels = scan_display_math(
         document,
         smap,
-        occupied_fence_ranges,
         fences,
     )
     generic_refs, equation_refs = scan_refs(document, smap, occupied_fence_ranges)
@@ -95,7 +97,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         scan_inline_math(
             document,
             smap,
-            math_occupied_ranges(occupied_fence_ranges, display_math),
+            math_occupied_ranges(display_math),
         )
     )
     return FactSnapshot(

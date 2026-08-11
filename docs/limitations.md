@@ -33,6 +33,14 @@ E = mc^2
 ```
 ````
 
+Dollar math follows a conservative SciEqLint profile derived from the referenced
+`mdit-py-plugins` behavior: escaped dollars and borrowed `$$$` delimiters remain
+prose; display `$$` starts after zero to three leading ASCII spaces at the start
+of a line and closes only at the end of a source line (optionally followed by one
+complete label suffix); single-dollar inline math may be adjacent to ordinary
+text but stays on one source line. Empty bodies and unmatched delimiters are not
+facts.
+
 ## Core grammar subset
 
 | Construct | Status |
@@ -86,6 +94,18 @@ Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
+The legacy scanner and architecture frontend resolve Markdown regions in source
+order: a code span, block/raw-text HTML region, or fence opened first owns later
+dollar markers, while math opened first owns later backticks and fence-like text
+until its first valid dollar close. Matching same-tag HTML blocks remain opaque
+through nested blocks. Ordinary inline HTML tags protect only their tag lexemes,
+so inline content remains live. Structural headings, anchors, fences, and syntax
+diagnostics use the same opacity rules as math scanning. Their trimmed bodies and
+spans therefore agree.
+Markdown code spans use equal-length backtick delimiters and may contain shorter
+backtick runs or line endings. Fenced-code closers require the matching marker,
+at least the opener length, and no more than three leading spaces; a backtick
+fence info string cannot contain a backtick.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank

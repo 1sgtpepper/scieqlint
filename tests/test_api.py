@@ -321,6 +321,24 @@ def test_check_documents_suppresses_adjacent_fenced_math_after_blank_body_line()
     ]
 
 
+def test_suppression_targets_live_fence_after_display_owned_fence_text() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        "$$\n```math\nhidden = hidden\n$$\n\n"
+        "<!-- scieqlint-disable-next-line ALG001 -->\n"
+        "```math\n(a+b)^2 = a^2 + b^2\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+
+    assert [
+        (diagnostic.code, diagnostic.suppressed)
+        for diagnostic in result.diagnostics
+        if diagnostic.code == "ALG001"
+    ] == [("ALG001", True)]
+
+
 def test_check_documents_keeps_next_line_suppression_on_the_adjacent_line() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
