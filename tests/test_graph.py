@@ -139,7 +139,6 @@ def test_graph_uses_only_tokenized_markdown_references() -> None:
     ]
 
 
-@pytest.mark.public_regression
 def test_link_metadata_does_not_claim_later_live_math() -> None:
     source = (
         '[site](https://example.invalid/ "\n'

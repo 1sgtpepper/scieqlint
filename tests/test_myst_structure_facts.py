@@ -552,16 +552,7 @@ def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
 
 def test_block_interrupted_link_title_does_not_hide_structure() -> None:
     snapshot = MySTFrontend().lower(
-        (
-            doc(
-                '[site](https://example.invalid/ "\n'
-                "# Visible\n"
-                "```python\n"
-                "{eq}`\n"
-                "```\n"
-                '")\n'
-            ),
-        )
+        (doc('[site](https://example.invalid/ "\n# Visible\n```python\n{eq}`\n```\n")\n'),)
     )
 
     assert [heading.text for heading in snapshot.headings] == ["Visible"]

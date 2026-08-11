@@ -348,8 +348,7 @@ def test_block_interrupted_link_titles_do_not_hide_structure_or_references(
 ) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        f'[site](#fake "title\n{boundary}\ncontinued")\n'
-        "See [active](#active).\n",
+        f'[site](#fake "title\n{boundary}\ncontinued")\nSee [active](#active).\n',
         DocumentKind.MARKDOWN,
     )
 
