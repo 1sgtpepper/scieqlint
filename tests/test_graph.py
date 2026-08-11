@@ -7,6 +7,7 @@ import pytest
 from scieqlint.api import check_documents, graph_documents
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
+from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.base import LabelSource, ReferenceSource
@@ -280,6 +281,74 @@ def test_markdown_link_to_fenced_target_is_not_an_equation_reference() -> None:
     assert [(node.kind, node.label) for node in graph.nodes] == [("reference", "missing")]
     assert [(edge.target, edge.target_label) for edge in graph.edges] == [
         ("label:missing", "missing")
+    ]
+
+
+def test_link_metadata_does_not_create_a_myst_heading_target() -> None:
+    source = (
+        "[x](\n"
+        "(hidden)=\n"
+        ")\n"
+        "(real)=\n"
+        "# Heading\n\n"
+        "See [good](#real) and [bad](#hidden).\n"
+    )
+    document = _markdown("paper.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+    frontend = MySTFrontend().lower((document,))
+
+    target_start = source.index("#hidden") + 1
+    target_end = target_start + len("hidden")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path is None
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: hidden",
+            span=SourceSpan(
+                path=PurePosixPath("paper.md"),
+                start=target_start,
+                end=target_end,
+                line=7,
+                col=30,
+                end_line=7,
+                end_col=35,
+            ),
+            detail="reference text: [bad](#hidden)",
+            rule="references",
+        ),
+    )
+    assert [heading.text for heading in frontend.headings] == ["Heading"]
+    assert [anchor.label for anchor in frontend.target_anchors] == ["real"]
+    assert [
+        (node.id, node.kind, node.label, node.source, node.span.line, node.span.col)
+        for node in graph.nodes
+    ] == [
+        (
+            f"ref:paper.md:{target_start}",
+            "reference",
+            "hidden",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+            7,
+            30,
+        )
+    ]
+    assert [
+        (edge.source, edge.target, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == [
+        (
+            f"ref:paper.md:{target_start}",
+            "label:hidden",
+            "hidden",
+            "[bad](#hidden)",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+        )
     ]
 
 

@@ -139,15 +139,15 @@ def code_fence_ranges(
 def _attached_markdown_target_labels_from_opaque(
     text: str,
     opaque: Sequence[OffsetRange],
+    eligible_fence_starts: frozenset[int],
 ) -> frozenset[str]:
     lines = _source_lines(text)
     occupied_cursor = _RangeCursor(opaque)
-    occupied_starts = {start for start, _end in opaque}
     labels: set[str] = set()
     pending_label: str | None = None
     for start, _end, line in lines:
         occupied_end = occupied_cursor.end_at(start)
-        if occupied_end is not None and start not in occupied_starts:
+        if occupied_end is not None and start not in eligible_fence_starts:
             continue
         stripped = line.strip()
         if not stripped or stripped.startswith("<!--"):
@@ -616,7 +616,11 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
         opaque_ranges=opaque,
         links=links,
         link_metadata_ranges=link_metadata,
-        attached_target_labels=_attached_markdown_target_labels_from_opaque(text, opaque),
+        attached_target_labels=_attached_markdown_target_labels_from_opaque(
+            text,
+            opaque,
+            frozenset(start for start, _end in lexical.fences),
+        ),
     )
 
 

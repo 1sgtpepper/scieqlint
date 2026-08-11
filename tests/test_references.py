@@ -88,6 +88,7 @@ def test_anchor_attachment_consumes_occupied_ranges_monotonically() -> None:
     labels = markdown_module._attached_markdown_target_labels_from_opaque(
         source,
         tracked_ranges,
+        frozenset(start for start, _end in ranges),
     )
 
     assert len(labels) == 256
