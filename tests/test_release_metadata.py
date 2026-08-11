@@ -79,7 +79,8 @@ def test_ci_test_matrix_covers_declared_python_versions() -> None:
     assert "python-version: ${{ matrix.python-version }}" in workflow
     assert "if: matrix.python-version == '3.11'" in workflow
     assert re.search(
-        r"(?m)^  test:\n    name: test\n    runs-on: ubuntu-latest\n    needs: test-matrix",
+        r"(?m)^  test:\n    name: test\n    runs-on: ubuntu-latest\n"
+        r"    needs: \[public-regression-replay, test-matrix\]",
         workflow,
     )
 

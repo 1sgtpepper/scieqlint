@@ -83,6 +83,7 @@ include = [
   "src/scieqlint",
   "tests",
   "tools/architecture",
+  "tools/public_regression_replay.py",
   "docs",
   "examples",
   "benchmarks",
@@ -113,6 +114,9 @@ line-ending = "lf"
 testpaths = ["tests"]
 addopts = "--strict-markers --strict-config"
 pythonpath = ["src"]
+markers = [
+  "public_regression: new public bug regression that must fail by a test-owned assertion on the pull request base",
+]
 
 [tool.coverage.run]
 branch = true
