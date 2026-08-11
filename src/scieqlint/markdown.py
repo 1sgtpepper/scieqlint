@@ -193,16 +193,18 @@ def _ordered_lexical_ranges(
                 index = range_end
                 continue
 
-        role_end = _myst_role_end_at(text, index)
-        if role_end is not None:
-            index = role_end
-            continue
+        if text[index] == "{":
+            role_end = _myst_role_end_at(text, index)
+            if role_end is not None:
+                index = role_end
+                continue
 
-        html_end = None if is_escaped(text, index) else _html_range_at(text, index)
-        if html_end is not None:
-            html.append((index, html_end))
-            index = html_end
-            continue
+        if text[index] == "<" and not is_escaped(text, index):
+            html_end = _html_range_at(text, index)
+            if html_end is not None:
+                html.append((index, html_end))
+                index = html_end
+                continue
 
         if text.startswith("$$", index) and _is_display_opener(text, index, line_start):
             display_openers.append(index)
@@ -316,37 +318,61 @@ def _next_same_backtick_runs(
 
 
 def _is_display_opener(text: str, start: int, line_start: int) -> bool:
-    prefix = text[line_start:start]
+    indentation = start - line_start
     return (
-        len(prefix) <= 3
-        and not prefix.strip(" ")
+        indentation <= 3
+        and all(text[index] == " " for index in range(line_start, start))
         and (start + 2 == len(text) or text[start + 2] != "$")
     )
 
 
 def _find_ordered_display_close(text: str, start: int) -> int:
-    line_start = text.rfind("\n", 0, start) + 1
-    cursor = start
+    line_start = start
     while line_start < len(text):
         line_end = text.find("\n", line_start)
         if line_end == -1:
             line_end = len(text)
-        candidate = text.find("$$", cursor, line_end)
-        while candidate != -1:
-            tail = text[candidate + 2 : line_end].strip("\r \t")
-            if (
-                not is_escaped(text, candidate)
-                and (candidate == 0 or text[candidate - 1] != "$")
-                and (candidate + 2 == len(text) or text[candidate + 2] != "$")
-                and (not tail or _is_dollar_label_tail(tail))
-            ):
-                return candidate
-            candidate = text.find("$$", candidate + 1, line_end)
+        candidate = _display_close_on_line(text, line_start, line_end)
+        if candidate != -1:
+            return candidate
         if line_end == len(text):
             return -1
         line_start = line_end + 1
-        cursor = line_start
     return -1
+
+
+def _display_close_on_line(text: str, start: int, end: int) -> int:
+    content_end = end
+    while content_end > start and text[content_end - 1] in "\r \t":
+        content_end -= 1
+
+    label_start = content_end
+    if content_end > start and text[content_end - 1] == "}":
+        label_start = text.rfind("{#", start, content_end)
+        if label_start == -1 or label_start + 2 >= content_end - 1 or any(
+            char == "}" or char.isspace() for char in text[label_start + 2 : content_end - 1]
+        ):
+            label_start = content_end
+    elif content_end > start and text[content_end - 1] == ")":
+        label_start = text.rfind("(", start, content_end)
+        if label_start == -1 or label_start + 1 >= content_end - 1 or any(
+            char in "()" or char.isspace() for char in text[label_start + 1 : content_end - 1]
+        ):
+            label_start = content_end
+
+    candidate_end = label_start
+    while candidate_end > start and text[candidate_end - 1] in "\r \t":
+        candidate_end -= 1
+    candidate = candidate_end - 2
+    if candidate < start or not text.startswith("$$", candidate):
+        return -1
+    if is_escaped(text, candidate):
+        return -1
+    if candidate > 0 and text[candidate - 1] == "$":
+        return -1
+    if candidate + 2 < len(text) and text[candidate + 2] == "$":
+        return -1
+    return candidate
 
 
 def _myst_role_end_at(text: str, start: int) -> int | None:
@@ -431,7 +457,3 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
             return index
         index += 1
     return -1
-
-
-def _is_dollar_label_tail(tail: str) -> bool:
-    return bool(re.fullmatch(r"(?:\{#[^}\s]+\}|\([^()\s]+\))", tail))

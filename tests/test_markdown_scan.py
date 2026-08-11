@@ -11,6 +11,7 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
     inline_code_ranges,
+    markdown_opaque_ranges,
 )
 from scieqlint.scan.base import (
     MathContainer,
@@ -18,6 +19,38 @@ from scieqlint.scan.base import (
     SymbolDirectiveSource,
 )
 from scieqlint.scan.markdown import MarkdownScanner
+
+
+class _CharacterWorkText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.character_work = 0
+        return instance
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            self.character_work += len(range(start, stop, step))
+        else:
+            self.character_work += 1
+        return super().__getitem__(key)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "\\" * 2_048,
+        "x$$" * 1_024 + "\n",
+        "$$\n" + "x$$" * 1_024 + "\n$$\n",
+    ],
+    ids=["backslash-run", "rejected-openers", "candidate-closers"],
+)
+def test_ordered_markdown_lexer_bounds_explicit_character_work(source: str) -> None:
+    tracked = _CharacterWorkText(source)
+
+    markdown_opaque_ranges(tracked)
+
+    assert tracked.character_work <= 20 * len(tracked)
 
 
 def test_scans_display_math_label_and_markdown_reference() -> None:
