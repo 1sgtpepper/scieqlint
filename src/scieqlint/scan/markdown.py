@@ -99,9 +99,10 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
 
 
 def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
-    closed = {(start, end) for start, _body_start, _body_end, end in _display_ranges(document)}
+    # Both lexical results identify a display opener by its exact source start.
+    closed_starts = {start for start, _body_start, _body_end, _end in _display_ranges(document)}
     for start in dollar_display_opener_positions(document.text, ()):
-        if any(open_start <= start < end for open_start, end in closed):
+        if start in closed_starts:
             continue
         yield _scan_diagnostic(document, start, start + 2)
 

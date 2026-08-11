@@ -14,6 +14,7 @@ from scieqlint.markdown import (
     inline_code_ranges,
     markdown_opaque_ranges,
 )
+from scieqlint.scan import markdown as markdown_scan_module
 from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
@@ -93,6 +94,34 @@ def test_repeated_unclosed_html_blocks_bound_regex_traversal(monkeypatch) -> Non
 
     assert len(ranges) == 512
     assert regex_work[0] <= 2 * len(source)
+
+
+def test_scanner_display_diagnostics_bound_closed_range_work(monkeypatch) -> None:
+    block_count = 512
+    source = "$$\nx = x\n$$\n" * block_count
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+    any_work = [0]
+    original_any = any
+
+    def counting_any(iterable):
+        def counted():
+            for value in iterable:
+                any_work[0] += 1
+                yield value
+
+        return original_any(counted())
+
+    monkeypatch.setattr(markdown_scan_module, "any", counting_any, raising=False)
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert len(result.blocks) == block_count
+    assert result.diagnostics == ()
+    assert any_work[0] <= 8 * len(source)
 
 
 def test_scans_display_math_label_and_markdown_reference() -> None:
