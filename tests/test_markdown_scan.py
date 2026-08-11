@@ -90,7 +90,7 @@ def test_repeated_unclosed_html_blocks_bound_regex_traversal(monkeypatch) -> Non
         lambda pattern, flags=0: _RegexTraversal(original_compile(pattern, flags), regex_work),
     )
 
-    ranges = markdown_opaque_ranges(source)
+    ranges = markdown_reference_snapshot(source).opaque_ranges
 
     assert len(ranges) == 512
     assert regex_work[0] <= 2 * len(source)
