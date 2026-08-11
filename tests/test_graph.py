@@ -285,14 +285,7 @@ def test_markdown_link_to_fenced_target_is_not_an_equation_reference() -> None:
 
 
 def test_link_metadata_does_not_create_a_myst_heading_target() -> None:
-    source = (
-        "[x](\n"
-        "(hidden)=\n"
-        ")\n"
-        "(real)=\n"
-        "# Heading\n\n"
-        "See [good](#real) and [bad](#hidden).\n"
-    )
+    source = "[x](\n(hidden)=\n)\n(real)=\n# Heading\n\nSee [good](#real) and [bad](#hidden).\n"
     document = _markdown("paper.md", source)
 
     result = check_documents([document], config=Config())
