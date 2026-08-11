@@ -86,7 +86,7 @@ class _LinkFrame:
 @dataclass(slots=True)
 class _BlockContext:
     paragraph_active: bool = False
-    list_content_columns: list[int] = field(default_factory=list)
+    list_content_columns: list[int] = field(default_factory=lambda: list[int]())
 
 
 @dataclass(frozen=True, slots=True)
