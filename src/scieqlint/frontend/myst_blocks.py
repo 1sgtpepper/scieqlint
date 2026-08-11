@@ -13,7 +13,7 @@ from scieqlint.facts.structure import (
     StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import is_escaped, is_fence_closer, parse_fence_opener
+from scieqlint.markdown import is_fence_closer, parse_fence_opener
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
@@ -27,7 +27,18 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
+    inline_code_ranges,
 )
+
+
+def fence_ranges(fences: Sequence[FenceFact], text: str) -> tuple[OffsetRange, ...]:
+    return tuple(
+        (
+            fence.opener_span.start,
+            fence.closer_span.end if fence.closer_span is not None else len(text),
+        )
+        for fence in fences
+    )
 
 
 def scan_fences(
@@ -300,8 +311,9 @@ def _malformed_role_issues(
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
 ) -> Iterable[StructureSyntaxIssueFact]:
+    occupied_with_code = (*tuple(occupied), *inline_code_ranges(document))
     for match in ROLE_MARKER_RE.finditer(document.text):
-        if in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
+        if in_ranges(match.start(), occupied_with_code):
             continue
         role_match = ROLE_RE.match(document.text, match.start())
         if role_match is not None:
