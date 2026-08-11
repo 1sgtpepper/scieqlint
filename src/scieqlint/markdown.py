@@ -695,22 +695,22 @@ def _flush_link_frames(
 
 
 def _link_label_boundaries(text: str) -> tuple[int, ...]:
-    boundaries: set[int] = set()
+    boundaries: list[int] = []
     previous_quote_depth = 0
     for start, end, line in _source_lines(text):
         content = line.rstrip("\r")
         if not content.strip(" \t"):
-            boundaries.add(start)
+            boundaries.append(start)
             previous_quote_depth = 0
             continue
 
         quote_depth, block_content = _block_quote_content(content)
         if quote_depth and quote_depth != previous_quote_depth:
-            boundaries.add(start)
+            boundaries.append(start)
         previous_quote_depth = quote_depth
 
         if _is_heading_line(block_content) or _is_thematic_or_setext_line(block_content):
-            boundaries.update((start, end))
+            boundaries.extend((start, end))
             continue
         if (
             _LIST_ITEM_RE.match(block_content) is not None
@@ -718,8 +718,8 @@ def _link_label_boundaries(text: str) -> tuple[int, ...]:
             or _starts_html_block(block_content)
             or _starts_display_block(block_content)
         ):
-            boundaries.add(start)
-    return tuple(sorted(boundaries))
+            boundaries.append(start)
+    return tuple(boundaries)
 
 
 def _block_quote_content(line: str) -> tuple[int, str]:
