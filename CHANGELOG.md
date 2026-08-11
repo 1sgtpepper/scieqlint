@@ -118,9 +118,10 @@ Release notes must use these sections:
   decoded backslash/entity destinations retain their original source offsets for
   diagnostics. Link labels stop at paragraph and block boundaries. Link metadata is
   also opaque to math and structure lowering, and link facts share one immutable
-  lexical snapshot across producers,
-  and heading-target classification accepts valid empty ATX headings without
-  accepting missing-space forms.
+  lexical snapshot across producers. CommonMark indented code at a block boundary
+  is now opaque to reference tokenization while paragraph and list continuation
+  indentation remains prose. Heading-target classification accepts valid empty ATX
+  headings without accepting missing-space forms.
 
 ### Deprecated
 

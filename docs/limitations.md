@@ -119,7 +119,9 @@ markers, images, and link destinations or titles remain metadata rather than
 references, math, structure facts, or structure diagnostics. MyST roles do not
 cross source-line boundaries. The reference lexer supports inline links with balanced labels,
 soft line breaks within one inline container, bounded destinations, and nonblank multiline
-titles. Blank lines and Markdown block starts end unmatched link labels.
+titles. Blank lines and Markdown block starts end unmatched link labels. Four-column or
+tab-indented CommonMark code at a block boundary is opaque, including when nested in a
+block quote; indentation continuing an active paragraph or list item remains prose.
 Parenthesized titles require literal parentheses to be backslash-escaped, and
 valid named or numeric character references in destinations are decoded for
 resolution. Reference-link definitions, autolinks, and the full CommonMark

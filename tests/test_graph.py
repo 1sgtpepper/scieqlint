@@ -16,6 +16,65 @@ from scieqlint.scan.markdown import MarkdownScanner
 
 
 @pytest.mark.public_regression
+def test_indented_code_does_not_create_reference_facts() -> None:
+    source = "before\n\n    [hidden](#hidden)\nSee [active](#active).\n"
+    document = _markdown("indented-code.md", source)
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    target_start = source.index("#active") + 1
+    target_end = target_start + len("active")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path is None
+    assert result.exit_code() == 0
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: active",
+            span=SourceSpan(
+                path=PurePosixPath("indented-code.md"),
+                start=target_start,
+                end=target_end,
+                line=4,
+                col=15,
+                end_line=4,
+                end_col=20,
+            ),
+            detail="reference text: [active](#active)",
+            rule="references",
+        ),
+    )
+    assert [
+        (node.id, node.kind, node.label, node.source, node.span.line, node.span.col)
+        for node in graph.nodes
+    ] == [
+        (
+            f"ref:indented-code.md:{target_start}",
+            "reference",
+            "active",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+            4,
+            15,
+        )
+    ]
+    assert [
+        (edge.source, edge.target, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == [
+        (
+            f"ref:indented-code.md:{target_start}",
+            "label:active",
+            "active",
+            "[active](#active)",
+            ReferenceSource.MARKDOWN_ANCHOR.value,
+        )
+    ]
+
+
+@pytest.mark.public_regression
 def test_graph_uses_only_tokenized_markdown_references() -> None:
     source = (
         "Literal \\{eq}`escaped-role`.\n"

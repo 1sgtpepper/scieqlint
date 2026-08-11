@@ -8,7 +8,7 @@ from scieqlint import markdown as markdown_module
 from scieqlint.api import check_documents, graph_documents
 from scieqlint.check.references import check_references
 from scieqlint.config.model import Config, ScannerConfig
-from scieqlint.diag.model import Severity
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -913,6 +913,145 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+
+
+@pytest.mark.parametrize(
+    ("case", "source", "live_targets"),
+    [
+        pytest.param(
+            "four-space-block-boundary",
+            "before\n\n    [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="four-space",
+        ),
+        pytest.param(
+            "tab-block-boundary",
+            "before\n\n\t[hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="tab",
+        ),
+        pytest.param(
+            "blank-separated-chunks",
+            "before\n\n    [hidden-a](#hidden-a)\n\n    [hidden-b](#hidden-b)\n"
+            "See [active](#active).\n",
+            ("active",),
+            id="blank-chunks",
+        ),
+        (
+            "paragraph-continuation",
+            "paragraph\n    [live](#live)\nSee [active](#active).\n",
+            ("live", "active"),
+        ),
+        (
+            "list-item-continuation",
+            "- item\n\n    [live](#live)\nSee [active](#active).\n",
+            ("live", "active"),
+        ),
+        pytest.param(
+            "nested-block-quote",
+            "> quote\n\n>     [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="block-quote",
+        ),
+    ],
+)
+def test_indented_code_does_not_create_reference_facts(
+    case: str,
+    source: str,
+    live_targets: tuple[str, ...],
+) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath(f"{case}.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+    graph = graph_documents([document], config=Config())
+
+    def line_col(index: int, *, end: bool = False) -> tuple[int, int]:
+        if end:
+            index = max(0, index - 1)
+        line_start = source.rfind("\n", 0, index) + 1
+        return source.count("\n", 0, index) + 1, index - line_start + 1
+
+    expected_diagnostics: list[Diagnostic] = []
+    expected_nodes: list[tuple[object, ...]] = []
+    expected_edges: list[tuple[object, ...]] = []
+    path = PurePosixPath(f"{case}.md")
+    for target in live_targets:
+        raw = f"[{target}](#{target})"
+        link_start = source.index(raw)
+        target_start = link_start + raw.index(f"#{target}") + 1
+        target_end = target_start + len(target)
+        target_line, target_col = line_col(target_start)
+        target_end_line, target_end_col = line_col(target_end, end=True)
+        expected_diagnostics.append(
+            Diagnostic(
+                code="REF002",
+                severity=Severity.WARNING,
+                message=f"equation reference target not found: {target}",
+                span=SourceSpan(
+                    path=path,
+                    start=target_start,
+                    end=target_end,
+                    line=target_line,
+                    col=target_col,
+                    end_line=target_end_line,
+                    end_col=target_end_col,
+                ),
+                detail=f"reference text: {raw}",
+                rule="references",
+            )
+        )
+        expected_nodes.append(
+            (
+                f"ref:{path.as_posix()}:{target_start}",
+                "reference",
+                target,
+                "markdown_anchor",
+                path,
+                target_line,
+                target_col,
+                target_end_line,
+                target_end_col,
+            )
+        )
+        expected_edges.append(
+            (
+                f"ref:{path.as_posix()}:{target_start}",
+                f"label:{target}",
+                "references",
+                target,
+                raw,
+                "markdown_anchor",
+            )
+        )
+
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path is None
+    assert result.exit_code() == 0
+    assert result.diagnostics == tuple(expected_diagnostics)
+    assert graph.schema_version == "0.3"
+    assert [
+        (
+            node.id,
+            node.kind,
+            node.label,
+            node.source,
+            node.span.path,
+            node.span.line,
+            node.span.col,
+            node.span.end_line,
+            node.span.end_col,
+        )
+        for node in graph.nodes
+    ] == expected_nodes
+    assert [
+        (edge.source, edge.target, edge.kind, edge.target_label, edge.raw, edge.source_kind)
+        for edge in graph.edges
+    ] == expected_edges
 
 
 def test_only_active_empty_myst_role_is_malformed_syntax() -> None:

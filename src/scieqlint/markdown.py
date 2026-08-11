@@ -43,6 +43,7 @@ class _LexicalRanges:
     html: tuple[OffsetRange, ...]
     roles: tuple[OffsetRange, ...]
     code: tuple[OffsetRange, ...]
+    indented_code: tuple[OffsetRange, ...]
     display: tuple[DollarRange, ...]
     inline: tuple[DollarRange, ...]
     display_openers: tuple[int, ...]
@@ -213,16 +214,17 @@ def _ordered_lexical_ranges(
 
     lines = _source_lines(text)
     if not lines:
-        return _LexicalRanges((), (), (), (), (), (), ())
+        return _LexicalRanges((), (), (), (), (), (), (), ())
 
     fences: list[OffsetRange] = []
     html: list[OffsetRange] = []
     roles: list[OffsetRange] = []
     code: list[OffsetRange] = []
+    indented_code = _indented_code_ranges(lines)
     display: list[DollarRange] = []
     inline: list[DollarRange] = []
     display_openers: list[int] = []
-    occupied_cursor = _RangeCursor(occupied)
+    occupied_cursor = _RangeCursor((*occupied, *indented_code))
     backtick_runs = _backtick_runs(text)
     next_same_backtick = _next_same_backtick_runs(backtick_runs)
     html_block_closes = _html_block_close_positions(text)
@@ -314,6 +316,7 @@ def _ordered_lexical_ranges(
         html=_merge_ranges(html),
         roles=_merge_ranges(roles),
         code=_merge_ranges(code),
+        indented_code=indented_code,
         display=tuple(display),
         inline=tuple(inline),
         display_openers=tuple(display_openers),
@@ -329,6 +332,80 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
         lines.append((start, end, line))
         start = end
     return lines
+
+
+def _indented_code_ranges(
+    lines: Sequence[tuple[int, int, str]],
+) -> tuple[OffsetRange, ...]:
+    """Return source lines owned by CommonMark-style indented code blocks."""
+
+    ranges: list[OffsetRange] = []
+    paragraph_active = False
+    list_item_active = False
+    previous_quote_depth = 0
+    for start, end, raw_line in lines:
+        quote_depth, block_content = _block_quote_content(raw_line.rstrip("\r"))
+        if (
+            quote_depth == 0
+            and previous_quote_depth
+            and block_content.strip(" \t")
+            and paragraph_active
+            and not _starts_markdown_block(block_content)
+        ):
+            quote_depth = previous_quote_depth
+
+        if quote_depth != previous_quote_depth:
+            paragraph_active = False
+            list_item_active = False
+        if not block_content.strip(" \t"):
+            paragraph_active = False
+            previous_quote_depth = quote_depth
+            continue
+
+        indentation = _indent_columns(block_content)
+        if indentation >= 4 and not paragraph_active and not list_item_active:
+            ranges.append((start, end))
+            previous_quote_depth = quote_depth
+            continue
+
+        if _LIST_ITEM_RE.match(block_content) is not None:
+            paragraph_active = True
+            list_item_active = True
+            previous_quote_depth = quote_depth
+            continue
+
+        if list_item_active and indentation >= 4:
+            paragraph_active = True
+            previous_quote_depth = quote_depth
+            continue
+
+        paragraph_active = not _starts_markdown_block(block_content)
+        list_item_active = False
+        previous_quote_depth = quote_depth
+    return _merge_ranges(ranges)
+
+
+def _indent_columns(line: str) -> int:
+    columns = 0
+    for char in line:
+        if char == " ":
+            columns += 1
+        elif char == "\t":
+            columns += 4 - columns % 4
+        else:
+            break
+    return columns
+
+
+def _starts_markdown_block(line: str) -> bool:
+    return (
+        _is_heading_line(line)
+        or (_indent_columns(line) <= 3 and _is_thematic_or_setext_line(line))
+        or (_indent_columns(line) <= 3 and _LIST_ITEM_RE.match(line) is not None)
+        or parse_fence_opener(line) is not None
+        or _starts_html_block(line)
+        or _starts_display_block(line)
+    )
 
 
 def _is_heading_line(line: str) -> bool:
@@ -700,12 +777,17 @@ def _flush_link_frames(
 
 def _link_label_boundaries(text: str) -> tuple[int, ...]:
     boundaries: list[int] = []
+    indented_code_starts = {start for start, _end in _indented_code_ranges(_source_lines(text))}
     previous_quote_depth = 0
     for start, end, line in _source_lines(text):
         content = line.rstrip("\r")
         if not content.strip(" \t"):
             boundaries.append(start)
             previous_quote_depth = 0
+            continue
+
+        if start in indented_code_starts:
+            boundaries.append(start)
             continue
 
         quote_depth, block_content = _block_quote_content(content)
@@ -881,7 +963,7 @@ def _opaque_ranges_from_lexical(
     lexical: _LexicalRanges,
     text_length: int,
 ) -> tuple[OffsetRange, ...]:
-    ranges = [*lexical.fences, *lexical.html, *lexical.code]
+    ranges = [*lexical.fences, *lexical.html, *lexical.code, *lexical.indented_code]
     ranges.extend(
         (start, close_end) for start, _body_start, _body_end, close_end in lexical.display
     )
