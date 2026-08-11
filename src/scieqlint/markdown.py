@@ -474,9 +474,7 @@ def _html_block_close_positions(text: str) -> dict[int, int]:
         event_index = 0
         while candidate_index < len(candidates) or event_index < len(events):
             candidate = (
-                candidates[candidate_index]
-                if candidate_index < len(candidates)
-                else len(text)
+                candidates[candidate_index] if candidate_index < len(candidates) else len(text)
             )
             event = events[event_index] if event_index < len(events) else None
             event_start = event[0] if event is not None else len(text)
