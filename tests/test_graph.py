@@ -17,7 +17,7 @@ from scieqlint.scan.markdown import MarkdownScanner
 
 @pytest.mark.public_regression
 def test_indented_code_does_not_create_reference_facts() -> None:
-    source = "before\n\n    [hidden](#hidden)\nSee [active](#active).\n"
+    source = "- item\n\n        [hidden](#hidden)\nSee [active](#active).\n"
     document = _markdown("indented-code.md", source)
 
     result = check_documents([document], config=Config())
@@ -143,7 +143,7 @@ def test_graph_uses_only_tokenized_markdown_references() -> None:
 def test_link_metadata_does_not_claim_later_live_math() -> None:
     source = (
         '[site](https://example.invalid/ "\n'
-        "$$\nmetadata = metadata\n"
+        "title $metadata$ continued\n"
         '")\n'
         "$$\ny = y\n$$\n"
         "See {eq}`active`.\n"
@@ -168,9 +168,9 @@ def test_link_metadata_does_not_claim_later_live_math() -> None:
                 path=PurePosixPath("paper.md"),
                 start=target_start,
                 end=target_end,
-                line=8,
+                line=7,
                 col=10,
-                end_line=8,
+                end_line=7,
                 end_col=15,
             ),
             detail="reference text: {eq}`active`",
@@ -186,7 +186,7 @@ def test_link_metadata_does_not_claim_later_live_math() -> None:
             "reference",
             "active",
             ReferenceSource.MYST_EQ_ROLE.value,
-            8,
+            7,
             10,
         )
     ]

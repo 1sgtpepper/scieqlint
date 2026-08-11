@@ -117,18 +117,21 @@ line that is not a directive option.
 Only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
 references, math, structure facts, or structure diagnostics. MyST roles do not
-cross source-line boundaries. The reference lexer supports inline links with balanced labels,
-soft line breaks within one inline container, bounded destinations, and nonblank multiline
-titles. Blank lines and Markdown block starts end unmatched link labels. Four-column or
+cross source-line boundaries. The reference lexer supports inline links with balanced
+labels, soft line breaks within one inline container, destinations with up to 32 nested
+parenthesis pairs, and nonblank multiline titles within one paragraph. Blank lines and
+Markdown block starts end unmatched link labels and incomplete titles. Four-column or
 tab-indented CommonMark code at a block boundary is opaque, including when nested in a
-block quote; indentation continuing an active paragraph or list item remains prose.
+block quote or list; list indentation is measured from the item content column, while
+indentation continuing an active paragraph remains prose.
 Parenthesized titles require literal parentheses to be backslash-escaped, and
 valid named or numeric character references in destinations are decoded for
 resolution. Reference-link definitions, autolinks, and the full CommonMark
 inline-precedence graph remain outside this reference-fact profile and are left
 as source text.
 The destination/title separator permits spaces or tabs and at most one line ending;
-quoted or parenthesized titles may span multiple nonblank lines. Unbracketed
+quoted or parenthesized titles may span multiple nonblank lines in the same paragraph.
+Unbracketed
 destinations reject spaces and ASCII control characters; angle-bracket destinations
 also reject unescaped angle brackets. Backslash escapes are decoded for reference
 resolution while source offsets retain the original destination spelling. A local

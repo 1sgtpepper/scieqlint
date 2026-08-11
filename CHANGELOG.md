@@ -130,8 +130,10 @@ Release notes must use these sections:
   diagnostics. Link labels stop at paragraph and block boundaries. Link metadata is
   also opaque to math and structure lowering, and link facts share one immutable
   lexical snapshot across producers. CommonMark indented code at a block boundary
-  is now opaque to reference tokenization while paragraph and list continuation
-  indentation remains prose. Heading-target classification accepts valid empty ATX
+  is now opaque to reference tokenization, including container-relative list code,
+  while paragraph continuation indentation remains prose. Multiline link titles stop
+  at Markdown block boundaries, and malformed destinations have bounded nesting work.
+  Heading-target classification accepts valid empty ATX
   headings without accepting missing-space forms.
 
 ### Deprecated

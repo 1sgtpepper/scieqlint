@@ -75,6 +75,15 @@ def test_entity_decoding_bounds_ampersand_character_work() -> None:
     assert source.character_work <= 100 * len(source)
 
 
+def test_failed_link_bodies_bound_character_work_and_keep_later_links() -> None:
+    source = _CharacterWorkText("[](" * 2_048 + "[live](#live)")
+
+    tokens = markdown_reference_snapshot(source).links
+
+    assert [token.fragment_target for token in tokens] == ["live"]
+    assert source.character_work <= 200 * len(source)
+
+
 def test_anchor_attachment_consumes_occupied_ranges_monotonically() -> None:
     parts: list[str] = []
     ranges: list[tuple[int, int]] = []
@@ -205,7 +214,7 @@ def test_roles_before_after_valid_and_unclosed_math_keep_their_context(
     assert [reference.target for reference in frontend.equation_refs] == targets
 
 
-def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() -> None:
+def test_markdown_link_tokens_reject_blank_line_and_accept_soft_wrapped_titles() -> None:
     assert _link_tokens("[x](\n\n)") == ()
     assert _link_tokens("[x](#dest\n\n)") == ()
     assert len(_link_tokens('[x](#dest "title\ncontinued")')) == 1
@@ -216,6 +225,21 @@ def test_markdown_link_tokens_reject_blank_line_and_accept_multiline_titles() ->
     assert _link_tokens("[x](#dest with-space)") == ()
     assert _link_tokens("[x](#dest(with space))") == ()
     assert _link_tokens("[x](#dest\x01)") == ()
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        "```text\nbody\n```",
+        "# Heading",
+        "- list item",
+        "<div>\nbody\n</div>",
+        "---",
+    ],
+    ids=["fence", "heading", "list", "html", "thematic"],
+)
+def test_markdown_link_titles_end_at_block_boundaries(boundary: str) -> None:
+    assert _link_tokens(f'[x](#fake "title\n{boundary}\ncontinued")') == ()
 
 
 def test_markdown_link_label_accepts_one_soft_line_break() -> None:
@@ -285,9 +309,6 @@ def test_link_metadata_is_opaque_to_math_while_visible_labels_remain_live() -> N
         PurePosixPath("paper.md"),
         '[$label$](https://example.invalid/$destination$ "$title$")\n'
         "![alt $image$](image.png)\n"
-        '[site](https://example.invalid/ "\n'
-        "$$\nmetadata = metadata\n$$\n"
-        '")\n'
         "$outside$\n",
         DocumentKind.MARKDOWN,
     )
@@ -311,40 +332,34 @@ def test_link_metadata_is_opaque_to_math_while_visible_labels_remain_live() -> N
 
 
 @pytest.mark.parametrize(
-    "metadata",
+    ("boundary", "headings", "fence_count", "targets"),
     [
-        "$$\nmetadata",
-        "```math\nmetadata",
-        "<div>\nmetadata",
+        ("```{note}\n[hidden](#hidden)\n```", (), 1, ("active",)),
+        ("# Visible", ("Visible",), 0, ("active",)),
+        ("- See [inside](#inside).", (), 0, ("inside", "active")),
     ],
-    ids=["display", "fence", "html"],
+    ids=["fence", "heading", "list"],
 )
-def test_unclosed_link_metadata_does_not_hide_later_live_references(
-    metadata: str,
+def test_block_interrupted_link_titles_do_not_hide_structure_or_references(
+    boundary: str,
+    headings: tuple[str, ...],
+    fence_count: int,
+    targets: tuple[str, ...],
 ) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        f'[site](https://example.invalid/ "\n{metadata}\n'
-        '<!-- scieqlint-symbol: hidden = hidden -->\n")\n'
-        "```math\ny = y\n```\n"
-        "See [live](#live) and {eq}`active`.\n"
-        "<!-- scieqlint-symbol: live = live -->\n",
+        f'[site](#fake "title\n{boundary}\ncontinued")\n'
+        "See [active](#active).\n",
         DocumentKind.MARKDOWN,
     )
 
     legacy = MarkdownScanner().scan(document, Config())
     frontend = MySTFrontend().lower((document,))
 
-    assert [block.text for block in legacy.blocks] == ["y = y"]
-    assert [reference.target for reference in legacy.references] == ["live", "active"]
-    assert [directive.symbol for directive in legacy.symbol_directives] == ["live"]
-    assert legacy.diagnostics == ()
-    assert [(reference.role_kind, reference.target) for reference in frontend.generic_refs] == [
-        ("markdown-link", "live")
-    ]
-    assert [reference.target for reference in frontend.equation_refs] == ["active"]
-    assert [fact.body for fact in frontend.display_math] == ["y = y"]
-    assert frontend.structure_syntax_issues == ()
+    assert [reference.target for reference in legacy.references] == list(targets)
+    assert [reference.target for reference in frontend.generic_refs] == list(targets)
+    assert [heading.text for heading in frontend.headings] == list(headings)
+    assert len(frontend.fences) == fence_count
 
 
 def test_link_like_code_cannot_claim_later_lexical_content() -> None:
@@ -962,10 +977,46 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
             ("live", "active"),
         ),
         pytest.param(
+            "list-relative-code",
+            "- item\n\n        [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="list-code",
+        ),
+        pytest.param(
+            "wide-list-continuation",
+            "100. item\n\n        [live](#live)\nSee [active](#active).\n",
+            ("live", "active"),
+            id="wide-list-prose",
+        ),
+        pytest.param(
+            "wide-list-relative-code",
+            "100. item\n\n         [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="wide-list-code",
+        ),
+        pytest.param(
+            "tab-list-relative-code",
+            "- item\n\n\t\t[hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="tab-list-code",
+        ),
+        pytest.param(
             "nested-block-quote",
             "> quote\n\n>     [hidden](#hidden)\nSee [active](#active).\n",
             ("active",),
             id="block-quote",
+        ),
+        pytest.param(
+            "nested-quote-list-code",
+            "> > - item\n> >\n> >         [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="nested-quote-list-code",
+        ),
+        pytest.param(
+            "lazy-quote-continuation",
+            "> > paragraph\n    [live](#live)\nSee [active](#active).\n",
+            ("live", "active"),
+            id="lazy-quote-prose",
         ),
     ],
 )

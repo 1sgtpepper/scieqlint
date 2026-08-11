@@ -550,20 +550,16 @@ def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
     assert snapshot.structure_syntax_issues == ()
 
 
-def test_link_metadata_is_opaque_to_structure_lowering() -> None:
+def test_block_interrupted_link_title_does_not_hide_structure() -> None:
     snapshot = MySTFrontend().lower(
         (
             doc(
                 '[site](https://example.invalid/ "\n'
-                "# Hidden\n"
+                "# Visible\n"
                 "```python\n"
                 "{eq}`\n"
                 "```\n"
                 '")\n'
-                "# Visible\n"
-                "```python\n"
-                "pass\n"
-                "```\n"
             ),
         )
     )
