@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar
 
 from scieqlint import __version__
@@ -112,13 +113,19 @@ def _run_check_paths(
             if not opened:
                 input_identities_complete = False
             info = CATALOG["INP001"]
+            detail = (
+                exc.strerror or type(exc).__name__
+                if isinstance(exc, OSError)
+                else getattr(exc, "reason", None) or type(exc).__name__
+            )
+            display_path = _display_path(path, absolute_paths=absolute_paths)
             diagnostics.append(
                 Diagnostic(
                     code=info.code,
                     severity=info.severity,
-                    message=f"{info.message}: {path}",
+                    message=f"{info.message}: {display_path}",
                     span=_file_start_span(path, absolute_paths=absolute_paths),
-                    detail=str(exc),
+                    detail=detail,
                 )
             )
             continue
@@ -437,12 +444,16 @@ def _path_key(
 
 
 def _project_relative_path(path: Path, project_root: Path | None) -> str:
+    resolved = path.resolve()
     if project_root is not None:
         try:
-            return path.resolve().relative_to(project_root.resolve()).as_posix()
+            return resolved.relative_to(project_root.resolve()).as_posix()
         except ValueError:
             pass
-    return _display_path(path, absolute_paths=False).as_posix()
+    try:
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
 
 def _load_baselines(
@@ -468,12 +479,31 @@ def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:
 
 
 def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
+    """Render the caller's lexical path without consulting filesystem targets."""
     if absolute_paths:
-        return PurePosixPath(path.resolve().as_posix())
-    try:
-        return PurePosixPath(path.resolve().relative_to(Path.cwd().resolve()).as_posix())
-    except ValueError:
+        absolute_path = path if path.is_absolute() else Path.cwd() / path
+        return PurePosixPath(absolute_path.as_posix())
+    if not path.is_absolute():
         return PurePosixPath(path.as_posix())
+    return _lexical_relative_path(path, Path.cwd())
+
+
+def _lexical_relative_path(path: PurePath, base: PurePath) -> PurePosixPath:
+    """Relativize absolute paths by components while retaining their spelling."""
+    if os.path.normcase(path.anchor) != os.path.normcase(base.anchor):
+        raise ValueError(
+            "absolute input cannot be rendered relative to the current working directory "
+            "across native roots"
+        )
+    path_parts = path.parts
+    base_parts = base.parts
+    common = 0
+    for path_part, base_part in zip(path_parts, base_parts, strict=False):
+        if os.path.normcase(path_part) != os.path.normcase(base_part):
+            break
+        common += 1
+    relative_parts = ("..",) * (len(base_parts) - common) + path_parts[common:]
+    return PurePosixPath(*relative_parts) if relative_parts else PurePosixPath(".")
 
 
 def _document_kind(path: Path) -> DocumentKind:

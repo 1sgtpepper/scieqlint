@@ -87,6 +87,10 @@ Release notes must use these sections:
   descriptor, keeps output files write-only, pins the output parent before
   exclusive creation where directory-descriptor opens are supported, and leaves
   stdout/API analysis available when output-safety metadata is unavailable.
+- Path-based diagnostics, graph spans, and baseline identities now retain
+  caller-visible lexical input paths. Default absolute inputs are rendered
+  relative to the current working directory, `--absolute-paths` retains explicitly
+  absolute spelling, and read-error details omit the operating-system filename.
 - Compact rational factors adjacent to implicit products are now parsed
   consistently with explicit division, with zero denominators and oversized
   literals reported as unsupported syntax.

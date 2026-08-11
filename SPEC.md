@@ -737,7 +737,8 @@ SARIF must include:
 - result `ruleId`,
 - result `level`,
 - message text,
-- repo-relative POSIX artifact URI with URI percent-encoding,
+- working-directory-relative POSIX artifact URI by default, including `..` for
+  inputs outside that directory, with URI percent-encoding,
 - region when span exists,
 - deterministic partial fingerprint.
 
@@ -1188,7 +1189,7 @@ Rules:
 
 - `text` must be decoded UTF-8 unless config explicitly allows replacement.
 - Newlines must be normalized to `\n` before scanning.
-- `path` must be normalized to repo-relative POSIX path where possible.
+- `path` must preserve the lexical POSIX path supplied to `SourceDocument`.
 - `display_path` must be stable across operating systems.
 
 `DocumentKind` values by release:
@@ -1771,7 +1772,8 @@ Rules:
 
 - Include all keys even when value is null.
 - No timestamps.
-- No absolute paths unless `--absolute-paths`.
+- No absolute paths unless `--absolute-paths`; default presentation rejects inputs
+  that cannot be relativized across native roots.
 - No color or ANSI codes.
 - JSON output must validate against checked-in schema artifacts in tests.
 
@@ -2698,7 +2700,7 @@ Package:
 ### v0.1.5 acceptance
 
 - SARIF reporter golden-tested.
-- SARIF output includes SARIF 2.1.0 top-level fields, stable `ruleId`, repo-relative artifact URIs, physical locations, deterministic `partialFingerprints`, and rule metadata.
+- SARIF output includes SARIF 2.1.0 top-level fields, stable `ruleId`, working-directory-relative artifact URIs by default, physical locations, deterministic `partialFingerprints`, and rule metadata.
 - SARIF result-size guard works deterministically.
 - Sample workflow documents `security-events: write` and `category`.
 - Composite GitHub Action wrapper is thin and documented.

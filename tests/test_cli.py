@@ -1439,7 +1439,8 @@ def test_github_output_for_bad_equation(tmp_path) -> None:
     result = CliRunner().invoke(main, ["check", str(doc), "--format", "github"])
     assert result.exit_code == 1
     assert result.output.startswith("::error title=ALG001 algebraic identity does not hold")
-    assert f"file={doc.as_posix()},line=2,col=1" in result.output
+    display_path = os.path.relpath(doc, start=os.getcwd()).replace(os.sep, "/")
+    assert f"file={display_path},line=2,col=1" in result.output
 
 
 def test_check_reports_bad_equation(tmp_path) -> None:
@@ -1704,12 +1705,12 @@ def test_configured_strict_unknowns_escalates_parse_diagnostic(tmp_path) -> None
     assert "error PARSE021" in result.output
 
 
-def test_absolute_paths_render_resolved_diagnostic_path(tmp_path) -> None:
+def test_absolute_paths_render_absolute_diagnostic_path(tmp_path) -> None:
     doc = tmp_path / "bad.md"
     doc.write_text("$$\n(a+b)^2 = a^2 + b^2\n$$\n", encoding="utf-8")
     result = CliRunner().invoke(main, ["check", str(doc), "--absolute-paths"])
     assert result.exit_code == 1
-    assert str(doc.resolve()) in result.output
+    assert str(doc.absolute()) in result.output
 
 
 def test_config_ignore_files_excludes_discovered_paths(tmp_path) -> None:
