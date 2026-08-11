@@ -12,13 +12,12 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import code_fence_ranges, markdown_opaque_ranges
+from scieqlint.markdown import code_fence_ranges, markdown_reference_snapshot
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
-    fence_ranges,
     myst_options,
     quarto_options,
     scan_fences,
@@ -74,10 +73,13 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
 def _lower_document(document: SourceDocument) -> FactSnapshot:
     smap = SourceMap.for_document(document)
     lines = line_ranges(document.text)
-    live_fence_ranges = code_fence_ranges(document.text)
+    reference_snapshot = markdown_reference_snapshot(document.text)
+    live_fence_ranges = code_fence_ranges(
+        document.text,
+        reference_snapshot.link_metadata_ranges,
+    )
     fences = scan_fences(document, smap, lines, live_fence_ranges)
-    occupied_fence_ranges = fence_ranges(fences, document.text)
-    occupied_structure_ranges = markdown_opaque_ranges(document.text)
+    occupied_structure_ranges = reference_snapshot.opaque_ranges
     directives, code_cells = directive_and_code_cell_facts(document, fences)
     structure_syntax_issues = (
         *scan_structure_syntax_issues(document, smap, occupied_structure_ranges, fences),
@@ -91,13 +93,14 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         document,
         smap,
         fences,
+        reference_snapshot.link_metadata_ranges,
     )
-    generic_refs, equation_refs = scan_refs(document, smap, occupied_fence_ranges)
+    generic_refs, equation_refs = scan_refs(document, smap, reference_snapshot)
     inline_math = tuple(
         scan_inline_math(
             document,
             smap,
-            math_occupied_ranges(display_math),
+            (*math_occupied_ranges(display_math), *reference_snapshot.link_metadata_ranges),
         )
     )
     return FactSnapshot(

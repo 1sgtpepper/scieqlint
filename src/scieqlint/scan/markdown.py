@@ -10,6 +10,7 @@ from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
+    MarkdownReferenceSnapshot,
     code_fence_ranges,
     dollar_display_opener_positions,
     dollar_display_ranges,
@@ -17,6 +18,8 @@ from scieqlint.markdown import (
     inline_code_ranges,
     is_escaped,
     is_fence_closer,
+    markdown_reference_snapshot,
+    range_contains,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -34,10 +37,7 @@ from scieqlint.scan.symbols import parse_symbol_directive
 TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
-MYST_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)[ \t]+\S")
-MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
-EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`]+)`")
+EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`\r\n]+)`")
 SYMBOL_DIRECTIVE_RE = re.compile(
     r"<!--\s*scieqlint-symbol:\s*(?P<body>.*?)\s*-->",
     re.DOTALL,
@@ -54,15 +54,25 @@ class MarkdownScanner:
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
+        reference_snapshot = markdown_reference_snapshot(document.text)
+        link_metadata = reference_snapshot.link_metadata_ranges
+        metadata_masked_text = _mask_ranges(document.text, link_metadata)
+        symbol_scan_text = _mask_ranges(
+            metadata_masked_text,
+            (
+                *inline_code_ranges(metadata_masked_text),
+                *code_fence_ranges(metadata_masked_text),
+            ),
+        )
 
-        for block in _display_blocks(document):
+        for block in _display_blocks(document, link_metadata):
             blocks.append(block)
             labels.extend(_tex_labels(document, block))
             labels.extend(_display_tail_labels(document, block))
-        diagnostics.extend(_unterminated_display_diagnostics(document))
+        diagnostics.extend(_unterminated_display_diagnostics(document, link_metadata))
 
         if config.scanner.math_fences:
-            math_fences = _math_fence_ranges(document.text)
+            math_fences = _math_fence_ranges(document.text, link_metadata)
             for block in _fenced_blocks(document, math_fences):
                 blocks.append(block)
                 labels.extend(_tex_labels(document, block))
@@ -70,10 +80,10 @@ class MarkdownScanner:
             diagnostics.extend(_unterminated_fence_diagnostics(document, math_fences))
 
         if config.scanner.inline_math:
-            blocks.extend(_inline_blocks(document, blocks))
+            blocks.extend(_inline_blocks(document, blocks, link_metadata))
 
-        references = tuple(_references(document))
-        symbol_directives, symbol_diagnostics = _symbol_directives(document)
+        references = tuple(_references(document, reference_snapshot))
+        symbol_directives, symbol_diagnostics = _symbol_directives(document, symbol_scan_text)
         diagnostics.extend(symbol_diagnostics)
         return ScanResult(
             blocks=tuple(sorted(blocks, key=lambda block: block.span.start)),
@@ -84,8 +94,11 @@ class MarkdownScanner:
         )
 
 
-def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
-    for _start, body_start, body_end, _end in _display_ranges(document):
+def _display_blocks(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[MathBlock]:
+    for _start, body_start, body_end, _end in _display_ranges(document, occupied):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
         if not text:
@@ -100,17 +113,25 @@ def _display_blocks(document: SourceDocument) -> Iterable[MathBlock]:
         )
 
 
-def _unterminated_display_diagnostics(document: SourceDocument) -> Iterable[Diagnostic]:
+def _unterminated_display_diagnostics(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[Diagnostic]:
     # Both lexical results identify a display opener by its exact source start.
-    closed_starts = {start for start, _body_start, _body_end, _end in _display_ranges(document)}
-    for start in dollar_display_opener_positions(document.text, ()):
+    closed_starts = {
+        start for start, _body_start, _body_end, _end in _display_ranges(document, occupied)
+    }
+    for start in dollar_display_opener_positions(document.text, occupied):
         if start in closed_starts:
             continue
         yield _scan_diagnostic(document, start, start + 2)
 
 
-def _display_ranges(document: SourceDocument) -> Iterable[tuple[int, int, int, int]]:
-    return iter(dollar_display_ranges(document.text, ()))
+def _display_ranges(
+    document: SourceDocument,
+    occupied: tuple[tuple[int, int], ...],
+) -> Iterable[tuple[int, int, int, int]]:
+    return iter(dollar_display_ranges(document.text, occupied))
 
 
 def _inline_ranges(
@@ -120,10 +141,13 @@ def _inline_ranges(
     return iter(dollar_inline_ranges(document.text, occupied))
 
 
-def _math_fence_ranges(text: str) -> tuple[_MathFenceRange, ...]:
+def _math_fence_ranges(
+    text: str,
+    occupied: tuple[tuple[int, int], ...],
+) -> tuple[_MathFenceRange, ...]:
     """Derive supported math fences from the shared lexical ownership result."""
     ranges: list[_MathFenceRange] = []
-    for opener_start, range_end in code_fence_ranges(text):
+    for opener_start, range_end in code_fence_ranges(text, occupied):
         source = text[opener_start:range_end]
         opener_line, newline, _body = source.partition("\n")
         if opener_line.removeprefix("```").rstrip(" \t") not in {"math", "{math}"}:
@@ -164,12 +188,16 @@ def math_container_opener_lines(
         (block.container, block.span.start, block.span.end): block.block_id for block in blocks
     }
     opener_lines: dict[str, int] = {}
-    for opener_start, body_start, body_end, _end in _display_ranges(document):
+    link_metadata = markdown_reference_snapshot(document.text).link_metadata_ranges
+    for opener_start, body_start, body_end, _end in _display_ranges(document, link_metadata):
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         block_id = block_ids.get((MathContainer.MARKDOWN_DISPLAY, span_start, span_end))
         if block_id is not None:
             opener_lines[block_id] = document.line_index.position(opener_start)[0]
-    for opener_start, _opener_end, body_start, body_end in _math_fence_ranges(document.text):
+    for opener_start, _opener_end, body_start, body_end in _math_fence_ranges(
+        document.text,
+        link_metadata,
+    ):
         if body_end is None:
             continue
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
@@ -203,8 +231,12 @@ def _unterminated_fence_diagnostics(
 def _inline_blocks(
     document: SourceDocument,
     existing_blocks: list[MathBlock],
+    link_metadata: tuple[tuple[int, int], ...],
 ) -> Iterable[MathBlock]:
-    occupied = tuple((block.span.start, block.span.end) for block in existing_blocks)
+    occupied = (
+        *link_metadata,
+        *((block.span.start, block.span.end) for block in existing_blocks),
+    )
     for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
         body = document.text[body_start:body_end]
         text = body.strip()
@@ -220,17 +252,6 @@ def _inline_blocks(
             block_id=_block_id(document, span, MathContainer.MARKDOWN_INLINE),
             container=MathContainer.MARKDOWN_INLINE,
         )
-
-
-def _code_spans(document: SourceDocument) -> tuple[tuple[int, int], ...]:
-    return (
-        *inline_code_ranges(document.text),
-        *code_fence_ranges(document.text),
-    )
-
-
-def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
-    return any(start <= position < end for start, end in ranges)
 
 
 def _tex_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
@@ -298,19 +319,33 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
         offset += len(line)
 
 
-def _references(document: SourceDocument) -> Iterable[EquationReference]:
-    attached_myst_anchors = _attached_myst_heading_anchor_targets(document)
-    for match in MD_LINK_RE.finditer(document.text):
-        target = _normalize_label(match.group("target"))
+def _references(
+    document: SourceDocument,
+    snapshot: MarkdownReferenceSnapshot,
+) -> Iterable[EquationReference]:
+    attached_myst_anchors = snapshot.attached_target_labels
+    occupied = snapshot.opaque_ranges
+    link_tokens = snapshot.links
+    for token in link_tokens:
+        if token.is_image:
+            continue
+        if token.fragment_target is None:
+            continue
+        assert token.fragment_target_start is not None
+        assert token.fragment_target_end is not None
+        target_start = token.fragment_target_start
+        target = _normalize_label(token.fragment_target)
         if target in attached_myst_anchors:
             continue
         yield EquationReference(
             target=target,
-            span=_span(document, match.start("target"), match.end("target")),
-            raw=match.group(0),
+            span=_span(document, target_start, token.fragment_target_end),
+            raw=document.text[token.start : token.end],
             source=ReferenceSource.MARKDOWN_ANCHOR,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
+        if range_contains(match.start(), occupied) or is_escaped(document.text, match.start()):
+            continue
         role = match.group("role")
         body = match.group("body")
         target = _extract_role_target(body)
@@ -326,53 +361,13 @@ def _references(document: SourceDocument) -> Iterable[EquationReference]:
         )
 
 
-def _attached_myst_heading_anchor_targets(document: SourceDocument) -> frozenset[str]:
-    occupied = _code_spans(document)
-    lines = _line_ranges(document.text)
-    targets: set[str] = set()
-    for index, (start, _end, line) in enumerate(lines):
-        if _in_ranges(start, occupied):
-            continue
-        match = MYST_ANCHOR_RE.match(line)
-        if match is None:
-            continue
-        next_index = _next_attachable_line_index(lines, index + 1)
-        if next_index is not None and HEADING_RE.match(lines[next_index][2]) is not None:
-            targets.add(_normalize_label(match.group("label")))
-    return frozenset(targets)
-
-
-def _next_attachable_line_index(
-    lines: tuple[tuple[int, int, str], ...],
-    index: int,
-) -> int | None:
-    while index < len(lines):
-        line = lines[index][2].strip()
-        if line and not line.startswith("<!--"):
-            return index
-        index += 1
-    return None
-
-
-def _line_ranges(text: str) -> tuple[tuple[int, int, str], ...]:
-    ranges: list[tuple[int, int, str]] = []
-    start = 0
-    for line in text.splitlines(keepends=True):
-        end = start + len(line)
-        ranges.append((start, end, line[:-1] if line.endswith("\n") else line))
-        start = end
-    return tuple(ranges)
-
-
 def _symbol_directives(
     document: SourceDocument,
+    scan_text: str,
 ) -> tuple[tuple[SymbolDirective, ...], tuple[Diagnostic, ...]]:
-    occupied = _code_spans(document)
     directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
-    for match in SYMBOL_DIRECTIVE_RE.finditer(document.text):
-        if _in_ranges(match.start(), occupied):
-            continue
+    for match in SYMBOL_DIRECTIVE_RE.finditer(scan_text):
         directive, diagnostic = parse_symbol_directive(
             body=match.group("body"),
             raw=match.group(0),
@@ -389,6 +384,18 @@ def _symbol_directives(
         tuple(sorted(directives, key=lambda directive: directive.span.start)),
         tuple(sorted(diagnostics, key=_diagnostic_key)),
     )
+
+
+def _mask_ranges(
+    text: str,
+    ranges: tuple[tuple[int, int], ...],
+) -> str:
+    masked = list(text)
+    for start, end in ranges:
+        for index in range(start, end):
+            if masked[index] not in "\r\n":
+                masked[index] = " "
+    return "".join(masked)
 
 
 def _extract_role_target(body: str) -> str:

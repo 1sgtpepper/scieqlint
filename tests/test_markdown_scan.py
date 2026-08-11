@@ -12,7 +12,7 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
     inline_code_ranges,
-    markdown_opaque_ranges,
+    markdown_reference_snapshot,
 )
 from scieqlint.scan import markdown as markdown_scan_module
 from scieqlint.scan.base import (
@@ -67,7 +67,7 @@ class _RegexTraversal:
 def test_ordered_markdown_lexer_bounds_explicit_character_work(source: str) -> None:
     tracked = _CharacterWorkText(source)
 
-    markdown_opaque_ranges(tracked)
+    markdown_reference_snapshot(tracked)
 
     assert tracked.character_work <= 20 * len(tracked)
 
@@ -90,7 +90,7 @@ def test_repeated_unclosed_html_blocks_bound_regex_traversal(monkeypatch) -> Non
         lambda pattern, flags=0: _RegexTraversal(original_compile(pattern, flags), regex_work),
     )
 
-    ranges = markdown_opaque_ranges(source)
+    ranges = markdown_reference_snapshot(source).opaque_ranges
 
     assert len(ranges) == 512
     assert regex_work[0] <= 2 * len(source)
