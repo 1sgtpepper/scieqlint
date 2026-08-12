@@ -100,6 +100,34 @@ def test_entity_decoding_bounds_ampersand_character_work() -> None:
     assert source.character_work <= 100 * len(source)
 
 
+@pytest.mark.parametrize(
+    ("entity_prefix", "digits"),
+    [("&#", "9" * 5_000), ("&#x", "f" * 5_000)],
+    ids=["decimal", "hexadecimal"],
+)
+def test_oversized_numeric_entities_remain_literal(entity_prefix: str, digits: str) -> None:
+    entity = f"{entity_prefix}{digits};"
+    try:
+        tokens = _link_tokens(f"[x](#{entity})")
+    except ValueError as error:
+        pytest.fail(f"oversized numeric entity raised {error!r}")
+
+    assert len(tokens) == 1
+    assert tokens[0].fragment_target == entity
+
+
+@pytest.mark.parametrize(
+    ("entity", "expected"),
+    [("&#0000065;", "A"), ("&#x000041;", "A")],
+    ids=["decimal-seven-digit-boundary", "hex-six-digit-boundary"],
+)
+def test_numeric_entities_decode_at_commonmark_digit_limits(
+    entity: str,
+    expected: str,
+) -> None:
+    assert _link_tokens(f"[x](#{entity})")[0].fragment_target == expected
+
+
 def test_failed_link_bodies_bound_character_work_and_keep_later_links() -> None:
     source = _CharacterWorkText("[](" * 2_048 + "[live](#live)")
 

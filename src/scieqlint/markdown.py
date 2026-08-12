@@ -1238,7 +1238,8 @@ def _entity_end_at(text: str, start: int, end: int) -> int | None:
             cursor += 1
         digits_start = cursor
         valid_digits = "0123456789abcdefABCDEF" if is_hex else "0123456789"
-        while cursor < end and text[cursor] in valid_digits:
+        max_digits = 6 if is_hex else 7
+        while cursor < end and cursor - digits_start < max_digits and text[cursor] in valid_digits:
             cursor += 1
         if cursor == digits_start:
             return None
