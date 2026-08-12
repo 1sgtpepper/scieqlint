@@ -65,8 +65,5 @@ def test_directory_discovery_still_filters_unsupported_files(tmp_path: Path) -> 
     graph = graph_paths([tmp_path])
 
     assert checked.files_checked == 1
-    assert all(
-        item.span is None or item.span.path.name != "ignored.txt"
-        for item in checked.diagnostics
-    )
+    assert all(item.span is None or item.span.path.name != "ignored.txt" for item in checked.diagnostics)
     assert [(node.kind, node.label) for node in graph.nodes] == [("equation", "kept")]
