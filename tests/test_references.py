@@ -360,8 +360,9 @@ def test_container_relative_fences_and_html_are_opaque(opaque_block: str) -> Non
     [
         ("--", ["active"]),
         ("= =", ["target", "active"]),
+        ("* * *", ["active"]),
     ],
-    ids=["short-setext", "spaced-equals-prose"],
+    ids=["short-setext", "spaced-equals-prose", "spaced-thematic"],
 )
 def test_setext_and_thematic_boundaries_use_distinct_grammars(
     boundary: str,
@@ -1133,6 +1134,12 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
             "-     [hidden](#hidden)\nSee [active](#active).\n",
             ("active",),
             id="list-marker-code",
+        ),
+        pytest.param(
+            "tab-list-marker-relative-code",
+            "-\t\t[hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="tab-list-marker-code",
         ),
         pytest.param(
             "wide-list-continuation",

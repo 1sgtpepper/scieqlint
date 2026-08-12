@@ -29,7 +29,6 @@ HTML_BLOCK_OPEN_RE = re.compile(
     r"track|ul)(?:[ \t/>]|$)",
     re.IGNORECASE | re.MULTILINE,
 )
-HTML_BLANK_LINE_RE = re.compile(r"\n[ \t]*\n")
 HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
@@ -856,31 +855,20 @@ def _html_range_at(
         if match is not None:
             return match.end()
 
-    block = HTML_BLOCK_OPEN_RE.match(text, start) if block_tag is None else None
-    if block is not None or block_tag is not None:
-        if block_tag is not None:
-            tag = block_tag
-        else:
-            assert block is not None
-            tag = block.group("tag").lower()
+    if block_tag is not None:
         closing = block_closes.get(start)
         if closing is not None:
             return closing
-        if tag in HTML_RAWTEXT_TAGS:
+        if block_tag in HTML_RAWTEXT_TAGS:
             return len(text)
-        if blank_line_end is not None:
-            return blank_line_end
-        assert block is not None
-        blank_line = HTML_BLANK_LINE_RE.search(text, block.end())
-        return len(text) if blank_line is None else blank_line.start() + 1
+        assert blank_line_end is not None
+        return blank_line_end
 
     tag = HTML_TAG_RE.match(text, start)
     return tag.end() if tag is not None else None
 
 
 def _container_html_blank_ends(lines: Sequence[_ContainerLine]) -> tuple[int, ...]:
-    if not lines:
-        return ()
     ends = [lines[-1].end] * len(lines)
     next_end = lines[-1].end
     for index in range(len(lines) - 2, -1, -1):
