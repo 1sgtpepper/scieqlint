@@ -174,6 +174,84 @@ def test_missing_reference_is_warning() -> None:
     assert diagnostics[0].message == "equation reference target not found: missing"
 
 
+@pytest.mark.public_regression
+def test_issue_226_code_contexts_are_inert_across_reference_and_math_paths() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("issue-226.md"),
+        "``{eq}`missing` ``\n"
+        "~~~text\n"
+        "$$\n"
+        "x=x+1\n"
+        "$$\n"
+        "{eq}`also-missing`\n"
+        "~~~\n\n"
+        "\t#Bad\n"
+        "\tSee {ref}`missing`.\n"
+        "\t$$\n"
+        "\tx=x+1\n"
+        "\t$$\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+    snapshot = MySTFrontend().lower((document,))
+
+    assert result.exit_code() == 0
+    assert result.math_blocks_checked == 0
+    assert result.diagnostics == ()
+    assert snapshot.headings == ()
+    assert snapshot.target_anchors == ()
+    assert snapshot.generic_refs == ()
+    assert snapshot.equation_refs == ()
+    assert snapshot.display_math == ()
+
+
+@pytest.mark.public_regression
+def test_tab_indentation_continuing_a_paragraph_remains_prose() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("tab-paragraph.md"),
+        "paragraph\n\t# {ref}`inside`\nSee {ref}`active`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [(reference.role_kind, reference.target) for reference in snapshot.generic_refs] == [
+        ("ref", "inside"),
+        ("ref", "active"),
+    ]
+    assert snapshot.headings == ()
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004", "REF004"]
+
+
+@pytest.mark.public_regression
+def test_issue_247_math_does_not_create_generic_targets() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("issue-247.md"),
+        "$$\n"
+        "(fake)=\n"
+        "# Fake\n"
+        "{ref}`inside-math`\n"
+        "$$\n\n"
+        "See {ref}`fake`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([document], config=Config())
+    snapshot = MySTFrontend().lower((document,))
+
+    assert [(diagnostic.code, diagnostic.detail) for diagnostic in result.diagnostics] == [
+        ("PARSE020", None),
+        ("REF004", "reference text: {ref}`fake`"),
+    ]
+    assert snapshot.headings == ()
+    assert snapshot.target_anchors == ()
+    assert [(reference.role_kind, reference.target) for reference in snapshot.generic_refs] == [
+        ("ref", "fake")
+    ]
+
+
 def test_equation_roles_are_opaque_in_code_math_comments_and_block_html() -> None:
     text = "\n".join(
         [

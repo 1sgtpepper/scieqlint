@@ -12,7 +12,7 @@ from scieqlint.markdown import range_contains
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
 
-HEADING_RE = re.compile(r"^[ \t]{0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
+HEADING_RE = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`\r\n]+)`")
 TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")

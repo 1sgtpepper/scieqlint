@@ -711,6 +711,8 @@ def _starts_markdown_block(line: str, *, paragraph_active: bool) -> bool:
 
 
 def _is_heading_line(line: str) -> bool:
+    if _indent_columns(line) > 3:
+        return False
     match = _MARKDOWN_HEADING_RE.fullmatch(line)
     if match is None:
         return False
