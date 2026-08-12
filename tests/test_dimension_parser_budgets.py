@@ -12,14 +12,11 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 @pytest.mark.public_regression
 def test_dimension_budgets_report_typed_diagnostics_and_continue(tmp_path: Path) -> None:
     config = _dimension_config(tmp_path, aliases=(r"\m",))
-    numeric_detail = (
-        "dimension expression exceeds the supported numeric-component budget "
-        "of 512 decimal digits"
-    )
+    numeric_detail = "dimension expression exceeds the supported numeric-component budget of 512 decimal digits"
     nesting_detail = "dimension expression exceeds the supported group-nesting budget of 64"
     cases = (
-        ("01-digits.md", fr"\m^{'9' * 5_000}=\m"),
-        ("02-groups.md", fr"\m*{'(' * 400}x{')' * 400}=x"),
+        ("01-digits.md", rf"\m^{'9' * 5_000}=\m"),
+        ("02-groups.md", rf"\m*{'(' * 400}x{')' * 400}=x"),
         ("03-control.md", "x=t"),
     )
     sources = tuple((path, f"$$\n{equation}\n$$\n", equation) for path, equation in cases)
@@ -52,12 +49,8 @@ def test_dimension_budgets_report_typed_diagnostics_and_continue(tmp_path: Path)
     assert result.math_blocks_checked == 3
     assert result.exit_code() == 1
 
-    dimension_diagnostics = tuple(
-        item for item in result.diagnostics if item.rule == "dimensions"
-    )
-    for diagnostic, (path, source, equation) in zip(
-        dimension_diagnostics, sources, strict=True
-    ):
+    dimension_diagnostics = tuple(item for item in result.diagnostics if item.rule == "dimensions")
+    for diagnostic, (path, source, equation) in zip(dimension_diagnostics, sources, strict=True):
         span = diagnostic.span
         assert span is not None
         assert span.path == PurePosixPath(path)
@@ -108,9 +101,7 @@ def test_dimension_budget_rejects_first_unsupported_numeric_value(
     )
 
     assert [
-        (item.code, item.detail)
-        for item in result.diagnostics
-        if item.rule == "dimensions"
+        (item.code, item.detail) for item in result.diagnostics if item.rule == "dimensions"
     ] == [("DIM020", expected_detail)]
 
 
@@ -131,9 +122,7 @@ def test_dimension_budget_rejects_first_unsupported_group_depth(
     )
 
     assert [
-        (item.code, item.detail)
-        for item in result.diagnostics
-        if item.rule == "dimensions"
+        (item.code, item.detail) for item in result.diagnostics if item.rule == "dimensions"
     ] == [
         (
             "DIM020",
@@ -194,9 +183,7 @@ def test_existing_unsupported_dimension_skip_has_no_budget_detail(tmp_path: Path
     )
 
     assert [
-        (item.code, item.detail)
-        for item in result.diagnostics
-        if item.rule == "dimensions"
+        (item.code, item.detail) for item in result.diagnostics if item.rule == "dimensions"
     ] == [("DIM020", None)]
 
 
