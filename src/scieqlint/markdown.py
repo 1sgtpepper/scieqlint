@@ -90,7 +90,6 @@ class _BlockContext:
 
 @dataclass(frozen=True, slots=True)
 class _ListMarker:
-    marker_width: int
     content_column: int
     content_index: int
     ordered_start: int | None
@@ -681,7 +680,6 @@ def _list_marker(line: str) -> _ListMarker | None:
         assert index > whitespace_start
         content_index = index
     return _ListMarker(
-        marker_width=marker_width,
         content_column=content_column,
         content_index=content_index,
         ordered_start=ordered_start,
