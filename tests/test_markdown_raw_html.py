@@ -6,7 +6,7 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents, graph_documents
-from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
+from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import markdown_reference_snapshot, range_contains
 
@@ -298,6 +298,50 @@ def test_unclosed_html_block_stops_at_its_container_boundary(source: str) -> Non
     assert result.math_blocks_checked == 1
 
 
+def test_top_level_html_leaf_keeps_quote_markers_in_its_payload() -> None:
+    source = (
+        "<style>\n"
+        "> $$\n"
+        "> x = x + 1\n"
+        "> $$ {#inside}\n"
+        "> See {eq}`ghost`.\n"
+        "</style>\n"
+        "$$\n"
+        "x = x + 1\n"
+        "$$\n"
+    )
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert range_contains(source.index("> $$"), snapshot.opaque_ranges)
+    assert range_contains(source.index("{eq}`ghost`"), snapshot.opaque_ranges)
+    assert range_contains(source.index("</style>"), snapshot.opaque_ranges)
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
+    assert result.math_blocks_checked == 1
+
+
+def test_quoted_html_leaf_accepts_nested_quote_markers_until_boundary() -> None:
+    source = (
+        "> <style>\n"
+        "> > $$\n"
+        "> > x = x + 1\n"
+        "> > $$ {#inside}\n"
+        "> > See {eq}`ghost`.\n"
+        "outside boundary\n"
+        "$$\n"
+        "x = x + 1\n"
+        "$$\n"
+    )
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert range_contains(source.index("> > $$"), snapshot.opaque_ranges)
+    assert range_contains(source.index("{eq}`ghost`"), snapshot.opaque_ranges)
+    assert not range_contains(source.index("outside boundary"), snapshot.opaque_ranges)
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
+    assert result.math_blocks_checked == 1
+
+
 def test_inline_html_is_opaque_but_text_between_tags_remains_active() -> None:
     source = (
         "before <!-- $$ x = x + 1 $$ {eq}`comment` --> after\n"
@@ -308,6 +352,162 @@ def test_inline_html_is_opaque_but_text_between_tags_remains_active() -> None:
     assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
         ("REF002", "equation reference target not found: visible")
     ]
+
+
+@pytest.mark.parametrize(
+    "comment",
+    ["<!-->", "<!--->"],
+    ids=("empty-short-comment", "hyphen-short-comment"),
+)
+def test_inline_html_short_comment_is_opaque(comment: str) -> None:
+    source = f"before {comment} after {{eq}}`visible`.\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert range_contains(source.index(comment), snapshot.opaque_ranges)
+    assert not range_contains(source.index("after"), snapshot.opaque_ranges)
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
+        ("REF002", "equation reference target not found: visible")
+    ]
+
+
+@pytest.mark.parametrize("quote", ['"', "'"], ids=("double-quoted", "single-quoted"))
+def test_inline_html_quoted_attribute_keeps_markup_and_math_opaque(quote: str) -> None:
+    source = (
+        f"before <span data={quote}<em> {{eq}}`inside` $x$ {quote}>after {{eq}}`visible`.</span>\n"
+    )
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents(
+        [_document("paper.md", source)],
+        config=Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert range_contains(source.index("{eq}`inside`"), snapshot.opaque_ranges)
+    assert range_contains(source.index("$x$"), snapshot.opaque_ranges)
+    assert not range_contains(source.index("after"), snapshot.opaque_ranges)
+    assert result.math_blocks_checked == 0
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
+        ("REF002", "equation reference target not found: visible")
+    ]
+
+
+def test_inline_html_attribute_allows_one_line_ending() -> None:
+    source = (
+        'before <span data="a <em> {eq}`inside` $x$"\n'
+        '  data-two="b > c">after {eq}`visible`.</span>\n'
+    )
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents(
+        [_document("paper.md", source)],
+        config=Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert range_contains(source.index("{eq}`inside`"), snapshot.opaque_ranges)
+    assert range_contains(source.index("$x$"), snapshot.opaque_ranges)
+    assert not range_contains(source.index("after"), snapshot.opaque_ranges)
+    assert result.math_blocks_checked == 0
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
+        ("REF002", "equation reference target not found: visible")
+    ]
+
+
+def test_inline_html_valid_closing_tag_is_opaque() -> None:
+    source = "before </span > after {eq}`visible`.\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert range_contains(source.index("</span"), snapshot.opaque_ranges)
+    assert not range_contains(source.index("after"), snapshot.opaque_ranges)
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
+        ("REF002", "equation reference target not found: visible")
+    ]
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        '<span:fixture data="{eq}`inside` $x$">',
+        '<span h*ref="{eq}`inside` $x$">',
+        '</span href="{eq}`inside` $x$">',
+        "<span data=bad{eq}`inside`$x$>",
+        '<span data="{eq}`inside` $x$>',
+        '<span data="{eq}`inside` $x$"',
+    ],
+    ids=(
+        "colon-tag-name",
+        "punctuated-attribute-name",
+        "closing-tag-attributes",
+        "forbidden-unquoted-character",
+        "missing-closing-quote",
+        "missing-closing-angle",
+    ),
+)
+def test_invalid_inline_html_tag_keeps_markdown_active(tag: str) -> None:
+    source = f"before {tag} after {{eq}}`outside`.\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents(
+        [_document("paper.md", source)],
+        config=Config(scanner=ScannerConfig(inline_math=True)),
+    )
+
+    assert not range_contains(source.index("{eq}`inside`"), snapshot.opaque_ranges)
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.message for diagnostic in result.diagnostics] == [
+        "equation reference target not found: inside",
+        "equation reference target not found: outside",
+    ]
+
+
+@pytest.mark.parametrize(
+    "opener",
+    ["<!--", "<?fixture", "<!DOCTYPE", "<![CDATA["],
+    ids=("comment", "processing-instruction", "declaration", "cdata"),
+)
+def test_unterminated_inline_html_construct_keeps_markdown_active(opener: str) -> None:
+    source = f"before {opener} {{eq}}`visible`"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert not range_contains(source.index("{eq}`visible`"), snapshot.opaque_ranges)
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
+        ("REF002", "equation reference target not found: visible")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("opener", "terminator"),
+    [
+        ("<!--", "-->"),
+        ("<?fixture", "?>"),
+        ("<!DOCTYPE", ">"),
+        ("<![CDATA[", "]]>"),
+        ('<span data="unfinished', '">'),
+    ],
+    ids=("comment", "processing-instruction", "declaration", "cdata", "quoted-tag"),
+)
+def test_unterminated_inline_html_stops_at_a_blank_line_boundary(
+    opener: str,
+    terminator: str,
+) -> None:
+    source = f"before {opener}\n\nSee {{eq}}`after`.\n$$\nx = x + 1\n$$\n{terminator}\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert not range_contains(source.index(opener), snapshot.opaque_ranges)
+    assert not range_contains(source.index("{eq}`after`"), snapshot.opaque_ranges)
+    assert {diagnostic.code for diagnostic in result.diagnostics} == {"ALG001", "REF002"}
+    assert result.math_blocks_checked == 1
+
+
+def test_inline_html_stops_at_a_block_quote_boundary() -> None:
+    source = "> before <!--\n# Outside\nSee {eq}`after`.\n$$\nx = x + 1\n$$\n-->\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert not range_contains(source.index("<!--"), snapshot.opaque_ranges)
+    assert not range_contains(source.index("{eq}`after`"), snapshot.opaque_ranges)
+    assert {diagnostic.code for diagnostic in result.diagnostics} == {"ALG001", "REF002"}
+    assert result.math_blocks_checked == 1
 
 
 def test_html_comment_suppression_directive_remains_active() -> None:

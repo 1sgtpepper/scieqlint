@@ -54,6 +54,12 @@ class _RegexTraversal:
         self._work[0] += (match.end() if match is not None else search_end) - pos
         return match
 
+    def match(self, string: str, pos: int = 0, endpos: int | None = None):
+        search_end = len(string) if endpos is None else endpos
+        match = self._pattern.match(string, pos, search_end)
+        self._work[0] += (match.end() if match is not None else search_end) - pos
+        return match
+
 
 @pytest.mark.parametrize(
     "source",
@@ -93,6 +99,34 @@ def test_repeated_unclosed_html_blocks_bound_regex_traversal(monkeypatch) -> Non
     ranges = markdown_reference_snapshot(source).opaque_ranges
 
     assert len(ranges) == 512
+    assert regex_work[0] <= 2 * len(source)
+
+
+@pytest.mark.parametrize(
+    ("pattern_name", "opener"),
+    [
+        ("HTML_COMMENT_RE", "<!--"),
+        ("HTML_PROCESSING_INSTRUCTION_RE", "<?fixture"),
+        ("HTML_DECLARATION_RE", "<!A"),
+        ("HTML_CDATA_RE", "<![CDATA["),
+    ],
+    ids=("comment", "processing-instruction", "declaration", "cdata"),
+)
+def test_repeated_unclosed_inline_html_bounds_regex_work(
+    monkeypatch,
+    pattern_name: str,
+    opener: str,
+) -> None:
+    source = "before " + " ".join([opener] * 512)
+    regex_work = [0]
+    pattern = getattr(markdown_module, pattern_name)
+    monkeypatch.setattr(
+        markdown_module,
+        pattern_name,
+        _RegexTraversal(pattern, regex_work),
+    )
+
+    assert markdown_reference_snapshot(source).opaque_ranges == ()
     assert regex_work[0] <= 2 * len(source)
 
 
