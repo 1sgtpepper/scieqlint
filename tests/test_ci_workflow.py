@@ -24,9 +24,7 @@ def test_coverage_runs_only_on_the_minimum_supported_python() -> None:
     assert "if: matrix.python-version == '3.11'\n        run: pytest --cov=scieqlint" in matrix
     assert matrix.count("pytest --cov=scieqlint") == 1
     assert (
-        "if: matrix.python-version == '3.11'\n"
-        "        run: |\n"
-        "          coverage report"
+        "if: matrix.python-version == '3.11'\n        run: |\n          coverage report"
     ) in matrix
     assert "if: matrix.python-version == '3.11'\n        uses: codecov/codecov-action" in matrix
 
