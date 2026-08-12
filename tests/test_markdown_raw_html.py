@@ -214,7 +214,7 @@ def test_list_type1_html_keeps_unindented_blank_inside_the_leaf() -> None:
 
 @pytest.mark.parametrize(
     "opener",
-    ("<div>", "<x-fixture>"),
+    ["<div>", "<x-fixture>"],
     ids=("type6", "type7"),
 )
 def test_list_type6_and_type7_end_before_an_unindented_blank(opener: str) -> None:
@@ -250,7 +250,7 @@ def test_type7_complete_tag_does_not_interrupt_a_paragraph() -> None:
 
 @pytest.mark.parametrize(
     "tag",
-    ("<x-fixture =raw>", "<x:fixture>"),
+    ["<x-fixture =raw>", "<x:fixture>"],
 )
 def test_incomplete_type7_candidate_does_not_own_following_markdown(tag: str) -> None:
     source = f"{tag}\n{_RAW_PAYLOAD}\n"
@@ -274,10 +274,10 @@ def test_type6_tag_interrupts_a_paragraph() -> None:
 
 @pytest.mark.parametrize(
     "source",
-    (
+    [
         "> <style>\n> raw HTML\n$$\nx = x + 1\n$$\n",
         "- <style>\n  raw HTML\n$$\nx = x + 1\n$$\n",
-    ),
+    ],
     ids=("block-quote", "list-item"),
 )
 def test_unclosed_html_block_stops_at_its_container_boundary(source: str) -> None:
