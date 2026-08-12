@@ -12,6 +12,13 @@ implemented in the current release.
 | `.tex` | supported for v0.1.3 LaTeX containers |
 | `.ipynb` | supported for v0.1.4 Markdown cells |
 
+Path-based directory and glob discovery considers only these suffixes. An existing
+explicit file with another suffix, or with no suffix, is rejected before scanning;
+the path APIs raise `ValueError` and the CLI reports an operational error with exit
+status 2. Already-loaded `SourceDocument` values with `DocumentKind.UNKNOWN` are
+rejected by both document APIs. A missing explicit path keeps its `FileNotFoundError`
+contract, and a nonexistent glob that matches no supported file remains empty.
+
 ## Core supported math forms
 
 ```md
