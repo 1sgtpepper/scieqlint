@@ -106,11 +106,17 @@ point at the mathematical text rather than surrounding delimiter whitespace.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text
-until its first valid dollar close. Matching same-tag HTML blocks remain opaque
-through nested blocks. Ordinary inline HTML tags protect only their tag lexemes,
-so inline content remains live. Structural headings, anchors, fences, and syntax
-diagnostics use the same opacity rules as math scanning. Their trimmed bodies and
-spans therefore agree.
+until its first valid dollar close. CommonMark HTML blocks use all seven standard
+start and end conditions: type 1 (`pre`, `script`, `style`, and `textarea`) literal-
+content blocks; type 2 comments; type 3 processing instructions; type 4 declarations;
+type 5 CDATA; type 6 recognized block tags; and type 7 complete open or closing tags.
+Types 1–5 include their terminating line and may retain blank lines, including
+unindented blank list-item continuation lines; types 6–7 end before the next blank
+line or at their container boundary. Type-7 complete tags do not interrupt paragraphs.
+Ordinary inline HTML tags and comments protect only their own lexemes, so text between
+tags remains live, while dedicated SciEqLint HTML comment directives remain active.
+Structural headings, anchors, fences, and syntax diagnostics use the same opacity rules
+as math scanning. Their trimmed bodies and spans therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
 backtick runs or line endings. Fenced math uses the CommonMark fence identity:
 an opener has at least three matching backticks or tildes and at most three leading

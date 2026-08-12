@@ -144,6 +144,9 @@ Release notes must use these sections:
   every child token through every open frame.
   Heading-target classification accepts valid empty ATX
   headings without accepting missing-space forms.
+- Markdown raw HTML now follows all seven CommonMark HTML-block families, keeping
+  block contents opaque to math, references, headings, anchors, and graph facts
+  while preserving inline content and dedicated comment directives.
 
 ### Deprecated
 

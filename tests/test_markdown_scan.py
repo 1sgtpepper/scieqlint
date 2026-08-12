@@ -712,7 +712,7 @@ def test_unclosed_rawtext_html_keeps_math_content_opaque() -> None:
     ],
     ids=["earlier-raw-close", "self-closing-block", "unrelated-tag"],
 )
-def test_html_block_close_index_preserves_edge_semantics(source: str) -> None:
+def test_html_block_start_tags_preserve_commonmark_raw_ownership(source: str) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         source,
@@ -724,7 +724,7 @@ def test_html_block_close_index_preserves_edge_semantics(source: str) -> None:
         Config(scanner=ScannerConfig(inline_math=True)),
     )
 
-    assert [block.text for block in result.blocks] == ["y"]
+    assert result.blocks == ()
     assert result.diagnostics == ()
 
 
