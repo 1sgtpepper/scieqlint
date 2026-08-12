@@ -85,7 +85,9 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
         cases.extend((path, case) for case in _load_cases(path))
 
     case_ids = [str(case["id"]) for _path, case in cases]
-    assert len(case_ids) >= 100, f"stable releases require at least 100 documented equation cases; found {len(case_ids)}"
+    assert len(case_ids) >= 100, (
+        f"stable releases require at least 100 documented equation cases; found {len(case_ids)}"
+    )
     assert len(case_ids) == len(set(case_ids)), "accuracy case IDs must be globally unique"
 
     for path, case in cases:
