@@ -212,6 +212,16 @@ def test_list_type1_html_keeps_unindented_blank_inside_the_leaf() -> None:
     assert result.math_blocks_checked == 1
 
 
+def test_list_html_terminating_on_opener_releases_following_markdown() -> None:
+    source = "- <style>raw HTML</style>\n$$\nx = x + 1\n$$\n"
+    snapshot = markdown_reference_snapshot(source)
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert range_contains(source.index("raw HTML"), snapshot.opaque_ranges)
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
+    assert result.math_blocks_checked == 1
+
+
 @pytest.mark.parametrize(
     "opener",
     ["<div>", "<x-fixture>"],
@@ -277,8 +287,9 @@ def test_type6_tag_interrupts_a_paragraph() -> None:
     [
         "> <style>\n> raw HTML\n$$\nx = x + 1\n$$\n",
         "- <style>\n  raw HTML\n$$\nx = x + 1\n$$\n",
+        "  > <style>\n  > $$\n  > x = x + 1\n  > $$\n$$\nx = x + 1\n$$\n",
     ],
-    ids=("block-quote", "list-item"),
+    ids=("block-quote", "list-item", "indented-block-quote"),
 )
 def test_unclosed_html_block_stops_at_its_container_boundary(source: str) -> None:
     result = check_documents([_document("paper.md", source)], config=Config())

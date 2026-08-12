@@ -335,17 +335,15 @@ def _ordered_lexical_ranges(
 
             html_kind = _html_block_kind(container_line.content, paragraph_active=False)
             if html_kind is not None:
-                tag_start = text.find("<", container_line.content_start, container_line.end)
-                if tag_start != -1 and not is_escaped(text, tag_start):
-                    html_end = _html_block_end(
-                        text,
-                        container_lines,
-                        line_index,
-                        html_kind,
-                    )
-                    html.append((line_start, html_end))
-                    index = html_end
-                    continue
+                html_end = _html_block_end(
+                    text,
+                    container_lines,
+                    line_index,
+                    html_kind,
+                )
+                html.append((line_start, html_end))
+                index = html_end
+                continue
 
         if text[index] == "{":
             role_end = _myst_role_end_at(text, index)
