@@ -263,6 +263,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_generated_output.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
+- `tests/test_graph_source_pipeline.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_scan.py`

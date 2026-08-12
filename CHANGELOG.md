@@ -51,6 +51,9 @@ Release notes must use these sections:
 - Strict missing-label checks no longer require labels on inline math spans.
 - Explicit missing inputs and operational/configuration failures now return controlled
   exit status 2; invalid UTF-8 files report `INP001` without stopping later inputs.
+- Graph path analysis now shares check path project discovery, ordering, ignore, display
+  path, and source-reading behavior; source failures abort graph construction with
+  controlled `INP001` context instead of exposing a raw exception.
 - Markdown suppressions now stay on the adjacent source line; MyST labels and
   roles respect their syntax boundaries, and seven-hash paragraph lines remain
   ordinary text.

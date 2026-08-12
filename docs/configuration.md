@@ -94,9 +94,9 @@ order = ["symbols.md", "chapters/**/*.md"]
 known, otherwise relative to the current working directory. `project.order`
 accepts POSIX-style file or glob patterns relative to `project.root`.
 
-When paths are passed to `scieqlint check`, `project.order` controls the
-analysis order of discovered files. When no paths are passed and
-`project.order` is non-empty, SciEqLint discovers those ordered project entries.
+When paths are passed to `scieqlint check` or `scieqlint graph`, `project.order`
+controls the analysis order of discovered files. When no paths are passed and
+`project.order` is non-empty, both commands discover those ordered project entries.
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
 

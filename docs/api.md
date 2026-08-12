@@ -28,8 +28,11 @@ print(result.exit_code())
 ```
 
 API calls must not print to stdout/stderr and must not call `sys.exit`.
-`check_paths` is the path-based API and applies project discovery, config lookup,
-file ordering, ignore rules, source loading, and diagnostic baselines.
+`check_paths` and `graph_paths` are the path-based APIs and apply the same project
+discovery, config lookup, file ordering, ignore rules, source loading, and display
+path rules. Checks continue after a source read or decode failure and return
+`INP001`; graph construction is all-or-nothing and raises a controlled `ValueError`
+with `INP001` context chained from the original error. Baselines remain check-only.
 `check_paths` and `graph_paths` raise `FileNotFoundError` when an explicitly
 provided non-glob path does not exist. Existing paths are treated literally even
 when their names contain glob characters; only nonexistent strings with glob

@@ -87,55 +87,28 @@ def _run_check_paths(
         inline_math=inline_math,
         strict_unknowns=strict_unknowns,
     )
-    project_root = _project_root(config)
-    discovered = _discover_files(
-        _input_paths(paths, config, project_root),
-        config.ignore.files,
-        config.project.order,
-        reject_missing_explicit=bool(paths),
-        project_root=project_root,
-    )
+    project_root, discovered = _discover_project_files(paths, config)
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
     consumed_inputs = list(config_inputs)
     input_identities_complete = _consumed_inputs_complete(consumed_inputs)
 
     for path in discovered:
-        opened = False
+        consumed_count = len(consumed_inputs)
         try:
-            with open_text(path, encoding="utf-8") as (stream, consumed_input):
-                opened = True
-                consumed_inputs.append(consumed_input)
-                if not _consumed_input_complete(consumed_input):
-                    input_identities_complete = False
-                text = stream.read()
-        except (OSError, UnicodeError) as exc:
-            if not opened:
-                input_identities_complete = False
-            info = CATALOG["INP001"]
-            detail = (
-                exc.strerror or type(exc).__name__
-                if isinstance(exc, OSError)
-                else getattr(exc, "reason", None) or type(exc).__name__
+            document = _load_source(
+                path,
+                absolute_paths=absolute_paths,
+                consumed_inputs=consumed_inputs,
             )
-            display_path = _display_path(path, absolute_paths=absolute_paths)
+        except (OSError, UnicodeError) as exc:
+            if len(consumed_inputs) == consumed_count:
+                input_identities_complete = False
             diagnostics.append(
-                Diagnostic(
-                    code=info.code,
-                    severity=info.severity,
-                    message=f"{info.message}: {display_path}",
-                    span=_file_start_span(path, absolute_paths=absolute_paths),
-                    detail=detail,
-                )
+                _source_read_diagnostic(path, exc, absolute_paths=absolute_paths)
             )
             continue
-        documents.append(
-            SourceDocument.from_text(
-                _display_path(path, absolute_paths=absolute_paths),
-                text,
-                _document_kind(path),
-            )
-        )
+        documents.append(document)
 
     result = check_documents(documents, config=config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
@@ -263,30 +236,25 @@ def _run_graph_paths(
 ) -> _AnalysisRun[Graph]:
     """Load files, build the graph, and retain their consumed identities."""
     config, config_inputs = _load_config_with_inputs(config_path)
-    discovered = _discover_files(
-        paths or [Path(".")],
-        config.ignore.files,
-        reject_missing_explicit=bool(paths),
-    )
+    _, discovered = _discover_project_files(paths, config)
     documents: list[SourceDocument] = []
     consumed_inputs = list(config_inputs)
-    input_identities_complete = _consumed_inputs_complete(consumed_inputs)
     for path in discovered:
-        with open_text(path, encoding="utf-8") as (stream, consumed_input):
-            consumed_inputs.append(consumed_input)
-            if not _consumed_input_complete(consumed_input):
-                input_identities_complete = False
-            documents.append(
-                SourceDocument.from_text(
-                    _display_path(path, absolute_paths=False),
-                    stream.read(),
-                    _document_kind(path),
-                )
+        try:
+            document = _load_source(
+                path,
+                absolute_paths=False,
+                consumed_inputs=consumed_inputs,
             )
+        except (OSError, UnicodeError) as exc:
+            diagnostic = _source_read_diagnostic(path, exc, absolute_paths=False)
+            detail = f": {diagnostic.detail}" if diagnostic.detail else ""
+            raise ValueError(f"{diagnostic.code} {diagnostic.message}{detail}") from exc
+        documents.append(document)
     return _AnalysisRun(
         graph_documents(documents, config=config),
         tuple(consumed_inputs),
-        input_identities_complete,
+        _consumed_inputs_complete(consumed_inputs),
     )
 
 
@@ -342,6 +310,59 @@ def _consumed_input_complete(consumed_input: ConsumedInput) -> bool:
 
 def _consumed_inputs_complete(consumed_inputs: Sequence[ConsumedInput]) -> bool:
     return all(_consumed_input_complete(item) for item in consumed_inputs)
+
+
+def _discover_project_files(
+    paths: Sequence[Path | str],
+    config: Config,
+) -> tuple[Path, tuple[Path, ...]]:
+    project_root = _project_root(config)
+    discovered = _discover_files(
+        _input_paths(paths, config, project_root),
+        config.ignore.files,
+        config.project.order,
+        reject_missing_explicit=bool(paths),
+        project_root=project_root,
+    )
+    return project_root, discovered
+
+
+def _load_source(
+    path: Path,
+    *,
+    absolute_paths: bool,
+    consumed_inputs: list[ConsumedInput],
+) -> SourceDocument:
+    with open_text(path, encoding="utf-8") as (stream, consumed_input):
+        consumed_inputs.append(consumed_input)
+        text = stream.read()
+    return SourceDocument.from_text(
+        _display_path(path, absolute_paths=absolute_paths),
+        text,
+        _document_kind(path),
+    )
+
+
+def _source_read_diagnostic(
+    path: Path,
+    error: OSError | UnicodeError,
+    *,
+    absolute_paths: bool,
+) -> Diagnostic:
+    info = CATALOG["INP001"]
+    detail = (
+        error.strerror or type(error).__name__
+        if isinstance(error, OSError)
+        else getattr(error, "reason", None) or type(error).__name__
+    )
+    display_path = _display_path(path, absolute_paths=absolute_paths)
+    return Diagnostic(
+        code=info.code,
+        severity=info.severity,
+        message=f"{info.message}: {display_path}",
+        span=_file_start_span(path, absolute_paths=absolute_paths),
+        detail=detail,
+    )
 
 
 def _discover_files(
