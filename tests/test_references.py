@@ -455,6 +455,74 @@ def test_container_relative_fences_and_html_are_opaque(opaque_block: str) -> Non
     assert targets == (["active"], ["active"], ["active"])
 
 
+def test_unclosed_quote_fence_ends_when_the_quote_path_is_exited() -> None:
+    source = "> ```\n> [hidden](#hidden)\n\nSee [active](#active).\n"
+
+    assert _reference_targets(source) == (
+        ["active"],
+        ["active"],
+        ["active"],
+    )
+
+
+def test_reentered_equal_shape_quote_cannot_close_the_first_fence() -> None:
+    source = (
+        "> ```\n"
+        "> [first-hidden](#first-hidden)\n"
+        "outside\n\n"
+        "> ```\n"
+        "> [second-hidden](#second-hidden)\n"
+        "\n"
+        "See [active](#active).\n"
+    )
+
+    assert _reference_targets(source) == (
+        ["active"],
+        ["active"],
+        ["active"],
+    )
+
+
+def test_sibling_list_item_cannot_close_the_first_item_fence() -> None:
+    source = (
+        "- ```\n"
+        "  [first-hidden](#first-hidden)\n"
+        "- ```\n"
+        "  [second-hidden](#second-hidden)\n"
+        "  ```\n"
+        "See [active](#active).\n"
+    )
+
+    assert _reference_targets(source) == (
+        ["active"],
+        ["active"],
+        ["active"],
+    )
+
+
+def test_nested_container_looking_lines_remain_literal_fence_body() -> None:
+    source = (
+        "```\n"
+        "- [hidden-list](#hidden-list)\n"
+        "  ```\n"
+        "  > [hidden-quote](#hidden-quote)\n"
+        "```\n"
+        "See [active](#active).\n"
+    )
+
+    assert _reference_targets(source) == (
+        ["active"],
+        ["active"],
+        ["active"],
+    )
+
+
+def test_top_level_unclosed_fence_owns_the_document_end() -> None:
+    source = "```\nSee [hidden](#hidden).\n"
+
+    assert _reference_targets(source) == ([], [], [])
+
+
 @pytest.mark.parametrize(
     ("boundary", "expected_targets"),
     [
@@ -484,6 +552,8 @@ def test_setext_and_thematic_boundaries_use_distinct_grammars(
         ("1. item", ["active"]),
         ("*", ["target", "active"]),
         ("2.", ["target", "active"]),
+        ("². item", ["target", "active"]),
+        ("１. item", ["target", "active"]),
         ("\n2. item", ["active"]),
         ("\n*", ["active"]),
     ],
@@ -492,6 +562,8 @@ def test_setext_and_thematic_boundaries_use_distinct_grammars(
         "ordered-one-interrupts",
         "empty-bullet-continues",
         "empty-ordered-continues",
+        "superscript-digit-remains-prose",
+        "fullwidth-digit-remains-prose",
         "ordered-after-blank",
         "bullet-after-blank",
     ],

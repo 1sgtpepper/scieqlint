@@ -86,6 +86,7 @@ class _LinkFrame:
 class _BlockContext:
     paragraph_active: bool = False
     list_content_columns: list[int] = field(default_factory=lambda: list[int]())
+    list_container_ids: list[int] = field(default_factory=lambda: list[int]())
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +112,7 @@ class _ContainerLine:
     end: int
     content_start: int
     content: str
-    container_key: tuple[int, tuple[int, ...]]
+    container_key: tuple[int, ...]
     block_start: bool
 
 
@@ -309,8 +310,17 @@ def _ordered_lexical_ranges(
             opener = parse_fence_opener(container_line.content)
             if opener is not None:
                 marker, _info = opener
-                close_index = _fence_close_index(container_lines, line_index, marker)
-                range_end = lines[close_index][1] if close_index is not None else len(text)
+                close_index, boundary_index = _fence_close_index(
+                    container_lines,
+                    line_index,
+                    marker,
+                )
+                if close_index is not None:
+                    range_end = lines[close_index][1]
+                elif boundary_index < len(lines):
+                    range_end = lines[boundary_index][0]
+                else:
+                    range_end = len(text)
                 fences.append((line_start, range_end))
                 index = range_end
                 continue
@@ -419,6 +429,8 @@ def _markdown_line_ownership(
     boundaries: list[int] = []
     container_lines: list[_ContainerLine] = []
     contexts: dict[int, _BlockContext] = {0: _BlockContext()}
+    quote_paths: dict[int, tuple[int, ...]] = {0: ()}
+    next_container_id = 0
     previous_depth = 0
     for start, end, raw_line in lines:
         line = raw_line.rstrip("\r")
@@ -446,8 +458,19 @@ def _markdown_line_ownership(
                 for stale_depth in tuple(contexts):
                     if stale_depth > explicit_depth:
                         del contexts[stale_depth]
+                for stale_depth in tuple(quote_paths):
+                    if stale_depth > explicit_depth:
+                        del quote_paths[stale_depth]
             if explicit_depth > previous_depth:
-                contexts[explicit_depth] = _BlockContext()
+                parent_path = (
+                    *quote_paths[previous_depth],
+                    *contexts[previous_depth].list_container_ids,
+                )
+                for quote_depth in range(previous_depth + 1, explicit_depth + 1):
+                    next_container_id += 1
+                    parent_path = (*parent_path, next_container_id)
+                    quote_paths[quote_depth] = parent_path
+                    contexts[quote_depth] = _BlockContext()
 
         if depth != previous_depth:
             boundaries.append(start)
@@ -461,7 +484,7 @@ def _markdown_line_ownership(
                     end,
                     quote_content_index,
                     _ColumnContent(0, block_content),
-                    depth,
+                    quote_paths[depth],
                     context,
                     block_start=False,
                 )
@@ -486,7 +509,7 @@ def _markdown_line_ownership(
                     end,
                     quote_content_index,
                     relative,
-                    depth,
+                    quote_paths[depth],
                     context,
                     block_start=False,
                 )
@@ -498,6 +521,7 @@ def _markdown_line_ownership(
         original_list_depth = len(context.list_content_columns)
         while context.list_content_columns and indentation < context.list_content_columns[-1]:
             context.list_content_columns.pop()
+            context.list_container_ids.pop()
         list_base = context.list_content_columns[-1] if context.list_content_columns else 0
 
         if context.list_content_columns and indentation >= list_base + 4:
@@ -509,7 +533,7 @@ def _markdown_line_ownership(
                     end,
                     quote_content_index,
                     relative,
-                    depth,
+                    quote_paths[depth],
                     context,
                     block_start=False,
                 )
@@ -526,6 +550,8 @@ def _markdown_line_ownership(
         if marker is not None:
             content_column = list_base + marker.content_column
             context.list_content_columns.append(content_column)
+            next_container_id += 1
+            context.list_container_ids.append(next_container_id)
             item_content = _ColumnContent(
                 relative.source_index + marker.content_index,
                 relative.text[marker.content_index :],
@@ -545,7 +571,7 @@ def _markdown_line_ownership(
                     end,
                     quote_content_index,
                     item_content,
-                    depth,
+                    quote_paths[depth],
                     context,
                     block_start=not item_is_code,
                 )
@@ -562,7 +588,7 @@ def _markdown_line_ownership(
                     end,
                     quote_content_index,
                     relative,
-                    depth,
+                    quote_paths[depth],
                     context,
                     block_start=False,
                 )
@@ -585,7 +611,7 @@ def _markdown_line_ownership(
                 end,
                 quote_content_index,
                 relative,
-                depth,
+                quote_paths[depth],
                 context,
                 block_start=block_kind is not None,
             )
@@ -603,7 +629,7 @@ def _make_container_line(
     end: int,
     quote_content_index: int,
     content: _ColumnContent,
-    depth: int,
+    quote_path: tuple[int, ...],
     context: _BlockContext,
     *,
     block_start: bool,
@@ -613,7 +639,7 @@ def _make_container_line(
         end=end,
         content_start=start + quote_content_index + content.source_index,
         content=content.text,
-        container_key=(depth, tuple(context.list_content_columns)),
+        container_key=(*quote_path, *context.list_container_ids),
         block_start=block_start,
     )
 
@@ -653,7 +679,7 @@ def _list_marker(line: str) -> _ListMarker | None:
         index += 1
     else:
         digit_start = index
-        while index < len(line) and index - digit_start < 9 and line[index].isdigit():
+        while index < len(line) and index - digit_start < 9 and line[index] in "0123456789":
             index += 1
         if index == digit_start or index >= len(line) or line[index] not in ".)":
             return None
@@ -723,15 +749,20 @@ def _fence_close_index(
     lines: Sequence[_ContainerLine],
     opener_index: int,
     marker: str,
-) -> int | None:
-    container_key = lines[opener_index].container_key
+) -> tuple[int | None, int]:
+    """Return ``(closer_index, boundary_index)`` for the opener's path."""
+
+    opener_path = lines[opener_index].container_key
     for index in range(opener_index + 1, len(lines)):
-        if lines[index].container_key == container_key and is_fence_closer(
+        candidate_path = lines[index].container_key
+        if candidate_path[: len(opener_path)] != opener_path:
+            return None, index
+        if candidate_path == opener_path and is_fence_closer(
             lines[index].content,
             marker,
         ):
-            return index
-    return None
+            return index, index
+    return None, len(lines)
 
 
 def _backtick_run_end(text: str, start: int) -> int:
