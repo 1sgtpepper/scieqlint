@@ -347,9 +347,7 @@ def test_deterministic_snapshot_adr_pins_links_and_separates_evidence_from_plans
     assert all(f"/{ARCHITECTURE_EVIDENCE_REVISION}/" in link for link in file_links)
     all_links = re.findall(r"\[[^]]+\]\(([^)]+)\)", adr)
     assert not [
-        link
-        for link in all_links
-        if not link.startswith(("http://", "https://", "#", "mailto:"))
+        link for link in all_links if not link.startswith(("http://", "https://", "#", "mailto:"))
     ]
 
     assert "The current R1 governance evidence is recorded by the merged" in adr
