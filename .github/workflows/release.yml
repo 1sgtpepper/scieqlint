@@ -71,8 +71,9 @@ jobs:
           fi
       - name: Enforce stable-release accuracy and performance evidence
         run: |
-          python -m pip install -e '.[dev]'
-          SCIEQLINT_RELEASE_GATE=1 python -m pytest -q \
+          /tmp/scieqlint-release-smoke/bin/python -m pip install pytest
+          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-smoke/bin/python -m pytest \
+            -o pythonpath= -q \
             tests/test_accuracy_benchmarks.py \
             tests/test_stabilization.py
 

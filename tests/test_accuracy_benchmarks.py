@@ -85,11 +85,9 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
         cases.extend((path, case) for case in _load_cases(path))
 
     case_ids = [str(case["id"]) for _path, case in cases]
-    assert len(case_ids) >= 100, (
-        f"stable releases require at least 100 documented equation cases; found {len(case_ids)}"
-    )
-    assert len(case_ids) == len(set(case_ids)), "accuracy case IDs must be globally unique"
+    assert len(case_ids) == len(set(case_ids)), "equation fixture IDs must be globally unique"
 
+    equation_fixture_ids: list[str] = []
     for path, case in cases:
         if path.stem == "dimensions":
             result = _check_dimension_case(tmp_path, case)
@@ -104,6 +102,13 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
         actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
         assert actual_codes == case["expected_codes"], case["id"]
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+        if result.math_blocks_checked > 0:
+            equation_fixture_ids.append(str(case["id"]))
+
+    assert len(equation_fixture_ids) >= 100, (
+        "stable releases require at least 100 documented equation fixtures; "
+        f"found {len(equation_fixture_ids)}"
+    )
 
 
 def _check_case(path: Path, case: dict[str, object]):
