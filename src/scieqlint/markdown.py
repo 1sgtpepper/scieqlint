@@ -885,9 +885,8 @@ def _container_html_blank_ends(lines: Sequence[_ContainerLine]) -> tuple[int, ..
     next_end = lines[-1].end
     for index in range(len(lines) - 2, -1, -1):
         next_line = lines[index + 1]
-        if (
-            next_line.container_key != lines[index].container_key
-            or not next_line.content.strip(" \t")
+        if next_line.container_key != lines[index].container_key or not next_line.content.strip(
+            " \t"
         ):
             next_end = next_line.start
         ends[index] = next_end
@@ -1132,8 +1131,8 @@ def _block_quote_content(line: str) -> tuple[int, int]:
 
 def _is_setext_underline(line: str) -> bool:
     candidate = line.strip(" \t")
-    return bool(candidate) and candidate[0] in "=-" and all(
-        char == candidate[0] for char in candidate
+    return (
+        bool(candidate) and candidate[0] in "=-" and all(char == candidate[0] for char in candidate)
     )
 
 
