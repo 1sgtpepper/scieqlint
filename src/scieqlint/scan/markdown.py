@@ -19,6 +19,7 @@ from scieqlint.markdown import (
     is_escaped,
     is_fence_closer,
     markdown_reference_snapshot,
+    parse_fence_opener,
     range_contains,
 )
 from scieqlint.scan.base import (
@@ -150,9 +151,12 @@ def _math_fence_ranges(
     for opener_start, range_end in code_fence_ranges(text, occupied):
         source = text[opener_start:range_end]
         opener_line, newline, _body = source.partition("\n")
-        if opener_line.removeprefix("```").rstrip(" \t") not in {"math", "{math}"}:
+        opener = parse_fence_opener(opener_line)
+        if opener is None:
             continue
-        marker = "```"
+        marker, info = opener
+        if info.strip(" \t") not in {"math", "{math}"}:
+            continue
         opener_end = opener_start + len(opener_line)
         body_start = opener_end + len(newline)
         lines = source.splitlines(keepends=True)
