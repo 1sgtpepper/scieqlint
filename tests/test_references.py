@@ -13,7 +13,6 @@ from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.markdown import markdown_reference_snapshot
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.markdown import MarkdownScanner
 
@@ -73,7 +72,7 @@ def _scan(text: str):
 
 
 def _link_tokens(text: str):
-    return markdown_reference_snapshot(text).links
+    return markdown_module.markdown_reference_snapshot(text).links
 
 
 def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:
@@ -95,7 +94,7 @@ def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:
 def test_entity_decoding_bounds_ampersand_character_work() -> None:
     source = _CharacterWorkText("[label](#" + "&" * 2_048 + ")")
 
-    tokens = markdown_reference_snapshot(source).links
+    tokens = markdown_module.markdown_reference_snapshot(source).links
 
     assert len(tokens) == 1
     assert source.character_work <= 100 * len(source)
@@ -104,7 +103,7 @@ def test_entity_decoding_bounds_ampersand_character_work() -> None:
 def test_failed_link_bodies_bound_character_work_and_keep_later_links() -> None:
     source = _CharacterWorkText("[](" * 2_048 + "[live](#live)")
 
-    tokens = markdown_reference_snapshot(source).links
+    tokens = markdown_module.markdown_reference_snapshot(source).links
 
     assert [token.fragment_target for token in tokens] == ["live"]
     assert source.character_work <= 200 * len(source)
@@ -118,7 +117,7 @@ def test_failed_enclosing_labels_do_not_copy_children_per_frame(
     _CopyCountingList.copied_items = 0
     monkeypatch.setattr(markdown_module, "list", _CopyCountingList, raising=False)
 
-    tokens = markdown_reference_snapshot(source).links
+    tokens = markdown_module.markdown_reference_snapshot(source).links
 
     assert len(tokens) == count
     assert _CopyCountingList.copied_items <= 2 * count
@@ -229,12 +228,7 @@ def test_tab_indentation_continuing_a_paragraph_remains_prose() -> None:
 def test_issue_247_math_does_not_create_generic_targets() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("issue-247.md"),
-        "$$\n"
-        "(fake)=\n"
-        "# Fake\n"
-        "{ref}`inside-math`\n"
-        "$$\n\n"
-        "See {ref}`fake`.\n",
+        "$$\n(fake)=\n# Fake\n{ref}`inside-math`\n$$\n\nSee {ref}`fake`.\n",
         DocumentKind.MARKDOWN,
     )
 
@@ -903,14 +897,20 @@ def test_markdown_link_tokens_preserve_balanced_commonmark_boundaries() -> None:
     assert image.is_image is True
     assert normal.is_image is False
     assert normal.fragment_target == "target"
-    assert markdown_reference_snapshot("![alt](#target)").link_metadata_ranges == ((0, 15),)
-    assert markdown_reference_snapshot("[x](#target)").link_metadata_ranges == ((4, 12),)
+    assert markdown_module.markdown_reference_snapshot("![alt](#target)").link_metadata_ranges == (
+        (0, 15),
+    )
+    assert markdown_module.markdown_reference_snapshot("[x](#target)").link_metadata_ranges == (
+        (4, 12),
+    )
 
     nested = _link_tokens("[outer [inner](#inner)](#outer)")
     assert len(nested) == 1
     assert nested[0].fragment_target == "inner"
 
-    code = markdown_reference_snapshot("``[x](#hidden)`` and [x](#live)").opaque_ranges
+    code = markdown_module.markdown_reference_snapshot(
+        "``[x](#hidden)`` and [x](#live)"
+    ).opaque_ranges
     assert code == tuple(sorted(code))
     assert all(left[1] <= right[0] for left, right in zip(code, code[1:], strict=False))
     assert _link_tokens("[x][ref]") == ()
