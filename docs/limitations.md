@@ -123,7 +123,12 @@ parenthesis pairs, and nonblank multiline titles within one paragraph. Blank lin
 Markdown block starts end unmatched link labels and incomplete titles. Four-column or
 tab-indented CommonMark code at a block boundary is opaque, including when nested in a
 block quote or list; list indentation is measured from the item content column, while
-indentation continuing an active paragraph remains prose.
+indentation continuing an active paragraph remains prose. Fenced code and raw HTML use
+the same container-relative line ownership, so quote and list prefixes do not expose
+their literal contents as references. Setext underlines, thematic breaks, list markers,
+and lazy nested-quote continuations follow their paragraph-interruption rules; in
+particular, an ordered list interrupts a paragraph only when it starts at `1`, and an
+empty list item does not interrupt it.
 Parenthesized titles require literal parentheses to be backslash-escaped, and
 valid named or numeric character references in destinations are decoded for
 resolution. Reference-link definitions, autolinks, and the full CommonMark

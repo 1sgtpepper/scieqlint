@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -53,6 +54,15 @@ class _RangeWork(tuple[tuple[int, int], ...]):
         return super().__getitem__(index)
 
 
+class _CopyCountingList(list[object]):
+    copied_items = 0
+
+    def extend(self, values: Iterable[object]) -> None:
+        items = tuple(values)
+        type(self).copied_items += len(items)
+        super().extend(items)
+
+
 def _scan(text: str):
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
@@ -64,6 +74,22 @@ def _scan(text: str):
 
 def _link_tokens(text: str):
     return markdown_reference_snapshot(text).links
+
+
+def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        text,
+        DocumentKind.MARKDOWN,
+    )
+    legacy = MarkdownScanner().scan(document, Config())
+    frontend = MySTFrontend().lower((document,))
+    graph = graph_documents([document], config=Config())
+    return (
+        [reference.target for reference in legacy.references],
+        [reference.target for reference in frontend.generic_refs],
+        [node.label for node in graph.nodes if node.kind == "reference"],
+    )
 
 
 def test_entity_decoding_bounds_ampersand_character_work() -> None:
@@ -82,6 +108,20 @@ def test_failed_link_bodies_bound_character_work_and_keep_later_links() -> None:
 
     assert [token.fragment_target for token in tokens] == ["live"]
     assert source.character_work <= 200 * len(source)
+
+
+def test_failed_enclosing_labels_do_not_copy_children_per_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    count = 512
+    source = "[" * count + "[x](#target)" * count + "]" * count
+    _CopyCountingList.copied_items = 0
+    monkeypatch.setattr(markdown_module, "list", _CopyCountingList, raising=False)
+
+    tokens = markdown_reference_snapshot(source).links
+
+    assert len(tokens) == count
+    assert _CopyCountingList.copied_items <= 2 * count
 
 
 def test_link_destination_parenthesis_nesting_limit() -> None:
@@ -288,6 +328,105 @@ def test_markdown_link_labels_end_at_block_boundaries(boundary: str) -> None:
     assert [(edge.target, edge.target_label) for edge in graph.edges] == [
         ("label:active", "active")
     ]
+
+
+@pytest.mark.parametrize(
+    "opaque_block",
+    [
+        "> ```\n> [fake](#missing)\n> ```",
+        "> ~~~\n> [fake](#missing)\n> ~~~",
+        "- ```\n  [fake](#missing)\n  ```",
+        "- ~~~\n  [fake](#missing)\n  ~~~",
+        "> <div>\n> [fake](#missing)\n> </div>",
+        "- <div>\n  [fake](#missing)\n  </div>",
+    ],
+    ids=[
+        "quote-backtick-fence",
+        "quote-tilde-fence",
+        "list-backtick-fence",
+        "list-tilde-fence",
+        "quote-html",
+        "list-html",
+    ],
+)
+def test_container_relative_fences_and_html_are_opaque(opaque_block: str) -> None:
+    targets = _reference_targets(f"{opaque_block}\n\nSee [active](#active).\n")
+
+    assert targets == (["active"], ["active"], ["active"])
+
+
+@pytest.mark.parametrize(
+    ("boundary", "expected_targets"),
+    [
+        ("--", ["active"]),
+        ("= =", ["target", "active"]),
+    ],
+    ids=["short-setext", "spaced-equals-prose"],
+)
+def test_setext_and_thematic_boundaries_use_distinct_grammars(
+    boundary: str,
+    expected_targets: list[str],
+) -> None:
+    source = f"[label\n{boundary}\ncontinued](#target)\nSee [active](#active).\n"
+
+    assert _reference_targets(source) == (
+        expected_targets,
+        expected_targets,
+        expected_targets,
+    )
+
+
+@pytest.mark.parametrize(
+    ("middle", "expected_targets"),
+    [
+        ("2. item", ["target", "active"]),
+        ("1. item", ["active"]),
+        ("*", ["target", "active"]),
+        ("2.", ["target", "active"]),
+        ("\n2. item", ["active"]),
+        ("\n*", ["active"]),
+    ],
+    ids=[
+        "ordered-two-continues",
+        "ordered-one-interrupts",
+        "empty-bullet-continues",
+        "empty-ordered-continues",
+        "ordered-after-blank",
+        "bullet-after-blank",
+    ],
+)
+def test_list_markers_apply_paragraph_interruption_rules(
+    middle: str,
+    expected_targets: list[str],
+) -> None:
+    source = f"[label\n{middle}\ncontinued](#target)\nSee [active](#active).\n"
+
+    assert _reference_targets(source) == (
+        expected_targets,
+        expected_targets,
+        expected_targets,
+    )
+
+
+@pytest.mark.parametrize(
+    ("continuation", "expected_targets"),
+    [
+        ("> continued](#target)", ["target", "active"]),
+        ("> - item\ncontinued](#target)", ["active"]),
+    ],
+    ids=["partial-lazy-continuation", "partial-real-block"],
+)
+def test_nested_quote_lazy_continuation_preserves_the_container_path(
+    continuation: str,
+    expected_targets: list[str],
+) -> None:
+    source = f">>> [label\n{continuation}\nSee [active](#active).\n"
+
+    assert _reference_targets(source) == (
+        expected_targets,
+        expected_targets,
+        expected_targets,
+    )
 
 
 def test_roles_in_valid_link_titles_are_opaque_but_invalid_links_are_not() -> None:
@@ -988,6 +1127,12 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
             "- item\n\n        [hidden](#hidden)\nSee [active](#active).\n",
             ("active",),
             id="list-code",
+        ),
+        pytest.param(
+            "list-marker-relative-code",
+            "-     [hidden](#hidden)\nSee [active](#active).\n",
+            ("active",),
+            id="list-marker-code",
         ),
         pytest.param(
             "wide-list-continuation",

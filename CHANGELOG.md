@@ -133,6 +133,10 @@ Release notes must use these sections:
   is now opaque to reference tokenization, including container-relative list code,
   while paragraph continuation indentation remains prose. Multiline link titles stop
   at Markdown block boundaries, and malformed destinations have bounded nesting work.
+  Fenced code and raw HTML inside quote or list containers remain opaque, Setext and
+  list interruption boundaries follow paragraph context, partial lazy quote
+  continuations retain their container, and failed enclosing labels no longer copy
+  every child token through every open frame.
   Heading-target classification accepts valid empty ATX
   headings without accepting missing-space forms.
 

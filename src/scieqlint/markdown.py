@@ -80,7 +80,7 @@ class MarkdownLinkToken:
 class _LinkFrame:
     token_start: int
     is_image: bool
-    children: list[MarkdownLinkToken] = field(default_factory=lambda: list[MarkdownLinkToken]())
+    child_start: int
 
 
 @dataclass(slots=True)
@@ -90,9 +90,38 @@ class _BlockContext:
 
 
 @dataclass(frozen=True, slots=True)
+class _ListMarker:
+    marker_width: int
+    content_column: int
+    content_index: int
+    ordered_start: int | None
+    has_content: bool
+
+    def interrupts_paragraph(self) -> bool:
+        return self.has_content and (self.ordered_start is None or self.ordered_start == 1)
+
+
+@dataclass(frozen=True, slots=True)
+class _ColumnContent:
+    source_index: int
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ContainerLine:
+    start: int
+    end: int
+    content_start: int
+    content: str
+    container_key: tuple[int, tuple[int, ...]]
+    block_start: bool
+
+
+@dataclass(frozen=True, slots=True)
 class _LineOwnership:
     indented_code: tuple[OffsetRange, ...]
     link_boundaries: tuple[int, ...]
+    container_lines: tuple[_ContainerLine, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,18 +274,21 @@ def _ordered_lexical_ranges(
     if not lines:
         return _LexicalRanges((), (), (), (), (), (), (), ())
 
+    ownership = _markdown_line_ownership(lines)
+    container_lines = ownership.container_lines
     fences: list[OffsetRange] = []
     html: list[OffsetRange] = []
     roles: list[OffsetRange] = []
     code: list[OffsetRange] = []
-    indented_code = _markdown_line_ownership(lines).indented_code
+    indented_code = ownership.indented_code
     display: list[DollarRange] = []
     inline: list[DollarRange] = []
     display_openers: list[int] = []
     occupied_cursor = _RangeCursor((*occupied, *indented_code))
     backtick_runs = _backtick_runs(text)
     next_same_backtick = _next_same_backtick_runs(backtick_runs)
-    html_block_closes = _html_block_close_positions(text)
+    html_block_closes = _html_block_close_positions(text, container_lines)
+    html_blank_ends = _container_html_blank_ends(container_lines)
     backtick_index = 0
     line_index = 0
     index = 0
@@ -267,6 +299,7 @@ def _ordered_lexical_ranges(
         while line_index + 1 < len(lines) and index >= lines[line_index][1]:
             line_index += 1
         line_start, _line_end, line = lines[line_index]
+        container_line = container_lines[line_index]
         line_content_end = line_start + len(line.rstrip("\r\n"))
 
         occupied_end = occupied_cursor.end_at(index)
@@ -274,15 +307,31 @@ def _ordered_lexical_ranges(
             index = occupied_end
             continue
 
-        if index == line_start:
-            opener = parse_fence_opener(line)
+        if index == container_line.content_start and container_line.block_start:
+            opener = parse_fence_opener(container_line.content)
             if opener is not None:
                 marker, _info = opener
-                close_index = _fence_close_index(lines, line_index, marker)
+                close_index = _fence_close_index(container_lines, line_index, marker)
                 range_end = lines[close_index][1] if close_index is not None else len(text)
                 fences.append((line_start, range_end))
                 index = range_end
                 continue
+
+            if _starts_html_block(container_line.content):
+                tag_start = text.find("<", container_line.content_start, container_line.end)
+                if tag_start != -1 and not is_escaped(text, tag_start):
+                    block = HTML_BLOCK_OPEN_RE.match(container_line.content)
+                    html_end = _html_range_at(
+                        text,
+                        tag_start,
+                        html_block_closes,
+                        block_tag=block.group("tag").lower() if block is not None else None,
+                        blank_line_end=html_blank_ends[line_index],
+                    )
+                    if html_end is not None:
+                        html.append((line_start, html_end))
+                        index = html_end
+                        continue
 
         if text[index] == "{":
             role_end = _myst_role_end_at(text, index)
@@ -366,24 +415,33 @@ def _source_lines(text: str) -> list[tuple[int, int, str]]:
 def _markdown_line_ownership(
     lines: Sequence[tuple[int, int, str]],
 ) -> _LineOwnership:
-    """Classify indented code and inline-container boundaries in one block pass."""
+    """Classify container-relative block ownership in one source-ordered pass."""
 
     ranges: list[OffsetRange] = []
     boundaries: list[int] = []
+    container_lines: list[_ContainerLine] = []
     contexts: dict[int, _BlockContext] = {0: _BlockContext()}
     previous_depth = 0
     for start, end, raw_line in lines:
-        explicit_depth, block_content = _block_quote_content(raw_line.rstrip("\r"))
+        line = raw_line.rstrip("\r")
+        explicit_depth, quote_content_index = _block_quote_content(line)
+        block_content = line[quote_content_index:]
         previous_context = contexts[previous_depth]
+        previous_list_base = (
+            previous_context.list_content_columns[-1]
+            if previous_context.list_content_columns
+            else 0
+        )
+        previous_relative = _content_after_columns(block_content, previous_list_base)
         depth = explicit_depth
         if (
-            explicit_depth == 0
-            and previous_depth
+            explicit_depth < previous_depth
             and block_content.strip(" \t")
             and previous_context.paragraph_active
-            and not _starts_markdown_block(block_content)
+            and not _starts_markdown_block(previous_relative.text, paragraph_active=True)
         ):
-            # A block quote paragraph may lazily continue without another marker.
+            # A nested quote paragraph may lazily continue with any suffix of its
+            # explicit markers omitted; the source still belongs to the old path.
             depth = previous_depth
         else:
             if explicit_depth < previous_depth:
@@ -399,6 +457,17 @@ def _markdown_line_ownership(
         if not block_content.strip(" \t"):
             boundaries.append(start)
             context.paragraph_active = False
+            container_lines.append(
+                _make_container_line(
+                    start,
+                    end,
+                    quote_content_index,
+                    _ColumnContent(0, block_content),
+                    depth,
+                    context,
+                    block_start=False,
+                )
+            )
             previous_depth = depth
             continue
 
@@ -407,10 +476,23 @@ def _markdown_line_ownership(
         relative = (
             _content_after_columns(block_content, list_base)
             if indentation >= list_base
-            else block_content
+            else _ColumnContent(0, block_content)
         )
 
-        if context.paragraph_active and not _starts_markdown_block(relative):
+        paragraph_active = context.paragraph_active
+        block_kind = _markdown_block_kind(relative.text, paragraph_active=paragraph_active)
+        if paragraph_active and block_kind is None:
+            container_lines.append(
+                _make_container_line(
+                    start,
+                    end,
+                    quote_content_index,
+                    relative,
+                    depth,
+                    context,
+                    block_start=False,
+                )
+            )
             previous_depth = depth
             continue
         context.paragraph_active = False
@@ -423,41 +505,118 @@ def _markdown_line_ownership(
         if context.list_content_columns and indentation >= list_base + 4:
             ranges.append((start, end))
             boundaries.append(start)
+            container_lines.append(
+                _make_container_line(
+                    start,
+                    end,
+                    quote_content_index,
+                    relative,
+                    depth,
+                    context,
+                    block_start=False,
+                )
+            )
             previous_depth = depth
             continue
 
         relative = (
             _content_after_columns(block_content, list_base)
             if indentation >= list_base
-            else block_content
+            else _ColumnContent(0, block_content)
         )
-        list_content_column = _list_marker_content_column(relative)
-        if list_content_column is not None:
-            context.list_content_columns.append(list_base + list_content_column)
-            context.paragraph_active = True
+        marker = _list_marker(relative.text)
+        if marker is not None:
+            content_column = list_base + marker.content_column
+            context.list_content_columns.append(content_column)
+            item_content = _ColumnContent(
+                relative.source_index + marker.content_index,
+                relative.text[marker.content_index :],
+            )
+            item_is_code = marker.has_content and _indent_columns(item_content.text) >= 4
+            context.paragraph_active = (
+                marker.has_content
+                and not item_is_code
+                and _markdown_block_kind(item_content.text, paragraph_active=False) is None
+            )
             boundaries.append(start)
+            if item_is_code:
+                ranges.append((start, end))
+            container_lines.append(
+                _make_container_line(
+                    start,
+                    end,
+                    quote_content_index,
+                    item_content,
+                    depth,
+                    context,
+                    block_start=not item_is_code,
+                )
+            )
             previous_depth = depth
             continue
 
         if not context.list_content_columns and indentation >= 4:
             ranges.append((start, end))
             boundaries.append(start)
+            container_lines.append(
+                _make_container_line(
+                    start,
+                    end,
+                    quote_content_index,
+                    relative,
+                    depth,
+                    context,
+                    block_start=False,
+                )
+            )
             previous_depth = depth
             continue
 
-        block_kind = _markdown_block_kind(relative)
+        block_kind = _markdown_block_kind(relative.text, paragraph_active=paragraph_active)
         if block_kind is not None:
             boundaries.append(start)
-            if block_kind in {"heading", "thematic-or-setext"}:
+            if block_kind in {"heading", "setext", "thematic"}:
                 boundaries.append(end)
         else:
             if len(context.list_content_columns) != original_list_depth:
                 boundaries.append(start)
             context.paragraph_active = True
+        container_lines.append(
+            _make_container_line(
+                start,
+                end,
+                quote_content_index,
+                relative,
+                depth,
+                context,
+                block_start=block_kind is not None,
+            )
+        )
         previous_depth = depth
     return _LineOwnership(
         indented_code=_merge_ranges(ranges),
         link_boundaries=tuple(sorted(set(boundaries))),
+        container_lines=tuple(container_lines),
+    )
+
+
+def _make_container_line(
+    start: int,
+    end: int,
+    quote_content_index: int,
+    content: _ColumnContent,
+    depth: int,
+    context: _BlockContext,
+    *,
+    block_start: bool,
+) -> _ContainerLine:
+    return _ContainerLine(
+        start=start,
+        end=end,
+        content_start=start + quote_content_index + content.source_index,
+        content=content.text,
+        container_key=(depth, tuple(context.list_content_columns)),
+        block_start=block_start,
     )
 
 
@@ -473,7 +632,7 @@ def _indent_columns(line: str) -> int:
     return columns
 
 
-def _content_after_columns(line: str, columns: int) -> str:
+def _content_after_columns(line: str, columns: int) -> _ColumnContent:
     index = 0
     current = 0
     while index < len(line) and current < columns and line[index] in " \t":
@@ -482,15 +641,16 @@ def _content_after_columns(line: str, columns: int) -> str:
         else:
             current += 4 - current % 4
         index += 1
-    return " " * max(0, current - columns) + line[index:]
+    return _ColumnContent(index, " " * max(0, current - columns) + line[index:])
 
 
-def _list_marker_content_column(line: str) -> int | None:
+def _list_marker(line: str) -> _ListMarker | None:
     indentation = _indent_columns(line)
     if indentation > 3:
         return None
     index = len(line) - len(line.lstrip(" \t"))
     marker_start = index
+    ordered_start: int | None = None
     if index < len(line) and line[index] in "*+-":
         index += 1
     else:
@@ -499,6 +659,7 @@ def _list_marker_content_column(line: str) -> int | None:
             index += 1
         if index == digit_start or index >= len(line) or line[index] not in ".)":
             return None
+        ordered_start = int(line[digit_start:index])
         index += 1
     if index < len(line) and line[index] not in " \t":
         return None
@@ -515,17 +676,29 @@ def _list_marker_content_column(line: str) -> int | None:
         index += 1
     padding = content_column - marker_end_column
     if index == len(line) or padding == 0 or padding > 4:
-        return marker_end_column + 1
-    assert index > whitespace_start
-    return content_column
+        content_column = marker_end_column + 1
+        content_index = min(len(line), whitespace_start + 1)
+    else:
+        assert index > whitespace_start
+        content_index = index
+    return _ListMarker(
+        marker_width=marker_width,
+        content_column=content_column,
+        content_index=content_index,
+        ordered_start=ordered_start,
+        has_content=content_index < len(line),
+    )
 
 
-def _markdown_block_kind(line: str) -> str | None:
+def _markdown_block_kind(line: str, *, paragraph_active: bool) -> str | None:
     if _is_heading_line(line):
         return "heading"
-    if _indent_columns(line) <= 3 and _is_thematic_or_setext_line(line):
-        return "thematic-or-setext"
-    if _list_marker_content_column(line) is not None:
+    if paragraph_active and _indent_columns(line) <= 3 and _is_setext_underline(line):
+        return "setext"
+    if _indent_columns(line) <= 3 and _is_thematic_break(line):
+        return "thematic"
+    marker = _list_marker(line)
+    if marker is not None and (not paragraph_active or marker.interrupts_paragraph()):
         return "list"
     if parse_fence_opener(line) is not None:
         return "fence"
@@ -536,8 +709,8 @@ def _markdown_block_kind(line: str) -> str | None:
     return None
 
 
-def _starts_markdown_block(line: str) -> bool:
-    return _markdown_block_kind(line) is not None
+def _starts_markdown_block(line: str, *, paragraph_active: bool) -> bool:
+    return _markdown_block_kind(line, paragraph_active=paragraph_active) is not None
 
 
 def _is_heading_line(line: str) -> bool:
@@ -548,12 +721,16 @@ def _is_heading_line(line: str) -> bool:
 
 
 def _fence_close_index(
-    lines: Sequence[tuple[int, int, str]],
+    lines: Sequence[_ContainerLine],
     opener_index: int,
     marker: str,
 ) -> int | None:
+    container_key = lines[opener_index].container_key
     for index in range(opener_index + 1, len(lines)):
-        if is_fence_closer(lines[index][2], marker):
+        if lines[index].container_key == container_key and is_fence_closer(
+            lines[index].content,
+            marker,
+        ):
             return index
     return None
 
@@ -665,6 +842,9 @@ def _html_range_at(
     text: str,
     start: int,
     block_closes: dict[int, int],
+    *,
+    block_tag: str | None = None,
+    blank_line_end: int | None = None,
 ) -> int | None:
     for pattern in (
         HTML_COMMENT_RE,
@@ -676,16 +856,21 @@ def _html_range_at(
         if match is not None:
             return match.end()
 
-    block = HTML_BLOCK_OPEN_RE.match(text, start)
-    if block is not None:
-        tag = block.group("tag").lower()
-        tag_start = text.find("<", start, block.end())
-        assert tag_start != -1
-        closing = block_closes.get(tag_start)
+    block = HTML_BLOCK_OPEN_RE.match(text, start) if block_tag is None else None
+    if block is not None or block_tag is not None:
+        if block_tag is not None:
+            tag = block_tag
+        else:
+            assert block is not None
+            tag = block.group("tag").lower()
+        closing = block_closes.get(start)
         if closing is not None:
             return closing
         if tag in HTML_RAWTEXT_TAGS:
             return len(text)
+        if blank_line_end is not None:
+            return blank_line_end
+        assert block is not None
         blank_line = HTML_BLANK_LINE_RE.search(text, block.end())
         return len(text) if blank_line is None else blank_line.start() + 1
 
@@ -693,10 +878,34 @@ def _html_range_at(
     return tag.end() if tag is not None else None
 
 
-def _html_block_close_positions(text: str) -> dict[int, int]:
+def _container_html_blank_ends(lines: Sequence[_ContainerLine]) -> tuple[int, ...]:
+    if not lines:
+        return ()
+    ends = [lines[-1].end] * len(lines)
+    next_end = lines[-1].end
+    for index in range(len(lines) - 2, -1, -1):
+        next_line = lines[index + 1]
+        if (
+            next_line.container_key != lines[index].container_key
+            or not next_line.content.strip(" \t")
+        ):
+            next_end = next_line.start
+        ends[index] = next_end
+    return tuple(ends)
+
+
+def _html_block_close_positions(
+    text: str,
+    lines: Sequence[_ContainerLine],
+) -> dict[int, int]:
     candidates_by_tag: dict[str, list[int]] = {}
-    for match in HTML_BLOCK_OPEN_RE.finditer(text):
-        tag_start = text.find("<", match.start(), match.end())
+    for line in lines:
+        if not line.block_start:
+            continue
+        match = HTML_BLOCK_OPEN_RE.match(line.content)
+        if match is None:
+            continue
+        tag_start = text.find("<", line.content_start, line.end)
         assert tag_start != -1
         candidates_by_tag.setdefault(match.group("tag").lower(), []).append(tag_start)
     if not candidates_by_tag:
@@ -845,7 +1054,7 @@ def _markdown_link_tokens_from_lexical(
     index = 0
     while index < len(text):
         while boundary_index < len(boundaries) and boundaries[boundary_index] <= index:
-            _flush_link_frames(stack, tokens)
+            _flush_link_frames(stack)
             boundary_index += 1
 
         protected_end = protected_cursor.end_at(index)
@@ -858,11 +1067,11 @@ def _markdown_link_tokens_from_lexical(
             index = _skip_backslash_escape(text, index)
             continue
         if char == "!" and index + 1 < len(text) and text[index + 1] == "[":
-            stack.append(_LinkFrame(index, True))
+            stack.append(_LinkFrame(index, True, len(tokens)))
             index += 2
             continue
         if char == "[":
-            stack.append(_LinkFrame(index, False))
+            stack.append(_LinkFrame(index, False, len(tokens)))
             index += 1
             continue
         if char != "]" or not stack:
@@ -870,13 +1079,13 @@ def _markdown_link_tokens_from_lexical(
             continue
 
         frame = stack.pop()
-        visible_children = tuple(frame.children)
         next_index = index + 1
         if index + 1 < len(text) and text[index + 1] == "(":
             limit = boundaries[boundary_index] if boundary_index < len(boundaries) else len(text)
             body = _parse_link_body(text, index + 2, limit)
             if body is not None:
                 destination_start, destination_end, end = body
+                children = tokens[frame.child_start :]
                 token = _make_link_token(
                     text,
                     frame.token_start,
@@ -884,35 +1093,29 @@ def _markdown_link_tokens_from_lexical(
                     destination_start,
                     destination_end,
                     frame.is_image,
-                    frame.children,
+                    children,
                 )
-                if frame.is_image or all(child.is_image for child in frame.children):
-                    visible_children = (token,)
+                if frame.is_image or all(child.is_image for child in children):
+                    del tokens[frame.child_start :]
+                    tokens.append(token)
                 next_index = end
-
-        if stack:
-            stack[-1].children.extend(visible_children)
-        else:
-            tokens.extend(visible_children)
         index = next_index
 
-    _flush_link_frames(stack, tokens)
+    _flush_link_frames(stack)
     return tuple(sorted(tokens, key=lambda token: token.start))
 
 
 def _flush_link_frames(
     stack: list[_LinkFrame],
-    tokens: list[MarkdownLinkToken],
 ) -> None:
-    while stack:
-        tokens.extend(stack.pop().children)
+    stack.clear()
 
 
 def _link_label_boundaries(text: str) -> tuple[int, ...]:
     return _markdown_line_ownership(_source_lines(text)).link_boundaries
 
 
-def _block_quote_content(line: str) -> tuple[int, str]:
+def _block_quote_content(line: str) -> tuple[int, int]:
     depth = 0
     index = 0
     while True:
@@ -920,23 +1123,30 @@ def _block_quote_content(line: str) -> tuple[int, str]:
         while marker < len(line) and marker - index < 3 and line[marker] == " ":
             marker += 1
         if marker >= len(line) or line[marker] != ">":
-            return depth, line[index:]
+            return depth, index
         depth += 1
         index = marker + 1
         if index < len(line) and line[index] in " \t":
             index += 1
 
 
-def _is_thematic_or_setext_line(line: str) -> bool:
+def _is_setext_underline(line: str) -> bool:
+    candidate = line.strip(" \t")
+    return bool(candidate) and candidate[0] in "=-" and all(
+        char == candidate[0] for char in candidate
+    )
+
+
+def _is_thematic_break(line: str) -> bool:
     candidate = line.strip(" \t")
     if (
         not candidate
-        or candidate[0] not in "*_-="
+        or candidate[0] not in "*_-"
         or any(char not in {candidate[0], " ", "\t"} for char in candidate)
     ):
         return False
     marker_count = sum(char == candidate[0] for char in candidate)
-    return marker_count >= (1 if candidate[0] == "=" else 3)
+    return marker_count >= 3
 
 
 def _starts_html_block(line: str) -> bool:
