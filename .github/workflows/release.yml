@@ -52,6 +52,29 @@ jobs:
           preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
           assert preset.is_file(), "mechanics preset missing from installed wheel"
           PY
+      - name: Verify source, wheel, and tag versions
+        run: |
+          source_version="$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+          print(tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"])
+          PY
+          )"
+          wheel_version="$(/tmp/scieqlint-release-smoke/bin/python - <<'PY'
+          from importlib.metadata import version
+          print(version("scieqlint"))
+          PY
+          )"
+          test "$wheel_version" = "$source_version"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$source_version"
+          fi
+      - name: Enforce stable-release accuracy and performance evidence
+        run: |
+          python -m pip install -e '.[dev]'
+          SCIEQLINT_RELEASE_GATE=1 python -m pytest -q \
+            tests/test_accuracy_benchmarks.py \
+            tests/test_stabilization.py
 
   publish:
     needs: smoke

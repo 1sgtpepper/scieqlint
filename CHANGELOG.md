@@ -24,6 +24,9 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Stable-tag publication now fails closed unless source, wheel, and tag versions
+  agree, the documented accuracy evidence passes, and the 100-document/500-equation/
+  500-reference workload stays under three seconds.
 - Terminology-gate detection now counts only canonical gate wiring with direct
   failure controls that are statically proven blocking. Explicitly disabled or
   continue-on-error steps and parent jobs are excluded, as are step shell

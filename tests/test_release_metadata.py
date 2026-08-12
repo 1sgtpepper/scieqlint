@@ -58,6 +58,25 @@ def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     assert "password:" not in workflow
 
 
+def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
+    workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+
+    assert 'version("scieqlint")' in workflow
+    assert '${GITHUB_REF_NAME#v}' in workflow
+    assert 'SCIEQLINT_RELEASE_GATE=1 python -m pytest' in workflow
+    assert 'tests/test_accuracy_benchmarks.py' in workflow
+    assert 'tests/test_stabilization.py' in workflow
+    smoke_start = workflow.index("\n  smoke:")
+    publish_start = workflow.index("\n  publish:")
+    assert smoke_start < workflow.index("Verify source, wheel, and tag versions") < publish_start
+    assert smoke_start < workflow.index("Enforce stable-release accuracy") < publish_start
+    assert re.search(
+        r"(?m)^  publish:\n"
+        r"    needs: smoke$",
+        workflow,
+    )
+
+
 def test_ci_test_matrix_covers_declared_python_versions() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
