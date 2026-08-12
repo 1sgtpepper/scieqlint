@@ -12,7 +12,9 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 @pytest.mark.public_regression
 def test_dimension_budgets_report_typed_diagnostics_and_continue(tmp_path: Path) -> None:
     config = _dimension_config(tmp_path, aliases=(r"\m",))
-    numeric_detail = "dimension expression exceeds the supported numeric-component budget of 512 decimal digits"
+    numeric_detail = (
+        "dimension expression exceeds the supported numeric-component budget of 512 decimal digits"
+    )
     nesting_detail = "dimension expression exceeds the supported group-nesting budget of 64"
     cases = (
         ("01-digits.md", rf"\m^{'9' * 5_000}=\m"),
