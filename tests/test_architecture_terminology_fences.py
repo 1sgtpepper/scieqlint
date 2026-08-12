@@ -11,7 +11,8 @@ import pytest
 def _load_scanner() -> ModuleType:
     path = Path("tools/architecture/terminology_drift.py")
     spec = importlib.util.spec_from_file_location("_terminology_drift_issue_262", path)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
