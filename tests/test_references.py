@@ -419,7 +419,7 @@ def test_markdown_link_tokens_reject_blank_line_and_accept_soft_wrapped_titles()
         "```text\nbody\n```",
         "# Heading",
         "- list item",
-        "<div>\nbody\n</div>",
+        "<div>\nbody\n</div>\n",
         "---",
     ],
     ids=["fence", "heading", "list", "html", "thematic"],
@@ -439,7 +439,7 @@ def test_markdown_link_label_accepts_one_soft_line_break() -> None:
     [
         "",
         "```text\ncode\n```",
-        "<div>\nbody\n</div>",
+        "<div>\nbody\n</div>\n",
         "# Heading",
         "- list item",
         "> block quote",
@@ -1197,7 +1197,7 @@ def test_nested_images_preserve_outer_link_semantics_and_image_opacity() -> None
 def test_raw_html_does_not_join_dollar_math_across_live_myst_role() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
-        "<div>\n$$\n</div>\n{eq}`active`\n$$\n",
+        "<div>\n$$\n</div>\n\n{eq}`active`\n$$\n",
         DocumentKind.MARKDOWN,
     )
 

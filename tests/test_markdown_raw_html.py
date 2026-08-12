@@ -10,13 +10,7 @@ from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import markdown_reference_snapshot, range_contains
 
-_RAW_PAYLOAD = (
-    "$$\n"
-    "x = x + 1\n"
-    "$$ {#inside}\n"
-    "See {eq}`ghost`.\n"
-    "#Bad\n"
-)
+_RAW_PAYLOAD = "$$\nx = x + 1\n$$ {#inside}\nSee {eq}`ghost`.\n#Bad\n"
 
 _HTML_BLOCKS = (
     ("type1-style", f"<style>\n{_RAW_PAYLOAD}</style>\n"),
@@ -181,10 +175,7 @@ def test_type6_closing_tag_starts_a_block() -> None:
 
 
 def test_type1_ends_on_the_first_type1_closing_tag_line() -> None:
-    source = (
-        f"<style>\n{_RAW_PAYLOAD}</textarea> #Bad remains raw HTML\n"
-        "$$\nx = x + 1\n$$\n"
-    )
+    source = f"<style>\n{_RAW_PAYLOAD}</textarea> #Bad remains raw HTML\n$$\nx = x + 1\n$$\n"
     result = check_documents([_document("paper.md", source)], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["ALG001"]
@@ -284,8 +275,8 @@ def test_type6_tag_interrupts_a_paragraph() -> None:
 @pytest.mark.parametrize(
     "source",
     (
-        "> <style>\n> raw HTML\noutside $$x = x + 1$$\n",
-        "- <style>\n  raw HTML\noutside $$x = x + 1$$\n",
+        "> <style>\n> raw HTML\n$$\nx = x + 1\n$$\n",
+        "- <style>\n  raw HTML\n$$\nx = x + 1\n$$\n",
     ),
     ids=("block-quote", "list-item"),
 )
@@ -298,21 +289,18 @@ def test_unclosed_html_block_stops_at_its_container_boundary(source: str) -> Non
 
 def test_inline_html_is_opaque_but_text_between_tags_remains_active() -> None:
     source = (
-        'before <!-- $$ x = x + 1 $$ {eq}`comment` --> after\n'
+        "before <!-- $$ x = x + 1 $$ {eq}`comment` --> after\n"
         '<span data-ref="{eq}`attribute`">See {eq}`visible`.</span>\n'
     )
     result = check_documents([_document("paper.md", source)], config=Config())
 
     assert [(diagnostic.code, diagnostic.message) for diagnostic in result.diagnostics] == [
-        ("REF002", "missing equation reference target: visible")
+        ("REF002", "equation reference target not found: visible")
     ]
 
 
 def test_html_comment_suppression_directive_remains_active() -> None:
-    source = (
-        "<!-- scieqlint-disable-next-line ALG001 -->\n"
-        "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
-    )
+    source = "<!-- scieqlint-disable-next-line ALG001 -->\n$$\n(a+b)^2 = a^2 + b^2\n$$\n"
     result = check_documents([_document("paper.md", source)], config=Config())
 
     assert [(diagnostic.code, diagnostic.suppressed) for diagnostic in result.diagnostics] == [

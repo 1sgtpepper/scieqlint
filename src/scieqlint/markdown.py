@@ -38,9 +38,7 @@ HTML_TYPE7_OPEN_RE = re.compile(
     rf"^[ \t]{{0,3}}<(?P<tag>[A-Za-z][A-Za-z0-9-]*)"
     rf"(?:{_HTML_ATTRIBUTE})*[ \t]*/?>[ \t]*$"
 )
-HTML_TYPE7_CLOSE_RE = re.compile(
-    r"^[ \t]{0,3}</(?P<tag>[A-Za-z][A-Za-z0-9-]*)[ \t]*>[ \t]*$"
-)
+HTML_TYPE7_CLOSE_RE = re.compile(r"^[ \t]{0,3}</(?P<tag>[A-Za-z][A-Za-z0-9-]*)[ \t]*>[ \t]*$")
 HTML_TYPE7_EXCLUDED_OPEN_TAGS = frozenset({"pre", "script", "style", "textarea"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
@@ -943,9 +941,9 @@ def _html_block_end(
     last_end = lines[line_index].end
     for candidate_index, candidate in enumerate(lines[line_index:], start=line_index):
         if candidate_index == line_index:
-            content = text[candidate.content_start:candidate.end]
+            content = text[candidate.content_start : candidate.end]
         else:
-            raw_line = text[candidate.start:candidate.end].rstrip("\r\n")
+            raw_line = text[candidate.start : candidate.end].rstrip("\r\n")
             container_content = _html_container_content(raw_line, container_key)
             if container_content is None:
                 break
@@ -1197,11 +1195,7 @@ def _html_block_kind(line: str, *, paragraph_active: bool) -> str | None:
         return None
     type7_open = HTML_TYPE7_OPEN_RE.fullmatch(line)
     if type7_open is not None:
-        return (
-            None
-            if type7_open.group("tag").lower() in HTML_TYPE7_EXCLUDED_OPEN_TAGS
-            else "type7"
-        )
+        return None if type7_open.group("tag").lower() in HTML_TYPE7_EXCLUDED_OPEN_TAGS else "type7"
     return "type7" if HTML_TYPE7_CLOSE_RE.fullmatch(line) is not None else None
 
 
