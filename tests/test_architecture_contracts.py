@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -40,6 +41,10 @@ from scieqlint.source.maps import SourceMap
 REPO_ROOT = Path(__file__).resolve().parents[1]
 IMPORT_BOUNDARY_OWNER = "Owner: architecture boundary map"
 ARCHITECTURE_TERM_SCANNER = REPO_ROOT / "tools" / "architecture" / "terminology_drift.py"
+DETERMINISTIC_SNAPSHOT_ADR = (
+    REPO_ROOT / "docs" / "architecture" / "deterministic-snapshot-kernel-adr.md"
+)
+ARCHITECTURE_EVIDENCE_REVISION = "e7dbb1f2cdae2485c4027fc8c415da25c0ef9663"
 
 
 def doc(path: str, text: str) -> SourceDocument:
@@ -326,6 +331,54 @@ def test_architecture_terminology_scanner_emits_stable_machine_report():
     assert all(Path(item["path"]).is_absolute() is False for item in report["inputs"])
     assert '"timestamp":' not in first.stdout.lower()
     assert str(REPO_ROOT) not in first.stdout
+
+
+def test_deterministic_snapshot_adr_pins_links_and_separates_evidence_from_plans():
+    adr = DETERMINISTIC_SNAPSHOT_ADR.read_text(encoding="utf-8")
+
+    assert "github.com/Kuhai9801/scieqlint" not in adr
+    assert "Traceability issue: [GitHub #133]" in adr
+    assert "R1-001 / GitHub #133" not in adr
+    file_links = re.findall(
+        r"https://github\.com/1sgtpepper/scieqlint/(?:blob|tree)/[^)]+",
+        adr,
+    )
+    assert file_links
+    assert all(f"/{ARCHITECTURE_EVIDENCE_REVISION}/" in link for link in file_links)
+    all_links = re.findall(r"\[[^]]+\]\(([^)]+)\)", adr)
+    assert not [
+        link
+        for link in all_links
+        if not link.startswith(("http://", "https://", "#", "mailto:"))
+    ]
+
+    assert "The current R1 governance evidence is recorded by the merged" in adr
+    for pull_request in (216, 217, 218, 219, 220, 289):
+        assert f"PR #{pull_request}" in adr
+    assert "These links identify completed evidence" in adr
+    assert "remaining WorkspaceHost gates: [R1-005B #139]" in adr
+    assert "remaining FrontendHost gates: [R1-025 #162]" in adr
+
+    stale_architecture_reservations = (
+        "R1-002A #134",
+        "R1-002B #135",
+        "R2-094C #258",
+        "R2-117A #294",
+        "R2-118A #296",
+        "R2-120 #299",
+        "R2-121A #300",
+        "R2-125A #305",
+        "R2-126A #307",
+        "R2-127A #309",
+        "R2-128A #311",
+        "R2-130 #315",
+        "R2-132 #317",
+        "R2-133A #318",
+        "R2-133B #319",
+        "R3-193 #391",
+        "R3-196 #395",
+    )
+    assert all(reservation not in adr for reservation in stale_architecture_reservations)
 
 
 def test_architecture_terminology_scanner_rejects_missing_input():
