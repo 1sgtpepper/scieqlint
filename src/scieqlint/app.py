@@ -104,9 +104,7 @@ def _run_check_paths(
         except (OSError, UnicodeError) as exc:
             if len(consumed_inputs) == consumed_count:
                 input_identities_complete = False
-            diagnostics.append(
-                _source_read_diagnostic(path, exc, absolute_paths=absolute_paths)
-            )
+            diagnostics.append(_source_read_diagnostic(path, exc, absolute_paths=absolute_paths))
             continue
         documents.append(document)
 

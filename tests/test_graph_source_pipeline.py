@@ -43,7 +43,8 @@ def test_graph_paths_uses_project_root_order_ignore_and_display_paths(
     real_open_text = app.open_text
 
     def recording_open_text(path: Path, *, encoding: str):
-        opened.append(path.relative_to(tmp_path).as_posix())
+        source_path = path if path.is_absolute() else tmp_path / path
+        opened.append(source_path.resolve().relative_to(tmp_path.resolve()).as_posix())
         return real_open_text(path, encoding=encoding)
 
     monkeypatch.setattr(app, "open_text", recording_open_text)
@@ -90,17 +91,19 @@ def test_check_continues_but_graph_aborts_on_source_open_failure(
     monkeypatch.setattr(app, "open_text", deny_source)
 
     checked = check_paths([denied, readable])
-    assert [(item.code, item.detail) for item in checked.diagnostics] == [
-        ("INP001", "denied")
-    ]
+    assert [(item.code, item.detail) for item in checked.diagnostics] == [("INP001", "denied")]
     assert checked.files_checked == 2
     assert checked.math_blocks_checked == 1
 
     monkeypatch.setattr(app, "graph_documents", unexpected_graph_documents)
-    with pytest.raises(ValueError, match=r"INP001.*denied\.md.*denied") as caught:
-        graph_paths([denied, readable])
+    try:
+        with pytest.raises(ValueError, match=r"INP001.*denied\.md.*denied") as caught:
+            graph_paths([denied, readable])
+    except PermissionError as error:
+        pytest.fail(f"graph construction exposed a raw read failure: {error}")
+    else:
+        assert isinstance(caught.value.__cause__, PermissionError)
 
-    assert isinstance(caught.value.__cause__, PermissionError)
     assert not graph_documents_called
 
 
