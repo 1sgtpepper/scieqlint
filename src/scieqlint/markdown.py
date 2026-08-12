@@ -1020,10 +1020,6 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
     return -1
 
 
-def markdown_link_tokens(text: str) -> tuple[MarkdownLinkToken, ...]:
-    return markdown_reference_snapshot(text).links
-
-
 def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
@@ -1072,7 +1068,7 @@ def _markdown_link_tokens_from_lexical(
     index = 0
     while index < len(text):
         while boundary_index < len(boundaries) and boundaries[boundary_index] <= index:
-            _flush_link_frames(stack)
+            stack.clear()
             boundary_index += 1
 
         protected_end = protected_cursor.end_at(index)
@@ -1119,14 +1115,7 @@ def _markdown_link_tokens_from_lexical(
                 next_index = end
         index = next_index
 
-    _flush_link_frames(stack)
     return tuple(sorted(tokens, key=lambda token: token.start))
-
-
-def _flush_link_frames(
-    stack: list[_LinkFrame],
-) -> None:
-    stack.clear()
 
 
 def _link_label_boundaries(text: str) -> tuple[int, ...]:
