@@ -62,10 +62,10 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
 
     assert 'version("scieqlint")' in workflow
-    assert '${GITHUB_REF_NAME#v}' in workflow
-    assert 'SCIEQLINT_RELEASE_GATE=1 python -m pytest' in workflow
-    assert 'tests/test_accuracy_benchmarks.py' in workflow
-    assert 'tests/test_stabilization.py' in workflow
+    assert "${GITHUB_REF_NAME#v}" in workflow
+    assert "SCIEQLINT_RELEASE_GATE=1 python -m pytest" in workflow
+    assert "tests/test_accuracy_benchmarks.py" in workflow
+    assert "tests/test_stabilization.py" in workflow
     smoke_start = workflow.index("\n  smoke:")
     publish_start = workflow.index("\n  publish:")
     assert smoke_start < workflow.index("Verify source, wheel, and tag versions") < publish_start
