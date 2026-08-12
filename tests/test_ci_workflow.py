@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 WORKFLOW = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
 
