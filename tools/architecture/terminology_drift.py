@@ -795,9 +795,10 @@ def strip_markdown_code(text: str) -> str:
     pending: list[str] = []
     opener: tuple[str, int] | None = None
 
-    # Preserve the existing exact-length fence contract while classifying each
-    # input line once. Pending text is emitted unchanged when no closer exists,
-    # so this performance fix does not absorb issue #251.
+    # Preserve the existing fence contract while classifying each input line
+    # once. Pending text is emitted unchanged when no closer exists, including
+    # a closer longer than the opener, so this performance fix does not absorb
+    # issue #251.
     lines = text.split("\n")
     has_final_newline = text.endswith("\n")
     if has_final_newline or not text:
@@ -805,7 +806,7 @@ def strip_markdown_code(text: str) -> str:
     for index, content in enumerate(lines):
         line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
         if opener is None:
-            opener = _exact_fence_opener(line)
+            opener = _fence_opener(line)
             if opener is None:
                 output.append(line)
                 continue
@@ -813,7 +814,7 @@ def strip_markdown_code(text: str) -> str:
             continue
 
         pending.append(line)
-        if not _is_exact_fence_closer(line, opener):
+        if not _is_fence_closer(line, opener):
             continue
         segment = "".join(pending)
         output.append("\n" * segment.count("\n"))
@@ -824,7 +825,7 @@ def strip_markdown_code(text: str) -> str:
     return re.sub(r"`[^`\n]+`", "", "".join(output))
 
 
-def _exact_fence_opener(line: str) -> tuple[str, int] | None:
+def _fence_opener(line: str) -> tuple[str, int] | None:
     if not line or line[0] not in {"`", "~"}:
         return None
     marker = line[0]
@@ -834,7 +835,7 @@ def _exact_fence_opener(line: str) -> tuple[str, int] | None:
     return (marker, length) if length >= 3 and line.endswith("\n") else None
 
 
-def _is_exact_fence_closer(line: str, opener: tuple[str, int]) -> bool:
+def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
     marker, length = opener
     candidate = line[:-1] if line.endswith("\n") else line
     run_length = 0

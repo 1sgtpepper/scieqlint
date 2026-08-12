@@ -22,7 +22,7 @@ def _load_scanner() -> ModuleType:
 terminology_drift = _load_scanner()
 
 
-def test_exact_length_fences_remain_opaque_and_preserve_line_numbers() -> None:
+def test_fences_remain_opaque_and_preserve_line_numbers() -> None:
     source = (
         "# Architecture\n\n"
         "```text\n"
@@ -42,7 +42,19 @@ def test_exact_length_fences_remain_opaque_and_preserve_line_numbers() -> None:
     assert "WorkspaceHost" in stripped
 
 
-def test_exact_length_fix_does_not_change_adjacent_fence_semantics() -> None:
+@pytest.mark.parametrize(
+    "source",
+    [
+        "````text\nworkspace host\n```\n",
+        "~~~~~text\nfrontend host\n~~~~\n",
+    ],
+    ids=("backticks", "tildes"),
+)
+def test_shorter_same_character_closers_remain_unmatched(source: str) -> None:
+    assert terminology_drift.strip_markdown_code(source) == source
+
+
+def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
     unmatched = "# Architecture\n\n```text\nworkspace host\n"
     longer_closer = "```text\nworkspace host\n````\n"
     indented = " ```text\nworkspace host\n ```\n"
@@ -55,8 +67,8 @@ def test_exact_length_fix_does_not_change_adjacent_fence_semantics() -> None:
 def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
     source = "".join(f"```{index}\n" for index in range(2_000))
     calls = 0
-    original_opener = terminology_drift._exact_fence_opener
-    original_closer = terminology_drift._is_exact_fence_closer
+    original_opener = terminology_drift._fence_opener
+    original_closer = terminology_drift._is_fence_closer
 
     def counted_opener(line: str) -> tuple[str, int] | None:
         nonlocal calls
@@ -68,12 +80,33 @@ def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
         calls += 1
         return original_closer(line, opener)
 
-    monkeypatch.setattr(terminology_drift, "_exact_fence_opener", counted_opener)
-    monkeypatch.setattr(terminology_drift, "_is_exact_fence_closer", counted_closer)
+    monkeypatch.setattr(terminology_drift, "_fence_opener", counted_opener)
+    monkeypatch.setattr(terminology_drift, "_is_fence_closer", counted_closer)
 
     terminology_drift.strip_markdown_code(source)
 
     assert calls == len(source.splitlines(keepends=True))
+
+
+@pytest.mark.parametrize(
+    ("line", "opener", "expected"),
+    [
+        ("``\n", ("`", 4), False),
+        ("```\n", ("`", 4), False),
+        ("````\n", ("`", 4), True),
+        ("````  \n", ("`", 4), True),
+        ("`````\n", ("`", 4), False),
+        ("~~~\n", ("`", 4), False),
+        ("```text\n", ("`", 4), False),
+        ("```\r\n", ("`", 4), False),
+    ],
+)
+def test_fence_closer_predicate_enforces_marker_and_run_boundaries(
+    line: str,
+    opener: tuple[str, int],
+    expected: bool,
+) -> None:
+    assert terminology_drift._is_fence_closer(line, opener) is expected
 
 
 def test_closer_classification_does_not_rebuild_the_opener_marker() -> None:
@@ -83,16 +116,16 @@ def test_closer_classification_does_not_rebuild_the_opener_marker() -> None:
 
     marker = Marker("`")
 
-    assert not terminology_drift._is_exact_fence_closer("body\n", (marker, 131_072))
-    assert terminology_drift._is_exact_fence_closer("```  \n", (marker, 3))
+    assert not terminology_drift._is_fence_closer("body\n", (marker, 131_072))
+    assert terminology_drift._is_fence_closer("```  \n", (marker, 3))
 
 
 def test_long_unmatched_fence_has_bounded_line_classification(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls = 0
-    original_opener = terminology_drift._exact_fence_opener
-    original_closer = terminology_drift._is_exact_fence_closer
+    original_opener = terminology_drift._fence_opener
+    original_closer = terminology_drift._is_fence_closer
 
     def counted_opener(line: str) -> tuple[str, int] | None:
         nonlocal calls
@@ -104,8 +137,8 @@ def test_long_unmatched_fence_has_bounded_line_classification(
         calls += 1
         return original_closer(line, opener)
 
-    monkeypatch.setattr(terminology_drift, "_exact_fence_opener", counted_opener)
-    monkeypatch.setattr(terminology_drift, "_is_exact_fence_closer", counted_closer)
+    monkeypatch.setattr(terminology_drift, "_fence_opener", counted_opener)
+    monkeypatch.setattr(terminology_drift, "_is_fence_closer", counted_closer)
     marker = "`" * 131_072
     source = f"# Architecture\n\n{marker}\nworkspace host\n"
 
