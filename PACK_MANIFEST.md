@@ -252,6 +252,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_architecture_contracts.py`
 - `tests/test_ast_print.py`
 - `tests/test_baseline.py`
+- `tests/test_ci_workflow.py`
 - `tests/test_cli.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
