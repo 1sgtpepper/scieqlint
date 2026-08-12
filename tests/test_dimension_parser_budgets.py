@@ -68,22 +68,28 @@ def test_dimension_budgets_report_typed_diagnostics_and_continue(tmp_path: Path)
 
 
 @pytest.mark.parametrize(
-    "equation, expected_detail",
+    ("equation", "expected_detail"),
     [
         (
             f"x^{'9' * 513}=x",
-            "dimension expression exceeds the supported numeric-component budget "
-            "of 512 decimal digits",
+            (
+                "dimension expression exceeds the supported numeric-component budget "
+                "of 512 decimal digits"
+            ),
         ),
         (
             f"x {'9' * 513}/1=x",
-            "dimension expression exceeds the supported numeric-component budget "
-            "of 512 decimal digits",
+            (
+                "dimension expression exceeds the supported numeric-component budget "
+                "of 512 decimal digits"
+            ),
         ),
         (
             f"x 1/{'9' * 513}=x",
-            "dimension expression exceeds the supported numeric-component budget "
-            "of 512 decimal digits",
+            (
+                "dimension expression exceeds the supported numeric-component budget "
+                "of 512 decimal digits"
+            ),
         ),
     ],
     ids=[
@@ -108,7 +114,7 @@ def test_dimension_budget_rejects_first_unsupported_numeric_value(
 
 
 @pytest.mark.parametrize(
-    "opening, closing",
+    ("opening", "closing"),
     [("(", ")"), ("{", "}")],
     ids=["65-parentheses", "65-braces"],
 )
