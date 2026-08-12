@@ -36,6 +36,11 @@ codes before every code is emitted by the current analyzer.
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
 
+`DIM020` also covers dimension expressions that exceed a parser resource budget. The
+diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
+numeric-component limit or the 64-level group-nesting limit. Over-budget expressions
+are skipped; analysis continues with later expressions and documents.
+
 ## Generated-output engine
 
 `GEN001` is emitted by the generated-output engine when callers provide

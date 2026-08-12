@@ -259,6 +259,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_diagnostic_catalog.py`
+- `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
 - `tests/test_generated_output.py`
 - `tests/test_golden_outputs.py`

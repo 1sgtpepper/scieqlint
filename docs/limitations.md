@@ -193,7 +193,12 @@ Dimensions are quiet without config. v0.1.2 adds configured dimension checking;
 zero-config mode must not emit unknown-variable dimension noise. The `mechanics`
 preset provides packaged dimension defaults, and `[aliases]` can normalize
 explicit symbol spellings before dimension lookup. Presets are TOML templates,
-not a unit database, and aliases must be listed explicitly.
+not a unit database, and aliases must be listed explicitly. When dimension checking is
+active, each numeric component in an input equation may contain at most 512 decimal
+digits, and grouping may nest at most 64 parenthesis or brace groups. The digit limit
+applies to numeric components, not digits inside identifiers or configured aliases. An
+expression that exceeds either budget emits `DIM020` with a detail naming the limit;
+checking continues for remaining expressions and documents.
 
 ## Symbols
 

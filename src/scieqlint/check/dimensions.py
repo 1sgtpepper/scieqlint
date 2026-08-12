@@ -15,6 +15,8 @@ TOKEN_PATTERN = r"\\[A-Za-z]+|[A-Za-z][A-Za-z0-9_]*|\d+(?:/\d+)?|[()+\-*/^=]"
 TEX_MULTIPLY = {"\\cdot", "\\times"}
 
 _DIMENSIONLESS = DimVector((0, 0, 0, 0, 0, 0, 0))
+_MAX_NUMERIC_TOKEN_DIGITS = 512
+_MAX_GROUP_NESTING = 64
 
 
 def check_dimensions(block: MathBlock, config: Config) -> tuple[Diagnostic, ...]:
@@ -67,6 +69,9 @@ class _Parser:
         self.tokens = tuple(tokens)
 
     def parse(self) -> _DimensionResult:
+        budget_detail = _budget_detail(self.tokens)
+        if budget_detail is not None:
+            return self._skipped(budget_detail)
         if not self.tokens:
             return self._skipped()
         result = self._expr()
@@ -108,12 +113,10 @@ class _Parser:
 
     def _atom(self) -> _DimensionResult:
         token = self._take()
+        while token in {"+", "-"}:
+            token = self._take()
         if token is None:
             return self._skipped()
-        if token == "+":
-            return self._atom()
-        if token == "-":
-            return self._atom()
         if token == "(":
             expression = self._expr()
             if self._peek() != ")":
@@ -190,8 +193,11 @@ class _Parser:
     def _combine(self, left: _DimensionResult, right: _DimensionResult) -> _DimensionResult:
         return _DimensionResult(None, (*left.diagnostics, *right.diagnostics))
 
-    def _skipped(self) -> _DimensionResult:
-        return _DimensionResult(None, (_diagnostic(self.block, self.equation, "DIM020"),))
+    def _skipped(self, detail: str | None = None) -> _DimensionResult:
+        return _DimensionResult(
+            None,
+            (_diagnostic(self.block, self.equation, "DIM020", detail),),
+        )
 
     def _with_diagnostics(
         self,
@@ -254,6 +260,29 @@ def _token_re(aliases: tuple[str, ...]) -> re.Pattern[str]:
     if not alias_pattern:
         return re.compile(TOKEN_PATTERN)
     return re.compile(f"{alias_pattern}|{TOKEN_PATTERN}")
+
+
+def _budget_detail(tokens: tuple[str, ...]) -> str | None:
+    depth = 0
+    for token in tokens:
+        if token == "(":
+            depth += 1
+            if depth > _MAX_GROUP_NESTING:
+                return (
+                    "dimension expression exceeds the supported group-nesting budget "
+                    f"of {_MAX_GROUP_NESTING}"
+                )
+        elif token == ")" and depth:
+            depth -= 1
+
+        if re.fullmatch(r"\d+(?:/\d+)?", token) is None:
+            continue
+        if any(len(component) > _MAX_NUMERIC_TOKEN_DIGITS for component in token.split("/")):
+            return (
+                "dimension expression exceeds the supported numeric-component budget "
+                f"of {_MAX_NUMERIC_TOKEN_DIGITS} decimal digits"
+            )
+    return None
 
 
 def _surface_alias_pattern(alias: str) -> str:
