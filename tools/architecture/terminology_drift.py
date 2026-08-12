@@ -791,12 +791,56 @@ def drift_spellings(term: str) -> tuple[str, ...]:
 
 
 def strip_markdown_code(text: str) -> str:
-    fenced_code = re.compile(r"(?ms)^(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^(?P=fence)[ \t]*$")
-    without_fences = fenced_code.sub(
-        lambda match: "\n" * match.group(0).count("\n"),
-        text,
-    )
-    return re.sub(r"`[^`\n]+`", "", without_fences)
+    output: list[str] = []
+    pending: list[str] = []
+    opener: tuple[str, int] | None = None
+
+    # Preserve the existing exact-length fence contract while classifying each
+    # input line once. Pending text is emitted unchanged when no closer exists,
+    # so this performance fix does not absorb issue #251.
+    lines = text.split("\n")
+    has_final_newline = text.endswith("\n")
+    if has_final_newline or not text:
+        lines.pop()
+    for index, content in enumerate(lines):
+        line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
+        if opener is None:
+            opener = _exact_fence_opener(line)
+            if opener is None:
+                output.append(line)
+                continue
+            pending.append(line)
+            continue
+
+        pending.append(line)
+        if not _is_exact_fence_closer(line, opener):
+            continue
+        segment = "".join(pending)
+        output.append("\n" * segment.count("\n"))
+        pending.clear()
+        opener = None
+
+    output.extend(pending)
+    return re.sub(r"`[^`\n]+`", "", "".join(output))
+
+
+def _exact_fence_opener(line: str) -> tuple[str, int] | None:
+    if not line or line[0] not in {"`", "~"}:
+        return None
+    marker = line[0]
+    length = 1
+    while length < len(line) and line[length] == marker:
+        length += 1
+    return (marker, length) if length >= 3 and line.endswith("\n") else None
+
+
+def _is_exact_fence_closer(line: str, opener: tuple[str, int]) -> bool:
+    marker, length = opener
+    candidate = line[:-1] if line.endswith("\n") else line
+    run_length = 0
+    while run_length < len(candidate) and candidate[run_length] == marker:
+        run_length += 1
+    return run_length == length and not candidate[run_length:].strip(" \t")
 
 
 def base_report(
