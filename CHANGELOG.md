@@ -121,7 +121,8 @@ Release notes must use these sections:
   suffixes, ignores empty bodies, and keeps Markdown code spans and fenced-code
   regions within their delimiter and indentation boundaries.
 - Markdown code, raw HTML, fence, and dollar regions now resolve in source order,
-  so the first valid opener owns later delimiters until its matching close.
+  so the first valid opener owns later delimiters until its syntax-specific
+  terminator or enclosing container boundary.
 - Escaped Markdown backticks no longer open code spans, ordinary inline HTML tags
   no longer hide their contents, and dollar display closers follow source-line
   boundaries and complete label suffixes.
@@ -146,6 +147,9 @@ Release notes must use these sections:
   every child token through every open frame.
   Heading-target classification accepts valid empty ATX
   headings without accepting missing-space forms.
+- Markdown raw HTML now follows all seven CommonMark HTML-block families, keeping
+  block contents opaque to math, references, headings, anchors, and graph facts
+  while preserving inline content and dedicated comment directives.
 
 ### Deprecated
 

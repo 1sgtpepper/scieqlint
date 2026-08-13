@@ -12,25 +12,44 @@ from itertools import chain
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
 
-HTML_COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
-HTML_DECLARATION_RE = re.compile(r"<![A-Z][^>]*?(?:>|$)", re.IGNORECASE | re.DOTALL)
-HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?(?:\?>|$)", re.DOTALL)
-HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?(?:\]\]>|$)", re.DOTALL)
-HTML_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?/?>", re.IGNORECASE)
-HTML_TAG_EVENT_RE = re.compile(
-    r"<(?P<closing>/[ \t]*)?(?P<tag>[A-Za-z][A-Za-z0-9:-]*)(?=[ \t/>])"
-    r"(?P<tail>[^<>]*)>",
+HTML_COMMENT_RE = re.compile(r"<!--(?:>|->|.*?-->)", re.DOTALL)
+HTML_DECLARATION_RE = re.compile(r"<![A-Za-z][^>]*>", re.DOTALL)
+HTML_PROCESSING_INSTRUCTION_RE = re.compile(r"<\?.*?\?>", re.DOTALL)
+HTML_CDATA_RE = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
+_HTML_LINE_ENDING = r"(?:\r\n|\r|\n)"
+_HTML_WHITESPACE = rf"[ \t]*(?:{_HTML_LINE_ENDING}[ \t]*)?"
+_HTML_TAG_NAME = r"[A-Za-z][A-Za-z0-9-]*"
+_HTML_ATTRIBUTE_NAME = r"[A-Za-z_:][A-Za-z0-9:._-]*"
+_HTML_UNQUOTED_ATTRIBUTE_VALUE = r"""[^ \t\r\n"'=<>`]+"""
+_HTML_ATTRIBUTE_VALUE = rf"(?:{_HTML_UNQUOTED_ATTRIBUTE_VALUE}|'[^']*'|\"[^\"]*\")"
+_HTML_ATTRIBUTE = (
+    rf"(?=[ \t\r\n]){_HTML_WHITESPACE}{_HTML_ATTRIBUTE_NAME}"
+    rf"(?:{_HTML_WHITESPACE}={_HTML_WHITESPACE}{_HTML_ATTRIBUTE_VALUE})?"
+)
+_HTML_OPEN_TAG_TAIL = rf"(?:{_HTML_ATTRIBUTE})*{_HTML_WHITESPACE}/?>"
+_HTML_OPEN_TAG = rf"<{_HTML_TAG_NAME}{_HTML_OPEN_TAG_TAIL}"
+_HTML_CLOSE_TAG = rf"</{_HTML_TAG_NAME}{_HTML_WHITESPACE}>"
+HTML_TAG_RE = re.compile(rf"(?:{_HTML_OPEN_TAG}|{_HTML_CLOSE_TAG})")
+HTML_TYPE1_OPEN_RE = re.compile(
+    r"^[ \t]{0,3}<(?P<tag>pre|script|style|textarea)(?=[ \t>]|$)",
     re.IGNORECASE,
 )
-HTML_BLOCK_OPEN_RE = re.compile(
-    r"^[ \t]{0,3}<(?P<tag>address|article|aside|base|basefont|blockquote|body|caption|"
-    r"center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|"
-    r"footer|form|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|"
-    r"nav|ol|p|pre|script|section|summary|table|tbody|td|tfoot|th|thead|title|tr|"
-    r"track|ul)(?:[ \t/>]|$)",
-    re.IGNORECASE | re.MULTILINE,
+HTML_TYPE1_CLOSE_RE = re.compile(r"</(?:pre|script|style|textarea)>", re.IGNORECASE)
+HTML_TYPE6_OPEN_RE = re.compile(
+    r"^[ \t]{0,3}</?(?P<tag>address|article|aside|base|basefont|blockquote|body|"
+    r"caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|"
+    r"figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|"
+    r"link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|"
+    r"summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?=[ \t]|/?>|$)",
+    re.IGNORECASE,
 )
-HTML_RAWTEXT_TAGS = frozenset({"script", "style", "textarea", "title"})
+HTML_TYPE7_OPEN_RE = re.compile(
+    rf"^[ \t]{{0,3}}<(?P<tag>{_HTML_TAG_NAME}){_HTML_OPEN_TAG_TAIL}[ \t]*$"
+)
+HTML_TYPE7_CLOSE_RE = re.compile(
+    rf"^[ \t]{{0,3}}</(?P<tag>{_HTML_TAG_NAME}){_HTML_WHITESPACE}>[ \t]*$"
+)
+HTML_TYPE7_EXCLUDED_OPEN_TAGS = frozenset({"pre", "script", "style", "textarea"})
 _MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
@@ -115,6 +134,14 @@ class _ContainerLine:
     content: str
     container_key: tuple[int, ...]
     block_start: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _HtmlBlockState:
+    container_key: tuple[int, ...]
+    quote_depth: int
+    list_content_column: int | None
+    kind: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,15 +312,18 @@ def _ordered_lexical_ranges(
     inline: list[DollarRange] = []
     display_openers: list[int] = []
     occupied_cursor = _RangeCursor((*occupied, *indented_code))
+    link_boundaries = ownership.link_boundaries
+    failed_html_limits: dict[str, int] = {}
     backtick_runs = _backtick_runs(text)
     next_same_backtick = _next_same_backtick_runs(backtick_runs)
-    html_block_closes = _html_block_close_positions(text, container_lines)
-    html_blank_ends = _container_html_blank_ends(container_lines)
     backtick_index = 0
+    boundary_index = 0
     line_index = 0
     index = 0
 
     while index < len(text):
+        while boundary_index < len(link_boundaries) and link_boundaries[boundary_index] <= index:
+            boundary_index += 1
         while backtick_index < len(backtick_runs) and backtick_runs[backtick_index][0] < index:
             backtick_index += 1
         while line_index + 1 < len(lines) and index >= lines[line_index][1]:
@@ -311,36 +341,27 @@ def _ordered_lexical_ranges(
             opener = parse_fence_opener(container_line.content)
             if opener is not None:
                 marker, _info = opener
-                close_index, boundary_index = _fence_close_index(
+                close_index, fence_boundary_index = _fence_close_index(
                     container_lines,
                     line_index,
                     marker,
                 )
                 if close_index is not None:
                     range_end = lines[close_index][1]
-                elif boundary_index < len(lines):
-                    range_end = lines[boundary_index][0]
+                elif fence_boundary_index < len(lines):
+                    range_end = lines[fence_boundary_index][0]
                 else:
                     range_end = len(text)
                 fences.append((line_start, range_end))
                 index = range_end
                 continue
 
-            if _starts_html_block(container_line.content):
-                tag_start = text.find("<", container_line.content_start, container_line.end)
-                if tag_start != -1 and not is_escaped(text, tag_start):
-                    block = HTML_BLOCK_OPEN_RE.match(container_line.content)
-                    html_end = _html_range_at(
-                        text,
-                        tag_start,
-                        html_block_closes,
-                        block_tag=block.group("tag").lower() if block is not None else None,
-                        blank_line_end=html_blank_ends[line_index],
-                    )
-                    if html_end is not None:
-                        html.append((line_start, html_end))
-                        index = html_end
-                        continue
+            html_kind = _html_block_kind(container_line.content, paragraph_active=False)
+            if html_kind is not None:
+                html_end = _html_block_end(container_lines, line_index, html_kind)
+                html.append((line_start, html_end))
+                index = html_end
+                continue
 
         if text[index] == "{":
             role_end = _myst_role_end_at(text, index)
@@ -350,7 +371,12 @@ def _ordered_lexical_ranges(
                 continue
 
         if (index == line_start or text[index] == "<") and not is_escaped(text, index):
-            html_end = _html_range_at(text, index, html_block_closes)
+            limit = (
+                link_boundaries[boundary_index]
+                if boundary_index < len(link_boundaries)
+                else len(text)
+            )
+            html_end = _html_inline_range_at(text, index, limit, failed_html_limits)
             if html_end is not None:
                 html.append((index, html_end))
                 index = html_end
@@ -433,10 +459,44 @@ def _markdown_line_ownership(
     quote_paths: dict[int, tuple[int, ...]] = {0: ()}
     next_container_id = 0
     previous_depth = 0
+    # Raw HTML leaf bodies are not Markdown blocks; preserve their container path
+    # until a terminator, blank-line/EOF rule, or container boundary releases it.
+    active_html: _HtmlBlockState | None = None
     for start, end, raw_line in lines:
         line = raw_line.rstrip("\r")
         explicit_depth, quote_content_index = _block_quote_content(line)
         block_content = line[quote_content_index:]
+        if active_html is not None:
+            state = active_html
+            active_content = _html_container_content(
+                line,
+                quote_depth=state.quote_depth,
+                list_content_column=state.list_content_column,
+            )
+            if active_content is not None:
+                quote_index, relative = active_content
+                if state.kind in {"type6", "type7"} and not relative.text.strip(" \t"):
+                    active_html = None
+                else:
+                    container_lines.append(
+                        _ContainerLine(
+                            start=start,
+                            end=end,
+                            content_start=start + quote_index + relative.source_index,
+                            content=relative.text,
+                            container_key=state.container_key,
+                            block_start=False,
+                        )
+                    )
+                    if _html_block_line_terminates(relative.text, state.kind):
+                        active_html = None
+                    previous_depth = state.quote_depth
+                    continue
+            else:
+                # A boundary line must re-enter normal ownership so its exact
+                # quote/list identity is assigned by the container scanner.
+                active_html = None
+
         previous_context = contexts[previous_depth]
         previous_list_base = (
             previous_context.list_content_columns[-1]
@@ -580,6 +640,19 @@ def _markdown_line_ownership(
                     block_start=not item_is_code,
                 )
             )
+            item_html_kind = _html_block_kind(item_content.text, paragraph_active=False)
+            if item_html_kind is not None and not _html_block_line_terminates(
+                item_content.text, item_html_kind
+            ):
+                opener = container_lines[-1]
+                active_html = _HtmlBlockState(
+                    container_key=opener.container_key,
+                    quote_depth=depth,
+                    list_content_column=context.list_content_columns[-1]
+                    if context.list_content_columns
+                    else None,
+                    kind=item_html_kind,
+                )
             previous_depth = depth
             continue
 
@@ -620,6 +693,19 @@ def _markdown_line_ownership(
                 block_start=block_kind is not None,
             )
         )
+        if block_kind == "html":
+            html_kind = _html_block_kind(relative.text, paragraph_active=False)
+            assert html_kind is not None
+            if not _html_block_line_terminates(relative.text, html_kind):
+                opener = container_lines[-1]
+                active_html = _HtmlBlockState(
+                    container_key=opener.container_key,
+                    quote_depth=depth,
+                    list_content_column=context.list_content_columns[-1]
+                    if context.list_content_columns
+                    else None,
+                    kind=html_kind,
+                )
         previous_depth = depth
     return _LineOwnership(
         indented_code=_merge_ranges(ranges),
@@ -729,7 +815,7 @@ def _markdown_block_kind(line: str, *, paragraph_active: bool) -> str | None:
         return "list"
     if parse_fence_opener(line) is not None:
         return "fence"
-    if _starts_html_block(line):
+    if _html_block_kind(line, paragraph_active=paragraph_active) is not None:
         return "html"
     if _starts_display_block(line):
         return "display"
@@ -872,133 +958,104 @@ def _myst_role_end_at(text: str, start: int) -> int | None:
     return match.end() if match is not None else None
 
 
-def _html_range_at(
+def _html_inline_range_at(
     text: str,
     start: int,
-    block_closes: dict[int, int],
-    *,
-    block_tag: str | None = None,
-    blank_line_end: int | None = None,
+    limit: int,
+    failed_limits: dict[str, int],
 ) -> int | None:
-    for pattern in (
-        HTML_COMMENT_RE,
-        HTML_DECLARATION_RE,
-        HTML_PROCESSING_INSTRUCTION_RE,
-        HTML_CDATA_RE,
+    if text.startswith("<!--", start):
+        family = "comment"
+        pattern = HTML_COMMENT_RE
+    elif text.startswith("<?", start):
+        family = "processing-instruction"
+        pattern = HTML_PROCESSING_INSTRUCTION_RE
+    elif text.startswith("<![CDATA[", start):
+        family = "cdata"
+        pattern = HTML_CDATA_RE
+    elif (
+        text.startswith("<!", start)
+        and start + 2 < len(text)
+        and text[start + 2] in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     ):
-        match = pattern.match(text, start)
-        if match is not None:
-            return match.end()
+        family = "declaration"
+        pattern = HTML_DECLARATION_RE
+    else:
+        tag = HTML_TAG_RE.match(text, start, limit)
+        return tag.end() if tag is not None else None
 
-    if block_tag is not None:
-        closing = block_closes.get(start)
-        if closing is not None:
-            return closing
-        if block_tag in HTML_RAWTEXT_TAGS:
-            return len(text)
-        assert blank_line_end is not None
-        return blank_line_end
-
-    tag = HTML_TAG_RE.match(text, start)
-    return tag.end() if tag is not None else None
+    if failed_limits.get(family) == limit:
+        return None
+    match = pattern.match(text, start, limit)
+    if match is not None:
+        return match.end()
+    failed_limits[family] = limit
+    return None
 
 
-def _container_html_blank_ends(lines: Sequence[_ContainerLine]) -> tuple[int, ...]:
-    ends = [lines[-1].end] * len(lines)
-    next_end = lines[-1].end
-    for index in range(len(lines) - 2, -1, -1):
-        next_line = lines[index + 1]
-        if next_line.container_key != lines[index].container_key or not next_line.content.strip(
-            " \t"
-        ):
-            next_end = next_line.start
-        ends[index] = next_end
-    return tuple(ends)
-
-
-def _html_block_close_positions(
-    text: str,
+def _html_block_end(
     lines: Sequence[_ContainerLine],
-) -> dict[int, int]:
-    candidates_by_tag: dict[str, list[int]] = {}
-    for line in lines:
-        if not line.block_start:
-            continue
-        match = HTML_BLOCK_OPEN_RE.match(line.content)
-        if match is None:
-            continue
-        tag_start = text.find("<", line.content_start, line.end)
-        assert tag_start != -1
-        candidates_by_tag.setdefault(match.group("tag").lower(), []).append(tag_start)
-    if not candidates_by_tag:
-        return {}
+    line_index: int,
+    kind: str,
+) -> int:
+    container_key = lines[line_index].container_key
+    last_end = lines[line_index].end
+    for candidate_index, candidate in enumerate(lines[line_index:], start=line_index):
+        if candidate.container_key != container_key:
+            break
+        content = candidate.content
+        if (
+            candidate_index != line_index
+            and kind in {"type6", "type7"}
+            and not content.strip(" \t")
+        ):
+            # CommonMark leaves the blank line outside types 6 and 7.
+            return candidate.start
+        last_end = candidate.end
+        if _html_block_line_terminates(content, kind):
+            return candidate.end
+    return last_end
 
-    events_by_tag: dict[str, list[tuple[int, int, bool, bool, bool]]] = {
-        tag: [] for tag in candidates_by_tag
-    }
-    for match in HTML_TAG_EVENT_RE.finditer(text):
-        tag = match.group("tag").lower()
-        if tag not in events_by_tag:
-            continue
-        closing = match.group("closing") is not None
-        tail = match.group("tail")
-        events_by_tag[tag].append(
-            (
-                match.start(),
-                match.end(),
-                closing,
-                not closing and tail.rstrip().endswith("/"),
-                closing and not tail.strip(),
-            )
-        )
 
-    closes: dict[int, int] = {}
-    for tag, candidates in candidates_by_tag.items():
-        events = events_by_tag[tag]
-        if tag in HTML_RAWTEXT_TAGS:
-            close_index = 0
-            raw_closes = [event for event in events if event[4]]
-            for candidate in candidates:
-                while close_index < len(raw_closes) and raw_closes[close_index][0] <= candidate:
-                    close_index += 1
-                if close_index < len(raw_closes):
-                    closes[candidate] = raw_closes[close_index][1]
-            continue
+def _html_block_line_terminates(content: str, kind: str) -> bool:
+    if kind == "type1":
+        return HTML_TYPE1_CLOSE_RE.search(content) is not None
+    if kind in {"type6", "type7"}:
+        return False
+    literal_terminator = {
+        "type2": "-->",
+        "type3": "?>",
+        "type4": ">",
+        "type5": "]]>",
+    }[kind]
+    return literal_terminator in content
 
-        stack: list[int] = []
-        pending: dict[int, list[int]] = {}
-        candidate_index = 0
-        event_index = 0
-        while candidate_index < len(candidates) or event_index < len(events):
-            candidate = (
-                candidates[candidate_index] if candidate_index < len(candidates) else len(text)
-            )
-            event = events[event_index] if event_index < len(events) else None
-            event_start = event[0] if event is not None else len(text)
-            position = min(candidate, event_start)
-            is_candidate = candidate == position
-            is_event = event_start == position
 
-            # Incomplete and self-closing block openers historically use the next
-            # same-tag close at their current nesting depth, without becoming nested.
-            if is_candidate and (not is_event or event is None or event[2] or event[3]):
-                pending.setdefault(len(stack), []).append(candidate)
-            if is_event and event is not None:
-                _start, end, closing, self_closing, _raw_closing = event
-                if closing:
-                    depth = len(stack)
-                    if stack:
-                        closes[stack.pop()] = end
-                    for pending_start in pending.pop(depth, []):
-                        closes[pending_start] = end
-                elif not self_closing:
-                    stack.append(event_start)
-
-            if is_candidate:
-                candidate_index += 1
-            if is_event:
-                event_index += 1
-    return closes
+def _html_container_content(
+    line: str,
+    *,
+    quote_depth: int,
+    list_content_column: int | None,
+) -> tuple[int, _ColumnContent] | None:
+    """Return source-relative content after the opener's explicit prefixes."""
+    index = 0
+    for _ in range(quote_depth):
+        marker = index
+        while marker < len(line) and marker - index < 3 and line[marker] == " ":
+            marker += 1
+        if marker >= len(line) or line[marker] != ">":
+            return None
+        index = marker + 1
+        if index < len(line) and line[index] in " \t":
+            index += 1
+    content = line[index:]
+    if list_content_column is None:
+        return index, _ColumnContent(0, content)
+    if not content.strip(" \t"):
+        return index, _ColumnContent(0, content)
+    if _indent_columns(content) < list_content_column:
+        return None
+    return index, _content_after_columns(content, list_content_column)
 
 
 def _is_adjacent_to_dollar(text: str, index: int) -> bool:
@@ -1178,15 +1235,28 @@ def _is_thematic_break(line: str) -> bool:
     return marker_count >= 3
 
 
-def _starts_html_block(line: str) -> bool:
+def _html_block_kind(line: str, *, paragraph_active: bool) -> str | None:
     candidate = line.lstrip(" \t")
-    if len(line) - len(candidate) > 3:
-        return False
-    return (
-        HTML_BLOCK_OPEN_RE.match(line) is not None
-        or candidate.startswith(("<!--", "<?", "<![CDATA["))
-        or re.match(r"<![A-Z]", candidate, re.IGNORECASE) is not None
-    )
+    if _indent_columns(line) > 3:
+        return None
+    if HTML_TYPE1_OPEN_RE.match(line) is not None:
+        return "type1"
+    if candidate.startswith("<!--"):
+        return "type2"
+    if candidate.startswith("<?"):
+        return "type3"
+    if re.match(r"<![A-Za-z]", candidate) is not None:
+        return "type4"
+    if candidate.startswith("<![CDATA["):
+        return "type5"
+    if HTML_TYPE6_OPEN_RE.match(line) is not None:
+        return "type6"
+    if paragraph_active:
+        return None
+    type7_open = HTML_TYPE7_OPEN_RE.fullmatch(line)
+    if type7_open is not None:
+        return None if type7_open.group("tag").lower() in HTML_TYPE7_EXCLUDED_OPEN_TAGS else "type7"
+    return "type7" if HTML_TYPE7_CLOSE_RE.fullmatch(line) is not None else None
 
 
 def _starts_display_block(line: str) -> bool:
