@@ -805,7 +805,7 @@ def strip_markdown_code(text: str) -> str:
         _fence_candidate(content + "\n" if index < len(lines) - 1 or has_final_newline else content)
         for index, content in enumerate(lines)
     ]
-    next_closers: dict[tuple[str, int], int] = {}
+    nearest_closers: dict[str, dict[int, int]] = {"`": {}, "~": {}}
     matched_closers = [-1] * len(lines)
     for index in range(len(lines) - 1, -1, -1):
         candidate = candidates[index]
@@ -813,9 +813,10 @@ def strip_markdown_code(text: str) -> str:
             continue
         marker, length, is_opener, is_closer = candidate
         if is_opener:
-            matched_closers[index] = next_closers.get((marker, length), -1)
+            matched_closers[index] = nearest_closers[marker].get(length, -1)
         if is_closer:
-            next_closers[(marker, length)] = index
+            for opener_length in range(3, length + 1):
+                nearest_closers[marker][opener_length] = index
 
     masked_until = -1
     for index, content in enumerate(lines):
@@ -857,7 +858,7 @@ def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
     marker, length = opener
     candidate = _fence_candidate(line)
     return (
-        candidate is not None and candidate[0] == marker and candidate[1] == length and candidate[3]
+        candidate is not None and candidate[0] == marker and candidate[1] >= length and candidate[3]
     )
 
 

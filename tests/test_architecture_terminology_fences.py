@@ -73,31 +73,63 @@ def test_closed_outer_fence_does_not_consume_later_fence() -> None:
     assert "later workspace host" not in stripped
 
 
-def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
+def test_longer_closer_is_opaque_without_widening_adjacent_syntax() -> None:
     unmatched = "# Architecture\n\n```text\nworkspace host\n"
-    longer_closer = "```text\nworkspace host\n````\n"
+    longer_closer = "```text\nworkspace host\n````  \t\nWorkspaceHost\n"
     indented = " ```text\nworkspace host\n ```\n"
 
     assert terminology_drift.strip_markdown_code(unmatched) == unmatched
-    assert "workspace host" in terminology_drift.strip_markdown_code(longer_closer)
+    stripped = terminology_drift.strip_markdown_code(longer_closer)
+    assert stripped.count("\n") == longer_closer.count("\n")
+    assert "workspace host" not in stripped
+    assert "WorkspaceHost" in stripped
     assert terminology_drift.strip_markdown_code(indented) == indented
 
 
-def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    source = "".join(f"```{index}\n" for index in range(2_000))
-    calls = 0
+@pytest.mark.parametrize(
+    "closer",
+    ["``\n", "~~~\n", "``` prose\n", "```\v\n"],
+    ids=("short", "wrong-marker", "prose-after", "non-space-suffix"),
+)
+def test_invalid_closers_leave_the_fence_unmatched(closer: str) -> None:
+    source = f"```text\nworkspace host\n{closer}"
+
+    assert terminology_drift.strip_markdown_code(source) == source
+
+
+def test_fence_successor_work_is_bounded_by_input_characters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    opener_count = 2_000
+    max_marker_length = 512
+    source = "```x\n" * opener_count + "".join(
+        f"{'`' * length}\n" for length in range(3, max_marker_length + 1)
+    )
+    candidate_calls = 0
+    threshold_work = 0
     original_candidate = terminology_drift._fence_candidate
+    original_range = range
 
     def counted_candidate(line: str) -> tuple[str, int, bool, bool] | None:
-        nonlocal calls
-        calls += 1
+        nonlocal candidate_calls
+        candidate_calls += 1
         return original_candidate(line)
 
+    def counted_range(*args: int) -> range:
+        nonlocal threshold_work
+        values = original_range(*args)
+        if len(args) == 2 and args[0] == 3:
+            threshold_work += len(values)
+        return values
+
     monkeypatch.setattr(terminology_drift, "_fence_candidate", counted_candidate)
+    monkeypatch.setattr(terminology_drift, "range", counted_range, raising=False)
 
     terminology_drift.strip_markdown_code(source)
 
-    assert calls == len(source.splitlines(keepends=True))
+    assert candidate_calls == len(source.splitlines(keepends=True))
+    assert threshold_work == sum(length - 2 for length in range(3, max_marker_length + 1))
+    assert threshold_work <= len(source)
 
 
 @pytest.mark.parametrize(
@@ -107,7 +139,7 @@ def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
         ("```\n", ("`", 4), False),
         ("````\n", ("`", 4), True),
         ("````  \n", ("`", 4), True),
-        ("`````\n", ("`", 4), False),
+        ("`````\n", ("`", 4), True),
         ("~~~\n", ("`", 4), False),
         ("```text\n", ("`", 4), False),
         ("```\r\n", ("`", 4), False),
