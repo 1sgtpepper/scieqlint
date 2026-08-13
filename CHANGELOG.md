@@ -42,6 +42,9 @@ Release notes must use these sections:
 - Dimension aliases now match complete surface tokens instead of splitting
   longer configured identifiers.
 - Dimension checks now accept rational factors after implicit multiplication.
+- Dimension checks now bound numeric components to 512 decimal digits and group
+  nesting to 64 levels, reporting over-budget expressions as `DIM020` and
+  continuing with later expressions and documents.
 - Algebra checks now evaluate line-separated equations independently instead
   of treating a multi-line block as one chained equality.
 - SARIF artifact paths are URI-encoded and runs declare their Unicode code-point

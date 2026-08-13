@@ -225,7 +225,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.INFO,
         "dimension check skipped",
         "v0.1.2",
-        "Dimension checking skipped an expression outside the supported subset.",
+        "Dimension checking skipped an expression outside the supported subset or parser budget.",
     ),
     "SYM001": DiagnosticInfo(
         "SYM001",

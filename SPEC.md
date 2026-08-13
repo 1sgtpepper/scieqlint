@@ -572,6 +572,12 @@ Inference rules:
 | `a^n` | multiply vector by integer `n` |
 | `sqrt(a)` | divide vector by 2 if all exponents even; else unknown |
 
+When dimension checking is active, each numeric component in an input equation may
+contain up to 512 decimal digits and grouping may nest at most 64 parenthesis or brace
+groups. An expression beyond either parser budget emits `DIM020` with a detail
+identifying the exceeded limit before evaluation; checking continues for later
+expressions and documents.
+
 Diagnostics introduced:
 
 | Code | Default | Meaning |
