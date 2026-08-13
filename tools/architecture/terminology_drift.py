@@ -8,7 +8,6 @@ import json
 import re
 import sys
 import tomllib
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -798,25 +797,25 @@ def strip_markdown_code(text: str) -> str:
     if has_final_newline or not text:
         lines.pop()
 
-    # Pair exact marker/length candidates independently so an unmatched opener
-    # cannot hide a later complete fence. Select the earliest non-overlapping
-    # pair afterward, which preserves an enclosing fence when it does close.
-    openers: dict[tuple[str, int], deque[int]] = {}
+    # Find the next exact closer for each opener from right to left. The final
+    # left-to-right pass selects the earliest non-overlapping pair, so an
+    # unmatched opener cannot hide a later complete fence or consume a later
+    # fence after an enclosing block has closed.
+    candidates = [
+        _fence_candidate(content + "\n" if index < len(lines) - 1 or has_final_newline else content)
+        for index, content in enumerate(lines)
+    ]
+    next_closers: dict[tuple[str, int], int] = {}
     matched_closers = [-1] * len(lines)
-    for index, content in enumerate(lines):
-        line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
-        candidate = _fence_candidate(line)
+    for index in range(len(lines) - 1, -1, -1):
+        candidate = candidates[index]
         if candidate is None:
             continue
         marker, length, is_opener, is_closer = candidate
-        key = (marker, length)
-        if is_closer:
-            positions = openers.get(key)
-            if positions:
-                matched_closers[positions.popleft()] = index
-                continue
         if is_opener:
-            openers.setdefault(key, deque()).append(index)
+            matched_closers[index] = next_closers.get((marker, length), -1)
+        if is_closer:
+            next_closers[(marker, length)] = index
 
     masked_until = -1
     for index, content in enumerate(lines):
@@ -858,10 +857,7 @@ def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
     marker, length = opener
     candidate = _fence_candidate(line)
     return (
-        candidate is not None
-        and candidate[0] == marker
-        and candidate[1] == length
-        and candidate[3]
+        candidate is not None and candidate[0] == marker and candidate[1] == length and candidate[3]
     )
 
 

@@ -55,18 +55,22 @@ def test_shorter_same_character_closers_remain_unmatched(source: str) -> None:
 
 
 def test_unmatched_opener_does_not_hide_later_complete_fence() -> None:
-    source = (
-        "# Architecture\n\n"
-        "````text\n"
-        "```text\n"
-        "workspace host\n"
-        "```\n"
-    )
+    source = "# Architecture\n\n````text\n```text\nworkspace host\n```\n"
 
     stripped = terminology_drift.strip_markdown_code(source)
 
     assert stripped.count("\n") == source.count("\n")
     assert "workspace host" not in stripped
+
+
+def test_closed_outer_fence_does_not_consume_later_fence() -> None:
+    source = "````text\n```text\ninside outer\n````\n```text\nlater workspace host\n```\n"
+
+    stripped = terminology_drift.strip_markdown_code(source)
+
+    assert stripped.count("\n") == source.count("\n")
+    assert "inside outer" not in stripped
+    assert "later workspace host" not in stripped
 
 
 def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
