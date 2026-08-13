@@ -54,6 +54,21 @@ def test_shorter_same_character_closers_remain_unmatched(source: str) -> None:
     assert terminology_drift.strip_markdown_code(source) == source
 
 
+def test_unmatched_opener_does_not_hide_later_complete_fence() -> None:
+    source = (
+        "# Architecture\n\n"
+        "````text\n"
+        "```text\n"
+        "workspace host\n"
+        "```\n"
+    )
+
+    stripped = terminology_drift.strip_markdown_code(source)
+
+    assert stripped.count("\n") == source.count("\n")
+    assert "workspace host" not in stripped
+
+
 def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
     unmatched = "# Architecture\n\n```text\nworkspace host\n"
     longer_closer = "```text\nworkspace host\n````\n"
@@ -67,21 +82,14 @@ def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
 def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
     source = "".join(f"```{index}\n" for index in range(2_000))
     calls = 0
-    original_opener = terminology_drift._fence_opener
-    original_closer = terminology_drift._is_fence_closer
+    original_candidate = terminology_drift._fence_candidate
 
-    def counted_opener(line: str) -> tuple[str, int] | None:
+    def counted_candidate(line: str) -> tuple[str, int, bool, bool] | None:
         nonlocal calls
         calls += 1
-        return original_opener(line)
+        return original_candidate(line)
 
-    def counted_closer(line: str, opener: tuple[str, int]) -> bool:
-        nonlocal calls
-        calls += 1
-        return original_closer(line, opener)
-
-    monkeypatch.setattr(terminology_drift, "_fence_opener", counted_opener)
-    monkeypatch.setattr(terminology_drift, "_is_fence_closer", counted_closer)
+    monkeypatch.setattr(terminology_drift, "_fence_candidate", counted_candidate)
 
     terminology_drift.strip_markdown_code(source)
 
@@ -124,21 +132,14 @@ def test_long_unmatched_fence_has_bounded_line_classification(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls = 0
-    original_opener = terminology_drift._fence_opener
-    original_closer = terminology_drift._is_fence_closer
+    original_candidate = terminology_drift._fence_candidate
 
-    def counted_opener(line: str) -> tuple[str, int] | None:
+    def counted_candidate(line: str) -> tuple[str, int, bool, bool] | None:
         nonlocal calls
         calls += 1
-        return original_opener(line)
+        return original_candidate(line)
 
-    def counted_closer(line: str, opener: tuple[str, int]) -> bool:
-        nonlocal calls
-        calls += 1
-        return original_closer(line, opener)
-
-    monkeypatch.setattr(terminology_drift, "_fence_opener", counted_opener)
-    monkeypatch.setattr(terminology_drift, "_is_fence_closer", counted_closer)
+    monkeypatch.setattr(terminology_drift, "_fence_candidate", counted_candidate)
     marker = "`" * 131_072
     source = f"# Architecture\n\n{marker}\nworkspace host\n"
 

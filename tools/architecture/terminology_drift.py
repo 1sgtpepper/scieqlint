@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import tomllib
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -792,56 +793,76 @@ def drift_spellings(term: str) -> tuple[str, ...]:
 
 def strip_markdown_code(text: str) -> str:
     output: list[str] = []
-    pending: list[str] = []
-    opener: tuple[str, int] | None = None
-
-    # Preserve the existing fence contract while classifying each input line
-    # once. Pending text is emitted unchanged when no closer exists, including
-    # a closer longer than the opener, so this performance fix does not absorb
-    # issue #251.
     lines = text.split("\n")
     has_final_newline = text.endswith("\n")
     if has_final_newline or not text:
         lines.pop()
+
+    # Pair exact marker/length candidates independently so an unmatched opener
+    # cannot hide a later complete fence. Select the earliest non-overlapping
+    # pair afterward, which preserves an enclosing fence when it does close.
+    openers: dict[tuple[str, int], deque[int]] = {}
+    matched_closers = [-1] * len(lines)
     for index, content in enumerate(lines):
         line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
-        if opener is None:
-            opener = _fence_opener(line)
-            if opener is None:
-                output.append(line)
+        candidate = _fence_candidate(line)
+        if candidate is None:
+            continue
+        marker, length, is_opener, is_closer = candidate
+        key = (marker, length)
+        if is_closer:
+            positions = openers.get(key)
+            if positions:
+                matched_closers[positions.popleft()] = index
                 continue
-            pending.append(line)
-            continue
+        if is_opener:
+            openers.setdefault(key, deque()).append(index)
 
-        pending.append(line)
-        if not _is_fence_closer(line, opener):
+    masked_until = -1
+    for index, content in enumerate(lines):
+        line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
+        if index <= masked_until:
+            output.append("\n" * line.count("\n"))
             continue
-        segment = "".join(pending)
-        output.append("\n" * segment.count("\n"))
-        pending.clear()
-        opener = None
-
-    output.extend(pending)
+        closer = matched_closers[index]
+        if closer >= index:
+            masked_until = closer
+            output.append("\n" * line.count("\n"))
+        else:
+            output.append(line)
     return re.sub(r"`[^`\n]+`", "", "".join(output))
 
 
-def _fence_opener(line: str) -> tuple[str, int] | None:
+def _fence_candidate(line: str) -> tuple[str, int, bool, bool] | None:
     if not line or line[0] not in {"`", "~"}:
         return None
     marker = line[0]
     length = 1
     while length < len(line) and line[length] == marker:
         length += 1
-    return (marker, length) if length >= 3 and line.endswith("\n") else None
+    if length < 3:
+        return None
+    candidate = line[:-1] if line.endswith("\n") else line
+    return marker, length, line.endswith("\n"), not candidate[length:].strip(" \t")
+
+
+def _fence_opener(line: str) -> tuple[str, int] | None:
+    candidate = _fence_candidate(line)
+    if candidate is None or not candidate[2]:
+        return None
+    marker, length, _is_opener, _is_closer = candidate
+    return marker, length
 
 
 def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
     marker, length = opener
-    candidate = line[:-1] if line.endswith("\n") else line
-    run_length = 0
-    while run_length < len(candidate) and candidate[run_length] == marker:
-        run_length += 1
-    return run_length == length and not candidate[run_length:].strip(" \t")
+    candidate = _fence_candidate(line)
+    return (
+        candidate is not None
+        and candidate[0] == marker
+        and candidate[1] == length
+        and candidate[3]
+    )
 
 
 def base_report(
