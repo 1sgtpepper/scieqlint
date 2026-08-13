@@ -463,6 +463,9 @@ def _markdown_line_ownership(
                     if stale_depth > explicit_depth:
                         del quote_paths[stale_depth]
             if explicit_depth > previous_depth:
+                # An explicit child quote is a block interruption; the parent
+                # paragraph cannot resume after that child container closes.
+                contexts[previous_depth].paragraph_active = False
                 parent_path = (
                     *quote_paths[previous_depth],
                     *contexts[previous_depth].list_container_ids,

@@ -1307,6 +1307,17 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
 
 
+@pytest.mark.public_regression
+def test_explicit_quote_block_closes_parent_paragraph_before_indented_code() -> None:
+    source = "paragraph\n> # heading\n    [ghost](#missing)\n"
+
+    snapshot = markdown_module.markdown_reference_snapshot(source)
+    ghost_start = source.index("[ghost]")
+
+    assert snapshot.links == ()
+    assert markdown_module.range_contains(ghost_start, snapshot.opaque_ranges)
+
+
 @pytest.mark.parametrize(
     ("case", "source", "live_targets"),
     [
@@ -1392,6 +1403,12 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
             "> > paragraph\n    [live](#live)\nSee [active](#active).\n",
             ("live", "active"),
             id="lazy-quote-prose",
+        ),
+        pytest.param(
+            "quote-block-interrupts-paragraph",
+            "paragraph\n> # heading\n    [ghost](#missing)\nSee [active](#active).\n",
+            ("active",),
+            id="quote-block-interrupts-paragraph",
         ),
     ],
 )
