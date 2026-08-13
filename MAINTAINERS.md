@@ -4,8 +4,8 @@ Current maintainer list:
 
 | Name | Role | Contact |
 |---|---|---|
-| Kuhai9801 | Project maintainer | GitHub: @Kuhai9801 |
-| cjzarceno | Project maintainer | GitHub: @cjzarceno |
+| 1sgtpepper | Project maintainer | GitHub: @1sgtpepper |
+| Izzzaaaa | Project maintainer | GitHub: @Izzzaaaa |
 
 ## Maintainer duties
 

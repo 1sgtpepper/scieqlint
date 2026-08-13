@@ -1,7 +1,7 @@
 site_name: SciEqLint
 site_description: Deterministic equation, reference, and MyST structure linting for scientific documents.
-repo_url: https://github.com/Kuhai9801/scieqlint
-repo_name: Kuhai9801/scieqlint
+repo_url: https://github.com/1sgtpepper/scieqlint
+repo_name: 1sgtpepper/scieqlint
 strict: true
 
 theme:

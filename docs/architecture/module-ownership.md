@@ -3,7 +3,7 @@
 This R1-002A map is the reviewed package boundary artifact for the current
 repository tree. Its input boundary is limited to the checked-in
 `src/scieqlint` tree, architecture-owned tool and test categories, the
-[normative import rules](https://github.com/Kuhai9801/scieqlint/blob/main/SPEC.md#6-architecture),
+[normative import rules](https://github.com/1sgtpepper/scieqlint/blob/main/SPEC.md#6-architecture),
 and the R1-002B import-linter baseline issue. It does not rename packages, change
 public behavior, or edit executable import-linter configuration.
 

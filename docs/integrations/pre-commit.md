@@ -4,7 +4,7 @@ v0.1.1 adds pre-commit metadata.
 
 ```yaml
 repos:
-  - repo: https://github.com/Kuhai9801/scieqlint
+  - repo: https://github.com/1sgtpepper/scieqlint
     rev: v1.1.0
     hooks:
       - id: scieqlint

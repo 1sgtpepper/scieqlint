@@ -12,7 +12,7 @@ SciEqLint changes are scoped by release, layer, and test surface.
 ## Local setup
 
 ```bash
-git clone https://github.com/<owner>/scieqlint.git
+git clone https://github.com/1sgtpepper/scieqlint.git
 cd scieqlint
 python -m venv .venv
 . .venv/bin/activate

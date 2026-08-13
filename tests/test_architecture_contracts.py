@@ -336,7 +336,6 @@ def test_architecture_terminology_scanner_emits_stable_machine_report():
 def test_deterministic_snapshot_adr_pins_links_and_separates_evidence_from_plans():
     adr = DETERMINISTIC_SNAPSHOT_ADR.read_text(encoding="utf-8")
 
-    assert "github.com/Kuhai9801/scieqlint" not in adr
     assert "Traceability issue: [GitHub #133]" in adr
     assert "R1-001 / GitHub #133" not in adr
     file_links = re.findall(

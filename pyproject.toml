@@ -56,9 +56,9 @@ notebook = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Kuhai9801/scieqlint"
-Repository = "https://github.com/Kuhai9801/scieqlint"
-Issues = "https://github.com/Kuhai9801/scieqlint/issues"
+Homepage = "https://github.com/1sgtpepper/scieqlint"
+Repository = "https://github.com/1sgtpepper/scieqlint"
+Issues = "https://github.com/1sgtpepper/scieqlint/issues"
 Documentation = "https://github.com/1sgtpepper/scieqlint/tree/main/docs"
 
 [project.scripts]
