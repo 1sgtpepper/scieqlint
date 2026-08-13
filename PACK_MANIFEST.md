@@ -287,6 +287,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_report_text.py`
 - `tests/test_sarif_workflow.py`
 - `tests/test_source.py`
+- `tests/test_source_kind_validation.py`
 - `tests/test_stabilization.py`
 - `tests/test_symbols.py`
 - `tools/architecture/terminology_drift.py`

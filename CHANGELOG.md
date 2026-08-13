@@ -57,6 +57,9 @@ Release notes must use these sections:
 - Graph path analysis now shares check path project discovery, ordering, ignore, display
   path, and source-reading behavior; source failures abort graph construction with
   controlled `INP001` context instead of exposing a raw exception.
+- Explicit unsupported source files are now rejected instead of being analyzed as
+  Markdown; directory and glob discovery continue to ignore unsupported files, and
+  already-loaded `DocumentKind.UNKNOWN` documents are rejected by both APIs.
 - Markdown suppressions now stay on the adjacent source line; MyST labels and
   roles respect their syntax boundaries, and seven-hash paragraph lines remain
   ordinary text.

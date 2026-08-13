@@ -33,6 +33,10 @@ discovery, config lookup, file ordering, ignore rules, source loading, and displ
 path rules. Checks continue after a source read or decode failure and return
 `INP001`; graph construction is all-or-nothing and raises a controlled `ValueError`
 with `INP001` context chained from the original error. Baselines remain check-only.
+Explicit existing files must use a supported `.md`, `.markdown`, `.tex`, or `.ipynb`
+suffix; the path APIs raise `ValueError` for unsupported paths and the CLI reports the
+same failure with exit status 2. `DocumentKind.UNKNOWN` is rejected by the document
+APIs. Directory and glob discovery continue to ignore unsupported files.
 `check_paths` and `graph_paths` raise `FileNotFoundError` when an explicitly
 provided non-glob path does not exist. Existing paths are treated literally even
 when their names contain glob characters; only nonexistent strings with glob

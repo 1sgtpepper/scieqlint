@@ -151,10 +151,12 @@ def check_documents(
     for document in documents:
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
+        elif document.kind is DocumentKind.MARKDOWN:
+            scan = scanner.scan(document, config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
-            scan = scanner.scan(document, config)
+            raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
         references.extend(scan.references)
@@ -270,10 +272,12 @@ def graph_documents(
     for document in documents:
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
+        elif document.kind is DocumentKind.MARKDOWN:
+            scan = scanner.scan(document, config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
-            scan = scanner.scan(document, config)
+            raise _unsupported_source_kind(document.path)
         labels.extend(scan.labels)
         references.extend(scan.references)
     return build_graph(tuple(labels), tuple(references))
@@ -331,13 +335,16 @@ def _load_source(
     absolute_paths: bool,
     consumed_inputs: list[ConsumedInput],
 ) -> SourceDocument:
+    kind = _document_kind(path)
+    if kind is DocumentKind.UNKNOWN:
+        raise _unsupported_source_kind(path)
     with open_text(path, encoding="utf-8") as (stream, consumed_input):
         consumed_inputs.append(consumed_input)
         text = stream.read()
     return SourceDocument.from_text(
         _display_path(path, absolute_paths=absolute_paths),
         text,
-        _document_kind(path),
+        kind,
     )
 
 
@@ -525,14 +532,21 @@ def _lexical_relative_path(path: PurePath, base: PurePath) -> PurePosixPath:
     return PurePosixPath(*relative_parts) if relative_parts else PurePosixPath(".")
 
 
-def _document_kind(path: Path) -> DocumentKind:
+def _document_kind(path: PurePath) -> DocumentKind:
     match path.suffix.lower():
+        case ".md" | ".markdown":
+            return DocumentKind.MARKDOWN
         case ".tex":
             return DocumentKind.LATEX
         case ".ipynb":
             return DocumentKind.NOTEBOOK
         case _:
-            return DocumentKind.MARKDOWN
+            return DocumentKind.UNKNOWN
+
+
+def _unsupported_source_kind(path: PurePath) -> ValueError:
+    suffix = path.suffix or "<none>"
+    return ValueError(f"unsupported source kind {suffix!r}: {path.as_posix()}")
 
 
 def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
