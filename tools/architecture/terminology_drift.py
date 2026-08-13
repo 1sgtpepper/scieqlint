@@ -8,7 +8,6 @@ import json
 import re
 import sys
 import tomllib
-from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -806,7 +805,7 @@ def strip_markdown_code(text: str) -> str:
         _fence_candidate(content + "\n" if index < len(lines) - 1 or has_final_newline else content)
         for index, content in enumerate(lines)
     ]
-    next_closers: dict[str, list[tuple[int, int]]] = {"`": [], "~": []}
+    nearest_closers: dict[str, dict[int, int]] = {"`": {}, "~": {}}
     matched_closers = [-1] * len(lines)
     for index in range(len(lines) - 1, -1, -1):
         candidate = candidates[index]
@@ -814,15 +813,10 @@ def strip_markdown_code(text: str) -> str:
             continue
         marker, length, is_opener, is_closer = candidate
         if is_opener:
-            frontier = next_closers[marker]
-            position = bisect_right(frontier, (-length, len(lines))) - 1
-            if position >= 0:
-                matched_closers[index] = frontier[position][1]
+            matched_closers[index] = nearest_closers[marker].get(length, -1)
         if is_closer:
-            frontier = next_closers[marker]
-            while frontier and -frontier[-1][0] <= length:
-                frontier.pop()
-            frontier.append((-length, index))
+            for opener_length in range(3, length + 1):
+                nearest_closers[marker][opener_length] = index
 
     masked_until = -1
     for index, content in enumerate(lines):
