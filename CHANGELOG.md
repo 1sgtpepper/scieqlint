@@ -29,6 +29,8 @@ Release notes must use these sections:
 - Stable-tag publication now fails closed unless source, wheel, and tag versions
   agree, at least 100 documented equation fixtures execute successfully, and the
   100-document/500-equation/500-reference workload stays under three seconds.
+- Markdown math fences now follow the shared CommonMark opener and closer rules,
+  including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct
   failure controls that are statically proven blocking. Explicitly disabled or
   continue-on-error steps and parent jobs are excluded, as are step shell

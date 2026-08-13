@@ -533,13 +533,13 @@ def test_shared_fence_closer_rules_keep_adjacent_math_fences_distinct() -> None:
     [
         ("```math", "```", True),
         ("```{math}", "```", True),
-        (" ```math", "```", False),
-        (" ```{math}", "```", False),
-        ("````math", "````", False),
-        ("````{math}", "````", False),
+        (" ```math", "```", True),
+        (" ```{math}", "```", True),
+        ("````math", "````", True),
+        ("````{math}", "````", True),
     ],
 )
-def test_legacy_math_fence_opener_profile(opener: str, closer: str, expected: bool) -> None:
+def test_math_fence_opener_profile(opener: str, closer: str, expected: bool) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
         f"{opener}\nx = x\n{closer}\n",

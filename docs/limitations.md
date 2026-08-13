@@ -112,9 +112,13 @@ so inline content remains live. Structural headings, anchors, fences, and syntax
 diagnostics use the same opacity rules as math scanning. Their trimmed bodies and
 spans therefore agree.
 Markdown code spans use equal-length backtick delimiters and may contain shorter
-backtick runs or line endings. Fenced-code closers require the matching marker,
-at least the opener length, and no more than three leading spaces; a backtick
-fence info string cannot contain a backtick.
+backtick runs or line endings. Fenced math uses the CommonMark fence identity:
+an opener has at least three matching backticks or tildes and at most three leading
+spaces, and its info string is `math` or `{math}` after surrounding whitespace is
+trimmed. A backtick opener's info string cannot contain a backtick. Fenced-code
+closers require the matching marker, at least the opener length, and no more than
+three leading spaces. A shorter, different-marker, or over-indented closer leaves
+the math container unterminated and emits `SCAN001`; non-math fences remain opaque.
 TeX `\label{...}` inside Markdown math creates a label only when its backslash
 begins an active control sequence.
 MyST math labels are read only from the directive's leading option prefix.

@@ -268,6 +268,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_graph_source_pipeline.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
+- `tests/test_markdown_math_fences.py`
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
