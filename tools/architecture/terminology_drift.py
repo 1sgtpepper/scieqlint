@@ -8,6 +8,7 @@ import json
 import re
 import sys
 import tomllib
+from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -805,7 +806,7 @@ def strip_markdown_code(text: str) -> str:
         _fence_candidate(content + "\n" if index < len(lines) - 1 or has_final_newline else content)
         for index, content in enumerate(lines)
     ]
-    next_closers: dict[tuple[str, int], int] = {}
+    next_closers: dict[str, list[tuple[int, int]]] = {"`": [], "~": []}
     matched_closers = [-1] * len(lines)
     for index in range(len(lines) - 1, -1, -1):
         candidate = candidates[index]
@@ -813,9 +814,15 @@ def strip_markdown_code(text: str) -> str:
             continue
         marker, length, is_opener, is_closer = candidate
         if is_opener:
-            matched_closers[index] = next_closers.get((marker, length), -1)
+            frontier = next_closers[marker]
+            position = bisect_right(frontier, (-length, len(lines))) - 1
+            if position >= 0:
+                matched_closers[index] = frontier[position][1]
         if is_closer:
-            next_closers[(marker, length)] = index
+            frontier = next_closers[marker]
+            while frontier and -frontier[-1][0] <= length:
+                frontier.pop()
+            frontier.append((-length, index))
 
     masked_until = -1
     for index, content in enumerate(lines):
@@ -857,7 +864,7 @@ def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
     marker, length = opener
     candidate = _fence_candidate(line)
     return (
-        candidate is not None and candidate[0] == marker and candidate[1] == length and candidate[3]
+        candidate is not None and candidate[0] == marker and candidate[1] >= length and candidate[3]
     )
 
 

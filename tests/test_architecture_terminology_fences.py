@@ -73,14 +73,28 @@ def test_closed_outer_fence_does_not_consume_later_fence() -> None:
     assert "later workspace host" not in stripped
 
 
-def test_unmatched_longer_and_indented_fences_remain_visible() -> None:
+def test_longer_closer_is_opaque_without_widening_adjacent_syntax() -> None:
     unmatched = "# Architecture\n\n```text\nworkspace host\n"
-    longer_closer = "```text\nworkspace host\n````\n"
+    longer_closer = "```text\nworkspace host\n````  \t\nWorkspaceHost\n"
     indented = " ```text\nworkspace host\n ```\n"
 
     assert terminology_drift.strip_markdown_code(unmatched) == unmatched
-    assert "workspace host" in terminology_drift.strip_markdown_code(longer_closer)
+    stripped = terminology_drift.strip_markdown_code(longer_closer)
+    assert stripped.count("\n") == longer_closer.count("\n")
+    assert "workspace host" not in stripped
+    assert "WorkspaceHost" in stripped
     assert terminology_drift.strip_markdown_code(indented) == indented
+
+
+@pytest.mark.parametrize(
+    "closer",
+    ["``\n", "~~~\n", "``` prose\n", "```\v\n"],
+    ids=("short", "wrong-marker", "prose-after", "non-space-suffix"),
+)
+def test_invalid_closers_leave_the_fence_unmatched(closer: str) -> None:
+    source = f"```text\nworkspace host\n{closer}"
+
+    assert terminology_drift.strip_markdown_code(source) == source
 
 
 def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -107,7 +121,7 @@ def test_each_line_is_classified_once(monkeypatch: pytest.MonkeyPatch) -> None:
         ("```\n", ("`", 4), False),
         ("````\n", ("`", 4), True),
         ("````  \n", ("`", 4), True),
-        ("`````\n", ("`", 4), False),
+        ("`````\n", ("`", 4), True),
         ("~~~\n", ("`", 4), False),
         ("```text\n", ("`", 4), False),
         ("```\r\n", ("`", 4), False),
