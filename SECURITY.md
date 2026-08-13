@@ -4,13 +4,16 @@ SciEqLint analyzes untrusted document text. Security is part of the product cont
 
 ## Supported versions
 
-Security fixes are provided for the latest released minor version during v0.x. This policy should be revisited before v1.0.0.
+Security fixes are provided for the latest released minor version in the current
+major release line. Reports affecting older minors are assessed against the latest
+release, and reporters may be asked to verify or upgrade before a fix is issued.
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a vulnerability. Use
-[GitHub private vulnerability reporting](https://github.com/Kuhai9801/scieqlint/security/advisories/new)
-or contact the maintainers listed in `MAINTAINERS.md`.
+Do not open a public issue for a suspected vulnerability. Use
+[GitHub private vulnerability reporting](https://github.com/1sgtpepper/scieqlint/security/advisories/new)
+when available. If GitHub private reporting is unavailable, email
+[sgtpepper1@proton.me](mailto:sgtpepper1@proton.me).
 
 Please include:
 

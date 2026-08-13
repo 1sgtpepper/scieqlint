@@ -20,7 +20,9 @@ Release notes must use these sections:
 
 ### Changed
 
-- Nothing yet.
+- The security policy now documents support for the latest minor in the current
+  major release line and provides the private vulnerability-reporting route plus
+  a fallback security contact.
 
 ### Fixed
 
