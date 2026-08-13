@@ -128,7 +128,9 @@ def test_fence_successor_work_is_bounded_by_input_characters(
     terminology_drift.strip_markdown_code(source)
 
     assert candidate_calls == len(source.splitlines(keepends=True))
-    assert threshold_work == sum(range(3, max_marker_length + 1))
+    assert threshold_work == sum(
+        length - 2 for length in range(3, max_marker_length + 1)
+    )
     assert threshold_work <= len(source)
 
 
