@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from html import unescape
 from html.entities import html5
+from itertools import chain
 
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
@@ -253,7 +254,7 @@ def range_contains(position: int, ranges: Sequence[OffsetRange]) -> bool:
     return start <= position < end
 
 
-def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
+def _merge_ranges(ranges: Iterable[OffsetRange]) -> tuple[OffsetRange, ...]:
     merged: list[OffsetRange] = []
     for start, end in sorted((start, end) for start, end in ranges if start < end):
         if merged and start <= merged[-1][1]:
@@ -1061,6 +1062,9 @@ def _markdown_link_tokens_from_lexical(
     protected: Sequence[OffsetRange],
 ) -> tuple[MarkdownLinkToken, ...]:
     tokens: list[MarkdownLinkToken] = []
+    non_image_prefix = [0]
+    metadata_ranges: list[OffsetRange] = []
+    metadata_prefix = [0]
     protected_cursor = _RangeCursor(protected)
     stack: list[_LinkFrame] = []
     boundaries = _link_label_boundaries(text)
@@ -1099,19 +1103,34 @@ def _markdown_link_tokens_from_lexical(
             body = _parse_link_body(text, index + 2, limit)
             if body is not None:
                 destination_start, destination_end, end = body
-                children = tokens[frame.child_start :]
-                token = _make_link_token(
-                    text,
-                    frame.token_start,
-                    end,
-                    destination_start,
-                    destination_end,
-                    frame.is_image,
-                    children,
+                child_non_image_count = (
+                    non_image_prefix[len(tokens)] - non_image_prefix[frame.child_start]
                 )
-                if frame.is_image or all(child.is_image for child in children):
+                if frame.is_image or child_non_image_count == 0:
+                    child_metadata_start = metadata_prefix[frame.child_start]
+                    child_metadata_end = metadata_prefix[len(tokens)]
+                    child_metadata_ranges = (
+                        metadata_ranges[offset]
+                        for offset in range(child_metadata_start, child_metadata_end)
+                    )
+                    token = _make_link_token(
+                        text,
+                        frame.token_start,
+                        end,
+                        destination_start,
+                        destination_end,
+                        frame.is_image,
+                        child_metadata_ranges,
+                    )
+                    surviving_metadata_end = metadata_prefix[frame.child_start]
                     del tokens[frame.child_start :]
+                    del non_image_prefix[frame.child_start + 1 :]
+                    del metadata_prefix[frame.child_start + 1 :]
+                    del metadata_ranges[surviving_metadata_end:]
                     tokens.append(token)
+                    non_image_prefix.append(non_image_prefix[-1] + int(not token.is_image))
+                    metadata_ranges.extend(token.metadata_ranges)
+                    metadata_prefix.append(len(metadata_ranges))
                 next_index = end
         index = next_index
 
@@ -1183,7 +1202,7 @@ def _make_link_token(
     destination_start: int,
     destination_end: int,
     is_image: bool,
-    children: Sequence[MarkdownLinkToken],
+    child_metadata_ranges: Iterable[OffsetRange],
 ) -> MarkdownLinkToken:
     destination, decoded_spans = _decode_destination_span(text, destination_start, destination_end)
     fragment_target: str | None = None
@@ -1196,17 +1215,7 @@ def _make_link_token(
     if is_image:
         metadata_ranges = ((token_start, end),)
     else:
-        metadata_ranges = _merge_ranges(
-            (
-                (destination_start, end),
-                *(
-                    child_range
-                    for child in children
-                    if child.is_image
-                    for child_range in child.metadata_ranges
-                ),
-            )
-        )
+        metadata_ranges = _merge_ranges(chain(((destination_start, end),), child_metadata_ranges))
     return MarkdownLinkToken(
         start=token_start,
         end=end,

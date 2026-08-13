@@ -151,6 +151,44 @@ def test_failed_enclosing_labels_do_not_copy_children_per_frame(
     assert _CopyCountingList.copied_items <= 2 * count
 
 
+def test_nested_link_candidates_bound_child_summary_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    count = 512
+    source = "[" * count + "[x](#inner)" * count + "](#outer)" * count
+    original_make_link_token = markdown_module._make_link_token
+    child_work = 0
+
+    def counted_make_link_token(
+        text: str,
+        token_start: int,
+        end: int,
+        destination_start: int,
+        destination_end: int,
+        is_image: bool,
+        child_values: Iterable[tuple[int, int]],
+    ) -> markdown_module.MarkdownLinkToken:
+        nonlocal child_work
+        materialized = tuple(child_values)
+        child_work += len(materialized)
+        return original_make_link_token(
+            text,
+            token_start,
+            end,
+            destination_start,
+            destination_end,
+            is_image,
+            materialized,
+        )
+
+    monkeypatch.setattr(markdown_module, "_make_link_token", counted_make_link_token)
+
+    tokens = markdown_module.markdown_reference_snapshot(source).links
+
+    assert len(tokens) == count
+    assert child_work <= 2 * count
+
+
 def test_link_destination_parenthesis_nesting_limit() -> None:
     supported = "[x](#" + "(" * 32 + "target" + ")" * 32 + ")"
     unsupported = "[x](#" + "(" * 33 + "target" + ")" * 33 + ")"
