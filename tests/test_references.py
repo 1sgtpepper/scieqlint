@@ -1309,13 +1309,20 @@ def test_myst_anchor_inside_code_fence_does_not_suppress_markdown_missing_refere
 
 @pytest.mark.public_regression
 def test_explicit_quote_block_closes_parent_paragraph_before_indented_code() -> None:
-    source = "paragraph\n> # heading\n    [ghost](#missing)\n"
+    source = "paragraph\n> # heading\n    [ghost](#missing)\nSee [active](#active).\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("quote-interruption.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
 
-    snapshot = markdown_module.markdown_reference_snapshot(source)
-    ghost_start = source.index("[ghost]")
+    scan = MarkdownScanner().scan(document, Config())
+    result = check_documents([document], config=Config())
 
-    assert snapshot.links == ()
-    assert markdown_module.range_contains(ghost_start, snapshot.opaque_ranges)
+    assert [reference.target for reference in scan.references] == ["active"]
+    assert [diagnostic.message for diagnostic in result.diagnostics] == [
+        "equation reference target not found: active"
+    ]
 
 
 @pytest.mark.parametrize(
