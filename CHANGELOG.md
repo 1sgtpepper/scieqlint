@@ -124,6 +124,21 @@ Release notes must use these sections:
   math use the same control-sequence boundary. Same-line transitions between
   verbatim content and comments now retain their lexical ownership. Overlapping
   escaped dollar candidates no longer hide an adjacent live display block.
+- Markdown links and MyST roles now respect escapes, image syntax, and link metadata
+  when creating reference facts; active role bodies are not reparsed as links, and
+  decoded backslash/entity destinations retain their original source offsets for
+  diagnostics. Link labels stop at paragraph and block boundaries. Link metadata is
+  also opaque to math and structure lowering, and link facts share one immutable
+  lexical snapshot across producers. CommonMark indented code at a block boundary
+  is now opaque to reference tokenization, including container-relative list code,
+  while paragraph continuation indentation remains prose. Multiline link titles stop
+  at Markdown block boundaries, and malformed destinations have bounded nesting work.
+  Fenced code and raw HTML inside quote or list containers remain opaque, Setext and
+  list interruption boundaries follow paragraph context, partial lazy quote
+  continuations retain their container, and failed enclosing labels no longer copy
+  every child token through every open frame.
+  Heading-target classification accepts valid empty ATX
+  headings without accepting missing-space forms.
 
 ### Deprecated
 

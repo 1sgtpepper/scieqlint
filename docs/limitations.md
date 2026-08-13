@@ -82,10 +82,12 @@ labels and references.
 
 SciEqLint checks supported equation references and Markdown links to supported
 equation labels. Explicit MyST heading anchors written as `(label)=` immediately
-before a heading are treated as document-structure targets, so Markdown links such
-as `[](#label)` and `[#label](#label)` do not emit equation-reference
-diagnostics when that target exists. Orphaned `(label)=` lines are not treated as
-valid targets. MyST `{ref}` roles to missing or ambiguous generic targets use
+before a valid ATX heading, including a bare or closing-only empty heading, are
+treated as document-structure targets, so Markdown links such as `[](#label)` and
+`[#label](#label)` do not emit equation-reference diagnostics when that target
+exists. Missing-space forms such as `#Bad` are not headings, and orphaned
+`(label)=` lines are not treated as valid targets. MyST `{ref}` roles to missing or
+ambiguous generic targets use
 generic-reference diagnostics instead of equation-reference diagnostics. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
@@ -112,6 +114,40 @@ MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
+Only parsed Markdown links and MyST roles create reference facts; escaped role
+markers, images, and link destinations or titles remain metadata rather than
+references, math, structure facts, or structure diagnostics. MyST roles do not
+cross source-line boundaries. The reference lexer supports inline links with balanced
+labels, soft line breaks within one inline container, destinations with up to 32 nested
+parenthesis pairs, and nonblank multiline titles within one paragraph. Blank lines and
+Markdown block starts end unmatched link labels and incomplete titles. Four-column or
+tab-indented CommonMark code at a block boundary is opaque, including when nested in a
+block quote or list; list indentation is measured from the item content column, while
+indentation continuing an active paragraph remains prose. Fenced code and raw HTML use
+the same container-relative line ownership, so quote and list prefixes do not expose
+their literal contents as references. Setext underlines, thematic breaks, list markers,
+and lazy nested-quote continuations follow their paragraph-interruption rules; in
+particular, an ordered list interrupts a paragraph only when it starts at `1`, and an
+empty list item does not interrupt it.
+Parenthesized titles require literal parentheses to be backslash-escaped, and
+valid named or numeric character references in destinations are decoded for
+resolution. Reference-link definitions, autolinks, and the full CommonMark
+inline-precedence graph remain outside this reference-fact profile and are left
+as source text.
+The destination/title separator permits spaces or tabs and at most one line ending;
+quoted or parenthesized titles may span multiple nonblank lines in the same paragraph.
+Unbracketed
+destinations reject spaces and ASCII control characters; angle-bracket destinations
+also reject unescaped angle brackets. Backslash escapes are decoded for reference
+resolution while source offsets retain the original destination spelling. A local
+fragment is recognized only when the decoded destination has a nonempty target after
+`#`; empty fragments remain ordinary link metadata. Images remain metadata,
+including nested images inside links; a link containing an image can still
+contribute its outer target.
+Role-like text inside inline code, inline or display math, HTML comments, and raw
+HTML is opaque and does not create reference facts. Active MyST role bodies are
+also opaque to Markdown-link tokenization, while ordinary inline HTML tag
+lexemes do not hide their content.
 
 ## MyST structure linting
 

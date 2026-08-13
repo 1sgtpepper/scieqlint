@@ -5,24 +5,16 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import (
-    dollar_display_ranges as _dollar_display_ranges,
-)
-from scieqlint.markdown import (
-    dollar_inline_ranges as _dollar_inline_ranges,
-)
-from scieqlint.markdown import (
-    inline_code_ranges as _inline_code_ranges,
-)
+from scieqlint.markdown import dollar_display_ranges as _dollar_display_ranges
+from scieqlint.markdown import dollar_inline_ranges as _dollar_inline_ranges
+from scieqlint.markdown import range_contains
 
 LineRange = tuple[int, int, str]
 OffsetRange = tuple[int, int]
 
-HEADING_RE = re.compile(r"^[ \t]{0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
+HEADING_RE = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
-MD_LINK_RE = re.compile(r"\[[^\]]*]\(#(?P<target>[^)\s]+)\)")
-ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`]+)`")
+ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`\r\n]+)`")
 TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
 DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
@@ -46,11 +38,7 @@ def line_ranges(text: str) -> tuple[LineRange, ...]:
 
 
 def in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
-    return any(start <= position < end for start, end in ranges)
-
-
-def inline_code_ranges(document: SourceDocument) -> tuple[OffsetRange, ...]:
-    return _inline_code_ranges(document.text)
+    return range_contains(position, ranges)
 
 
 def dollar_display_ranges(
