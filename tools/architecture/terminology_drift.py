@@ -791,12 +791,74 @@ def drift_spellings(term: str) -> tuple[str, ...]:
 
 
 def strip_markdown_code(text: str) -> str:
-    fenced_code = re.compile(r"(?ms)^(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^(?P=fence)[ \t]*$")
-    without_fences = fenced_code.sub(
-        lambda match: "\n" * match.group(0).count("\n"),
-        text,
+    output: list[str] = []
+    lines = text.split("\n")
+    has_final_newline = text.endswith("\n")
+    if has_final_newline or not text:
+        lines.pop()
+
+    # Find the next exact closer for each opener from right to left. The final
+    # left-to-right pass selects the earliest non-overlapping pair, so an
+    # unmatched opener cannot hide a later complete fence or consume a later
+    # fence after an enclosing block has closed.
+    candidates = [
+        _fence_candidate(content + "\n" if index < len(lines) - 1 or has_final_newline else content)
+        for index, content in enumerate(lines)
+    ]
+    next_closers: dict[tuple[str, int], int] = {}
+    matched_closers = [-1] * len(lines)
+    for index in range(len(lines) - 1, -1, -1):
+        candidate = candidates[index]
+        if candidate is None:
+            continue
+        marker, length, is_opener, is_closer = candidate
+        if is_opener:
+            matched_closers[index] = next_closers.get((marker, length), -1)
+        if is_closer:
+            next_closers[(marker, length)] = index
+
+    masked_until = -1
+    for index, content in enumerate(lines):
+        line = content + "\n" if index < len(lines) - 1 or has_final_newline else content
+        if index <= masked_until:
+            output.append("\n" * line.count("\n"))
+            continue
+        closer = matched_closers[index]
+        if closer >= index:
+            masked_until = closer
+            output.append("\n" * line.count("\n"))
+        else:
+            output.append(line)
+    return re.sub(r"`[^`\n]+`", "", "".join(output))
+
+
+def _fence_candidate(line: str) -> tuple[str, int, bool, bool] | None:
+    if not line or line[0] not in {"`", "~"}:
+        return None
+    marker = line[0]
+    length = 1
+    while length < len(line) and line[length] == marker:
+        length += 1
+    if length < 3:
+        return None
+    candidate = line[:-1] if line.endswith("\n") else line
+    return marker, length, line.endswith("\n"), not candidate[length:].strip(" \t")
+
+
+def _fence_opener(line: str) -> tuple[str, int] | None:
+    candidate = _fence_candidate(line)
+    if candidate is None or not candidate[2]:
+        return None
+    marker, length, _is_opener, _is_closer = candidate
+    return marker, length
+
+
+def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
+    marker, length = opener
+    candidate = _fence_candidate(line)
+    return (
+        candidate is not None and candidate[0] == marker and candidate[1] == length and candidate[3]
     )
-    return re.sub(r"`[^`\n]+`", "", without_fences)
 
 
 def base_report(
