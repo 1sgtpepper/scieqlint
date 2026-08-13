@@ -258,6 +258,19 @@ def test_type7_complete_tag_does_not_interrupt_a_paragraph() -> None:
     assert result.math_blocks_checked == 1
 
 
+@pytest.mark.public_regression
+def test_type7_after_intervening_quote_owns_following_math() -> None:
+    source = "paragraph\n> # heading\n<x-fixture>\n$$\nx = x + 1\n$$\n"
+    snapshot = markdown_reference_snapshot(source)
+
+    assert range_contains(source.index("x = x + 1"), snapshot.opaque_ranges)
+
+    result = check_documents([_document("paper.md", source)], config=Config())
+
+    assert result.diagnostics == ()
+    assert result.math_blocks_checked == 0
+
+
 @pytest.mark.parametrize(
     "tag",
     ["<x-fixture =raw>", "<x:fixture>"],
