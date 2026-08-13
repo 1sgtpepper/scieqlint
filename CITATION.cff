@@ -3,7 +3,7 @@ title: SciEqLint
 message: "If you use SciEqLint in academic work, please cite the project repository."
 type: software
 license: MIT
-repository-code: "https://github.com/Kuhai9801/scieqlint"
+repository-code: "https://github.com/1sgtpepper/scieqlint"
 authors:
   - name: "SciEqLint contributors"
 version: 1.1.0

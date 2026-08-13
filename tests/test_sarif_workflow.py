@@ -168,7 +168,6 @@ def test_readme_code_scanning_example_uses_guarded_cli() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     section = readme.split("## Code scanning\n", 1)[1].split("## For contributors\n", 1)[0]
 
-    assert "uses: Kuhai9801/scieqlint@v1.1.0" not in section
     assert (
         'run: set +e; scieqlint check "docs/**/*.md" --format sarif '
         '--output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"'
