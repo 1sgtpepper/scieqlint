@@ -9,6 +9,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - src/scieqlint/ implements the v1.1.0 analyzer and graph/API surfaces.
 - `docs/releases/v1.1.0-checklist.md` records the v1.1.0 scope and acceptance
   checks.
+- The release checklist and v1.0.0 stabilization checklist record the
+  fail-closed stable-release evidence gates.
 
 ## Validation
 

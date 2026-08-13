@@ -13,6 +13,9 @@ Every release must include:
 - golden test update when output changes,
 - wheel install smoke test,
 - package-data verification,
+- source, wheel, and stable-tag version identity,
+- at least 100 unique documented equation fixtures executed through their public behavior,
+- the 100-document/500-equation/500-reference representative workload completing within three seconds,
 - release notes with migration notes.
 
 ## Release sequence
