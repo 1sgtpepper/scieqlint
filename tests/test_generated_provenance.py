@@ -57,6 +57,12 @@ def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metada
     assert unspecified.generated_provenance[0].source_kind is None
     assert unspecified.generated_provenance[0].conversion_stage is None
 
+    query = QueryHost(supplied)
+    assert (
+        query.generated.provenance_for_document("out/generated.md") == supplied.generated_provenance
+    )
+    assert query.generated.provenance_for_document("missing.md") == ()
+
 
 def _provenance_diagnostic_result() -> CheckResult:
     source = doc("source/paper.md", "(energy)=\n## Energy\n")
