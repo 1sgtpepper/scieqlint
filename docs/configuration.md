@@ -190,6 +190,11 @@ silently running a different rule set.
 - `math-accessibility` emits diagnostics for explicit inline-math facts that
   lack accessible text metadata. It does not generate alternative text, infer
   metadata from surrounding prose, or apply the policy by default.
+- `typst-portability` checks a focused set of display-math forms known to be
+  unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
+  and `aligned`, `array`, or `matrix` environments combined with TeX
+  `\left`/`\right` sizing. It does not invoke Typst or translate equations.
+
 For example, to check reference syntax against plain CommonMark:
 
 ```toml

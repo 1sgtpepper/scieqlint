@@ -11,7 +11,7 @@ from scieqlint.query.host import QueryHost
 
 class PortabilityEngine:
     name = "portability"
-    rule_codes = frozenset({"PORT001", "PORT002"})
+    rule_codes = frozenset({"PORT001", "PORT002", "PORT003"})
 
     def __init__(self, *, profile: str) -> None:
         self.profile = profile
@@ -22,6 +22,16 @@ class PortabilityEngine:
                 self._inline_accessibility_diagnostic(fact)
                 for fact in query.portability.inline_math_missing_alt()
             )
+        if self.profile == "typst-portability":
+            diagnostics: list[DiagnosticIR] = []
+            for fact in query.portability.risks():
+                if fact.risk_kind not in {
+                    "typst-unsupported-command",
+                    "typst-fragile-environment",
+                }:
+                    raise ValueError(f"unsupported Typst portability risk kind: {fact.risk_kind}")
+                diagnostics.append(self._typst_syntax_diagnostic(fact))
+            return tuple(diagnostics)
         if self.profile != "cross-format-references":
             raise ValueError(f"unsupported portability profile: {self.profile}")
 
@@ -92,4 +102,49 @@ class PortabilityEngine:
                 ("parse_status", parse_status),
                 ("subject_fact_id", fact.fact_id),
             ),
+        )
+
+    def _typst_syntax_diagnostic(
+        self,
+        fact: OutputPortabilityFact,
+    ) -> DiagnosticIR:
+        metadata = dict(fact.metadata)
+        syntax_kind = metadata["syntax_kind"]
+        if syntax_kind == "command":
+            token = metadata["token"]
+            detail = f"TeX command {token} is outside the focused Typst baseline"
+            properties = (
+                ("output_profile", fact.output_profile),
+                ("syntax_kind", syntax_kind),
+                ("token", token),
+                ("command", metadata["command"]),
+                ("subject_fact_id", fact.subject_fact_id),
+            )
+        elif syntax_kind == "environment":
+            environment = metadata["environment"]
+            detail = f"{environment} combined with TeX delimiter sizing is fragile in Typst export"
+            properties = (
+                ("output_profile", fact.output_profile),
+                ("syntax_kind", syntax_kind),
+                ("environment", environment),
+                ("delimiter_commands", metadata["delimiter_commands"]),
+                ("subject_fact_id", fact.subject_fact_id),
+            )
+        else:
+            raise ValueError(f"unsupported Typst syntax kind: {syntax_kind}")
+        return DiagnosticIR(
+            code="PORT003",
+            severity_default=Severity.WARNING,
+            message="equation syntax may not survive Typst export",
+            span=fact.span,
+            detail=detail,
+            hint=(
+                "Rewrite the focused TeX form before Typst export or verify the "
+                "generated Typst with the publishing toolchain."
+            ),
+            rule="portability.typst_equation_syntax",
+            profile_gated=True,
+            false_positive_risk="medium",
+            profile=self.profile,
+            properties=properties,
         )

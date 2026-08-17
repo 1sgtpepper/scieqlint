@@ -31,7 +31,10 @@ from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.portability import cross_format_reference_risks
+from scieqlint.frontend.portability import (
+    cross_format_reference_risks,
+    typst_math_risks,
+)
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
@@ -223,6 +226,7 @@ def check_documents(
         elif config.profile.name in {
             "cross-format-references",
             "math-accessibility",
+            "typst-portability",
         }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
@@ -268,6 +272,8 @@ def _profile_snapshot(
                 config.profile.output_profile,
             ),
         )
+    if config.profile.name == "typst-portability":
+        return replace(snapshot, portability=typst_math_risks(snapshot))
     return snapshot
 
 

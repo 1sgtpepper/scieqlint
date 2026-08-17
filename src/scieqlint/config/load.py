@@ -190,6 +190,7 @@ _PROFILE_NAMES = frozenset(
         "generated-myst",
         "cross-format-references",
         "math-accessibility",
+        "typst-portability",
     }
 )
 _OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})

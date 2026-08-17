@@ -7,9 +7,14 @@ output.
 
 from __future__ import annotations
 
+import re
+
+from scieqlint.facts.math import DisplayMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.reference import EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.markdown import is_escaped
+from scieqlint.source.maps import SourceMap
 
 _REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     # CommonMark and plain notebook Markdown have no native equation-reference
@@ -23,6 +28,10 @@ _REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     # TeX reference commands are output-profile-specific source syntax.
     "typst": frozenset({"eq", "numref"}),
 }
+
+_TYPST_UNSUPPORTED_COMMAND_RE = re.compile(r"\\(?P<command>dfrac|argmin)(?![A-Za-z])")
+_TYPST_DELIMITER_RE = re.compile(r"\\(?P<delimiter>left|right)(?![A-Za-z])")
+_TYPST_FRAGILE_ENVIRONMENT_RE = re.compile(r"\\begin\{(?P<environment>aligned|array|matrix)\}")
 
 
 def cross_format_reference_risks(
@@ -57,3 +66,105 @@ def _reference_risk(
             ("target", reference.target),
         ),
     )
+
+
+def typst_math_risks(snapshot: FactSnapshot) -> tuple[OutputPortabilityFact, ...]:
+    """Return focused, source-spanned risks for Typst display-math export."""
+
+    documents = {document.path.as_posix(): document for document in snapshot.documents}
+    risks: list[OutputPortabilityFact] = []
+    for display in snapshot.display_math:
+        if display.span is None:
+            continue
+        document = documents.get(display.document_id)
+        if document is None:
+            continue
+        segment = document.text[display.span.start : display.span.end]
+        smap = SourceMap.for_document(document)
+        risks.extend(_typst_command_risks(display, segment, smap))
+        risks.extend(_typst_environment_risks(display, segment, smap))
+    return tuple(
+        sorted(
+            risks,
+            key=lambda fact: (
+                fact.span.start if fact.span is not None else -1,
+                fact.fact_id,
+            ),
+        )
+    )
+
+
+def _typst_command_risks(
+    display: DisplayMathFact,
+    segment: str,
+    smap: SourceMap,
+) -> list[OutputPortabilityFact]:
+    assert display.span is not None
+    risks: list[OutputPortabilityFact] = []
+    for match in _TYPST_UNSUPPORTED_COMMAND_RE.finditer(segment):
+        if is_escaped(segment, match.start()):
+            continue
+        start = display.span.start + match.start()
+        end = display.span.start + match.end()
+        command = match.group("command")
+        risks.append(
+            OutputPortabilityFact(
+                fact_id=f"{display.fact_id}::typst-command::{start}",
+                document_id=display.document_id,
+                span=smap.span(start, end),
+                raw=match.group(0),
+                confidence=display.confidence,
+                subject_fact_id=display.fact_id,
+                output_profile="typst",
+                risk_kind="typst-unsupported-command",
+                metadata=(
+                    ("syntax_kind", "command"),
+                    ("token", match.group(0)),
+                    ("command", command),
+                ),
+            )
+        )
+    return risks
+
+
+def _typst_environment_risks(
+    display: DisplayMathFact,
+    segment: str,
+    smap: SourceMap,
+) -> list[OutputPortabilityFact]:
+    assert display.span is not None
+    delimiters = tuple(
+        dict.fromkeys(
+            match.group("delimiter")
+            for match in _TYPST_DELIMITER_RE.finditer(segment)
+            if not is_escaped(segment, match.start())
+        )
+    )
+    if not delimiters:
+        return []
+
+    risks: list[OutputPortabilityFact] = []
+    for match in _TYPST_FRAGILE_ENVIRONMENT_RE.finditer(segment):
+        if is_escaped(segment, match.start()):
+            continue
+        start = display.span.start + match.start()
+        end = display.span.start + match.end()
+        environment = match.group("environment")
+        risks.append(
+            OutputPortabilityFact(
+                fact_id=f"{display.fact_id}::typst-environment::{start}",
+                document_id=display.document_id,
+                span=smap.span(start, end),
+                raw=match.group(0),
+                confidence=display.confidence,
+                subject_fact_id=display.fact_id,
+                output_profile="typst",
+                risk_kind="typst-fragile-environment",
+                metadata=(
+                    ("syntax_kind", "environment"),
+                    ("environment", environment),
+                    ("delimiter_commands", ",".join(delimiters)),
+                ),
+            )
+        )
+    return risks

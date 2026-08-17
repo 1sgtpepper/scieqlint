@@ -601,3 +601,16 @@ def test_load_config_accepts_math_accessibility_profile(tmp_path) -> None:
 
     assert config.profile.name == "math-accessibility"
     assert config.profile.output_profile is None
+
+
+def test_load_config_accepts_typst_portability_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "typst-portability"\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.profile.name == "typst-portability"
+    assert config.profile.output_profile is None
