@@ -273,6 +273,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
+- `tests/test_no_network_core.py`
 - `tests/test_notebook_scan.py`
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
