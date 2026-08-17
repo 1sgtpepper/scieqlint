@@ -21,6 +21,8 @@ Release notes must use these sections:
   `generated-myst` profile is selected.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
+- Model source-neutral cross-reference metadata across document and engine-output
+  boundaries, warning when the same target has incompatible kind or display metadata.
 
 ### Changed
 
