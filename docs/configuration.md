@@ -166,6 +166,20 @@ read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 
+
+## Validation profile
+
+```toml
+[profile]
+name = "generated-myst"
+```
+
+The named profile is policy metadata consumed by the normal fact/query/engine
+pipeline. `generated-myst` enables generated-output engines in addition to the
+ordinary scanner, parser, algebra, reference, and structure checks configured
+below. Unknown profile names are rejected rather than silently running a
+different rule set.
+
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
@@ -205,7 +219,7 @@ scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format g
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.
