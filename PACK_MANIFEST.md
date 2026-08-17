@@ -158,6 +158,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/facts/snapshot.py`
 - `src/scieqlint/facts/structure.py`
 - `src/scieqlint/frontend/__init__.py`
+- `src/scieqlint/frontend/generated.py`
 - `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/frontend/myst_blocks.py`
 - `src/scieqlint/frontend/myst_headings.py`
@@ -229,6 +230,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
 - `tests/fixtures/generated/inline_math_facts.md`
+- `tests/fixtures/generated/suspicious_formula_text.md`
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
@@ -265,6 +267,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
+- `tests/test_generated_formula_text.py`
 - `tests/test_generated_output.py`
 - `tests/test_generated_provenance.py`
 - `tests/test_golden_outputs.py`

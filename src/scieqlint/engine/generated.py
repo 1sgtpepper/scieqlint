@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
+from scieqlint.facts.generated import GeneratedFormulaFact
 from scieqlint.query.host import QueryHost
 from scieqlint.schema import SchemaHost
 
@@ -13,7 +16,7 @@ class GeneratedOutputEngine:
         self.profile = profile
 
     name = "generated-output"
-    rule_codes = frozenset({"GEN001"})
+    rule_codes = frozenset({"GEN001", "GEN002"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -37,4 +40,50 @@ class GeneratedOutputEngine:
                     properties=SchemaHost.generated_provenance_properties(provenance),
                 )
             )
+        diagnostics.extend(
+            self._suspicious_formula_diagnostic(query, fact)
+            for fact in query.generated.suspicious_formula_text()
+        )
         return tuple(diagnostics)
+
+    def _suspicious_formula_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        provenance_ids, properties = _fact_metadata(
+            query,
+            fact,
+            (("formula_artifact_kind", fact.kind),),
+        )
+        return DiagnosticIR(
+            code="GEN002",
+            severity_default=Severity.WARNING,
+            message="generated math contains suspicious formula text",
+            span=fact.span,
+            detail=f"{fact.kind} artifact: {fact.text!r}",
+            hint="Restore the intended LaTeX formula before publishing or conversion.",
+            rule="generated.suspicious_formula_text",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            provenance_ids=provenance_ids,
+            properties=properties,
+        )
+
+
+def _fact_metadata(
+    query: QueryHost,
+    fact: GeneratedFormulaFact,
+    properties: Iterable[tuple[str, str]],
+) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    provenance = tuple(
+        sorted(
+            query.generated.provenance_for_document(fact.document_id),
+            key=lambda item: item.fact_id,
+        )
+    )
+    projected = list(properties)
+    if provenance:
+        projected.extend(SchemaHost.generated_provenance_properties(provenance[0]))
+    return tuple(item.fact_id for item in provenance), tuple(projected)

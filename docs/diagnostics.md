@@ -49,6 +49,7 @@ source-to-generated provenance facts. The generated profile records caller-suppl
 | Code | Default | Meaning |
 |---|---|---|
 | `GEN001` | warning | Generated output is missing a preserved source anchor |
+| `GEN002` | warning | Generated math contains suspicious formula text |
 
 ## Reserved in catalog
 
