@@ -11,6 +11,7 @@ GeneratedFormulaKind = Literal[
     "candidate",
     "spaced-token",
     "garbled-marker",
+    "bracketed-block",
 ]
 
 
