@@ -161,6 +161,14 @@ def test_load_config_accepts_named_profile_metadata(tmp_path) -> None:
     assert config.profile.name == "generated-myst"
 
 
+def test_load_config_rejects_empty_profile_metadata(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nsource_kind = "   "\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source_kind must be a non-empty string"):
+        load_config(config_path)
+
+
 def test_load_config_rejects_unknown_profile_name(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nname = "unknown"\n', encoding="utf-8")
