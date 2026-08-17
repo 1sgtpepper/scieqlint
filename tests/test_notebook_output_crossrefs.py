@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+import pytest
+
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import (
@@ -281,6 +283,75 @@ def test_profile_is_opt_in_and_malformed_notebook_metadata_is_bounded() -> None:
     assert snapshot.code_cells[0].raw is None
     assert "renderings" not in snapshot.code_cells[1].option_dict()
     assert [item for item in default_result.diagnostics if item.code == "PORT004"] == []
+
+
+def test_notebook_frontend_rejects_non_notebook_documents() -> None:
+    with pytest.raises(ValueError, match="requires notebook documents"):
+        NotebookFrontend().lower((markdown("# not a notebook\n"),))
+
+
+@pytest.mark.parametrize("text", ["{", "[]", '{"cells": {}}'])
+def test_notebook_frontend_bounds_invalid_json_roots_and_cell_collections(text: str) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("malformed.ipynb"),
+        text,
+        DocumentKind.NOTEBOOK,
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    assert snapshot.documents == (document,)
+    assert snapshot.code_cells == ()
+    assert snapshot.notebook_outputs == ()
+
+
+def test_notebook_frontend_skips_non_cell_entries_and_normalizes_scalar_metadata() -> None:
+    document = notebook(
+        notebook_payload(
+            "not a cell",
+            {"cell_type": "markdown", "metadata": {}, "source": "text"},
+            code_cell(
+                metadata={
+                    "tags": " hide-input, remove-output ",
+                    "fig-cap": True,
+                    "caption": 3.5,
+                    "renderings": [1, 2.5],
+                    "label": {"unsupported": True},
+                }
+            ),
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    assert len(snapshot.code_cells) == 1
+    [cell] = snapshot.code_cells
+    assert cell.label is None
+    assert cell.tags == ("hide-input", "remove-output")
+    assert cell.option_dict() == {
+        "caption": "3.5",
+        "fig-cap": "true",
+        "renderings": "[1,2.5]",
+        "tags": "hide-input, remove-output",
+    }
+
+
+def test_notebook_frontend_uses_no_language_for_invalid_kernel_metadata() -> None:
+    document = notebook(
+        {
+            "cells": [code_cell(metadata={})],
+            "metadata": {
+                "kernelspec": {"language": 17},
+                "language_info": {"name": "   "},
+            },
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    assert snapshot.code_cells[0].language is None
 
 
 def test_notebook_crossrefs_profile_is_accepted_by_config_loader(tmp_path) -> None:
