@@ -23,7 +23,6 @@ from .myst_shared import (
     MYST_OPTION_RE,
     TEX_LABEL_RE,
     OffsetRange,
-    dollar_display_ranges,
     dollar_inline_ranges,
     in_ranges,
     line_ranges,
@@ -55,7 +54,7 @@ def scan_display_math(
     document: SourceDocument,
     smap: SourceMap,
     fences: Sequence[FenceFact],
-    occupied: Sequence[OffsetRange],
+    dollar_ranges: Sequence[tuple[int, int, int, int]],
 ) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
     display: list[DisplayMathFact] = []
     labels: list[EquationLabelFact] = []
@@ -66,7 +65,7 @@ def scan_display_math(
         display.append(math_fact)
         labels.extend(label_facts)
 
-    dollar_display, dollar_labels = _dollar_display_math(document, smap, occupied)
+    dollar_display, dollar_labels = _dollar_display_math(document, smap, dollar_ranges)
     display.extend(dollar_display)
     labels.extend(dollar_labels)
     return tuple(display), tuple(labels)
@@ -256,14 +255,11 @@ def _math_fact_from_fence(
 def _dollar_display_math(
     document: SourceDocument,
     smap: SourceMap,
-    occupied: Sequence[OffsetRange],
+    dollar_ranges: Sequence[tuple[int, int, int, int]],
 ) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
     display: list[DisplayMathFact] = []
     labels: list[EquationLabelFact] = []
-    for start, body_start, body_end, _close_end in dollar_display_ranges(
-        document.text,
-        occupied,
-    ):
+    for start, body_start, body_end, _close_end in dollar_ranges:
         fact_id = f"{document.path.as_posix()}::display-math::{start}"
         body_text = document.text[body_start:body_end]
         body = body_text.strip()
