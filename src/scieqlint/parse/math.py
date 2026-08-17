@@ -29,6 +29,18 @@ _SPACED_COMMAND_RE = re.compile(
 _GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])")
 _AMS_ENVIRONMENTS = frozenset({"align", "align*", "aligned", "alignedat", "split"})
 _AMS_BEGIN_RE = re.compile(r"\\begin\{(?P<environment>[A-Za-z]+\*?)\}")
+_SUPPORTED_RAW_ENVIRONMENTS = frozenset(
+    {
+        "align",
+        "align*",
+        "equation",
+        "equation*",
+        "gather",
+        "gather*",
+        "multline",
+        "multline*",
+    }
+)
 
 
 class MathHost:
@@ -62,6 +74,14 @@ def _classify_display(
     fact: DisplayMathFact,
 ) -> tuple[DisplayMathFact, UnknownMathFact | None]:
     """Resolve AMS semantics after the frontend has preserved display identity."""
+
+    if fact.container == "raw-latex":
+        environment = fact.environment
+        if environment not in _SUPPORTED_RAW_ENVIRONMENTS:
+            return fact, _unknown(fact, "environment", environment or "<missing>")
+        if not fact.complete:
+            return fact, _unknown(fact, "parse_limit", environment)
+        return replace(fact, container="ams"), None
 
     environment = _complete_ams_environment(fact.body)
     if environment is None:

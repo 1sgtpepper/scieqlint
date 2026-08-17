@@ -6,7 +6,6 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.myst_math import _has_supported_ams_environment
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
@@ -195,17 +194,17 @@ $$
 def test_escaped_ams_markers_and_references_are_not_claimed_as_structure() -> None:
     source = "$$\n\\\\begin{align}\nx &= \\\\ref{escaped}\n\\\\end{align}\n$$"
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
 
     assert snapshot.display_math[0].container == "dollar-dollar"
     assert snapshot.equation_refs == ()
-    assert _has_supported_ams_environment(r"\\begin{align}x &= y\\end{align}") is False
+    assert snapshot.display_math[0].environment is None
 
 
 def test_tex_references_ignore_empty_targets_but_keep_valid_targets() -> None:
     source = "$$\nx &= \\ref{ } + \\ref{valid}\n$$"
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
 
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-ref", "valid"),
@@ -233,7 +232,7 @@ x &= \\eqref{dup}
 $$
 """
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
     query = QueryHost(snapshot)
 
     assert query.references.ambiguous_equation_refs() == snapshot.equation_refs

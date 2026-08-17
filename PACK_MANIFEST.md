@@ -303,6 +303,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_pr_template.py`
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_public_regression_replay.py`
+- `tests/test_raw_latex_equation_facts.py`
 - `tests/test_references.py`
 - `tests/test_release_fixtures.py`
 - `tests/test_release_metadata.py`
