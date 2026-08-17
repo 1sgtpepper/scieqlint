@@ -4,6 +4,7 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.frontend.generated import _merge_ranges
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 
@@ -108,3 +109,7 @@ def test_default_profile_does_not_emit_bracketed_generated_diagnostic() -> None:
     result = check_documents((doc("\\[\nx=y\n\\]\n"),), config=Config())
 
     assert all(diagnostic.code != "GEN003" for diagnostic in result.diagnostics)
+
+
+def test_bracketed_scanner_merges_overlapping_ranges_and_discards_empty_ranges() -> None:
+    assert _merge_ranges(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)
