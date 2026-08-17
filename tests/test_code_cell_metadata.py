@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 from scieqlint.app import _profile_snapshot, check_documents
@@ -14,6 +15,12 @@ from scieqlint.config.model import (
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.myst_blocks import (
+    _directive_group_span,
+    _fence_info_span,
+    _option_value_span,
+)
+from scieqlint.frontend.myst_shared import DIRECTIVE_INFO_RE, QUARTO_OPTION_RE
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
@@ -306,3 +313,46 @@ def test_code_cell_metadata_profile_loads_from_strict_config(tmp_path) -> None:
     loaded = load_config(path)
 
     assert loaded.profile.name == "code-cell-metadata"
+
+
+def test_code_cell_span_helpers_bound_empty_and_inconsistent_fence_metadata() -> None:
+    document = markdown(
+        """```python
+#| label:
+pass
+```
+
+```{code-cell} python
+pass
+```
+"""
+    )
+    snapshot = MySTFrontend().lower((document,))
+    plain_fence, directive_fence = snapshot.fences
+    directive_match = DIRECTIVE_INFO_RE.match(directive_fence.info_string)
+    assert directive_match is not None
+
+    assert snapshot.code_cells[0].label_span is None
+    assert (
+        _option_value_span(
+            document,
+            replace(plain_fence, body_span=None),
+            QUARTO_OPTION_RE,
+            "label",
+        )
+        is None
+    )
+    assert _fence_info_span(document, plain_fence, None) is None
+    assert (
+        _fence_info_span(document, replace(plain_fence, info_string="missing"), "python")
+        == plain_fence.opener_span
+    )
+    assert (
+        _directive_group_span(
+            document,
+            replace(directive_fence, info_string="missing"),
+            directive_match,
+            "arg",
+        )
+        == directive_fence.opener_span
+    )
