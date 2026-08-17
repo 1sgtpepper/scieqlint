@@ -10,6 +10,9 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
+
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
     rule_codes = frozenset(
         {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008", "REF011"}
     )
@@ -100,6 +103,38 @@ class ReferenceEngine:
                     ),
                 )
             )
+        if self.profile == "reference-display":
+            display_info = CATALOG["REF009"]
+            for issue in query.references.unclear_nonheading_display_text():
+                fact = issue.fact
+                rendered = fact.explicit_text if fact.explicit_text is not None else ""
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=display_info.code,
+                        severity_default=display_info.severity,
+                        message=f"{display_info.message}: {fact.normalized_target}",
+                        span=fact.display_text_span or fact.span,
+                        detail=(
+                            f"target_type={fact.target_type!r}; "
+                            f"reference_kind={fact.reference_kind!r}; "
+                            f"display_text={rendered!r}; reason={issue.reason!r}"
+                        ),
+                        hint="Provide descriptive display text for this non-heading target.",
+                        rule="references.display_text",
+                        profile_gated=True,
+                        false_positive_risk="medium",
+                        profile=self.profile,
+                        provenance_ids=(fact.source_fact_id, fact.fact_id, *fact.target_fact_ids),
+                        properties=(
+                            ("target", fact.normalized_target),
+                            ("target_type", fact.target_type or ""),
+                            ("reference_kind", fact.reference_kind),
+                            ("display_intent", fact.display_intent),
+                            ("display_text", rendered),
+                            ("reason", issue.reason),
+                        ),
+                    )
+                )
         missing_info = CATALOG["REF004"]
         for ref in query.references.unresolved_generic_refs():
             if ref.role_kind != "ref":

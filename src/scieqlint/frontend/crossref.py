@@ -87,6 +87,9 @@ def crossref_metadata_facts(
             )
         )
     for ref in equation_refs:
+        metadata = (("reference_role", ref.ref_kind),)
+        if ref.title is not None:
+            metadata = (*metadata, ("display_text", ref.title))
         facts.append(
             CrossrefMetadataFact(
                 fact_id=f"{ref.fact_id}::crossref-metadata",
@@ -101,7 +104,7 @@ def crossref_metadata_facts(
                 output_boundary=boundary,
                 reference_role=ref.ref_kind,
                 metadata_kind="reference-use",
-                display_metadata=(("reference_role", ref.ref_kind),),
+                display_metadata=metadata,
                 target_span=ref.target_span,
             )
         )

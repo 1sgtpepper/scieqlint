@@ -12,6 +12,7 @@ from scieqlint.facts.base import FactBase
 TargetPlacement = Literal["before_heading", "before_block", "standalone", "orphaned"]
 CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 TargetVisibility = Literal["visible", "hidden", "excluded"]
+ReferenceDisplayIntent = Literal["explicit", "target-default", "typed-number"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -30,6 +31,7 @@ class GenericRefFact(FactBase):
     target: str
     normalized_target: str
     title: str | None = None
+    title_span: SourceSpan | None = None
     role_span: SourceSpan | None = None
     target_span: SourceSpan | None = None
     local_or_external: str = "local"
@@ -75,7 +77,23 @@ class EquationRefFact(FactBase):
     ref_kind: str
     target: str
     normalized_target: str
+    title: str | None = None
+    title_span: SourceSpan | None = None
     source_block_id: str | None = None
     visibility: TargetVisibility = "visible"
     target_span: SourceSpan | None = None
     role_span: SourceSpan | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ReferenceDisplayTextFact(FactBase):
+    """Resolved display-text intent for one source reference."""
+
+    source_fact_id: str
+    normalized_target: str
+    reference_kind: str
+    explicit_text: str | None
+    target_type: str | None
+    display_intent: ReferenceDisplayIntent
+    target_fact_ids: tuple[str, ...] = ()
+    display_text_span: SourceSpan | None = None

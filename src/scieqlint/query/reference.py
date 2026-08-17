@@ -10,6 +10,7 @@ from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
+    ReferenceDisplayTextFact,
     TargetAnchorFact,
 )
 from scieqlint.facts.snapshot import FactSnapshot
@@ -29,6 +30,12 @@ class NonvisibleEquationTargetImpact:
     visible_targets: tuple[EquationLabelFact, ...]
     hidden_targets: tuple[EquationLabelFact, ...]
     excluded_targets: tuple[EquationLabelFact, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UnclearReferenceDisplayText:
+    fact: ReferenceDisplayTextFact
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +75,23 @@ class ReferenceQueryView:
     def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
         return self.snapshot.crossref_metadata
 
+    def display_text_facts(self) -> tuple[ReferenceDisplayTextFact, ...]:
+        return self.snapshot.reference_display_text
+
+    def unclear_nonheading_display_text(
+        self,
+    ) -> tuple[UnclearReferenceDisplayText, ...]:
+        """Return resolved non-heading references with missing or generic labels."""
+
+        unclear: list[UnclearReferenceDisplayText] = []
+        for fact in sorted(self.snapshot.reference_display_text, key=_display_source_key):
+            if fact.target_type in {None, "heading"} or fact.display_intent == "typed-number":
+                continue
+            reason = _unclear_display_reason(fact)
+            if reason is not None:
+                unclear.append(UnclearReferenceDisplayText(fact=fact, reason=reason))
+        return tuple(unclear)
+
     def conflicting_metadata(
         self,
     ) -> tuple[tuple[str, tuple[CrossrefMetadataFact, ...]], ...]:
@@ -75,9 +99,8 @@ class ReferenceQueryView:
 
         by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
         for fact in self.snapshot.crossref_metadata:
-            if fact.metadata_kind != "target-definition":
-                continue
-            by_target[fact.normalized_target].append(fact)
+            if _is_target_definition(fact):
+                by_target[fact.normalized_target].append(fact)
         conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
         for target, facts in sorted(by_target.items()):
             boundaries = {fact.output_boundary for fact in facts}
