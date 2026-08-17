@@ -2060,27 +2060,21 @@ Golden tests must be stable across operating systems.
 
 ### Accuracy benchmark fixtures
 
-v0.1.0 includes a small deterministic accuracy benchmark set:
+The current corpus is a strict, versioned JSON document:
 
 ```text
-benchmarks/accuracy/
-  algebra.yml
-  references.yml
-  parse_unknown.yml
-```
-
-v0.1.2 adds:
-
-```text
-benchmarks/accuracy/dimensions.yml
+benchmarks/accuracy/corpus-v1.json
 ```
 
 Rules:
 
-- Each benchmark case has input, config if needed, expected diagnostic codes, and expected pass/fail status.
+- The top-level object and every case, document, and config object reject missing, unknown, and duplicate fields.
+- Each case records an independent positive or negative label, target rule, source format, scientific domain, provenance, and license or synthetic status.
+- Expected diagnostic codes and pass/fail status are human-authored and every case runs through the public analysis path.
 - Benchmarks must run in PR CI as ordinary fast tests.
 - Release notes should report benchmark count and changed expectations.
 - Benchmark cases must be small and license-safe.
+- Canary differentials and precision/recall gates require a larger independently labeled corpus and measured baseline variance.
 
 ### Coverage gates
 

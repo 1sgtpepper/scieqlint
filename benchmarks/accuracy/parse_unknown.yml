@@ -1,5 +1,0 @@
-cases:
-  - id: trig-unsupported
-    input: "\\sin(x)^2 + \\cos(x)^2 = 1"
-    expected_codes: ["PARSE021"]
-    expected_pass: true
