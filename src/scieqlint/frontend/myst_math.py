@@ -10,6 +10,7 @@ from scieqlint.facts.math import (
     InlineDelimiter,
     InlineMathFact,
     InlineTextRole,
+    UnknownMathFact,
 )
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.structure import FenceFact
@@ -44,12 +45,44 @@ _LIST_PREFIX_RE = re.compile(r"^[ \t]*(?:[-+*]|\d+[.)])[ \t]+")
 _HEADING_PREFIX_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
 _TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
 _AMS_BEGIN_RE = re.compile(r"\\begin\{(?P<environment>align\*?|aligned|alignedat|split)\}")
+_RAW_ENV_TOKEN_RE = re.compile(r"\\(?P<kind>begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
+_SUPPORTED_RAW_MATH_ENVIRONMENTS = frozenset(
+    {
+        "align",
+        "align*",
+        "equation",
+        "equation*",
+        "gather",
+        "gather*",
+        "multline",
+        "multline*",
+    }
+)
+_UNSUPPORTED_RAW_MATH_ENVIRONMENTS = frozenset(
+    {
+        "aligned",
+        "alignedat",
+        "alignat",
+        "alignat*",
+        "cases",
+        "eqnarray",
+        "eqnarray*",
+        "matrix",
+        "bmatrix",
+        "pmatrix",
+        "smallmatrix",
+        "split",
+    }
+)
+_RAW_MATH_ENVIRONMENTS = _SUPPORTED_RAW_MATH_ENVIRONMENTS | _UNSUPPORTED_RAW_MATH_ENVIRONMENTS
 
 
 def math_occupied_ranges(
     display_math: Sequence[DisplayMathFact],
 ) -> tuple[OffsetRange, ...]:
-    return tuple((fact.span.start, fact.span.end) for fact in display_math if fact.span is not None)
+    return tuple(
+        sorted((fact.span.start, fact.span.end) for fact in display_math if fact.span is not None)
+    )
 
 
 def scan_display_math(
@@ -80,6 +113,111 @@ def scan_display_math(
     labels.extend(dollar_labels)
     references.extend(dollar_references)
     return tuple(display), tuple(labels), tuple(references)
+
+
+def scan_raw_latex_math(
+    document: SourceDocument,
+    smap: SourceMap,
+    occupied: Sequence[OffsetRange],
+) -> tuple[
+    tuple[DisplayMathFact, ...],
+    tuple[EquationLabelFact, ...],
+    tuple[EquationRefFact, ...],
+    tuple[UnknownMathFact, ...],
+]:
+    """Lower conservative top-level raw-LaTeX equation environments."""
+
+    displays: list[DisplayMathFact] = []
+    labels: list[EquationLabelFact] = []
+    references: list[EquationRefFact] = []
+    unknown: list[UnknownMathFact] = []
+    occupied_ranges = _merge_occupied(occupied)
+    for environment, start, body_start, body_end, end, complete in _raw_math_environment_ranges(
+        document.text, occupied_ranges
+    ):
+        fact_id = f"{document.path.as_posix()}::raw-math::{start}"
+        raw = document.text[start:end]
+        body_text = document.text[body_start:body_end]
+        label_facts = tuple(_tex_label_facts(document, smap, fact_id, body_start, body_text))
+        reference_facts = tuple(
+            _tex_reference_facts(document, smap, fact_id, body_start, body_text)
+        )
+        display = DisplayMathFact(
+            fact_id=fact_id,
+            document_id=document.path.as_posix(),
+            span=smap.span(start, end),
+            raw=raw,
+            body=body_text.strip(),
+            container="ams",
+            label_fact_ids=tuple(fact.fact_id for fact in label_facts),
+        )
+        displays.append(display)
+        labels.extend(label_facts)
+        references.extend(reference_facts)
+        if environment not in _SUPPORTED_RAW_MATH_ENVIRONMENTS or not complete:
+            reason = (
+                "environment"
+                if environment not in _SUPPORTED_RAW_MATH_ENVIRONMENTS
+                else "parse_limit"
+            )
+            unknown.append(
+                UnknownMathFact(
+                    fact_id=f"{fact_id}::unknown",
+                    document_id=document.path.as_posix(),
+                    span=smap.span(start, end),
+                    raw=raw,
+                    source_math_fact_id=fact_id,
+                    reason=reason,
+                    excerpt=environment,
+                )
+            )
+    return tuple(displays), tuple(labels), tuple(references), tuple(unknown)
+
+
+def _raw_math_environment_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> Iterable[tuple[str, int, int, int, int, bool]]:
+    stack: list[tuple[str, int, int, bool]] = []
+    for match in _RAW_ENV_TOKEN_RE.finditer(text):
+        if in_ranges(match.start(), occupied) or is_escaped(text, match.start()):
+            continue
+        kind = match.group("kind")
+        environment = match.group("environment")
+        if kind == "begin":
+            stack.append(
+                (
+                    environment,
+                    match.start(),
+                    match.end(),
+                    not stack and environment in _RAW_MATH_ENVIRONMENTS,
+                )
+            )
+            continue
+        if not stack or stack[-1][0] != environment:
+            continue
+        outer_environment, start, body_start, is_candidate = stack.pop()
+        if stack or not is_candidate:
+            continue
+        yield (
+            outer_environment,
+            start,
+            body_start,
+            match.start(),
+            match.end(),
+            True,
+        )
+    if stack:
+        outer_environment, start, body_start, is_candidate = stack[0]
+        if is_candidate:
+            yield (
+                outer_environment,
+                start,
+                body_start,
+                len(text),
+                len(text),
+                False,
+            )
 
 
 def scan_inline_math(
