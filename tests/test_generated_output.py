@@ -90,3 +90,24 @@ def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_ge
 
     assert calls == 1
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]
+
+
+def test_generated_profile_gates_reference_and_profile_paths() -> None:
+    from scieqlint.app import check_documents
+    from scieqlint.config.model import ChecksConfig, Config, ProfileConfig, ReferencesConfig
+
+    reference_document = doc(
+        "generated.md",
+        "# Generated\n\nSee {ref}`missing-target`.\n",
+    )
+    disabled_references = check_documents(
+        (reference_document,),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            checks=ChecksConfig(references=ReferencesConfig(enabled=False)),
+        ),
+    )
+    default_profile = check_documents((doc("generated.md", "# Generated\n"),), config=Config())
+
+    assert disabled_references.diagnostics == ()
+    assert default_profile.diagnostics == ()
