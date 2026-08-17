@@ -904,7 +904,10 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
         ("eq", "active-label")
     ]
     assert snapshot.structure_syntax_issues == ()
-    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+    assert [
+        (diagnostic.code, diagnostic.detail)
+        for diagnostic in ReferenceEngine().run(QueryHost(snapshot))
+    ] == [("REF002", "reference text: {eq}`active-label`")]
 
     scan = MarkdownScanner().scan(document, Config())
     assert [(ref.source.value, ref.target) for ref in scan.references] == [
