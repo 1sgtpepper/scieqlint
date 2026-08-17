@@ -22,8 +22,12 @@ class StructureEngine:
             "DIR010",
             "DIR011",
             "DIR012",
+            "DIR013",
         }
     )
+
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -137,9 +141,8 @@ class StructureEngine:
 
     def _code_cell_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
-        for cell in query.structure.code_cells():
-            if cell.language:
-                continue
+        for cell in query.structure.missing_code_cell_languages():
+            profile_metadata = self.profile == "code-cell-metadata"
             out.append(
                 DiagnosticIR(
                     code="DIR010",
@@ -150,6 +153,39 @@ class StructureEngine:
                     rule="directive.code_cell_language",
                     profile_gated=True,
                     false_positive_risk="medium",
+                    profile=self.profile if profile_metadata else None,
+                    provenance_ids=(cell.fact_id,) if profile_metadata else (),
+                    properties=(
+                        (("source_format", cell.source_format), ("reason", "missing"))
+                        if profile_metadata
+                        else ()
+                    ),
+                )
+            )
+        if self.profile != "code-cell-metadata":
+            return tuple(out)
+        for cell in query.structure.unknown_code_cell_languages():
+            assert cell.language is not None
+            out.append(
+                DiagnosticIR(
+                    code="DIR013",
+                    severity_default=Severity.WARNING,
+                    message=(
+                        "code-cell language metadata is not a valid language identifier: "
+                        f"{cell.language}"
+                    ),
+                    span=cell.language_span or cell.span,
+                    hint="Use one language identifier such as python, julia, or c++.",
+                    rule="directive.code_cell_language",
+                    profile_gated=True,
+                    false_positive_risk="low",
+                    profile=self.profile,
+                    provenance_ids=(cell.fact_id,),
+                    properties=(
+                        ("source_format", cell.source_format),
+                        ("language", cell.language),
+                        ("reason", "unknown"),
+                    ),
                 )
             )
         return tuple(out)

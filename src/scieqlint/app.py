@@ -212,7 +212,8 @@ def check_documents(
         if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
         or (
             document.kind is DocumentKind.NOTEBOOK
-            and config.profile.name in {"cross-format-references", "notebook-crossrefs"}
+            and config.profile.name
+            in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
         )
     )
     if profile_documents:
@@ -233,7 +234,8 @@ def check_documents(
                 ),
             )
         diagnostics.extend(
-            diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
+            diagnostic.to_diagnostic()
+            for diagnostic in StructureEngine(profile=config.profile.name).run(query)
         )
         # This compatibility path is the current shared owner for loaded and
         # path-based checks. Keep profile dispatch here until the planned
@@ -323,7 +325,8 @@ def _generated_profile_snapshot(
     workspace = WorkspaceHost(project_root=config.project.root)
     snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
     if (
-        config.profile.name in {"cross-format-references", "notebook-crossrefs"}
+        config.profile.name
+        in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
         and notebook_documents
     ):
         notebook_snapshot = NotebookFrontend().lower(notebook_documents)

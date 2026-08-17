@@ -118,6 +118,12 @@ def _code_cell_facts(
         engine=engine,
         options=options,
         label=option_map.get("label"),
+        normalized_label=(
+            normalize_label(option_map["label"]) if option_map.get("label") else None
+        ),
+        label_span=cell_span if option_map.get("label") else None,
+        language_span=cell_span if language else None,
+        source_format="notebook",
         tags=_tags(metadata.get("tags")),
     )
 

@@ -15,6 +15,7 @@ ValidationProfile = Literal[
     "notebook-crossrefs",
     "reference-display",
     "typst-portability",
+    "code-cell-metadata",
 ]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 

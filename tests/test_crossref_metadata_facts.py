@@ -107,6 +107,7 @@ def test_myst_frontend_lowers_source_neutral_crossref_metadata() -> None:
     )
 
     snapshot = MySTFrontend().lower((source,))
+    query = QueryHost(snapshot)
 
     assert [fact.normalized_target for fact in snapshot.crossref_metadata] == [
         "energy",
@@ -125,6 +126,7 @@ def test_myst_frontend_lowers_source_neutral_crossref_metadata() -> None:
     assert equation.metadata_kind == "reference-use"
     assert equation.target_metadata == ()
     assert equation.display_metadata == (("reference_role", "eq"),)
+    assert query.references.metadata_facts() == snapshot.crossref_metadata
 
 
 def test_myst_frontend_produces_target_definitions_and_reference_engine_consumes_them() -> None:

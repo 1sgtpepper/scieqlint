@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from scieqlint.facts.snapshot import FactSnapshot
@@ -43,3 +44,16 @@ class StructureQueryView:
 
     def unclosed_fences(self) -> tuple[FenceFact, ...]:
         return tuple(fence for fence in self.snapshot.fences if not fence.is_closed)
+
+    def missing_code_cell_languages(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.snapshot.code_cells if not cell.language)
+
+    def unknown_code_cell_languages(self) -> tuple[CodeCellFact, ...]:
+        return tuple(
+            cell
+            for cell in self.snapshot.code_cells
+            if cell.language is not None and _CODE_CELL_LANGUAGE_RE.fullmatch(cell.language) is None
+        )
+
+
+_CODE_CELL_LANGUAGE_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.+\-]*")

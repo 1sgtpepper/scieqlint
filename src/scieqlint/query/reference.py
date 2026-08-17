@@ -14,8 +14,9 @@ from scieqlint.facts.reference import (
     TargetAnchorFact,
 )
 from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.facts.structure import CodeCellFact
 
-TargetFact = TargetAnchorFact | EquationLabelFact
+TargetFact = TargetAnchorFact | EquationLabelFact | CodeCellFact
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +48,9 @@ class ReferenceQueryView:
 
     def equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return self.snapshot.equation_labels
+
+    def code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.snapshot.code_cells if cell.normalized_label is not None)
 
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
@@ -117,6 +121,9 @@ class ReferenceQueryView:
             index[anchor.normalized_label].append(anchor)
         for label in self.visible_equation_targets():
             index[label.normalized_label].append(label)
+        for cell in self.code_cell_targets():
+            assert cell.normalized_label is not None
+            index[cell.normalized_label].append(cell)
         return {key: tuple(value) for key, value in index.items()}
 
     def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
@@ -183,6 +190,25 @@ class ReferenceQueryView:
         for anchor in self.snapshot.target_anchors:
             index[anchor.normalized_label].append(anchor)
         return {key: tuple(value) for key, value in index.items() if len(value) > 1}
+
+    def duplicate_code_cell_targets(self) -> dict[str, tuple[CodeCellFact, ...]]:
+        duplicates: dict[str, tuple[CodeCellFact, ...]] = {}
+        for key, facts in self.target_index().items():
+            if len(facts) < 2:
+                continue
+            cells = tuple(
+                sorted(
+                    (fact for fact in facts if isinstance(fact, CodeCellFact)),
+                    key=_code_cell_source_key,
+                )
+            )
+            if not cells:
+                continue
+            non_cell_count = len(facts) - len(cells)
+            offending = cells if non_cell_count else cells[1:]
+            if offending:
+                duplicates[key] = offending
+        return duplicates
 
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
         targets = self.target_index()
@@ -251,6 +277,16 @@ def _equation_label_source_key(
 
 def _reference_source_key(fact: EquationRefFact) -> tuple[str, int, int, str]:
     span = fact.target_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
+    )
+
+
+def _code_cell_source_key(fact: CodeCellFact) -> tuple[str, int, int, str]:
+    span = fact.label_span or fact.span
     return (
         fact.document_id,
         span.start if span is not None else -1,

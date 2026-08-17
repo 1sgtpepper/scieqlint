@@ -192,6 +192,7 @@ _PROFILE_NAMES = frozenset(
         "notebook-crossrefs",
         "reference-display",
         "typst-portability",
+        "code-cell-metadata",
     }
 )
 _OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})

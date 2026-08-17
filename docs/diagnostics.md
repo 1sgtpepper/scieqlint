@@ -24,6 +24,7 @@ codes before every code is emitted by the current analyzer.
 | `DIR010` | warning | Code-cell directive missing language |
 | `DIR011` | warning | Malformed MyST role |
 | `DIR012` | warning | Malformed code-cell tags |
+| `DIR013` | warning | Code-cell language metadata is not one identifier |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
@@ -34,6 +35,7 @@ codes before every code is emitted by the current analyzer.
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `REF008` | warning | Equation reference matches a hidden or excluded target |
 | `REF009` | warning | Non-heading reference has missing or generic display text |
+| `REF010` | warning | Duplicate code-cell target label |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -91,6 +93,17 @@ whose display text is absent or only repeats the target/type. Heading targets an
 `{eq}`/`{numref}` roles remain quiet. Diagnostics retain the explicit display span when one
 exists, target type, reference kind, display intent, and originating fact IDs. The rule does
 not render final prose or enforce a universal writing style.
+
+## REF010 and DIR013
+
+`REF010` reports a code-cell label that collides with another visible reference
+target. It points to the duplicate cell label; references to the shared target
+remain subject to `REF005` ambiguity diagnostics.
+
+`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata
+that is present but cannot name one language identifier. Custom identifiers such
+as `custom.kernel-3` remain valid. SciEqLint does not execute cells or validate
+language-specific syntax.
 
 ## Generated-output engine
 

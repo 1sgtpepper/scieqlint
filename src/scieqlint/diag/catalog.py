@@ -150,6 +150,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.1.0",
         "A MyST code-cell directive has no executable language argument.",
     ),
+    "DIR013": DiagnosticInfo(
+        "DIR013",
+        Severity.WARNING,
+        "code-cell language metadata is not a valid language identifier",
+        "v1.1.0",
+        "A code-cell language value is present but cannot identify one executable language.",
+    ),
     "DIR011": DiagnosticInfo(
         "DIR011",
         Severity.WARNING,
@@ -339,6 +346,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.1.0",
         "A rendered equation reference has matching target identity in a hidden or "
         "excluded source, which can change project-level resolution.",
+    ),
+    "REF010": DiagnosticInfo(
+        "REF010",
+        Severity.WARNING,
+        "duplicate code-cell target label",
+        "v1.1.0",
+        "A code-cell label collides with another visible reference target.",
     ),
     "REF009": DiagnosticInfo(
         "REF009",

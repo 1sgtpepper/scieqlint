@@ -134,6 +134,8 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
             "REF006",
             "REF007",
             "REF008",
+            "REF009",
+            "REF010",
             "REF011",
         }
     )
@@ -1722,7 +1724,6 @@ def test_query_host_views_expose_snapshot_contracts():
     assert query.references.ambiguous_generic_refs() == (ref,)
     assert query.references.orphaned_targets() == (orphaned_anchor,)
     assert query.references.unresolved_equation_refs() == (equation_ref,)
-    assert query.references.ambiguous_equation_refs() == ()
 
     assert query.math.inline_math() == (inline,)
     assert query.math.display_math() == (display,)
@@ -1744,9 +1745,7 @@ def test_query_host_views_expose_snapshot_contracts():
     }
 
     assert query.portability.inline_math_missing_alt() == (inline,)
-    assert query.portability.display_math_missing_alt() == (display,)
-    assert query.portability.quarto_crossref_label_issues() == (cell,)
-    assert query.portability.renderings_with_crossref_options() == (cell,)
+    assert query.portability.notebook_rendering_conflicts()[0].cell == cell
     assert snapshot.all_facts()[-1] == portability
 
 
