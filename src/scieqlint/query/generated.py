@@ -45,6 +45,11 @@ class GeneratedOutputQueryView:
             if fact.kind in {"placeholder", "empty-display", "image-placeholder"}
         )
 
+    def equation_like_text_items(self) -> tuple[GeneratedFormulaFact, ...]:
+        return tuple(
+            fact for fact in self.snapshot.generated_formulas if fact.kind == "equation-like-text"
+        )
+
     def dropped_targets(self) -> tuple[tuple[GeneratedProvenanceFact, TargetAnchorFact], ...]:
         anchors_by_doc: dict[str, set[str]] = {}
         facts_by_doc: dict[str, dict[str, TargetAnchorFact]] = {}
