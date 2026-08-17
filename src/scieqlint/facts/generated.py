@@ -12,6 +12,9 @@ GeneratedFormulaKind = Literal[
     "spaced-token",
     "garbled-marker",
     "bracketed-block",
+    "placeholder",
+    "empty-display",
+    "image-placeholder",
 ]
 GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block"]
 
