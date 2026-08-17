@@ -91,6 +91,30 @@ class ReferenceQueryView:
             if len(targets.get(ref.normalized_target, ())) > 1
         )
 
+    def path_normalization_mismatches(
+        self,
+    ) -> tuple[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]], ...]:
+        """Return local path references whose raw and normalized resolution differ."""
+
+        raw_members: dict[str, list[str]] = defaultdict(list)
+        normalized_members: dict[str, list[str]] = defaultdict(list)
+        for member in self.snapshot.project_members:
+            raw_members[member.path.as_posix()].append(member.document_id)
+            normalized = member.normalized_path or member.path
+            normalized_members[normalized.as_posix()].append(member.document_id)
+
+        mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
+        for ref in self.snapshot.generic_refs:
+            if ref.resolved_raw_target_path is None or ref.normalized_target_path is None:
+                continue
+            raw_matches = tuple(raw_members.get(ref.resolved_raw_target_path, ()))
+            normalized_matches = tuple(
+                normalized_members.get(ref.normalized_target_path.as_posix(), ())
+            )
+            if raw_matches != normalized_matches and normalized_matches:
+                mismatches.append((ref, raw_matches, normalized_matches))
+        return tuple(mismatches)
+
     def orphaned_targets(self) -> tuple[TargetAnchorFact, ...]:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"

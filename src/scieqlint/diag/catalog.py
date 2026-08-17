@@ -309,6 +309,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.1.0",
         "A supported MyST generic reference points to more than one target.",
     ),
+    "REF006": DiagnosticInfo(
+        "REF006",
+        Severity.WARNING,
+        "cross-reference path resolves differently after project normalization",
+        "v1.1.0",
+        "A local cross-document target resolves only after lexical project-path "
+        "normalization, such as removal of a './' component.",
+    ),
     "PORT001": DiagnosticInfo(
         "PORT001",
         Severity.WARNING,

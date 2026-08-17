@@ -6,6 +6,7 @@ import re
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
+from scieqlint.io.workspace import project_reference_target
 from scieqlint.markdown import (
     MarkdownLinkToken,
     MarkdownReferenceSnapshot,
@@ -31,9 +32,12 @@ def scan_refs(
     occupied = snapshot.opaque_ranges
     link_tokens = snapshot.links
     for token in link_tokens:
-        if token.is_image:
+        if token.is_image or token.destination is None:
             continue
-        if token.fragment_target is None:
+        if (
+            token.fragment_target is None
+            and project_reference_target(document.path, token.destination) is None
+        ):
             continue
         generic.append(_markdown_link_ref_fact(document, smap, token))
     for match in ROLE_RE.finditer(document.text):
@@ -61,11 +65,18 @@ def _markdown_link_ref_fact(
     smap: SourceMap,
     token: MarkdownLinkToken,
 ) -> GenericRefFact:
-    assert token.fragment_target is not None
-    assert token.fragment_target_start is not None
-    assert token.fragment_target_end is not None
-    target_start = token.fragment_target_start
-    target = token.fragment_target
+    assert token.destination is not None
+    assert token.destination_start is not None
+    assert token.destination_end is not None
+    project_target = project_reference_target(document.path, token.destination)
+    if token.fragment_target is not None:
+        assert token.fragment_target_start is not None
+        assert token.fragment_target_end is not None
+        target_start = token.fragment_target_start
+        target = token.fragment_target
+    else:
+        target_start = token.destination_start
+        target = token.destination
     return GenericRefFact(
         fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
         document_id=document.path.as_posix(),
@@ -75,7 +86,13 @@ def _markdown_link_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         role_span=smap.span(token.start, token.end),
-        target_span=smap.span(target_start, token.fragment_target_end),
+        target_span=smap.span(token.destination_start, token.destination_end),
+        raw_target_path=None if project_target is None else project_target.raw_path,
+        resolved_raw_target_path=(
+            None if project_target is None else project_target.resolved_raw_path
+        ),
+        normalized_target_path=(None if project_target is None else project_target.normalized_path),
+        target_fragment=None if project_target is None else project_target.fragment,
     )
 
 

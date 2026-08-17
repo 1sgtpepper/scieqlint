@@ -29,6 +29,7 @@ from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.portability import (
@@ -40,6 +41,7 @@ from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.workspace import normalize_project_path
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
@@ -284,6 +286,7 @@ def _generated_profile_snapshot(
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
     snapshot = MathHost().classify(MySTFrontend().lower(documents))
+    snapshot = replace(snapshot, project_members=_project_member_facts(documents))
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(
@@ -314,6 +317,24 @@ def _generated_profile_snapshot(
         if document.origin is not None
     )
     return replace(snapshot, generated_provenance=provenance)
+
+
+def _project_member_facts(
+    documents: Sequence[SourceDocument],
+) -> tuple[ProjectMemberFact, ...]:
+    return tuple(
+        ProjectMemberFact(
+            fact_id=f"{document.path.as_posix()}::project-member",
+            document_id=document.path.as_posix(),
+            span=None,
+            path=document.path,
+            project_root=PurePosixPath("."),
+            declared=True,
+            discovered=True,
+            normalized_path=normalize_project_path(document.path),
+        )
+        for document in documents
+    )
 
 
 def graph_paths(

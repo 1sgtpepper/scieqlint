@@ -29,6 +29,7 @@ codes before every code is emitted by the current analyzer.
 | `REF003` | info | Missing equation label in strict mode |
 | `REF004` | warning | Missing generic reference target |
 | `REF005` | warning | Ambiguous generic reference target |
+| `REF006` | warning | Local reference path changes resolution after normalization |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -153,3 +154,9 @@ severity-affecting controls are exposed through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when
 dimension checks are active.
+
+## REF006
+
+`REF006` warns when a local cross-document reference resolves only after lexical
+project-path normalization, for example when `./chapter.md` must be normalized to
+`chapter.md`. External URLs and fragment-only references are not project paths.

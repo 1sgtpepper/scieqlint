@@ -177,6 +177,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/io/limits.py`
 - `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`
+- `src/scieqlint/io/workspace.py`
 - `src/scieqlint/ir/__init__.py`
 - `src/scieqlint/ir/model.py`
 - `src/scieqlint/markdown.py`
@@ -274,6 +275,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`
+- `tests/test_crossref_path_normalization.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`

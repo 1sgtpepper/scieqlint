@@ -89,6 +89,9 @@ class MarkdownLinkToken:
     start: int
     end: int
     is_image: bool
+    destination: str | None = None
+    destination_start: int | None = None
+    destination_end: int | None = None
     fragment_target: str | None = None
     fragment_target_start: int | None = None
     fragment_target_end: int | None = None
@@ -1293,6 +1296,9 @@ def _make_link_token(
         start=token_start,
         end=end,
         is_image=is_image,
+        destination=destination,
+        destination_start=destination_start,
+        destination_end=destination_end,
         fragment_target=fragment_target,
         fragment_target_start=fragment_target_start,
         fragment_target_end=fragment_target_end,
