@@ -172,16 +172,20 @@ Invalid config fails before document analysis and reports a deterministic error.
 ```toml
 [profile]
 name = "generated-myst"
+source_kind = "jats-xml"
+conversion_stage = "xml-to-markdown"
 ```
 
 The named profile is policy metadata consumed by the normal fact/query/engine
 pipeline. `generated-myst` enables generated-output engines in addition to the
 ordinary scanner, parser, algebra, reference, and structure checks configured
 below. Unknown profile names are rejected rather than silently running a
-different rule set. Profile selection is explicit project configuration: the
-packaged `generated-myst` preset does not select this profile yet, because the
-project-mode owner for packaged profile activation is a later slice of issue
-[#90](https://github.com/1sgtpepper/scieqlint/issues/90).
+different rule set. `source_kind` and `conversion_stage` are optional
+caller-supplied provenance. SciEqLint records them but never reconstructs
+missing origin metadata. Profile selection is explicit project configuration:
+the packaged `generated-myst` preset does not select this profile yet, because
+the project-mode owner for packaged profile activation is a later slice of
+issue [#90](https://github.com/1sgtpepper/scieqlint/issues/90).
 
 The profile consumes caller-owned source mappings when the already-loaded-document
 API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`

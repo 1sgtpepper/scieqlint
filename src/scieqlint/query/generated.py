@@ -16,6 +16,13 @@ class GeneratedOutputQueryView:
     def provenance(self) -> tuple[GeneratedProvenanceFact, ...]:
         return self.snapshot.generated_provenance
 
+    def provenance_for_document(self, document_id: str) -> tuple[GeneratedProvenanceFact, ...]:
+        return tuple(
+            provenance
+            for provenance in self.snapshot.generated_provenance
+            if provenance.generated_document_id == document_id
+        )
+
     def generated_document_ids(self) -> tuple[str, ...]:
         return tuple(prov.generated_document_id for prov in self.snapshot.generated_provenance)
 
@@ -27,6 +34,8 @@ class GeneratedOutputQueryView:
             facts_by_doc.setdefault(anchor.document_id, {})[anchor.normalized_label] = anchor
         dropped: list[tuple[GeneratedProvenanceFact, TargetAnchorFact]] = []
         for prov in self.snapshot.generated_provenance:
+            if prov.source_document_id is None:
+                continue
             source_labels = anchors_by_doc.get(prov.source_document_id, set())
             if prov.preserved_anchor_inventory:
                 source_labels = source_labels & {

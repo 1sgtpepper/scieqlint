@@ -39,6 +39,9 @@ def _render_diagnostic(diagnostic: Diagnostic) -> str:
         )
     properties_text = ",".join(f"{name}={_escape_property(value)}" for name, value in properties)
     message = diagnostic.detail if diagnostic.detail else diagnostic.message
+    metadata = _metadata_line(diagnostic)
+    if metadata:
+        message = f"{message}\n{metadata}"
     return f"::{command} {properties_text}::{_escape_data(message)}"
 
 
@@ -48,3 +51,12 @@ def _escape_data(value: str) -> str:
 
 def _escape_property(value: str) -> str:
     return _escape_data(value).replace(":", "%3A").replace(",", "%2C")
+
+
+def _metadata_line(diagnostic: Diagnostic) -> str:
+    fields = list(diagnostic.properties)
+    if diagnostic.profile is not None:
+        fields.append(("profile", diagnostic.profile))
+    if diagnostic.provenance_ids:
+        fields.append(("provenance", ",".join(diagnostic.provenance_ids)))
+    return "; ".join(f"{name}={value}" for name, value in fields)

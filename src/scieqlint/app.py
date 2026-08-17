@@ -213,7 +213,8 @@ def check_documents(
         # project-mode/AnalysisSession owner for issue #90 is available.
         if config.profile.name == "generated-myst":
             diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in GeneratedOutputEngine().run(query)
+                diagnostic.to_diagnostic()
+                for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
             )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
@@ -244,6 +245,8 @@ def _generated_profile_snapshot(
             confidence="generated",
             generated_document_id=document.path.as_posix(),
             source_document_id=document.origin.source_document_id,
+            source_kind=config.profile.source_kind,
+            conversion_stage=config.profile.conversion_stage,
             source_sha=document.origin.source_sha,
             tool=document.origin.tool,
             tool_version=document.origin.tool_version,
