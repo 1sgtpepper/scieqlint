@@ -190,6 +190,7 @@ _PROFILE_NAMES = frozenset(
         "generated-myst",
         "cross-format-references",
         "math-accessibility",
+        "notebook-crossrefs",
         "typst-portability",
     }
 )

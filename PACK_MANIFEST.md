@@ -167,6 +167,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/myst_math.py`
 - `src/scieqlint/frontend/myst_refs.py`
 - `src/scieqlint/frontend/myst_shared.py`
+- `src/scieqlint/frontend/notebook.py`
 - `src/scieqlint/frontend/portability.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
@@ -302,6 +303,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
 - `tests/test_no_network_core.py`
+- `tests/test_notebook_output_crossrefs.py`
 - `tests/test_notebook_scan.py`
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`

@@ -190,6 +190,9 @@ silently running a different rule set.
 - `math-accessibility` emits diagnostics for explicit inline-math facts that
   lack accessible text metadata. It does not generate alternative text, infer
   metadata from surrounding prose, or apply the policy by default.
+- `notebook-crossrefs` lowers notebook code-cell labels, `renderings`, caption
+  options, and output-boundary metadata. It warns when renderings are combined
+  with options that create a cross-reference, without executing the notebook.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX
