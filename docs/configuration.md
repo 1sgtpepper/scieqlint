@@ -187,6 +187,9 @@ silently running a different rule set.
   and requires `output_profile`. The accepted conservative targets are
   `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
   external renderer or claim output parity.
+- `math-accessibility` emits diagnostics for explicit inline-math facts that
+  lack accessible text metadata. It does not generate alternative text, infer
+  metadata from surrounding prose, or apply the policy by default.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset, which does not select this profile.
