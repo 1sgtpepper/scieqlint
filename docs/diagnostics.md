@@ -32,6 +32,7 @@ codes before every code is emitted by the current analyzer.
 | `REF011` | warning | Ambiguous equation reference |
 | `REF006` | warning | Local reference path changes resolution after normalization |
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
+| `REF008` | warning | Equation reference matches a hidden or excluded target |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -74,6 +75,13 @@ or notebook code cells that combine `renderings` with a cross-reference label or
 caption option. Notebook diagnostics retain logical cell locations, normalized
 cell options, and the originating cell fact ID. SciEqLint does not execute or
 re-render notebook outputs.
+
+## REF008
+
+`REF008` warns when an equation reference has a matching label fact from a hidden or
+excluded source. Visible labels continue to define ordinary resolution; hidden and excluded
+labels are retained as separate facts and do not create `REF001` duplicates by themselves.
+The rule does not read ignored files or change project include/exclude behavior.
 
 ## Generated-output engine
 
