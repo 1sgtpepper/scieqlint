@@ -19,6 +19,8 @@ Release notes must use these sections:
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the explicit
   `generated-myst` profile is selected.
+- Add bounded deterministic Hypothesis properties for source-span integrity, newline
+  normalization, and Markdown code-cell fence lowering.
 - Add the opt-in `code-cell-metadata` profile, exact code-cell label/language
   facts for Markdown and notebooks, code-cell reference targets, and duplicate-label
   and malformed-language diagnostics.
