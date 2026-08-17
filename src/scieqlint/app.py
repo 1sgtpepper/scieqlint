@@ -231,6 +231,7 @@ def check_documents(
         elif config.profile.name in {
             "cross-format-references",
             "math-accessibility",
+            "typst-portability",
         }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
@@ -281,6 +282,8 @@ def _profile_snapshot(
                 snapshot,
             ),
         )
+    if config.profile.name == "typst-portability":
+        return replace(snapshot, portability=MathHost().typst_portability(snapshot))
     return snapshot
 
 
