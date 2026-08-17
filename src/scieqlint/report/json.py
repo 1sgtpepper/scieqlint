@@ -39,6 +39,12 @@ class JsonReporter:
                 diagnostic_json["suppression_reason"] = (
                     diagnostic.suppression_reason or "suppressed"
                 )
+            if diagnostic.profile is not None:
+                diagnostic_json["profile"] = diagnostic.profile
+            if diagnostic.provenance_ids:
+                diagnostic_json["provenance_ids"] = list(diagnostic.provenance_ids)
+            if diagnostic.properties:
+                diagnostic_json["properties"] = dict(diagnostic.properties)
             diagnostics_json.append(diagnostic_json)
         payload: dict[str, JsonValue] = {
             "schema_version": "0.1",

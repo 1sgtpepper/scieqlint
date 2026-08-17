@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
+from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.query.host import QueryHost
 
 
 class GeneratedOutputEngine:
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
     name = "generated-output"
     rule_codes = frozenset({"GEN001"})
 
@@ -28,6 +32,22 @@ class GeneratedOutputEngine:
                     hint="Keep the MyST target anchor in the generated output before building.",
                     rule="generated.preserved_anchor",
                     false_positive_risk="low",
+                    profile=self.profile,
+                    provenance_ids=(provenance.fact_id,),
+                    properties=_provenance_properties(provenance),
                 )
             )
         return tuple(diagnostics)
+
+
+def _provenance_properties(
+    provenance: GeneratedProvenanceFact,
+) -> tuple[tuple[str, str], ...]:
+    properties = [("generated_document", provenance.generated_document_id)]
+    if provenance.source_document_id is not None:
+        properties.append(("source_document", provenance.source_document_id))
+    if provenance.source_kind is not None:
+        properties.append(("source_kind", provenance.source_kind))
+    if provenance.conversion_stage is not None:
+        properties.append(("conversion_stage", provenance.conversion_stage))
+    return tuple(properties)

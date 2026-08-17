@@ -33,6 +33,8 @@ class ProfileConfig:
     """Named validation policy selected explicitly by project configuration."""
 
     name: ValidationProfile | None = None
+    source_kind: str | None = None
+    conversion_stage: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

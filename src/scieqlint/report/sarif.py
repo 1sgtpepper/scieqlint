@@ -85,7 +85,19 @@ def _result(diagnostic: Diagnostic) -> JsonValue:
     }
     if diagnostic.span is not None:
         result["locations"] = [_location(diagnostic.span)]
+    properties = _metadata_properties(diagnostic)
+    if properties:
+        result["properties"] = properties
     return result
+
+
+def _metadata_properties(diagnostic: Diagnostic) -> dict[str, JsonValue]:
+    properties: dict[str, JsonValue] = dict(diagnostic.properties)
+    if diagnostic.profile is not None:
+        properties["profile"] = diagnostic.profile
+    if diagnostic.provenance_ids:
+        properties["provenanceIds"] = list(diagnostic.provenance_ids)
+    return properties
 
 
 def _message(diagnostic: Diagnostic) -> str:

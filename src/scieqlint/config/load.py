@@ -81,7 +81,11 @@ def _load_config_with_inputs(
     vars_config = _vars_config(vars_data)
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
-        profile=ProfileConfig(name=_profile_name(profile_data, "name")),
+        profile=ProfileConfig(
+            name=_profile_name(profile_data, "name"),
+            source_kind=_optional_nonempty_str(profile_data, "source_kind"),
+            conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
+        ),
         project=ProjectConfig(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
@@ -166,6 +170,15 @@ def _table(data: dict[str, Any], key: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"[{key}] must be a table")
     return cast(dict[str, Any], value)
+
+
+def _optional_nonempty_str(data: dict[str, Any], key: str) -> str | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be a non-empty string")
+    return value.strip()
 
 
 def _profile_name(data: dict[str, Any], key: str) -> ValidationProfile | None:

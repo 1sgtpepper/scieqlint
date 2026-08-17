@@ -36,4 +36,10 @@ class TextReporter:
                 lines.append(f"  equation: {diagnostic.equation}")
             if diagnostic.detail:
                 lines.append(f"  detail: {diagnostic.detail}")
+            if diagnostic.profile is not None:
+                lines.append(f"  profile: {diagnostic.profile}")
+            if diagnostic.provenance_ids:
+                lines.append(f"  provenance: {', '.join(diagnostic.provenance_ids)}")
+            for name, value in diagnostic.properties:
+                lines.append(f"  {name}: {value}")
         return "\n".join(lines) + "\n"

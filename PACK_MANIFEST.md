@@ -263,6 +263,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
 - `tests/test_generated_output.py`
+- `tests/test_generated_provenance.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
