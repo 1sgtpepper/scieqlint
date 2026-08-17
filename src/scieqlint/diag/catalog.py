@@ -317,6 +317,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A local cross-document target resolves only after lexical project-path "
         "normalization, such as removal of a './' component.",
     ),
+    "REF007": DiagnosticInfo(
+        "REF007",
+        Severity.WARNING,
+        "conflicting cross-reference metadata",
+        "v1.1.0",
+        "Two source or engine-output boundaries describe the same logical target "
+        "with different reference kind or display metadata.",
+    ),
     "PORT001": DiagnosticInfo(
         "PORT001",
         Severity.WARNING,

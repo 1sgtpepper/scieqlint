@@ -19,6 +19,7 @@ from scieqlint.markdown import (
 )
 from scieqlint.source.maps import SourceMap
 
+from .crossref import crossref_metadata_facts
 from .generated import (
     scan_bracketed_latex_blocks,
     scan_equation_like_text_items,
@@ -73,6 +74,7 @@ class MySTFrontend:
             generic_refs=_flatten(parts, "generic_refs"),
             equation_labels=_flatten(parts, "equation_labels"),
             equation_refs=_flatten(parts, "equation_refs"),
+            crossref_metadata=_flatten(parts, "crossref_metadata"),
             inline_math=_flatten(parts, "inline_math"),
             display_math=_flatten(parts, "display_math"),
             unknown_math=_flatten(parts, "unknown_math"),
@@ -140,6 +142,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
             ),
         )
     )
+    crossref_metadata = crossref_metadata_facts(document, generic_refs, equation_refs)
     inline_math = tuple(
         scan_inline_math(
             document,
@@ -206,6 +209,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         generic_refs=generic_refs,
         equation_labels=equation_labels,
         equation_refs=equation_refs,
+        crossref_metadata=crossref_metadata,
         inline_math=inline_math,
         display_math=display_math,
         unknown_math=unknown_math,

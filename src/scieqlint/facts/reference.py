@@ -38,6 +38,20 @@ class GenericRefFact(FactBase):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class CrossrefMetadataFact(FactBase):
+    """Source-neutral cross-reference metadata for one output boundary."""
+
+    source_fact_id: str
+    logical_target: str
+    normalized_target: str
+    reference_kind: str
+    source_format: str
+    output_boundary: str
+    display_metadata: tuple[tuple[str, str], ...] = ()
+    target_span: SourceSpan | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class EquationLabelFact(FactBase):
     label: str
     normalized_label: str
