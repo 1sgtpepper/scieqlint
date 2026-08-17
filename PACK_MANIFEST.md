@@ -261,6 +261,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
+- `tests/test_aligned_equation_references.py`
 - `tests/test_api.py`
 - `tests/test_architecture_contracts.py`
 - `tests/test_architecture_terminology_fences.py`
