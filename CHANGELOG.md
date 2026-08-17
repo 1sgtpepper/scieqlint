@@ -51,6 +51,9 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Stable publication now downloads the exact immutable distribution artifact
+  approved by smoke, carrying its artifact ID through the release jobs without
+  rebuilding or accepting a separately downloaded artifact.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Stable-tag publication now fails closed unless source, wheel, and tag versions
