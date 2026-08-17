@@ -6,6 +6,7 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.myst_math import _has_supported_ams_environment
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 
@@ -50,6 +51,7 @@ $$
         ("eq", "eq:first", None),
     ]
     assert query.references.unresolved_equation_refs() == ()
+    assert query.references.equation_refs() == snapshot.equation_refs
     assert ReferenceEngine().run(query) == ()
     assert all(fact.target_span is not None for fact in snapshot.equation_refs)
     assert [
@@ -180,3 +182,50 @@ $$
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-eqref", "missing")
     ]
+
+
+def test_escaped_ams_markers_and_references_are_not_claimed_as_structure() -> None:
+    source = "$$\n\\\\begin{align}\nx &= \\\\ref{escaped}\n\\\\end{align}\n$$"
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert snapshot.display_math[0].container == "dollar-dollar"
+    assert snapshot.equation_refs == ()
+    assert _has_supported_ams_environment(r"\\begin{align}x &= y\\end{align}") is False
+
+
+def test_tex_references_ignore_empty_targets_but_keep_valid_targets() -> None:
+    source = "$$\nx &= \\ref{ } + \\ref{valid}\n$$"
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
+        ("tex-ref", "valid"),
+    ]
+
+
+def test_ambiguous_equation_query_returns_all_matching_refs() -> None:
+    source = """\
+$$
+\\begin{align}
+a &= b \\label{dup}
+\\end{align}
+$$
+
+$$
+\\begin{align}
+c &= d \\label{dup}
+\\end{align}
+$$
+
+$$
+\\begin{align}
+x &= \\eqref{dup}
+\\end{align}
+$$
+"""
+
+    snapshot = MySTFrontend().lower((doc(source),))
+    query = QueryHost(snapshot)
+
+    assert query.references.ambiguous_equation_refs() == snapshot.equation_refs
