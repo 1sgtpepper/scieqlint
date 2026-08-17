@@ -19,6 +19,8 @@ Release notes must use these sections:
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the explicit
   `generated-myst` profile is selected.
+- Warn when local cross-document references resolve differently after lexical
+  project-path normalization.
 
 ### Changed
 

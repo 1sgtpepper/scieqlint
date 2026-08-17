@@ -10,7 +10,7 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF011"})
+    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF011"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -70,6 +70,36 @@ class ReferenceEngine:
                     detail=f"reference text: {ref.raw}",
                     rule="references.generic_target",
                     false_positive_risk="low",
+                )
+            )
+        normalized_path_info = CATALOG["REF006"]
+        for (
+            ref,
+            raw_matches,
+            normalized_matches,
+        ) in query.references.path_normalization_mismatches():
+            assert ref.resolved_raw_target_path is not None
+            assert ref.normalized_target_path is not None
+            diagnostics.append(
+                DiagnosticIR(
+                    code=normalized_path_info.code,
+                    severity_default=normalized_path_info.severity,
+                    message=(f"{normalized_path_info.message}: {ref.resolved_raw_target_path}"),
+                    span=ref.target_span or ref.span,
+                    detail=(
+                        f"raw matches={list(raw_matches)!r}; normalized "
+                        f"{ref.normalized_target_path.as_posix()!r} "
+                        f"matches={list(normalized_matches)!r}"
+                    ),
+                    hint="Use the normalized project-relative path spelling.",
+                    rule="references.project_path_normalization",
+                    false_positive_risk="low",
+                    properties=(
+                        ("raw_path", ref.resolved_raw_target_path),
+                        ("normalized_path", ref.normalized_target_path.as_posix()),
+                        ("raw_match_count", str(len(raw_matches))),
+                        ("normalized_match_count", str(len(normalized_matches))),
+                    ),
                 )
             )
         ambiguous_info = CATALOG["REF005"]

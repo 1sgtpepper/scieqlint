@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Literal
 
 from scieqlint.diag.model import SourceSpan
@@ -30,6 +31,10 @@ class GenericRefFact(FactBase):
     role_span: SourceSpan | None = None
     target_span: SourceSpan | None = None
     local_or_external: str = "local"
+    raw_target_path: str | None = None
+    resolved_raw_target_path: str | None = None
+    normalized_target_path: PurePosixPath | None = None
+    target_fragment: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
