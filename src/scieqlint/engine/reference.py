@@ -9,7 +9,7 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF007"})
+    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -37,6 +37,47 @@ class ReferenceEngine:
                     detail=f"reference text: {ref.raw}",
                     rule="references",
                     false_positive_risk="low",
+                )
+            )
+        nonvisible_info = CATALOG["REF008"]
+        for impact in query.references.nonvisible_equation_target_impacts():
+            ref = impact.reference
+            hidden_documents = tuple(
+                dict.fromkeys(label.document_id for label in impact.hidden_targets)
+            )
+            excluded_documents = tuple(
+                dict.fromkeys(label.document_id for label in impact.excluded_targets)
+            )
+            diagnostics.append(
+                DiagnosticIR(
+                    code=nonvisible_info.code,
+                    severity_default=nonvisible_info.severity,
+                    message=f"{nonvisible_info.message}: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=(
+                        f"visible targets={len(impact.visible_targets)}; "
+                        f"hidden targets={list(hidden_documents)!r}; "
+                        f"excluded targets={list(excluded_documents)!r}"
+                    ),
+                    hint=(
+                        "Rename the non-visible target or make its source visible in "
+                        "the rendered project."
+                    ),
+                    rule="references.nonvisible_equation_target",
+                    false_positive_risk="low",
+                    provenance_ids=(
+                        ref.fact_id,
+                        *(label.fact_id for label in impact.hidden_targets),
+                        *(label.fact_id for label in impact.excluded_targets),
+                    ),
+                    properties=(
+                        ("target", ref.normalized_target),
+                        ("visible_target_count", str(len(impact.visible_targets))),
+                        ("hidden_target_count", str(len(impact.hidden_targets))),
+                        ("excluded_target_count", str(len(impact.excluded_targets))),
+                        ("hidden_documents", ",".join(hidden_documents)),
+                        ("excluded_documents", ",".join(excluded_documents)),
+                    ),
                 )
             )
         missing_info = CATALOG["REF004"]

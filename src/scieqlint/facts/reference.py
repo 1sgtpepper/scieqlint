@@ -10,6 +10,7 @@ from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 TargetPlacement = Literal["before_heading", "before_block", "standalone", "orphaned"]
+TargetVisibility = Literal["visible", "hidden", "excluded"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -58,6 +59,7 @@ class EquationLabelFact(FactBase):
     label_syntax_kind: str
     source_block_id: str | None
     namespace: str = "equation"
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 

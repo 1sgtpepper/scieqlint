@@ -292,6 +292,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
+- `tests/test_hidden_equation_references.py`
 - `tests/test_inline_math_accessibility.py`
 - `tests/test_inline_math_facts.py`
 - `tests/test_jats_inline_formula_fixtures.py`

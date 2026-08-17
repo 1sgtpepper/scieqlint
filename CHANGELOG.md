@@ -25,6 +25,8 @@ Release notes must use these sections:
   boundaries, warning when the same target has incompatible kind or display metadata.
 - Lower notebook code-cell renderings, cross-reference options, and output-boundary
   facts, with an opt-in warning for incompatible renderings/crossref combinations.
+- Keep visible, hidden, and excluded equation-label facts separate and warn when
+  non-visible targets affect a rendered equation reference.
 
 ### Changed
 

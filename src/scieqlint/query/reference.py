@@ -24,6 +24,14 @@ class ResolvedTarget:
 
 
 @dataclass(frozen=True, slots=True)
+class NonvisibleEquationTargetImpact:
+    reference: EquationRefFact
+    visible_targets: tuple[EquationLabelFact, ...]
+    hidden_targets: tuple[EquationLabelFact, ...]
+    excluded_targets: tuple[EquationLabelFact, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ReferenceQueryView:
     snapshot: FactSnapshot
 
@@ -32,6 +40,21 @@ class ReferenceQueryView:
 
     def equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return self.snapshot.equation_labels
+
+    def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
+        return tuple(
+            label for label in self.snapshot.equation_labels if label.visibility == "visible"
+        )
+
+    def hidden_equation_targets(self) -> tuple[EquationLabelFact, ...]:
+        return tuple(
+            label for label in self.snapshot.equation_labels if label.visibility == "hidden"
+        )
+
+    def excluded_equation_targets(self) -> tuple[EquationLabelFact, ...]:
+        return tuple(
+            label for label in self.snapshot.equation_labels if label.visibility == "excluded"
+        )
 
     def generic_refs(self) -> tuple[GenericRefFact, ...]:
         return self.snapshot.generic_refs
@@ -66,15 +89,20 @@ class ReferenceQueryView:
             if anchor.placement == "orphaned":
                 continue
             index[anchor.normalized_label].append(anchor)
-        for label in self.snapshot.equation_labels:
+        for label in self.visible_equation_targets():
             index[label.normalized_label].append(label)
         return {key: tuple(value) for key, value in index.items()}
 
     def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
-        index: dict[str, list[EquationLabelFact]] = defaultdict(list)
-        for label in self.snapshot.equation_labels:
-            index[label.normalized_label].append(label)
-        return {key: tuple(value) for key, value in index.items()}
+        return _equation_index(self.visible_equation_targets())
+
+    def hidden_equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
+        return _equation_index(self.hidden_equation_targets())
+
+    def excluded_equation_target_index(
+        self,
+    ) -> dict[str, tuple[EquationLabelFact, ...]]:
+        return _equation_index(self.excluded_equation_targets())
 
     def duplicate_equation_targets(self) -> dict[str, tuple[EquationLabelFact, ...]]:
         return {key: value for key, value in self.equation_target_index().items() if len(value) > 1}
@@ -92,6 +120,37 @@ class ReferenceQueryView:
             for ref in self.snapshot.equation_refs
             if len(targets.get(ref.normalized_target, ())) > 1
         )
+
+    def nonvisible_equation_target_impacts(
+        self,
+    ) -> tuple[NonvisibleEquationTargetImpact, ...]:
+        """Return references whose target identity exists outside the visible set."""
+
+        visible = self.equation_target_index()
+        hidden = self.hidden_equation_target_index()
+        excluded = self.excluded_equation_target_index()
+        impacts: list[NonvisibleEquationTargetImpact] = []
+        for ref in sorted(self.snapshot.equation_refs, key=_reference_source_key):
+            hidden_targets = tuple(
+                sorted(hidden.get(ref.normalized_target, ()), key=_equation_label_source_key)
+            )
+            excluded_targets = tuple(
+                sorted(
+                    excluded.get(ref.normalized_target, ()),
+                    key=_equation_label_source_key,
+                )
+            )
+            if not hidden_targets and not excluded_targets:
+                continue
+            impacts.append(
+                NonvisibleEquationTargetImpact(
+                    reference=ref,
+                    visible_targets=visible.get(ref.normalized_target, ()),
+                    hidden_targets=hidden_targets,
+                    excluded_targets=excluded_targets,
+                )
+            )
+        return tuple(impacts)
 
     def duplicate_generic_targets(self) -> dict[str, tuple[TargetAnchorFact, ...]]:
         index: dict[str, list[TargetAnchorFact]] = defaultdict(list)
@@ -141,6 +200,37 @@ class ReferenceQueryView:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
         )
+
+
+def _equation_index(
+    labels: tuple[EquationLabelFact, ...],
+) -> dict[str, tuple[EquationLabelFact, ...]]:
+    index: dict[str, list[EquationLabelFact]] = defaultdict(list)
+    for label in labels:
+        index[label.normalized_label].append(label)
+    return {key: tuple(value) for key, value in index.items()}
+
+
+def _equation_label_source_key(
+    fact: EquationLabelFact,
+) -> tuple[str, int, int, str]:
+    span = fact.label_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
+    )
+
+
+def _reference_source_key(fact: EquationRefFact) -> tuple[str, int, int, str]:
+    span = fact.target_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
+    )
 
 
 def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str, str]:
