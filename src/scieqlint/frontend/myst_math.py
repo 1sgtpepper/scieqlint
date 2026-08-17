@@ -31,7 +31,7 @@ from .myst_shared import (
 
 _MYST_MATH_ROLE_RE = re.compile(r"\{math\}`(?P<body>[^`\r\n]+)`")
 _LATEX_PAREN_RE = re.compile(r"(?<!\\)\\\((?P<body>.*?)(?<!\\)\\\)")
-_MATH_ATOM = r"(?:[A-Za-z0-9_{}]+|\\[A-Za-z]+)"
+_MATH_ATOM = r"(?:[A-Za-z0-9_{}]+(?:\([^()\r\n]*\))?|\\[A-Za-z]+)"
 # This expression only finds a lexical candidate. MathHost owns the
 # parse-status decision for the resulting fact.
 _PLAIN_TEXT_MATH_CANDIDATE_RE = re.compile(

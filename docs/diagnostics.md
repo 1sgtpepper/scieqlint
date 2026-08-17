@@ -58,6 +58,7 @@ the serialized metadata uses deterministic `provenance_1_*`,
 | `GEN002` | warning | Generated math contains suspicious formula text |
 | `GEN003` | warning | Nonstandard bracketed LaTeX display block |
 | `GEN004` | warning | Generated output contains a formula placeholder |
+| `GEN005` | warning | Standalone text block looks like an equation |
 
 ## Reserved in catalog
 

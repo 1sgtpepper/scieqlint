@@ -266,6 +266,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Generated Markdown contains a formula-not-decoded marker, empty display math, "
         "or a standalone formula image placeholder.",
     ),
+    "GEN005": DiagnosticInfo(
+        "GEN005",
+        Severity.WARNING,
+        "standalone text block looks like an equation",
+        "v1.1.0",
+        "An isolated generated Markdown text item has high-confidence equation signals "
+        "but is not inside a math container.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

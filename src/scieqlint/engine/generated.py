@@ -15,7 +15,7 @@ class GeneratedOutputEngine:
         self.profile = profile
 
     name = "generated-output"
-    rule_codes = frozenset({"GEN001", "GEN002", "GEN003", "GEN004"})
+    rule_codes = frozenset({"GEN001", "GEN002", "GEN003", "GEN004", "GEN005"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -50,6 +50,10 @@ class GeneratedOutputEngine:
         diagnostics.extend(
             self._formula_placeholder_diagnostic(query, fact)
             for fact in query.generated.formula_placeholders()
+        )
+        diagnostics.extend(
+            self._equation_like_text_diagnostic(query, fact)
+            for fact in query.generated.equation_like_text_items()
         )
         return tuple(diagnostics)
 
@@ -141,6 +145,31 @@ class GeneratedOutputEngine:
             rule="generated.formula_placeholder",
             profile_gated=True,
             false_positive_risk="low",
+            profile=self.profile,
+            provenance_ids=provenance_ids,
+            properties=properties,
+        )
+
+    def _equation_like_text_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        provenance_ids, properties = _fact_metadata(
+            query,
+            fact,
+            (("formula_artifact_kind", fact.kind),),
+        )
+        return DiagnosticIR(
+            code="GEN005",
+            severity_default=Severity.WARNING,
+            message="standalone text block looks like an equation",
+            span=fact.span,
+            detail=f"equation-like text was emitted outside a math container: {fact.text!r}",
+            hint="Emit the source expression as supported math; SciEqLint will not rewrite it.",
+            rule="generated.equation_like_text",
+            profile_gated=True,
+            false_positive_risk="medium",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=properties,
