@@ -177,15 +177,28 @@ conversion_stage = "xml-to-markdown"
 ```
 
 The named profile is policy metadata consumed by the normal fact/query/engine
-pipeline. `generated-myst` enables generated-output engines in addition to the
-ordinary scanner, parser, algebra, reference, and structure checks configured
-below. Unknown profile names are rejected rather than silently running a
-different rule set. `source_kind` and `conversion_stage` are optional
-caller-supplied provenance. SciEqLint records them but never reconstructs
-missing origin metadata. Profile selection is explicit project configuration:
-the packaged `generated-myst` preset does not select this profile yet, because
-the project-mode owner for packaged profile activation is a later slice of
-issue [#90](https://github.com/1sgtpepper/scieqlint/issues/90).
+pipeline. Unknown profile names and output targets are rejected rather than
+silently running a different rule set.
+
+- `generated-myst` enables generated-output diagnostics. `source_kind` and
+  `conversion_stage` are optional caller-supplied provenance; SciEqLint records
+  them but never reconstructs missing origin metadata.
+- `cross-format-references` enables equation-reference portability diagnostics
+  and requires `output_profile`. The accepted conservative targets are
+  `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
+  external renderer or claim output parity.
+For example, to check reference syntax against plain CommonMark:
+
+```toml
+[profile]
+name = "cross-format-references"
+output_profile = "commonmark"
+```
+
+Profile selection is explicit project configuration: the packaged
+`generated-myst` preset does not select that profile yet, because the
+project-mode owner for packaged profile activation is a later slice of issue
+[#90](https://github.com/1sgtpepper/scieqlint/issues/90).
 
 The profile consumes caller-owned source mappings when the already-loaded-document
 API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,

@@ -25,11 +25,13 @@ from scieqlint.diag.baseline import (
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.engine.generated import GeneratedOutputEngine
+from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.portability import cross_format_reference_risks
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
@@ -201,7 +203,7 @@ def check_documents(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     if markdown_documents and config.scanner.markdown:
-        query = QueryHost(_generated_profile_snapshot(markdown_documents, config))
+        query = QueryHost(_profile_snapshot(markdown_documents, config))
         if config.checks.references.enabled:
             _extend_unique_diagnostics(
                 diagnostics,
@@ -217,6 +219,11 @@ def check_documents(
             diagnostics.extend(
                 diagnostic.to_diagnostic()
                 for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
+            )
+        elif config.profile.name == "cross-format-references":
+            diagnostics.extend(
+                diagnostic.to_diagnostic()
+                for diagnostic in PortabilityEngine(profile=config.profile.name).run(query)
             )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
@@ -241,6 +248,24 @@ def _extend_unique_diagnostics(
             continue
         diagnostics.append(diagnostic)
         seen.add(diagnostic)
+
+
+def _profile_snapshot(
+    documents: Sequence[SourceDocument],
+    config: Config,
+) -> FactSnapshot:
+    snapshot = _generated_profile_snapshot(documents, config)
+    if config.profile.name == "cross-format-references":
+        if config.profile.output_profile is None:
+            raise ValueError("cross-format-references requires profile.output_profile")
+        return replace(
+            snapshot,
+            portability=cross_format_reference_risks(
+                snapshot,
+                config.profile.output_profile,
+            ),
+        )
+    return snapshot
 
 
 def _generated_profile_snapshot(
