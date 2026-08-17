@@ -216,7 +216,10 @@ def check_documents(
         if config.checks.references.enabled:
             _extend_unique_diagnostics(
                 diagnostics,
-                (diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)),
+                (
+                    diagnostic.to_diagnostic()
+                    for diagnostic in ReferenceEngine(profile=config.profile.name).run(query)
+                ),
             )
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)

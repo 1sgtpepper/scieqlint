@@ -27,6 +27,8 @@ Release notes must use these sections:
   facts, with an opt-in warning for incompatible renderings/crossref combinations.
 - Keep visible, hidden, and excluded equation-label facts separate and warn when
   non-visible targets affect a rendered equation reference.
+- Track cross-reference display text, target type, and rendered-label intent, with an
+  opt-in warning for missing or generic labels on resolved non-heading targets.
 
 ### Changed
 

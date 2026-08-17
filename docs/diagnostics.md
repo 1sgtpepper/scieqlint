@@ -32,6 +32,7 @@ codes before every code is emitted by the current analyzer.
 | `REF006` | warning | Local reference path changes resolution after normalization |
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `REF008` | warning | Equation reference matches a hidden or excluded target |
+| `REF009` | warning | Non-heading reference has missing or generic display text |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -81,6 +82,14 @@ re-render notebook outputs.
 excluded source. Visible labels continue to define ordinary resolution; hidden and excluded
 labels are retained as separate facts and do not create `REF001` duplicates by themselves.
 The rule does not read ignored files or change project include/exclude behavior.
+
+## REF009
+
+`REF009` is opt-in through `reference-display`. It reports resolved non-heading targets
+whose display text is absent or only repeats the target/type. Heading targets and typed
+`{eq}`/`{numref}` roles remain quiet. Diagnostics retain the explicit display span when one
+exists, target type, reference kind, display intent, and originating fact IDs. The rule does
+not render final prose or enforce a universal writing style.
 
 ## Generated-output engine
 

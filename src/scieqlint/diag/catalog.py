@@ -333,6 +333,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A rendered equation reference has matching target identity in a hidden or "
         "excluded source, which can change project-level resolution.",
     ),
+    "REF009": DiagnosticInfo(
+        "REF009",
+        Severity.WARNING,
+        "non-heading reference has missing or generic display text",
+        "v1.1.0",
+        "A resolved non-heading target relies on missing or generic display text under "
+        "the opt-in reference-display profile.",
+    ),
     "PORT001": DiagnosticInfo(
         "PORT001",
         Severity.WARNING,

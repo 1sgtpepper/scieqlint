@@ -169,6 +169,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/myst_shared.py`
 - `src/scieqlint/frontend/notebook.py`
 - `src/scieqlint/frontend/portability.py`
+- `src/scieqlint/frontend/reference_display.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -313,6 +314,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_public_regression_replay.py`
 - `tests/test_raw_latex_equation_facts.py`
+- `tests/test_reference_display_text.py`
 - `tests/test_references.py`
 - `tests/test_release_fixtures.py`
 - `tests/test_release_metadata.py`

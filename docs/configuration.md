@@ -193,6 +193,9 @@ silently running a different rule set.
 - `notebook-crossrefs` lowers notebook code-cell labels, `renderings`, caption
   options, and output-boundary metadata. It warns when renderings are combined
   with options that create a cross-reference, without executing the notebook.
+- `reference-display` warns when a resolved non-heading target relies on missing
+  or generic display text. Typed equation roles retain their numbered-display
+  intent, and the profile does not render final prose or impose a project-wide style guide.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX
