@@ -4,8 +4,12 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.diag.model import SourceSpan
+from scieqlint.facts.math import InlineMathFact
+from scieqlint.frontend.generated import _text_item_content, scan_equation_like_text_items
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -164,3 +168,31 @@ def test_default_profile_keeps_equation_text_diagnostics_disabled() -> None:
 
 def test_equation_text_facts_are_deterministic_after_newline_normalization() -> None:
     assert equation_text_facts("x = y\n") == equation_text_facts("x = y\r\n")
+
+
+def test_equation_text_classifier_bounds_synthetic_spans_and_role_shapes() -> None:
+    document = doc("x = y\n")
+    span = SourceSpan(
+        path=document.path,
+        start=0,
+        end=5,
+        line=0,
+        col=1,
+        end_line=1,
+        end_col=5,
+    )
+    fact = InlineMathFact(
+        fact_id="generated.md::inline-math-leak::0",
+        document_id="generated.md",
+        span=span,
+        raw="x = y",
+        body="x = y",
+        delimiter_kind="plain-text",
+        context="paragraph",
+    )
+
+    assert (
+        scan_equation_like_text_items(document, SourceMap.for_document(document), (fact,), ()) == ()
+    )
+    assert _text_item_content("x = y", "list-item") is None
+    assert _text_item_content("x = y", "blockquote") is None
