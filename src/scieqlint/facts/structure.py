@@ -81,6 +81,16 @@ class CodeCellFact(FactBase):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class NotebookOutputFact(FactBase):
+    cell_fact_id: str
+    cell_index: int
+    output_index: int
+    output_type: str
+    mime_types: tuple[str, ...] = ()
+    metadata: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class StructureSyntaxIssueFact(FactBase):
     kind: StructureSyntaxKind
     reason: str

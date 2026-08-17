@@ -266,6 +266,11 @@ or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
 4096 decimal digits are rejected with `INP001`. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.
 
-- Project reference paths are normalized lexically; SciEqLint does not resolve symlinks or fetch external URLs.
+- Project reference paths are normalized lexically; SciEqLint does not resolve symlinks or
+  fetch external URLs.
 
-- Cross-reference metadata conflicts are checked only for explicit facts and known source/output boundaries; arbitrary custom kinds are not inferred.
+- Cross-reference metadata conflicts are checked only for explicit facts and known
+  source/output boundaries; arbitrary custom kinds are not inferred.
+
+- Notebook output facts use logical cell locations and recorded output indexes; SciEqLint does
+  not execute notebooks, inspect runtime objects, or re-render outputs.

@@ -32,6 +32,7 @@ from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
@@ -202,13 +203,16 @@ def check_documents(
                 path_order=path_order,
             )
         )
-    markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    profile_documents = tuple(
+        document
+        for document in documents
+        if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
+        or (document.kind is DocumentKind.NOTEBOOK and config.profile.name == "notebook-crossrefs")
     )
-    if markdown_documents and config.scanner.markdown:
+    if profile_documents:
         query = QueryHost(
             _profile_snapshot(
-                markdown_documents,
+                profile_documents,
                 config,
                 accessibility_metadata=accessibility_metadata,
             )
@@ -232,6 +236,7 @@ def check_documents(
         elif config.profile.name in {
             "cross-format-references",
             "math-accessibility",
+            "notebook-crossrefs",
             "typst-portability",
         }:
             diagnostics.extend(
@@ -296,8 +301,29 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
+    markdown_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    notebook_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.NOTEBOOK
+    )
     workspace = WorkspaceHost(project_root=config.project.root)
-    snapshot = MySTFrontend(workspace=workspace).lower(documents)
+    snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
+    if (
+        config.profile.name in {"cross-format-references", "notebook-crossrefs"}
+        and notebook_documents
+    ):
+        notebook_snapshot = NotebookFrontend().lower(notebook_documents)
+        snapshot = replace(
+            snapshot,
+            documents=tuple(documents),
+            code_cells=(*snapshot.code_cells, *notebook_snapshot.code_cells),
+            notebook_outputs=notebook_snapshot.notebook_outputs,
+            crossref_metadata=(
+                *snapshot.crossref_metadata,
+                *notebook_snapshot.crossref_metadata,
+            ),
+        )
     snapshot = replace(
         snapshot,
         inline_math=_apply_accessibility_metadata(
