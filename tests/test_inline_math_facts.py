@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path, PurePosixPath
 
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -85,3 +86,15 @@ def test_inline_math_facts_are_deterministic_across_newline_normalization() -> N
     crlf = MySTFrontend().lower((doc("Text $x = 1$.\r\n"),))
 
     assert lf.inline_math == crlf.inline_math
+
+
+def test_empty_delimited_math_is_ignored_but_nonempty_math_is_preserved() -> None:
+    snapshot = MySTFrontend().lower((doc(r"Empty \(\) and \(x = 1\)."),))
+
+    assert [(fact.delimiter_kind, fact.body) for fact in snapshot.inline_math] == [
+        ("latex-paren", "x = 1"),
+    ]
+
+
+def test_inline_math_range_merge_discards_empty_ranges_and_merges_overlaps() -> None:
+    assert _merge_occupied(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)
