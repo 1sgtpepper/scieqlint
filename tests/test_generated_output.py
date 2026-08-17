@@ -61,3 +61,32 @@ def test_generated_output_engine_is_quiet_when_generated_output_preserves_anchor
     diagnostics = GeneratedOutputEngine().run(QueryHost(snapshot))
 
     assert diagnostics == ()
+
+
+def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_generated_engines(
+    monkeypatch,
+):
+    document = doc(
+        "generated.md",
+        "# Generated\n\nSee {ref}`missing-target`.\n",
+    )
+    calls = 0
+    original_lower = MySTFrontend.lower
+
+    def count_lower(self, documents):
+        nonlocal calls
+        calls += 1
+        return original_lower(self, documents)
+
+    monkeypatch.setattr(MySTFrontend, "lower", count_lower)
+
+    from scieqlint.app import check_documents
+    from scieqlint.config.model import Config, ProfileConfig
+
+    result = check_documents(
+        (document,),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    assert calls == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]

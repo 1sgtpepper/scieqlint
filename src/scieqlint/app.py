@@ -24,6 +24,7 @@ from scieqlint.diag.baseline import (
 )
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
@@ -185,14 +186,6 @@ def check_documents(
                 strict_missing_labels=config.checks.references.missing_label_strict,
             )
         )
-        markdown_documents = tuple(
-            document for document in documents if document.kind is DocumentKind.MARKDOWN
-        )
-        if markdown_documents and config.scanner.markdown:
-            query = QueryHost(MySTFrontend().lower(markdown_documents))
-            diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
-            )
     if config.checks.symbols.enabled:
         diagnostics.extend(
             check_symbols(
@@ -206,9 +199,17 @@ def check_documents(
     )
     if markdown_documents and config.scanner.markdown:
         query = QueryHost(MySTFrontend().lower(markdown_documents))
+        if config.checks.references.enabled:
+            diagnostics.extend(
+                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
+            )
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
+        if config.profile.name == "generated-myst":
+            diagnostics.extend(
+                diagnostic.to_diagnostic() for diagnostic in GeneratedOutputEngine().run(query)
+            )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
         diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
