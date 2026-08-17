@@ -36,11 +36,20 @@ codes before every code is emitted by the current analyzer.
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
+| `PORT001` | warning | Equation reference syntax may not survive the configured output profile |
 
 `DIM020` also covers dimension expressions that exceed a parser resource budget. The
 diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
 numeric-component limit or the 64-level group-nesting limit. Over-budget expressions
 are skipped; analysis continues with later expressions and documents.
+
+
+## Portability engine
+
+`PORT001` is opt-in through the `cross-format-references` profile. It is
+emitted from equation-reference and output-profile facts, not by reporters or
+external renderer execution. JSON and SARIF results include `profile`,
+`output_profile`, `ref_kind`, and `target` metadata.
 
 ## Generated-output engine
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact
+from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import CodeCellFact
 
@@ -15,6 +16,13 @@ _CROSSREF_OPTIONS = frozenset({"fig-cap", "tbl-cap", "lst-cap", "cap", "caption"
 @dataclass(frozen=True, slots=True)
 class PortabilityQueryView:
     snapshot: FactSnapshot
+
+    def risks(self, risk_kind: str | None = None) -> tuple[OutputPortabilityFact, ...]:
+        """Return portability facts, optionally restricted to one risk kind."""
+
+        if risk_kind is None:
+            return self.snapshot.portability
+        return tuple(fact for fact in self.snapshot.portability if fact.risk_kind == risk_kind)
 
     def inline_math_missing_alt(self) -> tuple[InlineMathFact, ...]:
         return tuple(fact for fact in self.snapshot.inline_math if fact.alt is None)

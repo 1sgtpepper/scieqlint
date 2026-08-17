@@ -15,6 +15,7 @@ from scieqlint.config.model import (
     DimensionMode,
     DimVector,
     IgnoreConfig,
+    OutputProfile,
     ParserConfig,
     ProfileConfig,
     ProjectConfig,
@@ -79,13 +80,16 @@ def _load_config_with_inputs(
     dimension_data = _table(checks_data, "dimension")
     symbols_data = _table(checks_data, "symbols")
     vars_config = _vars_config(vars_data)
+    profile = ProfileConfig(
+        name=_profile_name(profile_data, "name"),
+        source_kind=_optional_nonempty_str(profile_data, "source_kind"),
+        conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
+        output_profile=_output_profile(profile_data, "output_profile"),
+    )
+    _validate_profile(profile)
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
-        profile=ProfileConfig(
-            name=_profile_name(profile_data, "name"),
-            source_kind=_optional_nonempty_str(profile_data, "source_kind"),
-            conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
-        ),
+        profile=profile,
         project=ProjectConfig(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
@@ -181,13 +185,40 @@ def _optional_nonempty_str(data: dict[str, Any], key: str) -> str | None:
     return value.strip()
 
 
+_PROFILE_NAMES = frozenset(
+    {
+        "generated-myst",
+        "cross-format-references",
+    }
+)
+_OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})
+
+
 def _profile_name(data: dict[str, Any], key: str) -> ValidationProfile | None:
     value = data.get(key)
     if value is None:
         return None
-    if value != "generated-myst":
-        raise ValueError(f"{key} must be generated-myst")
+    if value not in _PROFILE_NAMES:
+        choices = ", ".join(sorted(_PROFILE_NAMES))
+        raise ValueError(f"{key} must be one of: {choices}")
     return value
+
+
+def _output_profile(data: dict[str, Any], key: str) -> OutputProfile | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if value not in _OUTPUT_PROFILES:
+        choices = ", ".join(sorted(_OUTPUT_PROFILES))
+        raise ValueError(f"{key} must be one of: {choices}")
+    return cast(OutputProfile, value)
+
+
+def _validate_profile(profile: ProfileConfig) -> None:
+    if profile.name == "cross-format-references" and profile.output_profile is None:
+        raise ValueError("[profile].output_profile is required for cross-format-references")
+    if profile.name != "cross-format-references" and profile.output_profile is not None:
+        raise ValueError("[profile].output_profile is only valid for cross-format-references")
 
 
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
