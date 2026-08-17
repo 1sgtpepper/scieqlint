@@ -317,6 +317,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "An equation reference uses source syntax outside the configured output "
         "profile's conservative portability baseline.",
     ),
+    "PORT002": DiagnosticInfo(
+        "PORT002",
+        Severity.WARNING,
+        "inline math lacks accessible text metadata",
+        "v1.1.0",
+        "An explicit inline-math span has no accessible text in the lowered "
+        "source facts for the selected accessibility profile.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,

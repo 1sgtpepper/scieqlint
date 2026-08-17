@@ -36,6 +36,7 @@ codes before every code is emitted by the current analyzer.
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
 | `PORT001` | warning | Equation reference syntax may not survive the configured output profile |
+| `PORT002` | warning | Inline math lacks accessible text metadata |
 
 `DIM020` also covers dimension expressions that exceed a parser resource budget. The
 diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
@@ -49,6 +50,12 @@ are skipped; analysis continues with later expressions and documents.
 emitted from equation-reference and output-profile facts, not by reporters or
 external renderer execution. JSON and SARIF results include `profile`,
 `output_profile`, `ref_kind`, and `target` metadata.
+
+`PORT002` is opt-in through `math-accessibility`. It reports explicit inline
+math facts whose `alt` metadata is absent. Inferred equation-like prose is not
+treated as an owned math span, and SciEqLint does not synthesize accessible
+text. JSON and SARIF include the accessibility requirement, delimiter kind,
+surrounding text role, and parse status recorded by the frontend.
 
 ## Generated-output engine
 

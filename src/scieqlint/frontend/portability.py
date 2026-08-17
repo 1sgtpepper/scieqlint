@@ -7,12 +7,11 @@ output.
 
 from __future__ import annotations
 
-from scieqlint.config.model import OutputProfile
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.reference import EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 
-_REFERENCE_SUPPORT: dict[OutputProfile, frozenset[str]] = {
+_REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     # CommonMark and plain notebook Markdown have no native equation-reference
     # contract.  A downstream extension may support one, but the configured
     # profile deliberately models the portable baseline.
@@ -28,7 +27,7 @@ _REFERENCE_SUPPORT: dict[OutputProfile, frozenset[str]] = {
 
 def cross_format_reference_risks(
     snapshot: FactSnapshot,
-    output_profile: OutputProfile,
+    output_profile: str,
 ) -> tuple[OutputPortabilityFact, ...]:
     """Return equation-reference syntax risks for an explicit output profile."""
 
@@ -42,7 +41,7 @@ def cross_format_reference_risks(
 
 def _reference_risk(
     reference: EquationRefFact,
-    output_profile: OutputProfile,
+    output_profile: str,
 ) -> OutputPortabilityFact:
     return OutputPortabilityFact(
         fact_id=f"{reference.fact_id}::portability::{output_profile}",

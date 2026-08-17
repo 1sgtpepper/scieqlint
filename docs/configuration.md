@@ -187,6 +187,9 @@ silently running a different rule set.
   and requires `output_profile`. The accepted conservative targets are
   `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
   external renderer or claim output parity.
+- `math-accessibility` emits diagnostics for explicit inline-math facts that
+  lack accessible text metadata. It does not generate alternative text, infer
+  metadata from surrounding prose, or apply the policy by default.
 For example, to check reference syntax against plain CommonMark:
 
 ```toml

@@ -220,7 +220,10 @@ def check_documents(
                 diagnostic.to_diagnostic()
                 for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
             )
-        elif config.profile.name == "cross-format-references":
+        elif config.profile.name in {
+            "cross-format-references",
+            "math-accessibility",
+        }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
                 for diagnostic in PortabilityEngine(profile=config.profile.name).run(query)
