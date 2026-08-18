@@ -171,9 +171,7 @@ x = y
 
     snapshot = MySTFrontend().lower((doc(source),))
 
-    assert [(fact.container, fact.body) for fact in snapshot.display_math] == [
-        ("ams", "x = y")
-    ]
+    assert [(fact.container, fact.body) for fact in snapshot.display_math] == [("ams", "x = y")]
     assert snapshot.unknown_math == ()
 
 
