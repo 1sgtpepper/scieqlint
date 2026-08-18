@@ -188,10 +188,13 @@ the project-mode owner for packaged profile activation is a later slice of
 issue [#90](https://github.com/1sgtpepper/scieqlint/issues/90).
 
 The profile consumes caller-owned source mappings when the already-loaded-document
-API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
-to each generated `SourceDocument`; the checker does not infer that mapping from
-filenames or document order. Without an origin, generated-output provenance checks
-remain quiet for that document.
+API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,
+conversion_stage=..., preserved_anchor_inventory=...)` to each generated
+`SourceDocument`; the checker does not infer that mapping from filenames or
+document order. Per-document origin values take precedence over profile metadata,
+which allows one batch to carry heterogeneous source and conversion identities.
+Without an origin, generated-output provenance checks remain quiet for that
+document.
 
 ## Presets
 

@@ -68,6 +68,8 @@ generated = SourceDocument.from_text(
     DocumentKind.MARKDOWN,
     origin=SourceOrigin(
         source_document_id="source/lecture.md",
+        source_kind="markdown",
+        conversion_stage="translation",
         preserved_anchor_inventory=("energy",),
     ),
 )

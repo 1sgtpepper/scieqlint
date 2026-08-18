@@ -245,8 +245,16 @@ def _generated_profile_snapshot(
             confidence="generated",
             generated_document_id=document.path.as_posix(),
             source_document_id=document.origin.source_document_id,
-            source_kind=config.profile.source_kind,
-            conversion_stage=config.profile.conversion_stage,
+            source_kind=(
+                document.origin.source_kind
+                if document.origin.source_kind is not None
+                else config.profile.source_kind
+            ),
+            conversion_stage=(
+                document.origin.conversion_stage
+                if document.origin.conversion_stage is not None
+                else config.profile.conversion_stage
+            ),
             source_sha=document.origin.source_sha,
             tool=document.origin.tool,
             tool_version=document.origin.tool_version,
