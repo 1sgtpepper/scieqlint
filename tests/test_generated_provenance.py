@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import PurePosixPath
 
-from scieqlint import __version__
 from scieqlint.app import _generated_profile_snapshot
+from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.diag.model import CheckResult
-from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
-from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
@@ -23,7 +19,18 @@ def doc(path: str, text: str) -> SourceDocument:
 
 
 def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metadata() -> None:
-    generated = doc("out/generated.md", "# Generated\n")
+    generated = SourceDocument.from_text(
+        PurePosixPath("out/generated.md"),
+        "# Generated\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id="source/original.xml",
+            source_sha="abc123",
+            tool="converter",
+            tool_version="2.1",
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
 
     supplied = _generated_profile_snapshot(
         (generated,),
@@ -36,7 +43,7 @@ def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metada
         ),
     )
     unspecified = _generated_profile_snapshot(
-        (generated,),
+        (doc("out/unmapped.md", "# Unmapped\n"),),
         Config(profile=ProfileConfig(name="generated-myst")),
     )
 
@@ -48,14 +55,16 @@ def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metada
             raw=None,
             confidence="generated",
             generated_document_id="out/generated.md",
-            source_document_id=None,
+            source_document_id="source/original.xml",
             source_kind="jats-xml",
             conversion_stage="xml-to-markdown",
+            source_sha="abc123",
+            tool="converter",
+            tool_version="2.1",
+            preserved_anchor_inventory=("energy",),
         ),
     )
-    assert unspecified.generated_provenance[0].source_document_id is None
-    assert unspecified.generated_provenance[0].source_kind is None
-    assert unspecified.generated_provenance[0].conversion_stage is None
+    assert unspecified.generated_provenance == ()
 
     query = QueryHost(supplied)
     assert (
@@ -64,28 +73,27 @@ def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metada
     assert query.generated.provenance_for_document("missing.md") == ()
 
 
-def _provenance_diagnostic_result() -> CheckResult:
+def _provenance_diagnostic_result():
     source = doc("source/paper.md", "(energy)=\n## Energy\n")
-    generated = doc("out/paper.md", "## Energy\n")
-    snapshot = MySTFrontend().lower((source, generated))
-    provenance = GeneratedProvenanceFact(
-        fact_id="out/paper.md::generated-provenance",
-        document_id="out/paper.md",
-        span=None,
-        confidence="generated",
-        generated_document_id="out/paper.md",
-        source_document_id="source/paper.md",
-        source_kind="latex",
-        conversion_stage="translation",
+    generated = SourceDocument.from_text(
+        PurePosixPath("out/paper.md"),
+        "## Energy\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source.path.as_posix(),
+            tool="translator",
+            preserved_anchor_inventory=("energy",),
+        ),
     )
-    snapshot = replace(snapshot, generated_provenance=(provenance,))
-    diagnostic_ir = GeneratedOutputEngine(profile="generated-myst").run(QueryHost(snapshot))[0]
-    return CheckResult(
-        diagnostics=(diagnostic_ir.to_diagnostic(),),
-        files_checked=2,
-        math_blocks_checked=0,
-        config_path=None,
-        version=__version__,
+    return check_documents(
+        (source, generated),
+        config=Config(
+            profile=ProfileConfig(
+                name="generated-myst",
+                source_kind="latex",
+                conversion_stage="translation",
+            )
+        ),
     )
 
 
