@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import replace
 
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
 from scieqlint.facts.math import (
     InlineMathFact,
     InlineParseStatus,
@@ -12,6 +14,7 @@ from scieqlint.facts.math import (
     UnknownReason,
 )
 from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.source.maps import SourceMap
 
 _UNSUPPORTED_ENVIRONMENT_RE = re.compile(r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
 _MISSING_BRACED_ARGUMENT_RE = re.compile(r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$")
@@ -19,6 +22,10 @@ _TRAILING_OPERATOR_RE = re.compile(r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$")
 _RELATION_RE = re.compile(r"(?:=|<=|>=|<|>|≤|≥|→)")
 _OPENING_DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _CLOSING_DELIMITERS = {value: key for key, value in _OPENING_DELIMITERS.items()}
+_SPACED_COMMAND_RE = re.compile(
+    r"(?P<artifact>\\[ \t]*(?:[A-Za-z][ \t]+){3,}[A-Za-z](?=[ \t]*[\[{]))"
+)
+_GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])")
 
 
 class MathHost:
@@ -37,6 +44,7 @@ class MathHost:
             snapshot,
             inline_math=tuple(inline_math),
             unknown_math=(*snapshot.unknown_math, *unknown_math),
+            generated_formulas=_classify_generated_formulas(snapshot),
         )
 
 
@@ -103,3 +111,74 @@ def _balanced_delimiters(body: str) -> bool:
             return False
         index += 1
     return not stack
+
+
+def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormulaFact, ...]:
+    source_maps = {
+        document.path.as_posix(): SourceMap.for_document(document)
+        for document in snapshot.documents
+    }
+    facts: list[GeneratedFormulaFact] = []
+    for candidate in snapshot.generated_formulas:
+        if candidate.kind != "candidate":
+            facts.append(candidate)
+            continue
+        source_map = source_maps.get(candidate.document_id)
+        if source_map is None or candidate.span is None:
+            continue
+        facts.extend(_suspicious_formula_facts(candidate, source_map))
+    return tuple(
+        sorted(
+            facts,
+            key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
+        )
+    )
+
+
+def _suspicious_formula_facts(
+    candidate: GeneratedFormulaFact,
+    source_map: SourceMap,
+) -> tuple[GeneratedFormulaFact, ...]:
+    assert candidate.span is not None
+    patterns: tuple[tuple[GeneratedFormulaKind, re.Pattern[str], Callable[[str], bool]], ...] = (
+        ("spaced-token", _SPACED_COMMAND_RE, _high_confidence_spaced_command),
+        ("garbled-marker", _GARBLED_MARKER_RE, _always_accept),
+    )
+    facts: list[GeneratedFormulaFact] = []
+    occupied: list[tuple[int, int]] = []
+    for kind, pattern, accept in patterns:
+        for match in pattern.finditer(candidate.text):
+            artifact = match.group("artifact")
+            if not accept(artifact):
+                continue
+            local_start, local_end = match.span("artifact")
+            start = candidate.span.start + local_start
+            end = candidate.span.start + local_end
+            if any(
+                start < occupied_end and occupied_start < end
+                for occupied_start, occupied_end in occupied
+            ):
+                continue
+            occupied.append((start, end))
+            facts.append(
+                GeneratedFormulaFact(
+                    fact_id=f"{candidate.document_id}::generated-formula::{kind}::{start}",
+                    document_id=candidate.document_id,
+                    span=source_map.span(start, end),
+                    raw=artifact,
+                    confidence="inferred",
+                    kind=kind,
+                    text=artifact,
+                    source_math_fact_id=candidate.source_math_fact_id,
+                )
+            )
+    return tuple(facts)
+
+
+def _high_confidence_spaced_command(artifact: str) -> bool:
+    letters = re.findall(r"[A-Za-z]", artifact)
+    return len(letters) >= 4 and sum(letter.islower() for letter in letters) >= 2
+
+
+def _always_accept(_artifact: str) -> bool:
+    return True

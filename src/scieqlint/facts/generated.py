@@ -1,10 +1,17 @@
-"""Generated-document provenance facts."""
+"""Generated-document provenance and formula-quality facts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from scieqlint.facts.base import FactBase
+
+GeneratedFormulaKind = Literal[
+    "candidate",
+    "spaced-token",
+    "garbled-marker",
+]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -17,3 +24,12 @@ class GeneratedProvenanceFact(FactBase):
     tool: str | None = None
     tool_version: str | None = None
     preserved_anchor_inventory: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GeneratedFormulaFact(FactBase):
+    """One source-spanned formula artifact found in generated Markdown."""
+
+    kind: GeneratedFormulaKind
+    text: str
+    source_math_fact_id: str | None = None

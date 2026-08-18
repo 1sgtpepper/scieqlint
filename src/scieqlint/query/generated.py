@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.facts.reference import TargetAnchorFact
 from scieqlint.facts.snapshot import FactSnapshot
 
@@ -25,6 +25,13 @@ class GeneratedOutputQueryView:
 
     def generated_document_ids(self) -> tuple[str, ...]:
         return tuple(prov.generated_document_id for prov in self.snapshot.generated_provenance)
+
+    def suspicious_formula_text(self) -> tuple[GeneratedFormulaFact, ...]:
+        return tuple(
+            fact
+            for fact in self.snapshot.generated_formulas
+            if fact.kind in {"spaced-token", "garbled-marker"}
+        )
 
     def dropped_targets(self) -> tuple[tuple[GeneratedProvenanceFact, TargetAnchorFact], ...]:
         anchors_by_doc: dict[str, set[str]] = {}

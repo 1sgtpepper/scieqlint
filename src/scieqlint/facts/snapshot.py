@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from scieqlint.facts.base import FactBase
-from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
@@ -45,6 +45,7 @@ class FactSnapshot:
     project_members: tuple[ProjectMemberFact, ...] = ()
     hidden_excluded: tuple[HiddenExcludedFact, ...] = ()
     generated_provenance: tuple[GeneratedProvenanceFact, ...] = ()
+    generated_formulas: tuple[GeneratedFormulaFact, ...] = ()
     portability: tuple[OutputPortabilityFact, ...] = ()
     metadata: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
@@ -66,6 +67,7 @@ class FactSnapshot:
             *self.project_members,
             *self.hidden_excluded,
             *self.generated_provenance,
+            *self.generated_formulas,
             *self.portability,
         )
 
@@ -88,6 +90,7 @@ class FactSnapshot:
             project_members=self.project_members,
             hidden_excluded=self.hidden_excluded,
             generated_provenance=self.generated_provenance,
+            generated_formulas=self.generated_formulas,
             portability=self.portability,
             metadata=self.metadata,
         )
