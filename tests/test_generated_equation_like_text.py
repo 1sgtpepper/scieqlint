@@ -5,14 +5,15 @@ from pathlib import PurePosixPath
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
 
-def doc(text: str) -> SourceDocument:
+def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
     return SourceDocument.from_text(
         PurePosixPath("generated.md"),
         text,
         DocumentKind.MARKDOWN,
+        origin=origin,
     )
 
 
@@ -119,7 +120,12 @@ def test_generated_profile_emits_stable_equation_text_diagnostic_and_provenance(
     source = "Intro.\n\nF(x) = x + 1\n"
 
     result = check_documents(
-        (doc(source),),
+        (
+            doc(
+                source,
+                origin=SourceOrigin(source_document_id="source/formulas.pdf"),
+            ),
+        ),
         config=Config(
             profile=ProfileConfig(
                 name="generated-myst",
@@ -144,6 +150,7 @@ def test_generated_profile_emits_stable_equation_text_diagnostic_and_provenance(
     assert dict(diagnostic.properties) == {
         "formula_artifact_kind": "equation-like-text",
         "generated_document": "generated.md",
+        "source_document": "source/formulas.pdf",
         "source_kind": "pdf",
         "conversion_stage": "text-to-markdown",
     }
