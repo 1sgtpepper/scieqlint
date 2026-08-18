@@ -9,7 +9,6 @@ from scieqlint.facts.math import (
     DisplayMathFact,
     InlineDelimiter,
     InlineMathFact,
-    InlineParseStatus,
     InlineTextRole,
 )
 from scieqlint.facts.reference import EquationLabelFact
@@ -99,7 +98,6 @@ def scan_inline_math(
                 delimiter_kind="dollar",
                 context=role,
                 surrounding_text_role=role,
-                parse_status=_inline_parse_status(text),
             )
         )
 
@@ -183,7 +181,6 @@ def _delimited_inline_facts(
             delimiter_kind=delimiter_kind,
             context=role,
             surrounding_text_role=role,
-            parse_status=_inline_parse_status(text),
         )
 
 
@@ -209,16 +206,8 @@ def _plain_text_math_facts(
                 delimiter_kind="plain-text",
                 context=role,
                 surrounding_text_role=role,
-                parse_status="text-leak",
                 confidence="inferred",
             )
-
-
-def _inline_parse_status(body: str) -> InlineParseStatus:
-    if "\\begin{" in body or "\\end{" in body:
-        return "unsupported"
-    return "preserved"
-
 
 def _surrounding_text_role(text: str, offset: int) -> InlineTextRole:
     line_start = text.rfind("\n", 0, offset) + 1
