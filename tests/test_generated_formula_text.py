@@ -143,9 +143,7 @@ def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
 
 
 def test_suspicious_formula_classifier_deduplicates_overlapping_artifacts() -> None:
-    snapshot = MathHost().classify(
-        MySTFrontend().lower((doc("$A t t e n t ( /C0 apod )$"),))
-    )
+    snapshot = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( /C0 apod )$"),)))
 
     assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
         ("spaced-token", "A t t e n t ( /C0 apod )")
