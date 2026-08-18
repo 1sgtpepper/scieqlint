@@ -51,6 +51,8 @@ def scan_formula_candidates(
             key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
         )
     )
+
+
 def scan_bracketed_latex_blocks(
     document: SourceDocument,
     smap: SourceMap,
