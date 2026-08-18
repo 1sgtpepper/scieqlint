@@ -47,7 +47,10 @@ are skipped; analysis continues with later expressions and documents.
 provide source-to-generated provenance facts. Source kind and conversion stage
 are retained per generated document when supplied on its `SourceOrigin`; an
 explicit profile value is only a fallback for an origin field that the caller
-left unspecified. Missing origin metadata is never inferred.
+left unspecified. Missing origin metadata is never inferred. If a diagnostic
+has more than one provenance fact, `provenance_ids` retains every fact ID and
+the serialized metadata uses deterministic `provenance_1_*`,
+`provenance_2_*`, and later keys instead of discarding all but the first fact.
 
 | Code | Default | Meaning |
 |---|---|---|

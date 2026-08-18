@@ -83,19 +83,24 @@ def _fact_metadata(
         )
     )
     projected = list(properties)
-    if provenance:
+    if len(provenance) == 1:
         projected.extend(_provenance_properties(provenance[0]))
+    else:
+        for index, item in enumerate(provenance, start=1):
+            projected.extend(_provenance_properties(item, prefix=f"provenance_{index}_"))
     return tuple(item.fact_id for item in provenance), tuple(projected)
 
 
 def _provenance_properties(
     provenance: GeneratedProvenanceFact,
+    *,
+    prefix: str = "",
 ) -> tuple[tuple[str, str], ...]:
-    properties = [("generated_document", provenance.generated_document_id)]
+    properties = [(f"{prefix}generated_document", provenance.generated_document_id)]
     if provenance.source_document_id is not None:
-        properties.append(("source_document", provenance.source_document_id))
+        properties.append((f"{prefix}source_document", provenance.source_document_id))
     if provenance.source_kind is not None:
-        properties.append(("source_kind", provenance.source_kind))
+        properties.append((f"{prefix}source_kind", provenance.source_kind))
     if provenance.conversion_stage is not None:
-        properties.append(("conversion_stage", provenance.conversion_stage))
+        properties.append((f"{prefix}conversion_stage", provenance.conversion_stage))
     return tuple(properties)

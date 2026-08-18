@@ -4,13 +4,15 @@ from pathlib import Path, PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.facts.generated import GeneratedFormulaFact
+from scieqlint.engine.generated import GeneratedOutputEngine
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.generated import scan_formula_candidates
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
+from scieqlint.query.host import QueryHost
 from scieqlint.report.text import TextReporter
 from scieqlint.source.maps import SourceMap
 
@@ -126,6 +128,61 @@ def test_generated_formula_diagnostics_match_text_golden() -> None:
     assert TextReporter().render(result) == (
         Path("tests/golden/text/generated_formula_text.txt").read_text(encoding="utf-8")
     )
+
+
+def test_generated_formula_diagnostic_projects_all_provenance_metadata() -> None:
+    formula = GeneratedFormulaFact(
+        fact_id="out/generated.md::formula::1",
+        document_id="out/generated.md",
+        span=None,
+        raw="A t t e n t (x)",
+        confidence="inferred",
+        kind="spaced-token",
+        text="A t t e n t (x)",
+    )
+    first = GeneratedProvenanceFact(
+        fact_id="origin-a",
+        document_id="out/generated.md",
+        span=None,
+        confidence="generated",
+        generated_document_id="out/generated.md",
+        source_document_id="source/a.xml",
+        source_kind="jats-xml",
+        conversion_stage="xml-to-markdown",
+    )
+    second = GeneratedProvenanceFact(
+        fact_id="origin-b",
+        document_id="out/generated.md",
+        span=None,
+        confidence="generated",
+        generated_document_id="out/generated.md",
+        source_document_id="source/b.tex",
+        source_kind="latex",
+        conversion_stage="translation",
+    )
+
+    diagnostics = GeneratedOutputEngine(profile="generated-myst").run(
+        QueryHost(
+            FactSnapshot(
+                generated_provenance=(second, first),
+                generated_formulas=(formula,),
+            )
+        )
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].provenance_ids == ("origin-a", "origin-b")
+    assert dict(diagnostics[0].properties) == {
+        "formula_artifact_kind": "spaced-token",
+        "provenance_1_conversion_stage": "xml-to-markdown",
+        "provenance_1_generated_document": "out/generated.md",
+        "provenance_1_source_document": "source/a.xml",
+        "provenance_1_source_kind": "jats-xml",
+        "provenance_2_conversion_stage": "translation",
+        "provenance_2_generated_document": "out/generated.md",
+        "provenance_2_source_document": "source/b.tex",
+        "provenance_2_source_kind": "latex",
+    }
 
 
 def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch_unchanged() -> (
