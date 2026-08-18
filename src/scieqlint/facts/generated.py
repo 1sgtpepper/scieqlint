@@ -8,6 +8,7 @@ from typing import Literal
 from scieqlint.facts.base import FactBase
 
 GeneratedFormulaKind = Literal[
+    "candidate",
     "spaced-token",
     "garbled-marker",
 ]
