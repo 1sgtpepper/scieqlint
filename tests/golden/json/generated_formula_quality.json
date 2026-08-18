@@ -1,0 +1,180 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN002",
+      "col": 2,
+      "detail": "spaced-token artifact: 'A t t e n t ( Q , K , V )'",
+      "end_col": 26,
+      "end_line": 3,
+      "equation": null,
+      "hint": "Restore the intended LaTeX formula before publishing or conversion.",
+      "line": 3,
+      "message": "generated math contains suspicious formula text",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "spaced-token",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN002",
+      "col": 2,
+      "detail": "garbled-marker artifact: '/C0 apod'",
+      "end_col": 9,
+      "end_line": 5,
+      "equation": null,
+      "hint": "Restore the intended LaTeX formula before publishing or conversion.",
+      "line": 5,
+      "message": "generated math contains suspicious formula text",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "garbled-marker",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN004",
+      "col": 1,
+      "detail": "formula-not-decoded marker remains in generated output",
+      "end_col": 28,
+      "end_line": 7,
+      "equation": null,
+      "hint": "Restore source math before publishing; SciEqLint does not guess the formula.",
+      "line": 7,
+      "message": "generated output contains a formula placeholder",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "placeholder",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "placeholder_kind": "formula-not-decoded",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN003",
+      "col": 1,
+      "detail": "standalone \\[...\\] display delimiters are not portable generated Markdown",
+      "end_col": 2,
+      "end_line": 11,
+      "equation": null,
+      "hint": "Use a supported $$ block or a MyST math directive.",
+      "line": 9,
+      "message": "nonstandard bracketed LaTeX display block",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "complete": "true",
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "bracketed-block",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN005",
+      "col": 1,
+      "detail": "equation-like text was emitted outside a math container: 'F(x) = x + 1'",
+      "end_col": 12,
+      "end_line": 13,
+      "equation": null,
+      "hint": "Emit the source expression as supported math; SciEqLint will not rewrite it.",
+      "line": 13,
+      "message": "standalone text block looks like an equation",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "equation-like-text",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN004",
+      "col": 1,
+      "detail": "standalone formula image remains in generated output",
+      "end_col": 43,
+      "end_line": 15,
+      "equation": null,
+      "hint": "Restore source math before publishing; SciEqLint does not guess the formula.",
+      "line": 15,
+      "message": "generated output contains a formula placeholder",
+      "path": "tests/fixtures/generated/formula_quality_bad.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "image-placeholder",
+        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
+        "placeholder_kind": "formula-image",
+        "source_document": "source/formula_quality.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.1",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 6
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}
+
