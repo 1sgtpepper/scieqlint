@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.parse.math import MathHost
 
 
 def doc(text: str) -> SourceDocument:
@@ -16,7 +17,7 @@ def test_inline_math_facts_preserve_delimiters_roles_status_and_exact_spans() ->
         encoding="utf-8"
     )
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(source),)))
 
     assert [fact.delimiter_kind for fact in snapshot.inline_math] == [
         "dollar",
@@ -25,6 +26,7 @@ def test_inline_math_facts_preserve_delimiters_roles_status_and_exact_spans() ->
         "plain-text",
         "dollar",
     ]
+
     assert [fact.body for fact in snapshot.inline_math] == [
         "E = mc^2",
         "x_i + y_i",
@@ -55,6 +57,41 @@ def test_inline_math_facts_preserve_delimiters_roles_status_and_exact_spans() ->
         "z = 3",
         "a = b+c",
         r"\begin{aligned}x&=1\end{aligned}",
+    ]
+
+
+def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
+    snapshot = MathHost().classify(
+        MySTFrontend().lower(
+            (
+                doc(
+                    r"Bad $\frac{1}{$ and trailing $x +$ and unsupported "
+                    r"$\begin{aligned}x&=1\end{aligned}$.",
+                ),
+            )
+        )
+    )
+
+    assert [fact.parse_status for fact in snapshot.inline_math] == [
+        "unsupported",
+        "unsupported",
+        "unsupported",
+    ]
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", r"\frac{1}{"),
+        ("unsupported_syntax", "x +"),
+        ("environment", "aligned"),
+    ]
+
+
+def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
+    snapshot = MathHost().classify(
+        MySTFrontend().lower((doc("Status = complete; compact a = b+c."),))
+    )
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        ("Status = complete", "preserved"),
+        ("a = b+c", "text-leak"),
     ]
 
 
