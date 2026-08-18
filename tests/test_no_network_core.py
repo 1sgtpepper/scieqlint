@@ -157,7 +157,7 @@ def test_public_analysis_path_reports_unreadable_input_without_continuing(
     unreadable = tmp_path / "unreadable.md"
     unreadable.write_bytes(b"\xff")
 
-    result = check_paths((unreadable,))
+    result = check_paths((unreadable,), absolute_paths=True)
 
     assert result.files_checked == 1
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
