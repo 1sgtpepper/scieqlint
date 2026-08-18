@@ -6,14 +6,15 @@ from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.generated import _merge_ranges
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
 
-def doc(text: str) -> SourceDocument:
+def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
     return SourceDocument.from_text(
         PurePosixPath("generated.md"),
         text,
         DocumentKind.MARKDOWN,
+        origin=origin,
     )
 
 
@@ -84,7 +85,12 @@ def test_generated_profile_emits_complete_and_eof_diagnostics_in_source_order() 
     source = "\\[\nx = y\n\\]\n\n\\[\nunterminated"
 
     result = check_documents(
-        (doc(source),),
+        (
+            doc(
+                source,
+                origin=SourceOrigin(source_document_id="source/formulas.tex"),
+            ),
+        ),
         config=Config(profile=ProfileConfig(name="generated-myst")),
     )
     diagnostics = tuple(
