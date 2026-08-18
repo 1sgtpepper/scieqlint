@@ -5,33 +5,6 @@
       "cell_line": null,
       "code": "GEN002",
       "col": 2,
-      "detail": "spaced-token artifact: 'A t t e n t ( Q , K , V )'",
-      "end_col": 26,
-      "end_line": 3,
-      "equation": null,
-      "hint": "Restore the intended LaTeX formula before publishing or conversion.",
-      "line": 3,
-      "message": "generated math contains suspicious formula text",
-      "path": "tests/fixtures/generated/formula_quality_bad.md",
-      "profile": "generated-myst",
-      "properties": {
-        "conversion_stage": "pdf-to-markdown",
-        "formula_artifact_kind": "spaced-token",
-        "generated_document": "tests/fixtures/generated/formula_quality_bad.md",
-        "source_document": "source/formula_quality.pdf",
-        "source_kind": "pdf"
-      },
-      "provenance_ids": [
-        "tests/fixtures/generated/formula_quality_bad.md::generated-provenance"
-      ],
-      "severity": "warning",
-      "suppressed": false
-    },
-    {
-      "cell": null,
-      "cell_line": null,
-      "code": "GEN002",
-      "col": 2,
       "detail": "garbled-marker artifact: '/C0 apod'",
       "end_col": 9,
       "end_line": 5,
@@ -172,7 +145,7 @@
     "files_checked": 1,
     "info": 0,
     "math_blocks_checked": 0,
-    "warnings": 6
+    "warnings": 5
   },
   "tool": "scieqlint",
   "version": "1.1.0"

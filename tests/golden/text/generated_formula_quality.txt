@@ -1,12 +1,3 @@
-tests/fixtures/generated/formula_quality_bad.md:3:2: warning GEN002 generated math contains suspicious formula text
-  detail: spaced-token artifact: 'A t t e n t ( Q , K , V )'
-  profile: generated-myst
-  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
-  formula_artifact_kind: spaced-token
-  generated_document: tests/fixtures/generated/formula_quality_bad.md
-  source_document: source/formula_quality.pdf
-  source_kind: pdf
-  conversion_stage: pdf-to-markdown
 tests/fixtures/generated/formula_quality_bad.md:5:2: warning GEN002 generated math contains suspicious formula text
   detail: garbled-marker artifact: '/C0 apod'
   profile: generated-myst

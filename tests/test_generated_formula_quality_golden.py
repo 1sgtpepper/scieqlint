@@ -24,7 +24,6 @@ def test_generated_formula_quality_fixture_matches_text_and_json_goldens() -> No
     _validate_json_result(rendered_json)
     assert [diagnostic.code for diagnostic in result.diagnostics] == [
         "GEN002",
-        "GEN002",
         "GEN004",
         "GEN003",
         "GEN005",
