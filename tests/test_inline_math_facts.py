@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
+from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -92,6 +94,37 @@ def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
         ("Status = complete", "preserved"),
         ("a = b+c", "text-leak"),
+    ]
+
+
+def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
+    prose = InlineMathFact(
+        fact_id="prose",
+        document_id="generated.md",
+        span=None,
+        raw="ordinary prose",
+        body="ordinary prose",
+        delimiter_kind="plain-text",
+        context="paragraph",
+    )
+    mismatched = InlineMathFact(
+        fact_id="mismatched",
+        document_id="generated.md",
+        span=None,
+        raw="(x]",
+        body="(x]",
+        delimiter_kind="dollar",
+        context="paragraph",
+    )
+
+    snapshot = MathHost().classify(FactSnapshot(inline_math=(prose, mismatched)))
+
+    assert [fact.parse_status for fact in snapshot.inline_math] == [
+        "preserved",
+        "unsupported",
+    ]
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", "(x]"),
     ]
 
 
