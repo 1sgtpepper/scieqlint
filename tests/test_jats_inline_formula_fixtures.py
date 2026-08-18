@@ -5,7 +5,7 @@ from pathlib import Path, PurePosixPath
 from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
 
 def _fixture() -> tuple[str, SourceDocument]:
@@ -68,6 +68,7 @@ def test_jats_conversion_origin_is_explicit_profile_metadata_not_inferred_from_p
         PurePosixPath("article.jats.md"),
         "<!-- formula-not-decoded -->\n",
         DocumentKind.MARKDOWN,
+        origin=SourceOrigin(source_document_id="article.jats.xml"),
     )
 
     default = check_documents([document], config=Config())
@@ -91,5 +92,6 @@ def test_jats_conversion_origin_is_explicit_profile_metadata_not_inferred_from_p
         "formula_artifact_kind": "placeholder",
         "generated_document": "article.jats.md",
         "placeholder_kind": "formula-not-decoded",
+        "source_document": "article.jats.xml",
         "source_kind": "jats-xml",
     }
