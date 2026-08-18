@@ -79,9 +79,7 @@ def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_pro
         for diagnostic in diagnostics
         if diagnostic.span
     ] == [(1, 13), (34, 42)]
-    assert [
-        diagnostic.detail for diagnostic in diagnostics
-    ] == [
+    assert [diagnostic.detail for diagnostic in diagnostics] == [
         r"spaced-token artifact: '\\A t t e n t'",
         "garbled-marker artifact: '/C0 apod'",
     ]
