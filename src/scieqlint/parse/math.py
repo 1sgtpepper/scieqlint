@@ -19,7 +19,9 @@ _UNSUPPORTED_ENVIRONMENT_RE = re.compile(
 _MISSING_BRACED_ARGUMENT_RE = re.compile(
     r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$"
 )
-_TRAILING_OPERATOR_RE = re.compile(r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$")
+_TRAILING_OPERATOR_RE = re.compile(
+    r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$"
+)
 _RELATION_RE = re.compile(r"(?:=|<=|>=|<|>|≤|≥|→)")
 _OPENING_DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _CLOSING_DELIMITERS = {value: key for key, value in _OPENING_DELIMITERS.items()}
@@ -56,10 +58,14 @@ def _classify_inline(
 
     environment = _UNSUPPORTED_ENVIRONMENT_RE.search(fact.body)
     if environment is not None:
-        return "unsupported", _unknown(fact, "environment", environment.group("environment"))
-    if not _balanced_delimiters(fact.body) or _MISSING_BRACED_ARGUMENT_RE.search(
-        fact.body
-    ) or _TRAILING_OPERATOR_RE.search(fact.body):
+        return "unsupported", _unknown(
+            fact, "environment", environment.group("environment")
+        )
+    if (
+        not _balanced_delimiters(fact.body)
+        or _MISSING_BRACED_ARGUMENT_RE.search(fact.body)
+        or _TRAILING_OPERATOR_RE.search(fact.body)
+    ):
         return "unsupported", _unknown(fact, "unsupported_syntax", fact.body[:80])
     return "preserved", None
 

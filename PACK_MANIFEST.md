@@ -180,6 +180,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
+- `src/scieqlint/parse/math.py`
 - `src/scieqlint/parse/normalize.py`
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
