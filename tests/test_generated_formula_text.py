@@ -11,6 +11,7 @@ from scieqlint.frontend.generated import scan_formula_candidates
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
+from scieqlint.report.text import TextReporter
 from scieqlint.source.maps import SourceMap
 
 
@@ -106,6 +107,27 @@ def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_pro
     ]
 
 
+def test_generated_formula_diagnostics_match_text_golden() -> None:
+    generated = doc(
+        "$A t t e n t ( Q , K , V )$ and $/C0 apod$.\n",
+        origin=SourceOrigin(source_document_id="source/formulas.tex"),
+    )
+    result = check_documents(
+        (generated,),
+        config=Config(
+            profile=ProfileConfig(
+                name="generated-myst",
+                source_kind="latex",
+                conversion_stage="translation",
+            )
+        ),
+    )
+
+    assert TextReporter().render(result) == (
+        Path("tests/golden/text/generated_formula_text.txt").read_text(encoding="utf-8")
+    )
+
+
 def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch_unchanged() -> (
     None
 ):
@@ -124,6 +146,7 @@ def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch
 def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
     cases = (
         ("$A B C D E (x)$", False),
+        ("$a b c d e f(x)$", False),
         ("$A t t e (x)$", False),
         ("$A t t e n (x)$", True),
         ("$a b c d e (x)$", False),

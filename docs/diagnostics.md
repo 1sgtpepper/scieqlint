@@ -43,8 +43,11 @@ are skipped; analysis continues with later expressions and documents.
 
 ## Generated-output engine
 
-`GEN001` is emitted by the generated-output engine when callers provide
-source-to-generated provenance facts. The generated profile records caller-supplied source kind and conversion stage and does not infer absent origin metadata.
+`GEN001` and `GEN002` are emitted by the generated-output engine when callers
+provide source-to-generated provenance facts. Source kind and conversion stage
+are retained per generated document when supplied on its `SourceOrigin`; an
+explicit profile value is only a fallback for an origin field that the caller
+left unspecified. Missing origin metadata is never inferred.
 
 | Code | Default | Meaning |
 |---|---|---|

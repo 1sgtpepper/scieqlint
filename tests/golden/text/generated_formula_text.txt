@@ -1,0 +1,18 @@
+generated.md:1:2: warning GEN002 generated math contains suspicious formula text
+  detail: spaced-token artifact: 'A t t e n t ( Q , K , V )'
+  profile: generated-myst
+  provenance: generated.md::generated-provenance
+  formula_artifact_kind: spaced-token
+  generated_document: generated.md
+  source_document: source/formulas.tex
+  source_kind: latex
+  conversion_stage: translation
+generated.md:1:34: warning GEN002 generated math contains suspicious formula text
+  detail: garbled-marker artifact: '/C0 apod'
+  profile: generated-myst
+  provenance: generated.md::generated-provenance
+  formula_artifact_kind: garbled-marker
+  generated_document: generated.md
+  source_document: source/formulas.tex
+  source_kind: latex
+  conversion_stage: translation
