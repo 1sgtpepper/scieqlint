@@ -4,9 +4,14 @@ from pathlib import Path, PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.facts.generated import GeneratedFormulaFact
+from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.frontend.generated import scan_formula_candidates
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -135,6 +140,90 @@ def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
         assert bool(snapshot.generated_formulas) is suspicious, source
         if suspicious:
             assert snapshot.generated_formulas[0].kind in {"spaced-token", "garbled-marker"}
+
+
+def test_suspicious_formula_classifier_deduplicates_overlapping_artifacts() -> None:
+    snapshot = MathHost().classify(
+        MySTFrontend().lower((doc("$A t t e n t ( /C0 apod )$"),))
+    )
+
+    assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
+        ("spaced-token", "A t t e n t ( /C0 apod )")
+    ]
+
+
+def test_suspicious_formula_classifier_flags_spaced_commands() -> None:
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(r"$\A t t e n t {x}$"),)))
+
+    assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
+        ("spaced-token", r"\A t t e n t")
+    ]
+
+
+def test_formula_candidate_scan_skips_foreign_and_unspanned_math() -> None:
+    document = doc("$x$")
+    foreign = InlineMathFact(
+        fact_id="foreign",
+        document_id="other.md",
+        span=SourceMap.for_document(document).span(0, 3),
+        raw="$x$",
+        confidence="source",
+        body="x",
+        delimiter_kind="dollar",
+        context="paragraph",
+    )
+    unspanned = InlineMathFact(
+        fact_id="unspanned",
+        document_id=document.path.as_posix(),
+        span=None,
+        raw="$x$",
+        confidence="source",
+        body="x",
+        delimiter_kind="dollar",
+        context="paragraph",
+    )
+
+    assert scan_formula_candidates(document, (foreign, unspanned), ()) == ()
+
+
+def test_math_host_keeps_existing_facts_and_skips_unmappable_candidates() -> None:
+    document = doc("plain text")
+    existing = GeneratedFormulaFact(
+        fact_id="existing",
+        document_id=document.path.as_posix(),
+        span=None,
+        raw="existing",
+        confidence="inferred",
+        kind="garbled-marker",
+        text="existing",
+    )
+    foreign_candidate = GeneratedFormulaFact(
+        fact_id="foreign-candidate",
+        document_id="other.md",
+        span=None,
+        raw="candidate",
+        confidence="source",
+        kind="candidate",
+        text="candidate",
+    )
+    unspanned_candidate = GeneratedFormulaFact(
+        fact_id="unspanned-candidate",
+        document_id=document.path.as_posix(),
+        span=None,
+        raw="candidate",
+        confidence="source",
+        kind="candidate",
+        text="candidate",
+    )
+
+    snapshot = MathHost().classify(
+        FactSnapshot(
+            documents=(document,),
+            generated_formulas=(existing, foreign_candidate, unspanned_candidate),
+        )
+    )
+
+    assert snapshot.generated_formulas == (existing,)
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:
