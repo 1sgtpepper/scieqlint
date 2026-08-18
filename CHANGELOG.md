@@ -16,7 +16,9 @@ Release notes must use these sections:
 
 ### Added
 
-- Nothing yet.
+- Generated-document validation now reports high-confidence suspicious formula
+  text as source-spanned `GEN002` diagnostics when the explicit
+  `generated-myst` profile is selected.
 
 ### Changed
 
