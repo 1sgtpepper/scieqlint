@@ -228,6 +228,10 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
+- `tests/fixtures/generated/assets/equation-of-state.svg`
+- `tests/fixtures/generated/assets/equation-placeholder.svg`
+- `tests/fixtures/generated/formula_quality_bad.md`
+- `tests/fixtures/generated/formula_quality_good.md`
 - `tests/fixtures/generated/inline_math_facts.md`
 - `tests/fixtures/generated/suspicious_formula_text.md`
 - `tests/fixtures/good/.gitkeep`
@@ -245,11 +249,13 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/famous_bad.json`
+- `tests/golden/json/generated_formula_quality.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/famous_bad.txt`
+- `tests/golden/text/generated_formula_quality.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`
@@ -269,6 +275,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_generated_bracketed_latex.py`
 - `tests/test_generated_equation_like_text.py`
 - `tests/test_generated_formula_placeholders.py`
+- `tests/test_generated_formula_quality_golden.py`
 - `tests/test_generated_formula_text.py`
 - `tests/test_generated_output.py`
 - `tests/test_generated_provenance.py`
