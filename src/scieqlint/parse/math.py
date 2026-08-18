@@ -146,9 +146,7 @@ def _suspicious_formula_facts(
     source_map: SourceMap,
 ) -> tuple[GeneratedFormulaFact, ...]:
     assert candidate.span is not None
-    patterns: tuple[
-        tuple[GeneratedFormulaKind, re.Pattern[str], Callable[[str], bool]], ...
-    ] = (
+    patterns: tuple[tuple[GeneratedFormulaKind, re.Pattern[str], Callable[[str], bool]], ...] = (
         ("spaced-token", _SPACED_CALL_RE, _high_confidence_spaced_call),
         ("spaced-token", _SPACED_COMMAND_RE, _high_confidence_spaced_command),
         ("garbled-marker", _GARBLED_MARKER_RE, _always_accept),
