@@ -63,6 +63,7 @@ def test_placeholder_scan_skips_foreign_and_unspanned_math_facts() -> None:
             (),
             (),
             (),
+            (),
         )
         == ()
     )
