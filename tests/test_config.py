@@ -173,7 +173,7 @@ def test_load_config_rejects_profile_metadata_without_generated_profile(tmp_path
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nsource_kind = "jats-xml"\n', encoding="utf-8")
 
-    with pytest.raises(ValueError, match="require profile.name = \"generated-myst\""):
+    with pytest.raises(ValueError, match='require profile.name = "generated-myst"'):
         load_config(config_path)
 
 
