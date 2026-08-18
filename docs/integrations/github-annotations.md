@@ -16,19 +16,24 @@ In GitHub Actions:
 ```
 
 For generated Markdown/MyST output from translation, conversion, or document
-generation pipelines, keep an explicit `[profile]` selection in the project
-config and use it with GitHub annotations:
+generation pipelines, materialize the generated-document preset and append an
+explicit `[profile]` selection before using GitHub annotations:
 
 ```yaml
 - name: Check generated scientific docs
-  run: scieqlint check "docs/**/*.md" --config scieqlint.toml --format github
+  run: scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
+
+Create `scieqlint.generated-myst.toml` once with
+`scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml`,
+then append `[profile]` with `name = "generated-myst"` and commit the file. The
+preset supplies scanner/parser defaults; the explicit profile enables
+generated-output diagnostics.
 
 The `generated-myst` profile uses current deterministic checks only:
 Markdown/MyST math containers, inline math, algebra, equation references,
 duplicate labels, and strict unsupported-math diagnostics. It does not judge OCR,
-translation, or prose quality. The packaged preset supplies scanner/parser
-defaults but does not select the profile.
+translation, or prose quality.
 
 The reporter must escape workflow command payloads correctly and must not change analysis behavior.
 

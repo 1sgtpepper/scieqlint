@@ -32,13 +32,17 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-Generated or MyST-heavy docs can select the validation profile explicitly:
+Generated or MyST-heavy docs can materialize the generated-document defaults and
+select the validation profile explicitly:
 
 ```bash
-scieqlint check "docs/**/*.md" --config scieqlint.toml
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
 ```
 
-Set `[profile]` `name = "generated-myst"` in `scieqlint.toml` to enable it.
+Append `[profile]` `name = "generated-myst"` to the materialized config. The
+preset and profile are independent: the preset supplies scanner/parser defaults
+and the profile enables generated-output checks.
 
 ## Read next
 

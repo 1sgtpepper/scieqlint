@@ -4,7 +4,9 @@ from dataclasses import replace
 from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
+from scieqlint.config.load import load_config
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.config.presets import read_preset_text
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -141,3 +143,30 @@ def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None
         )
     ]
     assert default_result.diagnostics == ()
+
+
+def test_documented_generated_workflow_combines_preset_defaults_and_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.generated-myst.toml"
+    config_path.write_text(
+        read_preset_text("generated-myst")
+        + '\n[profile]\nname = "generated-myst"\n',
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+
+    source = doc("source/lecture.md", "(energy)=\n## Energy\n")
+    generated = SourceDocument.from_text(
+        PurePosixPath("translated/lecture.md"),
+        "Inline generated math can drift: $\\sin(x) = x$.\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source.path.as_posix(),
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
+
+    result = check_documents((source, generated), config=config)
+
+    assert config.scanner.inline_math is True
+    assert config.parser.strict_unknowns is True
+    assert {diagnostic.code for diagnostic in result.diagnostics} == {"GEN001", "PARSE021"}

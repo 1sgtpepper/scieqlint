@@ -30,7 +30,7 @@ class SymbolAlias:
 
 @dataclass(frozen=True, slots=True)
 class ProfileConfig:
-    """Named validation policy selected by a packaged preset or project config."""
+    """Named validation policy selected explicitly by project configuration."""
 
     name: ValidationProfile | None = None
 

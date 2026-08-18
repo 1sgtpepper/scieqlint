@@ -46,25 +46,26 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-For generated or MyST-heavy scientific docs, select the validation profile in
-the project config and run the same deterministic checks in CI:
+For generated or MyST-heavy scientific docs, materialize the scanner/parser
+defaults and then select the validation profile explicitly:
 
 ```bash
-scieqlint check "docs/**/*.md" --config scieqlint.toml --format github
+scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-Add this section to `scieqlint.toml` to enable stricter generated-document
-checks while keeping the scope source-based: math containers, supported equation
-and generic references, MyST anchors and directives, heading hierarchy, and
-parse-unknown diagnostics:
+Append this section to the materialized config to enable generated-output
+diagnostics while keeping the scope source-based: math containers, supported
+equation and generic references, MyST anchors and directives, heading hierarchy,
+and parse-unknown diagnostics:
 
 ```toml
 [profile]
 name = "generated-myst"
 ```
 
-The packaged preset remains available for scanner/parser defaults but does not
-select this profile.
+The profile section and preset defaults are independent: the preset enables
+scanner/parser behavior, while `[profile]` enables generated-output checks.
 
 ## Local development
 
