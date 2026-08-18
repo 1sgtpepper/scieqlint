@@ -56,8 +56,8 @@ def no_document_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def deny_user_module(
         name: str,
-        globals: object = None,
-        locals: object = None,
+        module_globals: object = None,
+        module_locals: object = None,
         fromlist: object = (),
         level: int = 0,
     ) -> object:
@@ -65,7 +65,7 @@ def no_document_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
             raise UnexpectedDocumentSideEffectError(
                 "analysis attempted to import a document-provided module"
             )
-        return original_import(name, globals, locals, fromlist, level)
+        return original_import(name, module_globals, module_locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", deny_user_module)
 
