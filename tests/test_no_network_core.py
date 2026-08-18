@@ -68,7 +68,7 @@ def no_document_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
         fromlist: object = (),
         level: int = 0,
     ) -> object:
-        if name == "user_project":
+        if name == "user_project" or name.startswith("user_project."):
             raise UnexpectedDocumentSideEffectError(
                 "analysis attempted to import a document-provided module"
             )
@@ -160,7 +160,7 @@ def test_public_analysis_path_remains_offline_for_malformed_notebook_boundary(
     assert result.diagnostics[0].detail == "Expecting property name enclosed in double quotes"
 
 
-def test_public_analysis_path_reports_unreadable_input_without_continuing(
+def test_public_analysis_path_reports_unreadable_input(
     tmp_path,
     no_network: None,
     no_document_side_effects: None,
@@ -198,3 +198,9 @@ def test_no_document_side_effect_guard_has_a_meaningful_negative_control(
         match="analysis attempted to import a document-provided module",
     ):
         builtins.__import__("user_project")
+
+    with pytest.raises(
+        UnexpectedDocumentSideEffectError,
+        match="analysis attempted to import a document-provided module",
+    ):
+        builtins.__import__("user_project.submodule")
