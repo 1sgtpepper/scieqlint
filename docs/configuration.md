@@ -178,7 +178,10 @@ The named profile is policy metadata consumed by the normal fact/query/engine
 pipeline. `generated-myst` enables generated-output engines in addition to the
 ordinary scanner, parser, algebra, reference, and structure checks configured
 below. Unknown profile names are rejected rather than silently running a
-different rule set.
+different rule set. Profile selection is explicit project configuration: the
+packaged `generated-myst` preset does not select this profile yet, because the
+project-mode owner for packaged profile activation is a later slice of issue
+[#90](https://github.com/1sgtpepper/scieqlint/issues/90).
 
 The profile consumes caller-owned source mappings when the already-loaded-document
 API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
@@ -193,10 +196,11 @@ override preset values.
 
 Available presets:
 
-- `generated-myst`: validates generated Markdown/MyST scientific output with
-  Markdown/MyST math fences, inline math, algebra checks, reference checks, and
-  strict parser unknowns enabled. Dimension checks stay in `auto` mode and run
-  only when the project adds `[vars]`.
+- `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
+  math, algebra, reference, and strict parser checks used by generated-document
+  workflows. It does not select the `generated-myst` validation profile.
+  Dimension checks stay in `auto` mode and run only when the project adds
+  `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
   `m`, `a`, `F`, and `E`.
 
@@ -214,13 +218,14 @@ from scieqlint.config.load import load_config
 config = load_config("scieqlint.toml", preset="mechanics")
 ```
 
-For a generated MyST/Markdown CI gate, materialize the preset and run GitHub
-annotations with that config:
+For a generated MyST/Markdown CI gate, select the profile in the project config
+and run GitHub annotations with that config:
 
 ```bash
-scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
-scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
+scieqlint check "docs/**/*.md" --config scieqlint.toml --format github
 ```
+
+The `scieqlint.toml` file must contain the `[profile]` section shown above.
 
 ## Config schema
 

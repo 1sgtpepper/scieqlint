@@ -208,6 +208,9 @@ def check_documents(
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
+        # This compatibility path is the current shared owner for loaded and
+        # path-based checks. Keep profile dispatch here until the planned
+        # project-mode/AnalysisSession owner for issue #90 is available.
         if config.profile.name == "generated-myst":
             diagnostics.extend(
                 diagnostic.to_diagnostic() for diagnostic in GeneratedOutputEngine().run(query)
