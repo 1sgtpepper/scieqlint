@@ -161,6 +161,22 @@ x = y \label{partial}
     ]
 
 
+def test_unmatched_raw_environment_closer_is_ignored_before_a_valid_environment() -> None:
+    source = r"""\end{equation}
+
+\begin{equation}
+x = y
+\end{equation}
+"""
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert [(fact.container, fact.body) for fact in snapshot.display_math] == [
+        ("ams", "x = y")
+    ]
+    assert snapshot.unknown_math == ()
+
+
 def test_raw_equation_facts_are_deterministic_after_newline_normalization() -> None:
     lf = lower(doc("\\begin{equation}\nx=1\\label{x}\n\\end{equation}\n"))
     crlf = lower(doc("\\begin{equation}\r\nx=1\\label{x}\r\n\\end{equation}\r\n"))
