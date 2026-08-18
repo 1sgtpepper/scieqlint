@@ -33,6 +33,17 @@ class ProfileConfig:
     """Named validation policy selected explicitly by project configuration."""
 
     name: ValidationProfile | None = None
+    source_kind: str | None = None
+    conversion_stage: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.name != "generated-myst" and (
+            self.source_kind is not None or self.conversion_stage is not None
+        ):
+            raise ValueError(
+                "profile.source_kind and profile.conversion_stage require "
+                'profile.name = "generated-myst"'
+            )
 
 
 @dataclass(frozen=True, slots=True)

@@ -38,6 +38,9 @@ class Diagnostic:
     rule: str | None = None
     suppressed: bool = False
     suppression_reason: str | None = None
+    profile: str | None = None
+    provenance_ids: tuple[str, ...] = ()
+    properties: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

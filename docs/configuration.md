@@ -172,20 +172,28 @@ Invalid config fails before document analysis and reports a deterministic error.
 ```toml
 [profile]
 name = "generated-myst"
+source_kind = "jats-xml"
+conversion_stage = "xml-to-markdown"
 ```
 
 The named profile is policy metadata consumed by the normal fact/query/engine
 pipeline. `generated-myst` enables generated-output engines in addition to the
-ordinary checks configured below. Unknown profile names are rejected rather
-than silently running a different rule set. The profile table does not enable
-scanner or parser defaults by itself; those defaults come from the packaged
-preset.
+ordinary scanner, parser, algebra, reference, and structure checks configured
+below. Unknown profile names are rejected rather than silently running a
+different rule set. `source_kind` and `conversion_stage` are optional
+caller-supplied provenance. SciEqLint records them but never reconstructs
+missing origin metadata. The profile table does not enable scanner or parser
+defaults by itself; those defaults come from the packaged preset, which does
+not select this profile.
 
 The profile consumes caller-owned source mappings when the already-loaded-document
-API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
-to each generated `SourceDocument`; the checker does not infer that mapping from
-filenames or document order. Without an origin, generated-output provenance checks
-remain quiet for that document.
+API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,
+conversion_stage=..., preserved_anchor_inventory=...)` to each generated
+`SourceDocument`; the checker does not infer that mapping from filenames or
+document order. Per-document origin values take precedence over profile metadata,
+which allows one batch to carry heterogeneous source and conversion identities.
+Without an origin, generated-output provenance checks remain quiet for that
+document.
 
 ## Presets
 

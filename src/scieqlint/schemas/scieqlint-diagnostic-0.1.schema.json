@@ -95,6 +95,22 @@
         "null"
       ]
     },
+    "profile": {
+      "type": "string"
+    },
+    "properties": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "provenance_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "severity": {
       "enum": [
         "error",

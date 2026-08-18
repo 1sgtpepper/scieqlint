@@ -5,9 +5,13 @@ from __future__ import annotations
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
 from scieqlint.query.host import QueryHost
+from scieqlint.schema import SchemaHost
 
 
 class GeneratedOutputEngine:
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
     name = "generated-output"
     rule_codes = frozenset({"GEN001"})
 
@@ -28,6 +32,9 @@ class GeneratedOutputEngine:
                     hint="Keep the MyST target anchor in the generated output before building.",
                     rule="generated.preserved_anchor",
                     false_positive_risk="low",
+                    profile=self.profile,
+                    provenance_ids=(provenance.fact_id,),
+                    properties=SchemaHost.generated_provenance_properties(provenance),
                 )
             )
         return tuple(diagnostics)

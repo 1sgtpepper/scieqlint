@@ -10,7 +10,9 @@ from scieqlint.facts.base import FactBase
 @dataclass(frozen=True, slots=True, kw_only=True)
 class GeneratedProvenanceFact(FactBase):
     generated_document_id: str
-    source_document_id: str
+    source_document_id: str | None = None
+    source_kind: str | None = None
+    conversion_stage: str | None = None
     source_sha: str | None = None
     tool: str | None = None
     tool_version: str | None = None
