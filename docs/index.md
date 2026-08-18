@@ -32,12 +32,13 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-Generated or MyST-heavy docs can use the packaged profile:
+Generated or MyST-heavy docs can select the validation profile explicitly:
 
 ```bash
-scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
-scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
+scieqlint check "docs/**/*.md" --config scieqlint.toml
 ```
+
+Set `[profile]` `name = "generated-myst"` in `scieqlint.toml` to enable it.
 
 ## Read next
 

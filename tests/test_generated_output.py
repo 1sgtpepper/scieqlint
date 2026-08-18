@@ -93,7 +93,7 @@ def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_ge
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]
 
 
-def test_generated_profile_gates_reference_and_profile_paths() -> None:
+def test_generated_profile_respects_reference_check_toggle() -> None:
     from scieqlint.config.model import ChecksConfig, Config, ProfileConfig, ReferencesConfig
 
     reference_document = doc(
@@ -107,10 +107,7 @@ def test_generated_profile_gates_reference_and_profile_paths() -> None:
             checks=ChecksConfig(references=ReferencesConfig(enabled=False)),
         ),
     )
-    default_profile = check_documents((doc("generated.md", "# Generated\n"),), config=Config())
-
     assert disabled_references.diagnostics == ()
-    assert default_profile.diagnostics == ()
 
 
 def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None:

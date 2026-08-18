@@ -100,4 +100,7 @@ returns `1` only when an unsuppressed error diagnostic exists.
 
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
-the user config file, so user config values override preset values.
+the user config file, so user config values override preset values. The
+`generated-myst` preset supplies scanner and parser defaults; selecting the
+generated-output profile remains an explicit `[profile]` setting in the project
+config.
