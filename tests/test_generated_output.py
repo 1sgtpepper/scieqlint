@@ -147,7 +147,10 @@ def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None
 
 def test_documented_generated_workflow_combines_preset_defaults_and_profile(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.generated-myst.toml"
-    config_path.write_text(read_preset_text("generated-myst") + '\n[profile]\nname = "generated-myst"\n', encoding="utf-8")
+    config_path.write_text(
+        read_preset_text("generated-myst") + '\n[profile]\nname = "generated-myst"\n',
+        encoding="utf-8",
+    )
     config = load_config(config_path)
 
     source = doc("source/lecture.md", "(energy)=\n## Energy\n")
