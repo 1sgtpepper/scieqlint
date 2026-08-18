@@ -46,7 +46,7 @@ def _classify_inline(
     if fact.delimiter_kind == "plain-text":
         if _looks_like_plain_text_math(fact.body):
             return "text-leak", None
-        return "preserved", None
+        return "not-math", None
 
     environment = _UNSUPPORTED_ENVIRONMENT_RE.search(fact.body)
     if environment is not None:

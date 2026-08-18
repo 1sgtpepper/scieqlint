@@ -8,6 +8,7 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
+from scieqlint.query.host import QueryHost
 
 
 def doc(text: str) -> SourceDocument:
@@ -92,10 +93,14 @@ def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
     )
 
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
-        ("1 < 2", "preserved"),
-        ("Status = complete", "preserved"),
+        ("1 < 2", "not-math"),
+        ("Status = complete", "not-math"),
         ("A>=B", "text-leak"),
         ("a = b+c", "text-leak"),
+    ]
+    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [
+        "A>=B",
+        "a = b+c",
     ]
 
 
@@ -103,7 +108,7 @@ def test_math_host_owns_plain_text_candidate_classification() -> None:
     lowered = MySTFrontend().lower((doc("compact a = b+c."),))
 
     assert [(fact.body, fact.parse_status) for fact in lowered.inline_math] == [
-        ("a = b+c", "preserved"),
+        ("a = b+c", "candidate"),
     ]
     classified = MathHost().classify(lowered)
     assert [(fact.body, fact.parse_status) for fact in classified.inline_math] == [
@@ -134,7 +139,7 @@ def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
     snapshot = MathHost().classify(FactSnapshot(inline_math=(prose, mismatched)))
 
     assert [fact.parse_status for fact in snapshot.inline_math] == [
-        "preserved",
+        "not-math",
         "unsupported",
     ]
     assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
