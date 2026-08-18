@@ -325,9 +325,12 @@ def test_typst_risk_projection_skips_unspanned_foreign_and_escaped_displays() ->
         container="dollar-dollar",
     )
 
-    assert typst_math_risks(
-        FactSnapshot(
-            documents=(document,),
-            display_math=(unspanned, foreign, escaped_environment),
+    assert (
+        typst_math_risks(
+            FactSnapshot(
+                documents=(document,),
+                display_math=(unspanned, foreign, escaped_environment),
+            )
         )
-    ) == ()
+        == ()
+    )
