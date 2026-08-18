@@ -91,9 +91,8 @@ def test_generated_profile_snapshot_preserves_per_document_origin_metadata() -> 
     assert unspecified.generated_provenance == ()
 
     query = QueryHost(supplied)
-    assert (
-        query.generated.provenance_for_document("out/generated.md")
-        == (supplied.generated_provenance[0],)
+    assert query.generated.provenance_for_document("out/generated.md") == (
+        supplied.generated_provenance[0],
     )
     assert query.generated.provenance_for_document("missing.md") == ()
 
