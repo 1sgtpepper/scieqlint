@@ -27,10 +27,17 @@ class DiagnosticProjection:
 class _GeneratedProvenance(Protocol):
     """Structural input that keeps schema projection independent of fact storage."""
 
-    generated_document_id: str
-    source_document_id: str | None
-    source_kind: str | None
-    conversion_stage: str | None
+    @property
+    def generated_document_id(self) -> str: ...
+
+    @property
+    def source_document_id(self) -> str | None: ...
+
+    @property
+    def source_kind(self) -> str | None: ...
+
+    @property
+    def conversion_stage(self) -> str | None: ...
 
 
 class SchemaHost:
