@@ -24,6 +24,8 @@ class SourceOrigin:
     tool: str | None = None
     tool_version: str | None = None
     preserved_anchor_inventory: tuple[str, ...] = ()
+    source_kind: str | None = None
+    conversion_stage: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,6 +7,7 @@ from scieqlint.api import check_documents
 from scieqlint.app import _generated_profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
@@ -18,27 +19,39 @@ def doc(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
 
 
-def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metadata() -> None:
+def test_generated_profile_snapshot_preserves_per_document_origin_metadata() -> None:
     generated = SourceDocument.from_text(
         PurePosixPath("out/generated.md"),
         "# Generated\n",
         DocumentKind.MARKDOWN,
         origin=SourceOrigin(
             source_document_id="source/original.xml",
+            source_kind="jats-xml",
+            conversion_stage="xml-to-markdown",
             source_sha="abc123",
             tool="converter",
             tool_version="2.1",
             preserved_anchor_inventory=("energy",),
         ),
     )
+    other_generated = SourceDocument.from_text(
+        PurePosixPath("out/other.md"),
+        "# Other\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id="source/other.tex",
+            source_kind="latex",
+            conversion_stage="translation",
+        ),
+    )
 
     supplied = _generated_profile_snapshot(
-        (generated,),
+        (generated, other_generated),
         Config(
             profile=ProfileConfig(
                 name="generated-myst",
-                source_kind="jats-xml",
-                conversion_stage="xml-to-markdown",
+                source_kind="profile-default",
+                conversion_stage="profile-default",
             )
         ),
     )
@@ -62,6 +75,17 @@ def test_generated_profile_snapshot_preserves_only_caller_supplied_origin_metada
             tool="converter",
             tool_version="2.1",
             preserved_anchor_inventory=("energy",),
+        ),
+        GeneratedProvenanceFact(
+            fact_id="out/other.md::generated-provenance",
+            document_id="out/other.md",
+            span=None,
+            raw=None,
+            confidence="generated",
+            generated_document_id="out/other.md",
+            source_document_id="source/other.tex",
+            source_kind="latex",
+            conversion_stage="translation",
         ),
     )
     assert unspecified.generated_provenance == ()
@@ -107,6 +131,86 @@ def test_generated_diagnostic_ir_references_provenance_and_schema_metadata() -> 
         "source_document": "source/paper.md",
         "source_kind": "latex",
         "conversion_stage": "translation",
+    }
+
+
+def test_generated_query_ignores_provenance_without_a_source_document() -> None:
+    provenance = GeneratedProvenanceFact(
+        fact_id="out/generated.md::generated-provenance",
+        document_id="out/generated.md",
+        span=None,
+        raw=None,
+        confidence="generated",
+        generated_document_id="out/generated.md",
+    )
+
+    query = QueryHost(FactSnapshot(generated_provenance=(provenance,)))
+
+    assert query.generated.dropped_targets() == ()
+
+
+def test_generated_profile_keeps_heterogeneous_origins_through_public_path() -> None:
+    source_a = doc("source/a.md", "(energy)=\n## Energy\n")
+    source_b = doc("source/b.md", "(force)=\n## Force\n")
+    generated_a = SourceDocument.from_text(
+        PurePosixPath("out/a.md"),
+        "## Energy\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source_a.path.as_posix(),
+            source_kind="jats-xml",
+            conversion_stage="xml-to-markdown",
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
+    generated_b = SourceDocument.from_text(
+        PurePosixPath("out/b.md"),
+        "## Force\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source_b.path.as_posix(),
+            source_kind="latex",
+            conversion_stage="translation",
+            preserved_anchor_inventory=("force",),
+        ),
+    )
+
+    result = check_documents(
+        (source_a, source_b, generated_a, generated_b),
+        config=Config(
+            profile=ProfileConfig(
+                name="generated-myst",
+                source_kind="profile-default",
+                conversion_stage="profile-default",
+            )
+        ),
+    )
+
+    assert {
+        (
+            diagnostic.detail,
+            dict(diagnostic.properties),
+        )
+        for diagnostic in result.diagnostics
+    } == {
+        (
+            "source anchor 'energy' from source/a.md is absent in out/a.md",
+            {
+                "generated_document": "out/a.md",
+                "source_document": "source/a.md",
+                "source_kind": "jats-xml",
+                "conversion_stage": "xml-to-markdown",
+            },
+        ),
+        (
+            "source anchor 'force' from source/b.md is absent in out/b.md",
+            {
+                "generated_document": "out/b.md",
+                "source_document": "source/b.md",
+                "source_kind": "latex",
+                "conversion_stage": "translation",
+            },
+        ),
     }
 
 
