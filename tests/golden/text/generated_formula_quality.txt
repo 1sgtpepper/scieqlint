@@ -55,4 +55,3 @@ tests/fixtures/generated/formula_quality_bad.md:15:1: warning GEN004 generated o
   source_document: source/formula_quality.pdf
   source_kind: pdf
   conversion_stage: pdf-to-markdown
-
