@@ -29,9 +29,7 @@ _SPACED_CALL_RE = re.compile(
 _SPACED_COMMAND_RE = re.compile(
     r"(?P<artifact>\\[ \t]*(?:[A-Za-z][ \t]+){3,}[A-Za-z](?=[ \t]*[\[{]))"
 )
-_GARBLED_MARKER_RE = re.compile(
-    r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])"
-)
+_GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])")
 
 
 class MathHost:
