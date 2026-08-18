@@ -33,7 +33,9 @@ from .myst_shared import (
 _MYST_MATH_ROLE_RE = re.compile(r"\{math\}`(?P<body>[^`\r\n]+)`")
 _LATEX_PAREN_RE = re.compile(r"(?<!\\)\\\((?P<body>.*?)(?<!\\)\\\)")
 _MATH_ATOM = r"(?:[A-Za-z0-9_{}]+|\\[A-Za-z]+)"
-_TEXT_LEAK_RE = re.compile(
+# This expression only finds a lexical candidate. MathHost owns the
+# parse-status decision for the resulting fact.
+_PLAIN_TEXT_MATH_CANDIDATE_RE = re.compile(
     rf"(?<![\w$])(?P<body>{_MATH_ATOM}(?:[ \t]*[+\-*/^][ \t]*{_MATH_ATOM})*"
     rf"[ \t]*(?:=|<=|>=|<|>|≤|≥|→)[ \t]*{_MATH_ATOM}"
     rf"(?:[ \t]*[+\-*/^][ \t]*{_MATH_ATOM})*)(?![\w$])"
@@ -190,7 +192,7 @@ def _plain_text_math_facts(
     occupied: Sequence[OffsetRange],
 ) -> Iterable[InlineMathFact]:
     for line_start, _line_end, line in line_ranges(document.text):
-        for match in _TEXT_LEAK_RE.finditer(line):
+        for match in _PLAIN_TEXT_MATH_CANDIDATE_RE.finditer(line):
             start = line_start + match.start("body")
             end = line_start + match.end("body")
             if in_ranges(start, occupied):

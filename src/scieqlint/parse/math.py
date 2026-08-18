@@ -81,9 +81,7 @@ def _looks_like_plain_text_math(body: str) -> bool:
 
     if _RELATION_RE.search(body) is None:
         return False
-    if any(character in body for character in "_+*/^\\") or any(
-        character.isdigit() for character in body
-    ):
+    if any(character in body for character in "_+*/^\\"):
         return True
     atoms = re.findall(r"[A-Za-z]+", body)
     return bool(atoms) and all(len(atom) == 1 for atom in atoms)
