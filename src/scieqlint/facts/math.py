@@ -7,7 +7,23 @@ from typing import Literal
 
 from scieqlint.facts.base import FactBase
 
-InlineDelimiter = Literal["dollar", "myst-role", "quarto-inline"]
+InlineDelimiter = Literal[
+    "dollar",
+    "myst-role",
+    "quarto-inline",
+    "latex-paren",
+    "plain-text",
+]
+# Frontend candidates are classified by MathHost; ``not-math`` is retained for
+# provenance but is excluded from the engine-facing math query.
+InlineParseStatus = Literal[
+    "candidate",
+    "preserved",
+    "not-math",
+    "unsupported",
+    "text-leak",
+]
+InlineTextRole = Literal["paragraph", "heading", "list-item", "blockquote"]
 DisplayContainer = Literal[
     "dollar-dollar",
     "myst-math-directive",
@@ -32,6 +48,8 @@ class InlineMathFact(FactBase):
     delimiter_kind: InlineDelimiter
     context: str
     alt: str | None = None
+    surrounding_text_role: InlineTextRole = "paragraph"
+    parse_status: InlineParseStatus = "candidate"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

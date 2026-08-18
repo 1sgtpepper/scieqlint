@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact
+from scieqlint.facts.math import (
+    DisplayMathFact,
+    InlineDelimiter,
+    InlineMathFact,
+    InlineTextRole,
+)
 from scieqlint.facts.reference import EquationLabelFact
 from scieqlint.facts.structure import FenceFact
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import is_escaped
+from scieqlint.markdown import code_fence_ranges, inline_code_ranges, is_escaped
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import directive_option_prefix_lines
@@ -19,8 +25,24 @@ from .myst_shared import (
     OffsetRange,
     dollar_display_ranges,
     dollar_inline_ranges,
+    in_ranges,
+    line_ranges,
     normalize_label,
 )
+
+_MYST_MATH_ROLE_RE = re.compile(r"\{math\}`(?P<body>[^`\r\n]+)`")
+_LATEX_PAREN_RE = re.compile(r"(?<!\\)\\\((?P<body>.*?)(?<!\\)\\\)")
+_MATH_ATOM = r"(?:[A-Za-z0-9_{}]+|\\[A-Za-z]+)"
+# This expression only finds a lexical candidate. MathHost owns the
+# parse-status decision for the resulting fact.
+_PLAIN_TEXT_MATH_CANDIDATE_RE = re.compile(
+    rf"(?<![\w$])(?P<body>{_MATH_ATOM}(?:[ \t]*[+\-*/^][ \t]*{_MATH_ATOM})*"
+    rf"[ \t]*(?:=|<=|>=|<|>|≤|≥|→)[ \t]*{_MATH_ATOM}"
+    rf"(?:[ \t]*[+\-*/^][ \t]*{_MATH_ATOM})*)(?![\w$])"
+)
+_REFERENCE_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
+_LIST_PREFIX_RE = re.compile(r"^[ \t]*(?:[-+*]|\d+[.)])[ \t]+")
+_HEADING_PREFIX_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
 
 
 def math_occupied_ranges(
@@ -54,7 +76,9 @@ def scan_inline_math(
     document: SourceDocument,
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
+    lexical_occupied: Sequence[OffsetRange] = (),
 ) -> Iterable[InlineMathFact]:
+    facts: list[InlineMathFact] = []
     for start, body_start, body_end, end in dollar_inline_ranges(
         document.text,
         occupied,
@@ -65,15 +89,142 @@ def scan_inline_math(
             continue
         span_start = body_start + len(body) - len(body.lstrip())
         span_end = body_start + len(body.rstrip())
-        yield InlineMathFact(
-            fact_id=f"{document.path.as_posix()}::inline-math::{start}",
-            document_id=document.path.as_posix(),
-            span=smap.span(span_start, span_end),
-            raw=document.text[start:end],
-            body=text,
-            delimiter_kind="dollar",
-            context="paragraph",
+        role = _surrounding_text_role(document.text, start)
+        facts.append(
+            InlineMathFact(
+                fact_id=f"{document.path.as_posix()}::inline-math::{start}",
+                document_id=document.path.as_posix(),
+                span=smap.span(span_start, span_end),
+                raw=document.text[start:end],
+                body=text,
+                delimiter_kind="dollar",
+                context=role,
+                surrounding_text_role=role,
+            )
         )
+
+    lexical_opaque = _merge_occupied(
+        (
+            *occupied,
+            *lexical_occupied,
+            *code_fence_ranges(document.text),
+            *inline_code_ranges(document.text),
+            *((match.start(), match.end()) for match in _REFERENCE_ROLE_RE.finditer(document.text)),
+        )
+    )
+    facts.extend(
+        _delimited_inline_facts(
+            document,
+            smap,
+            _MYST_MATH_ROLE_RE,
+            "myst-role",
+            lexical_opaque,
+        )
+    )
+    facts.extend(
+        _delimited_inline_facts(
+            document,
+            smap,
+            _LATEX_PAREN_RE,
+            "latex-paren",
+            lexical_opaque,
+        )
+    )
+
+    math_ranges = tuple((fact.span.start, fact.span.end) for fact in facts if fact.span is not None)
+    facts.extend(
+        _plain_text_math_facts(
+            document,
+            smap,
+            _merge_occupied((*lexical_opaque, *math_ranges)),
+        )
+    )
+    yield from sorted(
+        facts,
+        key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
+    )
+
+
+def _merge_occupied(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
+    merged: list[OffsetRange] = []
+    for start, end in sorted(ranges):
+        if start >= end:
+            continue
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    return tuple(merged)
+
+
+def _delimited_inline_facts(
+    document: SourceDocument,
+    smap: SourceMap,
+    pattern: re.Pattern[str],
+    delimiter_kind: InlineDelimiter,
+    occupied: Sequence[OffsetRange],
+) -> Iterable[InlineMathFact]:
+    for match in pattern.finditer(document.text):
+        if in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
+            continue
+        body = match.group("body")
+        text = body.strip()
+        if not text:
+            continue
+        body_start = match.start("body") + len(body) - len(body.lstrip())
+        body_end = match.start("body") + len(body.rstrip())
+        role = _surrounding_text_role(document.text, match.start())
+        yield InlineMathFact(
+            fact_id=f"{document.path.as_posix()}::inline-math::{match.start()}",
+            document_id=document.path.as_posix(),
+            span=smap.span(body_start, body_end),
+            raw=match.group(0),
+            body=text,
+            delimiter_kind=delimiter_kind,
+            context=role,
+            surrounding_text_role=role,
+        )
+
+
+def _plain_text_math_facts(
+    document: SourceDocument,
+    smap: SourceMap,
+    occupied: Sequence[OffsetRange],
+) -> Iterable[InlineMathFact]:
+    for line_start, _line_end, line in line_ranges(document.text):
+        for match in _PLAIN_TEXT_MATH_CANDIDATE_RE.finditer(line):
+            start = line_start + match.start("body")
+            end = line_start + match.end("body")
+            if in_ranges(start, occupied):
+                continue
+            body = match.group("body")
+            role = _surrounding_text_role(document.text, start)
+            yield InlineMathFact(
+                fact_id=f"{document.path.as_posix()}::inline-math-leak::{start}",
+                document_id=document.path.as_posix(),
+                span=smap.span(start, end),
+                raw=body,
+                body=body,
+                delimiter_kind="plain-text",
+                context=role,
+                surrounding_text_role=role,
+                confidence="inferred",
+            )
+
+
+def _surrounding_text_role(text: str, offset: int) -> InlineTextRole:
+    line_start = text.rfind("\n", 0, offset) + 1
+    line_end = text.find("\n", offset)
+    if line_end == -1:
+        line_end = len(text)
+    line = text[line_start:line_end]
+    if _HEADING_PREFIX_RE.match(line):
+        return "heading"
+    if _LIST_PREFIX_RE.match(line):
+        return "list-item"
+    if line.lstrip().startswith(">"):
+        return "blockquote"
+    return "paragraph"
 
 
 def _math_fact_from_fence(
