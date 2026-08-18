@@ -202,6 +202,7 @@ def scan_formula_placeholders(
                         complete=True,
                     )
                 )
+                occupied.append((start, start + 4))
             continue
         start = line_start + line.find(stripped)
         end = start + len(stripped)
