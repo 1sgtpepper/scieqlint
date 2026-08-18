@@ -8,15 +8,16 @@ import pytest
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.report.json import JsonReporter
 
 
-def doc(text: str) -> SourceDocument:
+def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
     return SourceDocument.from_text(
         PurePosixPath("generated.md"),
         text,
         DocumentKind.MARKDOWN,
+        origin=origin,
     )
 
 
@@ -124,7 +125,12 @@ def test_empty_display_marker_respects_opaque_markdown_ownership(source: str) ->
 def test_generated_profile_json_preserves_span_and_placeholder_kind() -> None:
     source = "Before.\n\n![equation](equation.svg)\n"
     result = check_documents(
-        (doc(source),),
+        (
+            doc(
+                source,
+                origin=SourceOrigin(source_document_id="source/formulas.xml"),
+            ),
+        ),
         config=Config(
             profile=ProfileConfig(
                 name="generated-myst",
@@ -145,6 +151,7 @@ def test_generated_profile_json_preserves_span_and_placeholder_kind() -> None:
         "formula_artifact_kind": "image-placeholder",
         "placeholder_kind": "formula-image",
         "generated_document": "generated.md",
+        "source_document": "source/formulas.xml",
         "source_kind": "jats-xml",
         "conversion_stage": "xml-to-markdown",
     }
