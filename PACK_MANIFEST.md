@@ -251,6 +251,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/famous_bad.txt`
+- `tests/golden/text/generated_formula_text.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`
