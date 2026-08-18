@@ -8,6 +8,7 @@ from typing import Literal
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
+ValidationProfile = Literal["generated-myst"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,13 @@ class VarDimension:
 class SymbolAlias:
     canonical: str
     alias: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileConfig:
+    """Named validation policy selected explicitly by project configuration."""
+
+    name: ValidationProfile | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +110,7 @@ class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
     path: PurePosixPath | None = None
+    profile: ProfileConfig = field(default_factory=ProfileConfig)
     project: ProjectConfig = field(default_factory=ProjectConfig)
     baseline: BaselineConfig = field(default_factory=BaselineConfig)
     scanner: ScannerConfig = field(default_factory=ScannerConfig)

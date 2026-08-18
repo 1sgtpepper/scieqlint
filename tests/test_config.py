@@ -21,6 +21,7 @@ def test_load_config_uses_defaults_when_no_default_file_exists(tmp_path, monkeyp
     config = load_config()
 
     assert config.path is None
+    assert config.profile.name is None
     assert config.scanner.markdown is True
 
 
@@ -136,11 +137,12 @@ def test_load_config_user_config_overrides_preset_values(tmp_path) -> None:
     )
 
 
-def test_generated_myst_preset_enables_generated_markdown_checks(tmp_path, monkeypatch) -> None:
+def test_generated_myst_preset_keeps_profile_selection_explicit(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
 
     config = load_config(preset="generated-myst")
 
+    assert config.profile.name is None
     assert config.scanner.markdown is True
     assert config.scanner.inline_math is True
     assert config.scanner.math_fences is True
@@ -148,6 +150,23 @@ def test_generated_myst_preset_enables_generated_markdown_checks(tmp_path, monke
     assert config.checks.algebra.enabled is True
     assert config.checks.references.enabled is True
     assert config.checks.dimension.mode == "auto"
+
+
+def test_load_config_accepts_named_profile_metadata(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nname = "generated-myst"\n', encoding="utf-8")
+
+    config = load_config(config_path)
+
+    assert config.profile.name == "generated-myst"
+
+
+def test_load_config_rejects_unknown_profile_name(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nname = "unknown"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="name must be generated-myst"):
+        load_config(config_path)
 
 
 def test_load_config_user_config_overrides_generated_myst_strictness(tmp_path) -> None:

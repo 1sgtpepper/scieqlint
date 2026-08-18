@@ -166,6 +166,27 @@ read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 
+
+## Validation profile
+
+```toml
+[profile]
+name = "generated-myst"
+```
+
+The named profile is policy metadata consumed by the normal fact/query/engine
+pipeline. `generated-myst` enables generated-output engines in addition to the
+ordinary checks configured below. Unknown profile names are rejected rather
+than silently running a different rule set. The profile table does not enable
+scanner or parser defaults by itself; those defaults come from the packaged
+preset.
+
+The profile consumes caller-owned source mappings when the already-loaded-document
+API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
+to each generated `SourceDocument`; the checker does not infer that mapping from
+filenames or document order. Without an origin, generated-output provenance checks
+remain quiet for that document.
+
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
@@ -173,10 +194,11 @@ override preset values.
 
 Available presets:
 
-- `generated-myst`: validates generated Markdown/MyST scientific output with
-  Markdown/MyST math fences, inline math, algebra checks, reference checks, and
-  strict parser unknowns enabled. Dimension checks stay in `auto` mode and run
-  only when the project adds `[vars]`.
+- `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
+  math, algebra, reference, and strict parser checks used by generated-document
+  workflows. It does not select the validation profile.
+  Dimension checks stay in `auto` mode and run only when the project adds
+  `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
   `m`, `a`, `F`, and `E`.
 
@@ -194,18 +216,22 @@ from scieqlint.config.load import load_config
 config = load_config("scieqlint.toml", preset="mechanics")
 ```
 
-For a generated MyST/Markdown CI gate, materialize the preset and run GitHub
-annotations with that config:
+For a generated MyST/Markdown CI gate, materialize the preset, append the
+profile table, and run GitHub annotations with that config:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
+Append the `[profile]` section shown above to the materialized file. The preset
+and profile are independent: the preset supplies scanner/parser defaults and
+the profile enables generated-output diagnostics.
+
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.
