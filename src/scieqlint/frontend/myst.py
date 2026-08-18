@@ -15,7 +15,7 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import code_fence_ranges, markdown_reference_snapshot
 from scieqlint.source.maps import SourceMap
 
-from .generated import scan_suspicious_formula_facts
+from .generated import scan_formula_candidates
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
@@ -109,9 +109,8 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
             ),
         )
     )
-    generated_formulas = scan_suspicious_formula_facts(
+    generated_formulas = scan_formula_candidates(
         document,
-        smap,
         inline_math,
         display_math,
     )
