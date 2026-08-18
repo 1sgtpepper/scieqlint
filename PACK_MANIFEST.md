@@ -210,6 +210,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
+- `src/scieqlint/schema/diagnostic.py`
 - `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
@@ -290,6 +291,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_report_sarif.py`
 - `tests/test_report_text.py`
 - `tests/test_sarif_workflow.py`
+- `tests/test_schema_host.py`
 - `tests/test_source.py`
 - `tests/test_source_kind_validation.py`
 - `tests/test_stabilization.py`

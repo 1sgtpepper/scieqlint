@@ -13,6 +13,7 @@ from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
+from scieqlint.schema import DIAGNOSTIC_PROJECTION_VERSION, SchemaHost
 
 
 def doc(path: str, text: str) -> SourceDocument:
@@ -123,15 +124,20 @@ def _provenance_diagnostic_result():
 
 def test_generated_diagnostic_ir_references_provenance_and_schema_metadata() -> None:
     diagnostic = _provenance_diagnostic_result().diagnostics[0]
+    projection = SchemaHost.project_diagnostic(diagnostic)
 
-    assert diagnostic.profile == "generated-myst"
-    assert diagnostic.provenance_ids == ("out/paper.md::generated-provenance",)
-    assert dict(diagnostic.properties) == {
+    assert projection.version == DIAGNOSTIC_PROJECTION_VERSION
+    assert projection.profile == "generated-myst"
+    assert projection.provenance_ids == ("out/paper.md::generated-provenance",)
+    assert dict(projection.properties) == {
         "generated_document": "out/paper.md",
         "source_document": "source/paper.md",
         "source_kind": "latex",
         "conversion_stage": "translation",
     }
+    assert diagnostic.profile == projection.profile
+    assert diagnostic.provenance_ids == projection.provenance_ids
+    assert diagnostic.properties == projection.properties
 
 
 def test_generated_query_ignores_provenance_without_a_source_document() -> None:

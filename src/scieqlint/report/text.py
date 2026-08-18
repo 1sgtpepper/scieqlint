@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from scieqlint.diag.model import CheckResult
+from scieqlint.schema import SchemaHost
 
 
 class TextReporter:
@@ -32,14 +33,15 @@ class TextReporter:
                 f"{location}:{status} {diagnostic.severity.value} "
                 f"{diagnostic.code} {diagnostic.message}"
             )
+            projection = SchemaHost.project_diagnostic(diagnostic)
             if diagnostic.equation:
                 lines.append(f"  equation: {diagnostic.equation}")
             if diagnostic.detail:
                 lines.append(f"  detail: {diagnostic.detail}")
-            if diagnostic.profile is not None:
-                lines.append(f"  profile: {diagnostic.profile}")
-            if diagnostic.provenance_ids:
-                lines.append(f"  provenance: {', '.join(diagnostic.provenance_ids)}")
-            for name, value in diagnostic.properties:
+            if projection.profile is not None:
+                lines.append(f"  profile: {projection.profile}")
+            if projection.provenance_ids:
+                lines.append(f"  provenance: {', '.join(projection.provenance_ids)}")
+            for name, value in projection.properties:
                 lines.append(f"  {name}: {value}")
         return "\n".join(lines) + "\n"

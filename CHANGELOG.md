@@ -20,6 +20,10 @@ Release notes must use these sections:
 
 ### Changed
 
+- Generated diagnostic metadata now crosses a versioned SchemaHost projection
+  seam, so text, JSON, SARIF, and GitHub reporters share one provenance and
+  profile projection instead of reconstructing it independently. The complete
+  AnalysisResult registry and serializer migration remain tracked by #190/#191.
 - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
