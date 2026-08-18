@@ -75,7 +75,7 @@ result = check_documents(
     (source, generated),
     config=Config(profile=ProfileConfig(name="generated-myst")),
 )
-+```
+```
 
 An absent origin means that source-to-generated identity is unknown, so the generated
 profile does not manufacture a provenance relationship.
