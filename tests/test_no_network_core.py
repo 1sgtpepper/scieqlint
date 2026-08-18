@@ -109,8 +109,7 @@ def test_public_analysis_path_does_not_fetch_hostile_external_targets(
 
     assert result.files_checked == 1
     assert all(
-        diagnostic.span is None
-        or diagnostic.span.path == PurePosixPath(input_path.as_posix())
+        diagnostic.span is None or diagnostic.span.path == PurePosixPath(input_path.as_posix())
         for diagnostic in result.diagnostics
     )
 
