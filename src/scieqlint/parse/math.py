@@ -99,8 +99,9 @@ def _balanced_delimiters(body: str) -> bool:
             continue
         if character in _OPENING_DELIMITERS:
             stack.append(character)
-        elif character in _CLOSING_DELIMITERS:
-            if not stack or stack.pop() != _CLOSING_DELIMITERS[character]:
-                return False
+        elif character in _CLOSING_DELIMITERS and (
+            not stack or stack.pop() != _CLOSING_DELIMITERS[character]
+        ):
+            return False
         index += 1
     return not stack
