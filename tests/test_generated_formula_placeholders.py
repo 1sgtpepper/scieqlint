@@ -54,16 +54,18 @@ def test_placeholder_scan_skips_foreign_and_unspanned_math_facts() -> None:
         context="paragraph",
     )
 
-    assert scan_formula_placeholders(
-        document,
-        smap,
-        (foreign, unspanned),
-        (),
-        (),
-        (),
-        (),
-        (),
-    ) == ()
+    assert (
+        scan_formula_placeholders(
+            document,
+            smap,
+            (foreign, unspanned),
+            (),
+            (),
+            (),
+            (),
+        )
+        == ()
+    )
 
 
 def test_formula_placeholder_facts_cover_marker_empty_display_and_formula_image() -> None:
