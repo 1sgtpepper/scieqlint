@@ -84,6 +84,14 @@ def _fact_metadata(
         )
     )
     projected = list(properties)
-    if provenance:
+    if len(provenance) == 1:
         projected.extend(SchemaHost.generated_provenance_properties(provenance[0]))
+    else:
+        for index, item in enumerate(provenance, start=1):
+            projected.extend(
+                SchemaHost.generated_provenance_properties(
+                    item,
+                    prefix=f"provenance_{index}_",
+                )
+            )
     return tuple(item.fact_id for item in provenance), tuple(projected)
