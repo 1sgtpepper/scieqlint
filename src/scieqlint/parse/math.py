@@ -13,15 +13,9 @@ from scieqlint.facts.math import (
 )
 from scieqlint.facts.snapshot import FactSnapshot
 
-_UNSUPPORTED_ENVIRONMENT_RE = re.compile(
-    r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}"
-)
-_MISSING_BRACED_ARGUMENT_RE = re.compile(
-    r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$"
-)
-_TRAILING_OPERATOR_RE = re.compile(
-    r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$"
-)
+_UNSUPPORTED_ENVIRONMENT_RE = re.compile(r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
+_MISSING_BRACED_ARGUMENT_RE = re.compile(r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$")
+_TRAILING_OPERATOR_RE = re.compile(r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$")
 _RELATION_RE = re.compile(r"(?:=|<=|>=|<|>|≤|≥|→)")
 _OPENING_DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _CLOSING_DELIMITERS = {value: key for key, value in _OPENING_DELIMITERS.items()}
@@ -33,9 +27,7 @@ class MathHost:
     def classify(self, snapshot: FactSnapshot) -> FactSnapshot:
         inline_math: list[InlineMathFact] = []
         unknown_math: list[UnknownMathFact] = []
-        existing_unknown_ids = {
-            fact.source_math_fact_id for fact in snapshot.unknown_math
-        }
+        existing_unknown_ids = {fact.source_math_fact_id for fact in snapshot.unknown_math}
         for fact in snapshot.inline_math:
             status, unknown = _classify_inline(fact)
             inline_math.append(replace(fact, parse_status=status))
@@ -58,9 +50,7 @@ def _classify_inline(
 
     environment = _UNSUPPORTED_ENVIRONMENT_RE.search(fact.body)
     if environment is not None:
-        return "unsupported", _unknown(
-            fact, "environment", environment.group("environment")
-        )
+        return "unsupported", _unknown(fact, "environment", environment.group("environment"))
     if (
         not _balanced_delimiters(fact.body)
         or _MISSING_BRACED_ARGUMENT_RE.search(fact.body)
