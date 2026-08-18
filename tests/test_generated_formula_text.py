@@ -41,9 +41,9 @@ def test_suspicious_formula_facts_are_source_spanned_and_limited_to_explicit_mat
         "spaced-token",
     ]
     assert [fact.text for fact in snapshot.generated_formulas] == [
-        "A t t e n t ( Q , K , V )",
+        r"\A t t e n t",
         "/C0 apod",
-        "A t t e n t ( Q )",
+        r"\A t t e n t",
     ]
     assert [
         source[fact.span.start : fact.span.end]
@@ -54,7 +54,7 @@ def test_suspicious_formula_facts_are_source_spanned_and_limited_to_explicit_mat
 
 
 def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_provenance() -> None:
-    source = "$A t t e n t ( Q , K , V )$ and $/C0 apod$.\n"
+    source = "$\\A t t e n t { Q , K , V }$ and $/C0 apod$.\n"
     generated = doc(
         source,
         origin=SourceOrigin(source_document_id="source/formulas.tex"),
@@ -74,17 +74,16 @@ def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_pro
         diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN002"
     )
 
-    assert [diagnostic.detail for diagnostic in diagnostics] == [
-        "spaced-token artifact: 'A t t e n t ( Q , K , V )'",
-        "garbled-marker artifact: '/C0 apod'",
-    ]
     assert [
         (diagnostic.span.start, diagnostic.span.end)
         for diagnostic in diagnostics
         if diagnostic.span
+    ] == [(1, 13), (34, 42)]
+    assert [
+        diagnostic.detail for diagnostic in diagnostics
     ] == [
-        (1, 26),
-        (33, 41),
+        r"spaced-token artifact: '\\A t t e n t'",
+        "garbled-marker artifact: '/C0 apod'",
     ]
     assert all(diagnostic.profile == "generated-myst" for diagnostic in diagnostics)
     assert all(
@@ -111,7 +110,7 @@ def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_pro
 
 def test_generated_formula_diagnostics_match_text_golden() -> None:
     generated = doc(
-        "$A t t e n t ( Q , K , V )$ and $/C0 apod$.\n",
+        "$\\A t t e n t { Q , K , V }$ and $/C0 apod$.\n",
         origin=SourceOrigin(source_document_id="source/formulas.tex"),
     )
     result = check_documents(
@@ -135,10 +134,10 @@ def test_generated_formula_diagnostic_projects_all_provenance_metadata() -> None
         fact_id="out/generated.md::formula::1",
         document_id="out/generated.md",
         span=None,
-        raw="A t t e n t (x)",
+        raw=r"\A t t e n t {x}",
         confidence="inferred",
         kind="spaced-token",
-        text="A t t e n t (x)",
+        text=r"\A t t e n t {x}",
     )
     first = GeneratedProvenanceFact(
         fact_id="origin-a",
@@ -190,7 +189,7 @@ def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch
 ):
     source = "Valid $A(Q, K, V) = QK^T V$ and $a b c$.\n"
 
-    default = check_documents((doc("$A t t e n t ( Q )$.\n"),), config=Config())
+    default = check_documents((doc("$A b c d e (x)$.\n"),), config=Config())
     generated = check_documents(
         (doc(source),),
         config=Config(profile=ProfileConfig(name="generated-myst")),
@@ -203,13 +202,15 @@ def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch
 def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
     cases = (
         ("$A B C D E (x)$", False),
+        ("$A b c d e (x)$", False),
+        ("$A b c d e f(x)$", False),
         ("$a b c d e f(x)$", False),
         ("$A t t e (x)$", False),
-        ("$A t t e n (x)$", True),
+        ("$A t t e n (x)$", False),
         ("$a b c d e (x)$", False),
         (r"$A B C D E \times (x)$", False),
         ("$A t t E n t (x)$", False),
-        ("$A t t e n t (x)$", True),
+        ("$A t t e n t (x)$", False),
         ("$/C0 apodx$", False),
         ("$/C0 apod$", True),
     )
@@ -226,7 +227,7 @@ def test_suspicious_formula_classifier_deduplicates_overlapping_artifacts() -> N
     snapshot = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( /C0 apod )$"),)))
 
     assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
-        ("spaced-token", "A t t e n t ( /C0 apod )")
+        ("garbled-marker", "/C0 apod")
     ]
 
 
@@ -305,7 +306,22 @@ def test_math_host_keeps_existing_facts_and_skips_unmappable_candidates() -> Non
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:
-    lf = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( Q )$\n"),)))
-    crlf = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( Q )$\r\n"),)))
+    lf = MathHost().classify(MySTFrontend().lower((doc("$\\A t t e n t { Q }$\n"),)))
+    crlf = MathHost().classify(MySTFrontend().lower((doc("$\\A t t e n t { Q }$\r\n"),)))
 
     assert lf.generated_formulas == crlf.generated_formulas
+
+
+def test_generated_formula_diagnostic_does_not_require_provenance() -> None:
+    result = check_documents(
+        (doc("Suspicious $/C0 apod$.\n"),),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN002"
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].provenance_ids == ()
+    assert dict(diagnostics[0].properties) == {"formula_artifact_kind": "garbled-marker"}

@@ -22,10 +22,6 @@ _TRAILING_OPERATOR_RE = re.compile(r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$")
 _RELATION_RE = re.compile(r"(?:=|<=|>=|<|>|≤|≥|→)")
 _OPENING_DELIMITERS = {"(": ")", "[": "]", "{": "}"}
 _CLOSING_DELIMITERS = {value: key for key, value in _OPENING_DELIMITERS.items()}
-_SPACED_CALL_RE = re.compile(
-    r"(?<![A-Za-z0-9_])(?P<artifact>(?:[A-Za-z][ \t]+){4,}[A-Za-z]"
-    r"[ \t]*\((?:[^()\r\n]|\\.){0,160}\))"
-)
 _SPACED_COMMAND_RE = re.compile(
     r"(?P<artifact>\\[ \t]*(?:[A-Za-z][ \t]+){3,}[A-Za-z](?=[ \t]*[\[{]))"
 )
@@ -145,7 +141,6 @@ def _suspicious_formula_facts(
 ) -> tuple[GeneratedFormulaFact, ...]:
     assert candidate.span is not None
     patterns: tuple[tuple[GeneratedFormulaKind, re.Pattern[str], Callable[[str], bool]], ...] = (
-        ("spaced-token", _SPACED_CALL_RE, _high_confidence_spaced_call),
         ("spaced-token", _SPACED_COMMAND_RE, _high_confidence_spaced_command),
         ("garbled-marker", _GARBLED_MARKER_RE, _always_accept),
     )
@@ -178,17 +173,6 @@ def _suspicious_formula_facts(
                 )
             )
     return tuple(facts)
-
-
-def _high_confidence_spaced_call(artifact: str) -> bool:
-    head = artifact.split("(", 1)[0]
-    tokens = head.split()
-    return (
-        len(tokens) >= 5
-        and all(len(token) == 1 and token.isalpha() for token in tokens)
-        and tokens[0].isupper()
-        and all(token.islower() for token in tokens[1:])
-    )
 
 
 def _high_confidence_spaced_command(artifact: str) -> bool:
