@@ -14,7 +14,15 @@ InlineDelimiter = Literal[
     "latex-paren",
     "plain-text",
 ]
-InlineParseStatus = Literal["preserved", "unsupported", "text-leak"]
+# Frontend candidates are classified by MathHost; ``not-math`` is retained for
+# provenance but is excluded from the engine-facing math query.
+InlineParseStatus = Literal[
+    "candidate",
+    "preserved",
+    "not-math",
+    "unsupported",
+    "text-leak",
+]
 InlineTextRole = Literal["paragraph", "heading", "list-item", "blockquote"]
 DisplayContainer = Literal[
     "dollar-dollar",
@@ -41,7 +49,7 @@ class InlineMathFact(FactBase):
     context: str
     alt: str | None = None
     surrounding_text_role: InlineTextRole = "paragraph"
-    parse_status: InlineParseStatus = "preserved"
+    parse_status: InlineParseStatus = "candidate"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
