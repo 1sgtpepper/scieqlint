@@ -79,6 +79,7 @@ $$
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-eqref", "missing")
     ]
+
     assert [(diagnostic.code, diagnostic.detail) for diagnostic in engine] == [
         ("REF002", r"reference text: \eqref{missing}")
     ]
@@ -148,6 +149,21 @@ $$
     assert [
         fact.target_span.start for fact in snapshot.equation_refs if fact.target_span
     ] == sorted(fact.target_span.start for fact in snapshot.equation_refs if fact.target_span)
+
+
+def test_dollar_math_ignores_escaped_environment_and_reference_tokens() -> None:
+    source = r"""$$
+\\begin{align}
+x &= \\ref{escaped} + \ref{ } + \ref{valid}
+\\end{align}
+$$"""
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert snapshot.display_math[0].container == "dollar-dollar"
+    assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
+        ("tex-ref", "valid")
+    ]
 
 
 def test_incomplete_aligned_environment_keeps_display_identity_without_ams_claim() -> None:
