@@ -7,7 +7,7 @@ from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.query.host import QueryHost
 
 
@@ -111,3 +111,35 @@ def test_generated_profile_gates_reference_and_profile_paths() -> None:
 
     assert disabled_references.diagnostics == ()
     assert default_profile.diagnostics == ()
+
+
+def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None:
+    source = doc(
+        "source/lecture.md",
+        "(energy)=\n## Energy\n\nText.\n",
+    )
+    generated = SourceDocument.from_text(
+        PurePosixPath("translated/lecture.md"),
+        "## Energy\n\nTranslated text.\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source.path.as_posix(),
+            tool="translation",
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
+
+    generated_result = check_documents(
+        (source, generated),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+    default_result = check_documents((source, generated), config=Config())
+
+    assert [(diagnostic.code, diagnostic.detail) for diagnostic in generated_result.diagnostics] == [
+        (
+            "GEN001",
+            "source anchor 'energy' from source/lecture.md is absent in "
+            "translated/lecture.md",
+        )
+    ]
+    assert default_result.diagnostics == ()

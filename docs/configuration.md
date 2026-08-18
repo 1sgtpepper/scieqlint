@@ -180,6 +180,12 @@ ordinary scanner, parser, algebra, reference, and structure checks configured
 below. Unknown profile names are rejected rather than silently running a
 different rule set.
 
+The profile consumes caller-owned source mappings when the already-loaded-document
+API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
+to each generated `SourceDocument`; the checker does not infer that mapping from
+filenames or document order. Without an origin, generated-output provenance checks
+remain quiet for that document.
+
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
