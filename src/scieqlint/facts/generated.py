@@ -39,4 +39,5 @@ class GeneratedFormulaFact(FactBase):
     text: str
     candidate_kind: GeneratedFormulaCandidateKind | None = None
     source_math_fact_id: str | None = None
+    placeholder_kind: str | None = None
     complete: bool | None = None
