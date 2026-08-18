@@ -92,7 +92,8 @@ def test_generated_profile_snapshot_preserves_per_document_origin_metadata() -> 
 
     query = QueryHost(supplied)
     assert (
-        query.generated.provenance_for_document("out/generated.md") == supplied.generated_provenance
+        query.generated.provenance_for_document("out/generated.md")
+        == (supplied.generated_provenance[0],)
     )
     assert query.generated.provenance_for_document("missing.md") == ()
 
@@ -189,27 +190,31 @@ def test_generated_profile_keeps_heterogeneous_origins_through_public_path() -> 
     assert {
         (
             diagnostic.detail,
-            dict(diagnostic.properties),
+            frozenset(diagnostic.properties),
         )
         for diagnostic in result.diagnostics
     } == {
         (
             "source anchor 'energy' from source/a.md is absent in out/a.md",
-            {
-                "generated_document": "out/a.md",
-                "source_document": "source/a.md",
-                "source_kind": "jats-xml",
-                "conversion_stage": "xml-to-markdown",
-            },
+            frozenset(
+                {
+                    "generated_document": "out/a.md",
+                    "source_document": "source/a.md",
+                    "source_kind": "jats-xml",
+                    "conversion_stage": "xml-to-markdown",
+                }.items()
+            ),
         ),
         (
             "source anchor 'force' from source/b.md is absent in out/b.md",
-            {
-                "generated_document": "out/b.md",
-                "source_document": "source/b.md",
-                "source_kind": "latex",
-                "conversion_stage": "translation",
-            },
+            frozenset(
+                {
+                    "generated_document": "out/b.md",
+                    "source_document": "source/b.md",
+                    "source_kind": "latex",
+                    "conversion_stage": "translation",
+                }.items()
+            ),
         ),
     }
 
