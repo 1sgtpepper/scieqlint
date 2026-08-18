@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
-from scieqlint.app import _generated_profile_snapshot
 from scieqlint.api import check_documents
+from scieqlint.app import _generated_profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
