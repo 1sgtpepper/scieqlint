@@ -209,6 +209,7 @@ def _plain_text_math_facts(
                 confidence="inferred",
             )
 
+
 def _surrounding_text_role(text: str, offset: int) -> InlineTextRole:
     line_start = text.rfind("\n", 0, offset) + 1
     line_end = text.find("\n", offset)
