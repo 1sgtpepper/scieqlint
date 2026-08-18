@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import PurePosixPath
 
+from scieqlint.app import check_documents
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -80,7 +81,6 @@ def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_ge
 
     monkeypatch.setattr(MySTFrontend, "lower", count_lower)
 
-    from scieqlint.app import check_documents
     from scieqlint.config.model import Config, ProfileConfig
 
     result = check_documents(
@@ -93,7 +93,6 @@ def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_ge
 
 
 def test_generated_profile_gates_reference_and_profile_paths() -> None:
-    from scieqlint.app import check_documents
     from scieqlint.config.model import ChecksConfig, Config, ProfileConfig, ReferencesConfig
 
     reference_document = doc(
