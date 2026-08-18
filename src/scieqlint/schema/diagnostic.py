@@ -7,9 +7,9 @@ AnalysisResult registry and serializer migration remain owned by #190/#191.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from scieqlint.diag.model import Diagnostic
-from scieqlint.facts.generated import GeneratedProvenanceFact
 
 DIAGNOSTIC_PROJECTION_VERSION = "diagnostic-metadata/0.1"
 
@@ -22,6 +22,15 @@ class DiagnosticProjection:
     profile: str | None
     provenance_ids: tuple[str, ...]
     properties: tuple[tuple[str, str], ...]
+
+
+class _GeneratedProvenance(Protocol):
+    """Structural input that keeps schema projection independent of fact storage."""
+
+    generated_document_id: str
+    source_document_id: str | None
+    source_kind: str | None
+    conversion_stage: str | None
 
 
 class SchemaHost:
@@ -47,7 +56,7 @@ class SchemaHost:
 
     @staticmethod
     def generated_provenance_properties(
-        provenance: GeneratedProvenanceFact,
+        provenance: _GeneratedProvenance,
         *,
         prefix: str = "",
     ) -> tuple[tuple[str, str], ...]:
