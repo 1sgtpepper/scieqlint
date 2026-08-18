@@ -88,11 +88,25 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
 
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
     snapshot = MathHost().classify(
-        MySTFrontend().lower((doc("Status = complete; compact a = b+c."),))
+        MySTFrontend().lower((doc("Version 1 < 2; Status = complete; A>=B; a = b+c."),))
     )
 
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        ("1 < 2", "preserved"),
         ("Status = complete", "preserved"),
+        ("A>=B", "text-leak"),
+        ("a = b+c", "text-leak"),
+    ]
+
+
+def test_math_host_owns_plain_text_candidate_classification() -> None:
+    lowered = MySTFrontend().lower((doc("compact a = b+c."),))
+
+    assert [(fact.body, fact.parse_status) for fact in lowered.inline_math] == [
+        ("a = b+c", "preserved"),
+    ]
+    classified = MathHost().classify(lowered)
+    assert [(fact.body, fact.parse_status) for fact in classified.inline_math] == [
         ("a = b+c", "text-leak"),
     ]
 
