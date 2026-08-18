@@ -37,7 +37,14 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     """Trap standard-library network entry points reachable from analysis."""
 
     monkeypatch.setattr(socket, "create_connection", _deny_network)
+    monkeypatch.setattr(socket, "getaddrinfo", _deny_network)
+    monkeypatch.setattr(socket, "gethostbyname", _deny_network)
+    monkeypatch.setattr(socket, "gethostbyname_ex", _deny_network)
     monkeypatch.setattr(socket.socket, "connect", _deny_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", _deny_network)
+    monkeypatch.setattr(socket.socket, "send", _deny_network)
+    monkeypatch.setattr(socket.socket, "sendall", _deny_network)
+    monkeypatch.setattr(socket.socket, "sendto", _deny_network)
     monkeypatch.setattr(http.client.HTTPConnection, "connect", _deny_network)
     monkeypatch.setattr(http.client.HTTPSConnection, "connect", _deny_network)
     monkeypatch.setattr(urllib.request, "urlopen", _deny_network)
@@ -74,9 +81,12 @@ def _document(path: str, text: str, kind: DocumentKind) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, kind)
 
 
-def test_public_analysis_path_does_not_fetch_hostile_external_targets(no_network: None) -> None:
-    document = _document(
-        "generated.md",
+def test_public_analysis_path_does_not_fetch_hostile_external_targets(
+    tmp_path,
+    no_network: None,
+) -> None:
+    input_path = tmp_path / "generated.md"
+    input_path.write_text(
         "\n".join(
             (
                 "# Generated",
@@ -88,17 +98,19 @@ def test_public_analysis_path_does_not_fetch_hostile_external_targets(no_network
                 "Inline source: $E = mc^2$.",
             )
         ),
-        DocumentKind.MARKDOWN,
+        encoding="utf-8",
     )
 
-    result = check_documents(
-        (document,),
-        config=Config(scanner=ScannerConfig(inline_math=True)),
+    result = check_paths(
+        (input_path,),
+        inline_math=True,
+        absolute_paths=True,
     )
 
     assert result.files_checked == 1
     assert all(
-        diagnostic.span is None or diagnostic.span.path == PurePosixPath("generated.md")
+        diagnostic.span is None
+        or diagnostic.span.path == PurePosixPath(input_path.as_posix())
         for diagnostic in result.diagnostics
     )
 
@@ -171,3 +183,19 @@ def test_no_network_guard_has_a_meaningful_negative_control(no_network: None) ->
         match="analysis core attempted a network call",
     ):
         socket.create_connection(("example.invalid", 443))
+
+
+def test_no_document_side_effect_guard_has_a_meaningful_negative_control(
+    no_document_side_effects: None,
+) -> None:
+    with pytest.raises(
+        UnexpectedDocumentSideEffectError,
+        match="analysis attempted to execute document code",
+    ):
+        builtins.exec("sentinel = True")
+
+    with pytest.raises(
+        UnexpectedDocumentSideEffectError,
+        match="analysis attempted to import a document-provided module",
+    ):
+        builtins.__import__("user_project")
