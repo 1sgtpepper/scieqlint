@@ -35,6 +35,7 @@ from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
@@ -233,7 +234,7 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
-    snapshot = MySTFrontend().lower(documents)
+    snapshot = MathHost().classify(MySTFrontend().lower(documents))
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(
