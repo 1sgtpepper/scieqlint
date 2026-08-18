@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
+from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -134,11 +135,12 @@ def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None
     )
     default_result = check_documents((source, generated), config=Config())
 
-    assert [(diagnostic.code, diagnostic.detail) for diagnostic in generated_result.diagnostics] == [
+    assert [
+        (diagnostic.code, diagnostic.detail) for diagnostic in generated_result.diagnostics
+    ] == [
         (
             "GEN001",
-            "source anchor 'energy' from source/lecture.md is absent in "
-            "translated/lecture.md",
+            "source anchor 'energy' from source/lecture.md is absent in translated/lecture.md",
         )
     ]
     assert default_result.diagnostics == ()
