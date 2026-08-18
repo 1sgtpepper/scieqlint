@@ -8,13 +8,16 @@ import pytest
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.engine.portability import PortabilityEngine
+from scieqlint.facts.math import DisplayMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.portability import typst_math_risks
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str) -> SourceDocument:
@@ -292,3 +295,39 @@ def test_typst_engine_rejects_unknown_syntax_kind() -> None:
         PortabilityEngine(profile="typst-portability").run(
             QueryHost(FactSnapshot(portability=(unknown,)))
         )
+
+
+def test_typst_risk_projection_skips_unspanned_foreign_and_escaped_displays() -> None:
+    document = doc(r"\left. \\begin{aligned}x = y\\end{aligned}")
+    span = SourceMap.for_document(document).span(0, len(document.text))
+    escaped_environment = DisplayMathFact(
+        fact_id="typst-equations.md::display-math::0",
+        document_id=document.path.as_posix(),
+        span=span,
+        raw=document.text,
+        body=document.text,
+        container="dollar-dollar",
+    )
+    unspanned = DisplayMathFact(
+        fact_id="unspanned",
+        document_id=document.path.as_posix(),
+        span=None,
+        raw=None,
+        body="",
+        container="dollar-dollar",
+    )
+    foreign = DisplayMathFact(
+        fact_id="foreign",
+        document_id="other.md",
+        span=span,
+        raw=document.text,
+        body=document.text,
+        container="dollar-dollar",
+    )
+
+    assert typst_math_risks(
+        FactSnapshot(
+            documents=(document,),
+            display_math=(unspanned, foreign, escaped_environment),
+        )
+    ) == ()
