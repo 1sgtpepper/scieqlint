@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -74,6 +75,39 @@ c &= d \eqref{missing}
     span = snapshot.equation_refs[0].target_span
     assert span is not None
     assert source[span.start : span.end] == "missing"
+
+
+def test_escaped_raw_equation_markers_and_empty_targets_are_not_facts() -> None:
+    source = r"""\begin{equation}
+x = y \\label{escaped} \\ref{escaped} \ref{ }
+\end{equation}
+"""
+
+    snapshot = lower(doc(source))
+
+    assert snapshot.equation_labels == ()
+    assert snapshot.equation_refs == ()
+    assert snapshot.unknown_math == ()
+
+
+def test_math_host_preserves_raw_candidate_without_a_source_span() -> None:
+    source = r"""\begin{equation}
+x = y \label{not-materialized}
+\end{equation}
+"""
+    snapshot = MySTFrontend().lower((doc(source),))
+    spanless = replace(
+        snapshot,
+        display_math=(replace(snapshot.display_math[0], span=None),),
+        equation_labels=(),
+        equation_refs=(),
+    )
+
+    classified = MathHost().classify(spanless)
+
+    assert classified.display_math[0].span is None
+    assert classified.equation_labels == ()
+    assert classified.equation_refs == ()
 
 
 def test_unsupported_raw_math_environment_is_unknown_without_losing_refs_or_labels() -> None:
