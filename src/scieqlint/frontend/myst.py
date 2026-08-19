@@ -21,6 +21,7 @@ from scieqlint.source.maps import SourceMap
 
 from .generated import (
     scan_bracketed_latex_blocks,
+    scan_equation_like_text_items,
     scan_formula_candidates,
     scan_formula_placeholders,
 )
@@ -145,9 +146,19 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         reference_snapshot.opaque_ranges,
         (*live_fence_ranges, *inline_code_ranges(document.text)),
     )
+    equation_like_text = scan_equation_like_text_items(
+        document,
+        smap,
+        inline_math,
+        tuple(
+            (fact.span.start, fact.span.end)
+            for fact in (*bracketed_blocks, *placeholders)
+            if fact.span is not None
+        ),
+    )
     generated_formulas = tuple(
         sorted(
-            (*generated_formulas, *bracketed_blocks, *placeholders),
+            (*generated_formulas, *bracketed_blocks, *placeholders, *equation_like_text),
             key=lambda fact: (
                 fact.span.start if fact.span is not None else -1,
                 fact.fact_id,

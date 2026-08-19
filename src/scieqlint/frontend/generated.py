@@ -28,6 +28,9 @@ _FORMULA_IMAGE_NAME_RE = re.compile(
     r"\.(?:avif|gif|jpe?g|png|svg|webp)",
     re.IGNORECASE,
 )
+_LIST_ITEM_RE = re.compile(r"^[ \t]*(?:[-+*]|\d+[.)])[ \t]+(?P<body>.*)$")
+_BLOCKQUOTE_RE = re.compile(r"^[ \t]*>[ \t]?(?P<body>.*)$")
+_ALPHA_WORD_RE = re.compile(r"(?<!\\)[A-Za-z]+")
 
 
 def scan_formula_candidates(
@@ -304,3 +307,98 @@ def _is_standalone_line(text: str, start: int, end: int) -> bool:
     if line_end == -1:
         line_end = len(text)
     return text[line_start:line_end].strip(" \t") == text[start:end]
+
+
+def scan_equation_like_text_items(
+    document: SourceDocument,
+    smap: SourceMap,
+    inline_math: Sequence[InlineMathFact],
+    occupied: Sequence[OffsetRange],
+) -> tuple[GeneratedFormulaFact, ...]:
+    """Record whole isolated text items, never equation substrings in prose."""
+
+    lines = line_ranges(document.text)
+    occupied = _merge_ranges(occupied)
+    facts: list[GeneratedFormulaFact] = []
+    for math_fact in inline_math:
+        if (
+            math_fact.document_id != document.path.as_posix()
+            or math_fact.delimiter_kind != "plain-text"
+            or math_fact.span is None
+            or in_ranges(math_fact.span.start, occupied)
+        ):
+            continue
+        line_index = math_fact.span.line - 1
+        if not 0 <= line_index < len(lines):
+            continue
+        line_start, _line_end, line = lines[line_index]
+        content = _text_item_content(line, math_fact.surrounding_text_role)
+        if content is None:
+            continue
+        content_offset, text = content
+        start = line_start + content_offset
+        end = start + len(text)
+        if (
+            start != math_fact.span.start
+            or end != math_fact.span.end
+            or text != math_fact.body
+            or not _is_isolated_text_item(lines, line_index, math_fact.surrounding_text_role)
+        ):
+            continue
+        facts.append(
+            GeneratedFormulaFact(
+                fact_id=(
+                    f"{document.path.as_posix()}::generated-formula::equation-like-text::{start}"
+                ),
+                document_id=document.path.as_posix(),
+                span=smap.span(start, end),
+                raw=text,
+                confidence="source",
+                kind="candidate",
+                text=text,
+                candidate_kind="equation-like-text",
+                source_math_fact_id=math_fact.fact_id,
+            )
+        )
+    return tuple(facts)
+
+
+def _text_item_content(line: str, role: str) -> tuple[int, str] | None:
+    if role == "heading":
+        return None
+    if role == "list-item":
+        match = _LIST_ITEM_RE.fullmatch(line)
+        if match is None:
+            return None
+        body = match.group("body").strip(" \t")
+        return match.start("body") + len(match.group("body")) - len(
+            match.group("body").lstrip(" \t")
+        ), body
+    if role == "blockquote":
+        match = _BLOCKQUOTE_RE.fullmatch(line)
+        if match is None:
+            return None
+        body = match.group("body").strip(" \t")
+        return match.start("body") + len(match.group("body")) - len(
+            match.group("body").lstrip(" \t")
+        ), body
+    stripped = line.strip(" \t")
+    return len(line) - len(line.lstrip(" \t")), stripped
+
+
+def _is_isolated_text_item(
+    lines: Sequence[tuple[int, int, str]],
+    index: int,
+    role: str,
+) -> bool:
+    previous = lines[index - 1][2] if index > 0 else ""
+    following = lines[index + 1][2] if index + 1 < len(lines) else ""
+    if role == "list-item":
+        return _list_boundary(previous) and _list_boundary(following)
+    if role == "blockquote":
+        return not previous.lstrip().startswith(">") and not following.lstrip().startswith(">")
+    return not previous.strip() and not following.strip()
+
+
+def _list_boundary(line: str) -> bool:
+    return not line.strip() or _LIST_ITEM_RE.fullmatch(line) is not None
