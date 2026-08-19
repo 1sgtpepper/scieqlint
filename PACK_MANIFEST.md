@@ -141,6 +141,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
+- `src/scieqlint/engine/portability.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -186,6 +187,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/policy/__init__.py`
+- `src/scieqlint/policy/host.py`
 - `src/scieqlint/pre_commit.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/generated-myst.toml`
@@ -273,6 +276,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_cli.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
+- `tests/test_cross_format_references.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from scieqlint.config.load import load_config
-from scieqlint.config.model import DimensionConfig
+from scieqlint.config.model import DimensionConfig, ProfileConfig
 from scieqlint.config.presets import list_presets, read_preset_text
 
 
@@ -181,7 +181,7 @@ def test_load_config_rejects_unknown_profile_name(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nname = "unknown"\n', encoding="utf-8")
 
-    with pytest.raises(ValueError, match="name must be generated-myst"):
+    with pytest.raises(ValueError, match="name must be one of"):
         load_config(config_path)
 
 
@@ -542,3 +542,66 @@ def test_dimension_config_auto_is_quiet_without_vars() -> None:
 def test_dimension_config_on_and_off_are_explicit() -> None:
     assert DimensionConfig(mode="on").is_active(has_vars=False) is True
     assert DimensionConfig(mode="off").is_active(has_vars=True) is False
+
+
+def test_load_config_accepts_cross_format_reference_output_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "cross-format-references"\noutput_profile = "typst"\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.profile.name == "cross-format-references"
+    assert config.profile.output_profile == "typst"
+
+
+@pytest.mark.parametrize("output_profile", ["commonmark", "myst", "notebook", "typst"])
+def test_profile_config_accepts_each_cross_format_output_profile(output_profile: str) -> None:
+    profile = ProfileConfig(
+        name="cross-format-references",
+        output_profile=output_profile,
+    )
+
+    assert profile.output_profile == output_profile
+
+
+def test_profile_config_rejects_incompatible_output_profile_states() -> None:
+    with pytest.raises(ValueError, match="output_profile is required"):
+        ProfileConfig(name="cross-format-references")
+    with pytest.raises(ValueError, match="output_profile is only valid"):
+        ProfileConfig(name="generated-myst", output_profile="typst")
+
+
+def test_load_config_requires_output_profile_for_cross_format_references(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "cross-format-references"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="output_profile is required"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_unknown_output_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "cross-format-references"\noutput_profile = "unknown"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="output_profile must be one of"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_output_profile_for_unrelated_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "generated-myst"\noutput_profile = "typst"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="output_profile is only valid"):
+        load_config(config_path)

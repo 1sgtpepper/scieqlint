@@ -8,7 +8,8 @@ from typing import Literal
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
-ValidationProfile = Literal["generated-myst"]
+ValidationProfile = Literal["generated-myst", "cross-format-references"]
+OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +36,7 @@ class ProfileConfig:
     name: ValidationProfile | None = None
     source_kind: str | None = None
     conversion_stage: str | None = None
+    output_profile: OutputProfile | None = None
 
     def __post_init__(self) -> None:
         if self.name != "generated-myst" and (
@@ -44,6 +46,10 @@ class ProfileConfig:
                 "profile.source_kind and profile.conversion_stage require "
                 'profile.name = "generated-myst"'
             )
+        if self.name == "cross-format-references" and self.output_profile is None:
+            raise ValueError("profile.output_profile is required for cross-format-references")
+        if self.name != "cross-format-references" and self.output_profile is not None:
+            raise ValueError("profile.output_profile is only valid for cross-format-references")
 
 
 @dataclass(frozen=True, slots=True)
