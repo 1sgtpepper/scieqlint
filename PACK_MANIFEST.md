@@ -285,6 +285,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_cross_format_references.py`
 - `tests/test_crossref_metadata_facts.py`
 - `tests/test_crossref_path_normalization.py`
+- `tests/test_deterministic_properties.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
