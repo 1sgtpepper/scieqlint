@@ -21,7 +21,12 @@ from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
-from scieqlint.facts.reference import EquationLabelFact, GenericRefFact, TargetAnchorFact
+from scieqlint.facts.reference import (
+    EquationLabelFact,
+    EquationRefFact,
+    GenericRefFact,
+    TargetAnchorFact,
+)
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import (
     CodeCellFact,
@@ -120,7 +125,9 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert compatibility_result.files_checked == 3
     assert reference_diagnostics
     assert structure_diagnostics
-    assert engine_rule_codes(ReferenceEngine()) == frozenset({"REF004", "REF005"})
+    assert engine_rule_codes(ReferenceEngine()) == frozenset(
+        {"REF001", "REF002", "REF004", "REF005", "REF011"}
+    )
     assert "STR005" in engine_rule_codes(StructureEngine())
     assert analysis_result.summary() == {
         "files_checked": 3,
@@ -1560,6 +1567,15 @@ def test_query_host_views_expose_snapshot_contracts():
         label_syntax_kind="myst",
         source_block_id="math-1",
     )
+    equation_ref = EquationRefFact(
+        fact_id="eq-ref-1",
+        document_id="a.md",
+        span=span(),
+        raw="{eq}`eq:missing`",
+        ref_kind="eq",
+        target="eq:missing",
+        normalized_target="eq:missing",
+    )
     inline = InlineMathFact(
         fact_id="inline-1",
         document_id="a.md",
@@ -1657,6 +1673,7 @@ def test_query_host_views_expose_snapshot_contracts():
         target_anchors=(source_anchor, duplicate_anchor, orphaned_anchor),
         generic_refs=(ref, unresolved_ref),
         equation_labels=(equation,),
+        equation_refs=(equation_ref,),
         inline_math=(inline,),
         display_math=(display,),
         unknown_math=(unknown,),
@@ -1683,6 +1700,7 @@ def test_query_host_views_expose_snapshot_contracts():
         orphaned_anchor,
     )
     assert query.references.equation_targets() == (equation,)
+    assert query.references.equation_refs() == (equation_ref,)
     assert query.references.generic_refs() == (ref, unresolved_ref)
     assert query.references.target_index()["intro"] == (source_anchor, duplicate_anchor)
     assert query.references.duplicate_generic_targets() == {
@@ -1691,6 +1709,8 @@ def test_query_host_views_expose_snapshot_contracts():
     assert query.references.unresolved_generic_refs() == (unresolved_ref,)
     assert query.references.ambiguous_generic_refs() == (ref,)
     assert query.references.orphaned_targets() == (orphaned_anchor,)
+    assert query.references.unresolved_equation_refs() == (equation_ref,)
+    assert query.references.ambiguous_equation_refs() == ()
 
     assert query.math.inline_math() == (inline,)
     assert query.math.display_math() == (display,)

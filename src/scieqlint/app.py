@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar
@@ -203,8 +203,9 @@ def check_documents(
     if markdown_documents and config.scanner.markdown:
         query = QueryHost(_generated_profile_snapshot(markdown_documents, config))
         if config.checks.references.enabled:
-            diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
+            _extend_unique_diagnostics(
+                diagnostics,
+                (diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)),
             )
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
@@ -226,6 +227,20 @@ def check_documents(
         version=__version__,
         show_suppressed=config.report.show_suppressed,
     )
+
+
+def _extend_unique_diagnostics(
+    diagnostics: list[Diagnostic],
+    additions: Iterable[Diagnostic],
+) -> None:
+    """Append compatibility-kernel diagnostics without reporting the same fact twice."""
+
+    seen = set(diagnostics)
+    for diagnostic in additions:
+        if diagnostic in seen:
+            continue
+        diagnostics.append(diagnostic)
+        seen.add(diagnostic)
 
 
 def _generated_profile_snapshot(
