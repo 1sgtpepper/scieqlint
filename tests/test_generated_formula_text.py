@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
+from typing import cast
+
+import pytest
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.engine.generated import GeneratedOutputEngine
-from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
+from scieqlint.facts.generated import (
+    GeneratedFormulaCandidateKind,
+    GeneratedFormulaFact,
+    GeneratedProvenanceFact,
+)
 from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.generated import scan_formula_candidates
@@ -301,6 +308,23 @@ def test_math_host_keeps_existing_facts_and_skips_unmappable_candidates() -> Non
     )
 
     assert snapshot.generated_formulas == (existing,)
+
+
+def test_math_host_rejects_unknown_generated_candidate_kind() -> None:
+    document = doc("candidate")
+    candidate = GeneratedFormulaFact(
+        fact_id="unknown-candidate",
+        document_id=document.path.as_posix(),
+        span=SourceMap.for_document(document).span(0, len(document.text)),
+        raw="candidate",
+        confidence="source",
+        kind="candidate",
+        text="candidate",
+        candidate_kind=cast(GeneratedFormulaCandidateKind, "unknown"),
+    )
+
+    with pytest.raises(ValueError, match="unsupported generated formula candidate kind"):
+        MathHost().classify(FactSnapshot(documents=(document,), generated_formulas=(candidate,)))
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:
