@@ -143,6 +143,15 @@ def _classify_generated_candidate(
         return _suspicious_formula_facts(candidate, source_map)
     if candidate.candidate_kind == "bracketed-block":
         return (replace(candidate, kind="bracketed-block", candidate_kind=None),)
+    if candidate.candidate_kind == "placeholder":
+        kind = (
+            "empty-display"
+            if candidate.placeholder_kind == "empty-display-math"
+            else "image-placeholder"
+            if candidate.placeholder_kind == "formula-image"
+            else "placeholder"
+        )
+        return (replace(candidate, kind=kind, candidate_kind=None),)
     raise ValueError(f"unsupported generated formula candidate kind: {candidate.candidate_kind}")
 
 

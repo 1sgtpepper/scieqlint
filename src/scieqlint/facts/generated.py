@@ -12,8 +12,11 @@ GeneratedFormulaKind = Literal[
     "spaced-token",
     "garbled-marker",
     "bracketed-block",
+    "placeholder",
+    "empty-display",
+    "image-placeholder",
 ]
-GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block"]
+GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block", "placeholder"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -36,4 +39,5 @@ class GeneratedFormulaFact(FactBase):
     text: str
     candidate_kind: GeneratedFormulaCandidateKind | None = None
     source_math_fact_id: str | None = None
+    placeholder_kind: str | None = None
     complete: bool | None = None

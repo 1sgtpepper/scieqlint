@@ -2,16 +2,32 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 from scieqlint.facts.generated import GeneratedFormulaFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import MarkdownLinkToken
 from scieqlint.source.maps import SourceMap
 
 from .myst_shared import OffsetRange, in_ranges, line_ranges
 
 # Semantic classification is owned by MathHost after candidate extraction.
+
+_FORMULA_MARKER = "formula-not-decoded"
+_FORMULA_MARKER_LINE_RE = re.compile(
+    r"(?:formula-not-decoded|\[formula-not-decoded\]|<!--\s*formula-not-decoded\s*-->)"
+)
+_FORMULA_IMAGE_ALT_RE = re.compile(
+    r"(?:formula|equation|math)(?:[ _-]*(?:image|placeholder|not[ _-]*decoded))?",
+    re.IGNORECASE,
+)
+_FORMULA_IMAGE_NAME_RE = re.compile(
+    r"(?:formula|equation|math)(?:[_-]*(?:\d+|placeholder|not[_-]*decoded))?"
+    r"\.(?:avif|gif|jpe?g|png|svg|webp)",
+    re.IGNORECASE,
+)
 
 
 def scan_formula_candidates(
@@ -124,3 +140,167 @@ def _merge_ranges(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
         else:
             merged.append((start, end))
     return tuple(merged)
+
+
+def scan_formula_placeholders(
+    document: SourceDocument,
+    smap: SourceMap,
+    inline_math: Sequence[InlineMathFact],
+    display_math: Sequence[DisplayMathFact],
+    dollar_ranges: Sequence[tuple[int, int, int, int]],
+    links: Sequence[MarkdownLinkToken],
+    opaque: Sequence[OffsetRange],
+    code: Sequence[OffsetRange],
+) -> tuple[GeneratedFormulaFact, ...]:
+    """Record explicit generated formula placeholders without guessing repairs."""
+
+    facts: list[GeneratedFormulaFact] = []
+    occupied: list[OffsetRange] = []
+    source_math: tuple[InlineMathFact | DisplayMathFact, ...] = (
+        *display_math,
+        *(fact for fact in inline_math if fact.delimiter_kind != "plain-text"),
+    )
+    for math_fact in source_math:
+        if math_fact.document_id != document.path.as_posix() or math_fact.span is None:
+            continue
+        if math_fact.body.strip() != _FORMULA_MARKER:
+            continue
+        facts.append(
+            _placeholder_fact(
+                document,
+                smap,
+                math_fact.span.start,
+                math_fact.span.end,
+                _FORMULA_MARKER,
+                source_math_fact_id=math_fact.fact_id,
+            )
+        )
+        occupied.append((math_fact.span.start, math_fact.span.end))
+
+    code = _merge_ranges(code)
+    opaque = _merge_ranges(opaque)
+    for line_start, _line_end, line in line_ranges(document.text):
+        stripped = line.strip(" \t")
+        match = _FORMULA_MARKER_LINE_RE.fullmatch(stripped)
+        if match is None:
+            if (
+                stripped == "$$$$"
+                and not in_ranges(line_start, code)
+                and not in_ranges(line_start, opaque)
+            ):
+                start = line_start + len(line) - len(line.lstrip(" \t"))
+                facts.append(
+                    _placeholder_fact(
+                        document,
+                        smap,
+                        start,
+                        start + 4,
+                        "empty-display-math",
+                        complete=True,
+                    )
+                )
+                occupied.append((start, start + 4))
+            continue
+        start = line_start + line.find(stripped)
+        end = start + len(stripped)
+        if _overlaps(start, end, occupied) or in_ranges(start, code):
+            continue
+        is_marker_comment = stripped.startswith("<!--")
+        if in_ranges(start, opaque) and not is_marker_comment:
+            continue
+        facts.append(
+            _placeholder_fact(
+                document,
+                smap,
+                start,
+                end,
+                _FORMULA_MARKER,
+            )
+        )
+        occupied.append((start, end))
+
+    for start, body_start, body_end, close_end in dollar_ranges:
+        if document.text[body_start:body_end].strip():
+            continue
+        if _overlaps(start, close_end, occupied):
+            continue
+        facts.append(
+            _placeholder_fact(
+                document,
+                smap,
+                start,
+                close_end,
+                "empty-display-math",
+                complete=True,
+            )
+        )
+        occupied.append((start, close_end))
+
+    for token in links:
+        if not token.is_image or token.destination is None or in_ranges(token.start, code):
+            continue
+        if token.image_alt is None or not _is_standalone_line(
+            document.text, token.start, token.end
+        ):
+            continue
+        alt = token.image_alt.strip()
+        destination = token.destination.strip()
+        filename = destination.rsplit("/", 1)[-1]
+        if _FORMULA_IMAGE_ALT_RE.fullmatch(alt) is None and not (
+            not alt and _FORMULA_IMAGE_NAME_RE.fullmatch(filename) is not None
+        ):
+            continue
+        facts.append(
+            _placeholder_fact(
+                document,
+                smap,
+                token.start,
+                token.end,
+                "formula-image",
+            )
+        )
+
+    return tuple(
+        sorted(
+            facts,
+            key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
+        )
+    )
+
+
+def _placeholder_fact(
+    document: SourceDocument,
+    smap: SourceMap,
+    start: int,
+    end: int,
+    placeholder_kind: str,
+    *,
+    source_math_fact_id: str | None = None,
+    complete: bool | None = None,
+) -> GeneratedFormulaFact:
+    text = document.text[start:end]
+    return GeneratedFormulaFact(
+        fact_id=f"{document.path.as_posix()}::generated-formula::{placeholder_kind}::{start}",
+        document_id=document.path.as_posix(),
+        span=smap.span(start, end),
+        raw=text,
+        confidence="source",
+        kind="candidate",
+        text=text,
+        candidate_kind="placeholder",
+        source_math_fact_id=source_math_fact_id,
+        placeholder_kind=placeholder_kind,
+        complete=complete,
+    )
+
+
+def _overlaps(start: int, end: int, ranges: Sequence[OffsetRange]) -> bool:
+    return any(start < range_end and range_start < end for range_start, range_end in ranges)
+
+
+def _is_standalone_line(text: str, start: int, end: int) -> bool:
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end].strip(" \t") == text[start:end]
