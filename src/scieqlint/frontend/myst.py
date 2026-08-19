@@ -12,6 +12,7 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.markdown import (
     code_fence_ranges,
     inline_code_ranges,
@@ -59,8 +60,11 @@ _is_immediate_attachment = is_immediate_attachment
 class MySTFrontend:
     """Lower source documents into a ``FactSnapshot`` without diagnostics."""
 
+    def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
+        self.workspace = workspace or WorkspaceHost()
+
     def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
-        parts = tuple(_lower_document(document) for document in documents)
+        parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         return FactSnapshot(
             documents=tuple(documents),
             headings=_flatten(parts, "headings"),
@@ -86,7 +90,7 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
     return tuple(items)
 
 
-def _lower_document(document: SourceDocument) -> FactSnapshot:
+def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> FactSnapshot:
     smap = SourceMap.for_document(document)
     lines = line_ranges(document.text)
     reference_snapshot = markdown_reference_snapshot(document.text)
@@ -129,7 +133,12 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     # extend that contract without reordering pre-existing buckets.
     display_math = (*display_math, *raw_display_math)
     equation_labels = (*equation_labels, *raw_labels)
-    generic_refs, prose_equation_refs = scan_refs(document, smap, reference_snapshot)
+    generic_refs, prose_equation_refs = scan_refs(
+        document,
+        smap,
+        reference_snapshot,
+        workspace=workspace,
+    )
     equation_refs = tuple(
         sorted(
             (*display_equation_refs, *raw_refs, *prose_equation_refs),

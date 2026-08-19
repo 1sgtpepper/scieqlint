@@ -265,3 +265,5 @@ cell metadata in diagnostics, ignores code cells, and emits deterministic `INP00
 or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
 4096 decimal digits are rejected with `INP001`. Code-cell variable
 analysis, notebook execution, and full Jupyter schema validation are deferred.
+
+- Project reference paths are normalized lexically; SciEqLint does not resolve symlinks or fetch external URLs.

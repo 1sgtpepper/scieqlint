@@ -37,6 +37,7 @@ from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
@@ -295,7 +296,8 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
-    snapshot = MySTFrontend().lower(documents)
+    workspace = WorkspaceHost(project_root=config.project.root)
+    snapshot = MySTFrontend(workspace=workspace).lower(documents)
     snapshot = replace(
         snapshot,
         inline_math=_apply_accessibility_metadata(
@@ -303,6 +305,7 @@ def _generated_profile_snapshot(
             accessibility_metadata,
         ),
     )
+    snapshot = replace(snapshot, project_members=workspace.project_members(documents))
     snapshot = MathHost().classify(snapshot)
     if config.profile.name != "generated-myst":
         return snapshot
