@@ -154,14 +154,6 @@ class ReferenceQueryView:
             if len(targets.get(ref.normalized_target, ())) > 1
         )
 
-    def ambiguous_equation_refs(self) -> tuple[EquationRefFact, ...]:
-        targets = self.equation_target_index()
-        return tuple(
-            ref
-            for ref in self.snapshot.equation_refs
-            if len(targets.get(ref.normalized_target, ())) > 1
-        )
-
     def nonvisible_equation_target_impacts(
         self,
     ) -> tuple[NonvisibleEquationTargetImpact, ...]:
