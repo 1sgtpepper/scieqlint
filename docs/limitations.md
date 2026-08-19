@@ -174,7 +174,9 @@ engine emits deterministic diagnostics for malformed ATX headings, unclosed
 non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
-syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+syntax, missing or unknown code-cell language metadata, and malformed code-cell
+tag lists. The supported language set is intentionally bounded; projects can
+use explicit `custom.*` identifiers for execution environments outside it.
 Malformed ATX candidates are syntax issues only and do not enter heading, section,
 slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
 such as `# #` are valid empty headings.

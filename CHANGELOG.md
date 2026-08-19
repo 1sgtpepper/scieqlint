@@ -19,6 +19,9 @@ Release notes must use these sections:
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the explicit
   `generated-myst` profile is selected.
+- Add the opt-in `code-cell-metadata` profile, exact code-cell label/language
+  facts for Markdown and notebooks, code-cell reference targets, and duplicate-label
+  and malformed-language diagnostics.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
 - Model source-neutral cross-reference metadata across document and engine-output

@@ -27,6 +27,7 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
+    normalize_label,
 )
 
 
@@ -182,6 +183,9 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         engine=fence.language,
         options=options,
         label=label,
+        normalized_label=normalize_label(label) if label else None,
+        label_span=_option_value_span(document, fence, QUARTO_OPTION_RE, "label"),
+        language_span=_fence_info_span(document, fence, fence.language),
     )
 
 
@@ -218,6 +222,13 @@ def _directive_code_cell_fact(
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
+    label_key = "label" if option_map.get("label") else "name"
+    label = option_map.get(label_key)
+    language_span = (
+        _directive_group_span(document, fence, directive_match, "arg")
+        if is_myst_code_cell
+        else _directive_group_span(document, fence, directive_match, "name")
+    )
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -228,7 +239,16 @@ def _directive_code_cell_fact(
         language=language,
         engine=language,
         options=options,
-        label=option_map.get("label") or option_map.get("name"),
+        label=label,
+        normalized_label=normalize_label(label) if label else None,
+        label_span=(
+            _option_value_span(document, fence, MYST_OPTION_RE, label_key)
+            if is_myst_code_cell and label is not None
+            else _option_value_span(document, fence, QUARTO_OPTION_RE, label_key)
+            if label is not None
+            else None
+        ),
+        language_span=language_span,
         tags=tags,
     )
 
@@ -377,6 +397,65 @@ def _strip_bracketed_tag_list(value: str) -> str | None:
 
 def _clean_tag(value: str) -> str:
     return value.strip().strip("\"'")
+
+
+def _option_value_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    pattern: re.Pattern[str],
+    key: str,
+) -> SourceSpan | None:
+    if fence.body_span is None:
+        return None
+    body = document.text[fence.body_span.start : fence.body_span.end]
+    offset = fence.body_span.start
+    for line in body.splitlines(keepends=True):
+        match = pattern.match(line.rstrip("\n"))
+        if match is not None and match.group("key") == key:
+            raw_value = match.group("value")
+            leading = len(raw_value) - len(raw_value.lstrip())
+            value = raw_value.strip()
+            if not value:
+                return None
+            start = offset + match.start("value") + leading
+            return SourceMap.for_document(document).span(start, start + len(value))
+        offset += len(line)
+    return None
+
+
+def _fence_info_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    value: str | None,
+) -> SourceSpan | None:
+    if value is None:
+        return None
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.find(fence.info_string)
+    value_start = fence.info_string.find(value)
+    if info_start < 0 or value_start < 0:
+        return fence.opener_span
+    start = fence.opener_span.start + info_start + value_start
+    return SourceMap.for_document(document).span(start, start + len(value))
+
+
+def _directive_group_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    match: re.Match[str],
+    group: str,
+) -> SourceSpan | None:
+    raw_value = match.group(group)
+    value = raw_value.strip()
+    if not value:
+        return None
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.find(fence.info_string)
+    if info_start < 0:
+        return fence.opener_span
+    leading = len(raw_value) - len(raw_value.lstrip())
+    start = fence.opener_span.start + info_start + match.start(group) + leading
+    return SourceMap.for_document(document).span(start, start + len(value))
 
 
 def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:

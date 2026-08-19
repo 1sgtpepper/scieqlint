@@ -24,6 +24,7 @@ codes before every code is emitted by the current analyzer.
 | `DIR010` | warning | Code-cell directive missing language |
 | `DIR011` | warning | Malformed MyST role |
 | `DIR012` | warning | Malformed code-cell tags |
+| `DIR013` | warning | Code-cell language metadata is unknown or malformed |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
@@ -34,6 +35,7 @@ codes before every code is emitted by the current analyzer.
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `REF008` | warning | Equation reference matches a hidden or excluded target |
 | `REF009` | warning | Non-heading reference has missing or generic display text |
+| `REF010` | warning | Duplicate code-cell target label |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -62,10 +64,11 @@ external renderer execution. JSON and SARIF results include `profile`,
 math facts whose `alt` metadata is absent. Inferred equation-like prose is not
 treated as an owned math span, and SciEqLint does not synthesize accessible
 text. JSON and SARIF include the accessibility requirement, delimiter kind,
-surrounding text role, and parse status recorded by the frontend.
+surrounding text role, and parse status recorded by `MathHost`. Callers provide
+fact-ID-keyed accessibility metadata through `check_documents()`.
 
 `PORT003` is opt-in through `typst-portability`. It reports only the focused
-display-math forms modeled by the frontend: `\dfrac`, `\argmin`, and
+display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
 `aligned`, `array`, or `matrix` environments combined with `\left` or
 `\right`. Diagnostics retain the exact source span and command or environment
 metadata. The profile does not render Typst or claim complete translation
@@ -91,6 +94,20 @@ whose display text is absent or only repeats the target/type. Heading targets an
 `{eq}`/`{numref}` roles remain quiet. Diagnostics retain the explicit display span when one
 exists, target type, reference kind, display intent, and originating fact IDs. The rule does
 not render final prose or enforce a universal writing style.
+
+## REF010 and DIR013
+
+`REF010` reports a code-cell label that collides with another visible reference
+target. It points to the duplicate cell label; references to the shared target
+remain subject to `REF005` ambiguity diagnostics.
+
+`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata
+that is missing from the supported language set or is not syntactically one
+identifier. The built-in set covers common executable languages such as
+`python`, `julia`, `r`, `bash`, `c++`, `rust`, `javascript`, and `sql`.
+Explicit identifiers beginning with `custom` (for example,
+`custom.kernel-3`) remain valid. SciEqLint does not execute cells or validate
+language-specific syntax.
 
 ## Generated-output engine
 
@@ -210,7 +227,8 @@ project-path normalization, for example when `./chapter.md` must be normalized t
 ## REF007
 
 `REF007` warns when separate source or engine-output boundaries describe the same
-logical cross-reference target with conflicting kind or display metadata. Source
-format is retained as provenance and does not conflict by itself. The diagnostic
-properties preserve both boundary identities; reporters do not inspect source
-documents to reconstruct them.
+logical cross-reference target with conflicting resolved kind or target-definition
+metadata. A reference role or local display title belongs to the reference use and
+does not participate in this comparison. Source format is retained as provenance
+and does not conflict by itself. The diagnostic properties preserve both boundary
+identities; reporters do not inspect source documents to reconstruct them.

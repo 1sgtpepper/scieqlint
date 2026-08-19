@@ -15,7 +15,18 @@ class ReferenceEngine:
         self.profile = profile
 
     rule_codes = frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008", "REF011"}
+        {
+            "REF001",
+            "REF002",
+            "REF004",
+            "REF005",
+            "REF006",
+            "REF007",
+            "REF008",
+            "REF009",
+            "REF010",
+            "REF011",
+        }
     )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
@@ -32,6 +43,26 @@ class ReferenceEngine:
                         span=duplicate.label_span or duplicate.span,
                         rule="references",
                         false_positive_risk="low",
+                    )
+                )
+        duplicate_cell_info = CATALOG["REF010"]
+        target_index = query.references.target_index()
+        for target, duplicates in query.references.duplicate_code_cell_targets().items():
+            facts = tuple(sorted(target_index[target], key=lambda fact: fact.fact_id))
+            for duplicate in duplicates:
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=duplicate_cell_info.code,
+                        severity_default=duplicate_cell_info.severity,
+                        message=f"{duplicate_cell_info.message}: {target}",
+                        span=duplicate.label_span or duplicate.span,
+                        rule="references.code_cell_target",
+                        false_positive_risk="low",
+                        provenance_ids=tuple(fact.fact_id for fact in facts),
+                        properties=(
+                            ("target", target),
+                            ("target_count", str(len(facts))),
+                        ),
                     )
                 )
         missing_equation_info = CATALOG["REF002"]

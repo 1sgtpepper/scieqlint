@@ -90,6 +90,7 @@ class MySTFrontend:
                 equation_refs,
                 target_anchors,
                 equation_labels,
+                _flatten(parts, "code_cells"),
             ),
             inline_math=inline_math,
             display_math=_flatten(parts, "display_math"),

@@ -279,6 +279,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_baseline.py`
 - `tests/test_ci_workflow.py`
 - `tests/test_cli.py`
+- `tests/test_code_cell_metadata.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`

@@ -200,6 +200,10 @@ silently running a different rule set.
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX
   `\left`/`\right` sizing. It does not invoke Typst or translate equations.
+- `code-cell-metadata` includes notebook-derived cells, treats labeled code
+  cells as reference targets, and reports missing, unknown, or malformed
+  language metadata without executing cell contents. Explicit `custom.*`
+  identifiers are accepted for project-specific execution environments.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset, which does not select this profile.

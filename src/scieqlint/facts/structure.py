@@ -9,6 +9,7 @@ from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 FenceKind = Literal["generic", "math", "directive", "code-cell", "div"]
+CodeCellSourceFormat = Literal["markdown", "notebook"]
 StructureSyntaxKind = Literal[
     "atx-heading",
     "myst-directive",
@@ -73,6 +74,10 @@ class CodeCellFact(FactBase):
     engine: str | None
     options: tuple[tuple[str, str], ...]
     label: str | None = None
+    normalized_label: str | None = None
+    label_span: SourceSpan | None = None
+    language_span: SourceSpan | None = None
+    source_format: CodeCellSourceFormat = "markdown"
     tags: tuple[str, ...] = ()
     output_target_labels: tuple[str, ...] = ()
 
