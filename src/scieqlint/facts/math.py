@@ -30,6 +30,7 @@ DisplayContainer = Literal[
     "fenced-math",
     "ams",
     "quarto-equation",
+    "raw-latex",
 ]
 UnknownReason = Literal[
     "unsupported_syntax",
@@ -60,6 +61,7 @@ class DisplayMathFact(FactBase):
     alt: str | None = None
     enumerated: bool | None = None
     environment: str | None = None
+    complete: bool = True
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

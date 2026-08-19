@@ -43,12 +43,15 @@ _REFERENCE_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _LIST_PREFIX_RE = re.compile(r"^[ \t]*(?:[-+*]|\d+[.)])[ \t]+")
 _HEADING_PREFIX_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
 _TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
+_RAW_ENV_TOKEN_RE = re.compile(r"\\(?P<kind>begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
 
 
 def math_occupied_ranges(
     display_math: Sequence[DisplayMathFact],
 ) -> tuple[OffsetRange, ...]:
-    return tuple((fact.span.start, fact.span.end) for fact in display_math if fact.span is not None)
+    return tuple(
+        sorted((fact.span.start, fact.span.end) for fact in display_math if fact.span is not None)
+    )
 
 
 def scan_display_math(
@@ -79,6 +82,88 @@ def scan_display_math(
     labels.extend(dollar_labels)
     references.extend(dollar_references)
     return tuple(display), tuple(labels), tuple(references)
+
+
+def scan_raw_latex_math(
+    document: SourceDocument,
+    smap: SourceMap,
+    occupied: Sequence[OffsetRange],
+) -> tuple[
+    tuple[DisplayMathFact, ...],
+    tuple[EquationLabelFact, ...],
+    tuple[EquationRefFact, ...],
+]:
+    """Lower top-level raw-LaTeX environment candidates without classifying them."""
+
+    displays: list[DisplayMathFact] = []
+    occupied_ranges = _merge_occupied(occupied)
+    for environment, start, body_start, body_end, end, complete in _raw_math_environment_ranges(
+        document.text, occupied_ranges
+    ):
+        fact_id = f"{document.path.as_posix()}::raw-math::{start}"
+        raw = document.text[start:end]
+        body_text = document.text[body_start:body_end]
+        display = DisplayMathFact(
+            fact_id=fact_id,
+            document_id=document.path.as_posix(),
+            span=smap.span(start, end),
+            raw=raw,
+            body=body_text.strip(),
+            container="raw-latex",
+            environment=environment,
+            complete=complete,
+        )
+        displays.append(display)
+    # Raw environments are lexical candidates only. MathHost decides whether
+    # the environment is mathematical and materializes labels/references only
+    # for candidates that survive that classification.
+    return tuple(displays), (), ()
+
+
+def _raw_math_environment_ranges(
+    text: str,
+    occupied: Sequence[OffsetRange],
+) -> Iterable[tuple[str, int, int, int, int, bool]]:
+    stack: list[tuple[str, int, int, bool]] = []
+    for match in _RAW_ENV_TOKEN_RE.finditer(text):
+        if in_ranges(match.start(), occupied) or is_escaped(text, match.start()):
+            continue
+        kind = match.group("kind")
+        environment = match.group("environment")
+        if kind == "begin":
+            stack.append(
+                (
+                    environment,
+                    match.start(),
+                    match.end(),
+                    not stack,
+                )
+            )
+            continue
+        if not stack or stack[-1][0] != environment:
+            continue
+        outer_environment, start, body_start, is_candidate = stack.pop()
+        if stack or not is_candidate:
+            continue
+        yield (
+            outer_environment,
+            start,
+            body_start,
+            match.start(),
+            match.end(),
+            True,
+        )
+    if stack:
+        outer_environment, start, body_start, is_candidate = stack[0]
+        if is_candidate:
+            yield (
+                outer_environment,
+                start,
+                body_start,
+                len(text),
+                len(text),
+                False,
+            )
 
 
 def scan_inline_math(

@@ -41,7 +41,12 @@ from .myst_headings import (
     scan_headings,
     sections_for_headings,
 )
-from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math
+from .myst_math import (
+    math_occupied_ranges,
+    scan_display_math,
+    scan_inline_math,
+    scan_raw_latex_math,
+)
 from .myst_refs import scan_refs
 from .myst_shared import dollar_display_ranges, line_ranges
 
@@ -110,10 +115,24 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         fences,
         dollar_displays,
     )
+    raw_display_math, raw_labels, raw_refs = scan_raw_latex_math(
+        document,
+        smap,
+        (
+            *reference_snapshot.opaque_ranges,
+            *math_occupied_ranges(display_math),
+            *live_fence_ranges,
+            *inline_code_ranges(document.text),
+        ),
+    )
+    # Preserve the established fence-then-dollar fact ordering; raw-LaTeX facts
+    # extend that contract without reordering pre-existing buckets.
+    display_math = (*display_math, *raw_display_math)
+    equation_labels = (*equation_labels, *raw_labels)
     generic_refs, prose_equation_refs = scan_refs(document, smap, reference_snapshot)
     equation_refs = tuple(
         sorted(
-            (*display_equation_refs, *prose_equation_refs),
+            (*display_equation_refs, *raw_refs, *prose_equation_refs),
             key=lambda fact: (
                 fact.span.start if fact.span is not None else -1,
                 fact.fact_id,
