@@ -123,10 +123,10 @@ $$
     assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
     assert [(diagnostic.code, diagnostic.message) for diagnostic in engine] == [
         ("REF001", "duplicate equation label: dup"),
-        ("REF009", "ambiguous equation reference: dup"),
+        ("REF011", "ambiguous equation reference: dup"),
     ]
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF001") == 1
-    assert [diagnostic.code for diagnostic in result.diagnostics].count("REF009") == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics].count("REF011") == 1
     assert query.references.ambiguous_equation_refs() == (snapshot.equation_refs[0],)
 
 

@@ -10,7 +10,7 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF009"})
+    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF011"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -41,7 +41,7 @@ class ReferenceEngine:
                     false_positive_risk="low",
                 )
             )
-        ambiguous_equation_info = CATALOG["REF009"]
+        ambiguous_equation_info = CATALOG["REF011"]
         for ref in sorted(
             query.references.ambiguous_equation_refs(),
             key=_fact_source_key,

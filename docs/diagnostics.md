@@ -29,7 +29,7 @@ codes before every code is emitted by the current analyzer.
 | `REF003` | info | Missing equation label in strict mode |
 | `REF004` | warning | Missing generic reference target |
 | `REF005` | warning | Ambiguous generic reference target |
-| `REF009` | warning | Ambiguous equation reference |
+| `REF011` | warning | Ambiguous equation reference |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -126,7 +126,7 @@ Output:
 REF004 missing generic reference target: missing
 ```
 
-## Example: REF009
+## Example: REF011
 
 Input:
 
@@ -140,7 +140,7 @@ See {eq}`shared`.
 Output:
 
 ```text
-REF009 ambiguous equation reference: shared
+REF011 ambiguous equation reference: shared
 ```
 
 ## Severity controls
