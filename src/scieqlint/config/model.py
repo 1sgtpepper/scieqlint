@@ -12,6 +12,7 @@ ValidationProfile = Literal[
     "generated-myst",
     "cross-format-references",
     "math-accessibility",
+    "notebook-crossrefs",
     "typst-portability",
 ]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]

@@ -41,6 +41,7 @@ codes before every code is emitted by the current analyzer.
 | `PORT001` | warning | Equation reference syntax may not survive the configured output profile |
 | `PORT002` | warning | Inline math lacks accessible text metadata |
 | `PORT003` | warning | Equation syntax may not survive Typst export |
+| `PORT004` | warning | Cell renderings conflict with cross-reference options |
 
 `DIM020` also covers dimension expressions that exceed a parser resource budget. The
 diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
@@ -67,6 +68,12 @@ display-math forms modeled by the frontend: `\dfrac`, `\argmin`, and
 `\right`. Diagnostics retain the exact source span and command or environment
 metadata. The profile does not render Typst or claim complete translation
 coverage.
+
+`PORT004` is opt-in through `notebook-crossrefs`. It reports executable Markdown
+or notebook code cells that combine `renderings` with a cross-reference label or
+caption option. Notebook diagnostics retain logical cell locations, normalized
+cell options, and the originating cell fact ID. SciEqLint does not execute or
+re-render notebook outputs.
 
 ## Generated-output engine
 

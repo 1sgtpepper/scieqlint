@@ -23,6 +23,8 @@ Release notes must use these sections:
   project-path normalization.
 - Model source-neutral cross-reference metadata across document and engine-output
   boundaries, warning when the same target has incompatible kind or display metadata.
+- Lower notebook code-cell renderings, cross-reference options, and output-boundary
+  facts, with an opt-in warning for incompatible renderings/crossref combinations.
 
 ### Changed
 
