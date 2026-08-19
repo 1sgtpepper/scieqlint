@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+from scieqlint.api import check_documents
+from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.diag.model import CheckResult, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import CrossrefMetadataFact
@@ -15,6 +17,47 @@ from scieqlint.report.json import JsonReporter
 
 def doc(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+def notebook(path: str, *cells: tuple[str, str | None]) -> SourceDocument:
+    payload = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "metadata": {
+                    "label": label,
+                    **({"fig-cap": caption} if caption is not None else {}),
+                },
+                "source": ["plot()\n"],
+                "outputs": [
+                    {
+                        "output_type": "display_data",
+                        "data": {"image/png": "encoded"},
+                        "metadata": {},
+                    }
+                ],
+            }
+            for label, caption in cells
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    return SourceDocument.from_text(
+        PurePosixPath(path),
+        json.dumps(payload),
+        DocumentKind.NOTEBOOK,
+    )
+
+
+def cross_format_config() -> Config:
+    return Config(
+        profile=ProfileConfig(
+            name="cross-format-references",
+            output_profile="commonmark",
+        ),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+    )
 
 
 def span(path: str, start: int = 0, end: int = 1) -> SourceSpan:
@@ -231,6 +274,40 @@ def test_same_metadata_in_distinct_boundaries_is_not_conflicting() -> None:
 
     assert query.references.conflicting_metadata() == ()
     assert ReferenceEngine().run(query) == ()
+
+
+def test_reference_use_titles_do_not_become_target_metadata_conflicts() -> None:
+    documents = (
+        doc("a.md", "See {ref}`Overview <fig-energy>` and {eq}`eq-energy`."),
+        doc("b.md", "See {ref}`Energy balance <fig-energy>` and {eq}`eq-energy`."),
+        notebook("producer.ipynb", ("fig-energy", "Energy"), ("eq-energy", None)),
+    )
+
+    result = check_documents(documents, config=cross_format_config())
+
+    assert not any(item.code == "REF007" for item in result.diagnostics)
+
+
+def test_cross_producer_target_kind_and_caption_metadata_are_checked_separately() -> None:
+    equivalent = check_documents(
+        (
+            notebook("a.ipynb", ("fig-shared", "Shared plot")),
+            notebook("b.ipynb", ("fig-shared", "Shared plot")),
+        ),
+        config=cross_format_config(),
+    )
+    conflicting = check_documents(
+        (
+            notebook("a.ipynb", ("fig-shared", "Shared plot")),
+            notebook("b.ipynb", ("fig-shared", "Different plot")),
+        ),
+        config=cross_format_config(),
+    )
+
+    assert not any(item.code == "REF007" for item in equivalent.diagnostics)
+    conflicts = [item for item in conflicting.diagnostics if item.code == "REF007"]
+    assert len(conflicts) == 1
+    assert "metadata={'fig-cap': 'Different plot'}" in (conflicts[0].detail or "")
 
 
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:

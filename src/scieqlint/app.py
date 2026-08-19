@@ -207,7 +207,10 @@ def check_documents(
         document
         for document in documents
         if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
-        or (document.kind is DocumentKind.NOTEBOOK and config.profile.name == "notebook-crossrefs")
+        or (
+            document.kind is DocumentKind.NOTEBOOK
+            and config.profile.name in {"cross-format-references", "notebook-crossrefs"}
+        )
     )
     if profile_documents:
         query = QueryHost(

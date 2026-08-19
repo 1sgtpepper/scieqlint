@@ -174,6 +174,9 @@ def _crossref_facts(
             reference_kind=kind,
             source_format="notebook",
             output_boundary=boundary,
+            resolved_target_kind=kind,
+            metadata_kind="target-definition",
+            target_metadata=display_metadata,
             display_metadata=display_metadata,
             target_span=cell.span,
         )
