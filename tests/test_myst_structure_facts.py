@@ -691,14 +691,7 @@ def test_directive_option_prefix_lines_skip_blank_lines_and_ignore_empty_bodies(
 
 
 def test_quarto_options_stop_after_the_code_preamble() -> None:
-    source = doc(
-        "```python\n"
-        "# leading comment\n"
-        "#| label: first\n"
-        "print(1)\n"
-        "#| label: late\n"
-        "```\n"
-    )
+    source = doc("```python\n# leading comment\n#| label: first\nprint(1)\n#| label: late\n```\n")
     snapshot = MySTFrontend().lower((source,))
 
     assert _quarto_options(source, snapshot.fences[0]) == (("label", "first"),)
