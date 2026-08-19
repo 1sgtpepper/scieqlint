@@ -296,7 +296,7 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
-    workspace = WorkspaceHost()
+    workspace = WorkspaceHost(project_root=config.project.root)
     snapshot = MySTFrontend(workspace=workspace).lower(documents)
     snapshot = replace(
         snapshot,

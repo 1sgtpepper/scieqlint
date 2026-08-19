@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ProjectConfig
 from scieqlint.diag.model import Severity
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.io.workspace import normalize_project_path, project_reference_target
+from scieqlint.io.workspace import WorkspaceHost, normalize_project_path, project_reference_target
 
 
 def doc(path: str, text: str) -> SourceDocument:
@@ -28,6 +28,25 @@ def test_workspace_normalizes_project_targets_lexically_without_urls() -> None:
     assert project_reference_target(PurePosixPath("index.md"), "#eq-energy") is None
     assert project_reference_target(PurePosixPath("index.md"), "https://x/a.md") is None
     assert normalize_project_path("a/../../b.md") == PurePosixPath("../b.md")
+
+
+def test_workspace_applies_configured_root_to_root_relative_targets() -> None:
+    workspace = WorkspaceHost(project_root=PurePosixPath("book"))
+
+    target = workspace.project_reference_target(
+        PurePosixPath("book/index.md"),
+        "/chapters/energy.md#eq-energy",
+    )
+    escaped = workspace.project_reference_target(
+        PurePosixPath("book/index.md"),
+        "/../outside.md",
+    )
+
+    assert target is not None
+    assert target.resolved_raw_path == "book/chapters/energy.md"
+    assert target.normalized_path == PurePosixPath("chapters/energy.md")
+    assert escaped is not None
+    assert escaped.normalized_path == PurePosixPath("../outside.md")
 
 
 def test_frontend_preserves_raw_and_normalized_cross_document_target() -> None:
@@ -66,6 +85,16 @@ def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
         ("raw_match_count", "0"),
         ("normalized_match_count", "1"),
     )
+
+
+def test_configured_project_root_resolves_public_root_relative_links() -> None:
+    source = doc("book/index.md", "See [energy](/chapters/energy.md#eq-energy).\n")
+    target = doc("book/chapters/energy.md", "(eq-energy)=\n$$\nE=mc^2\n$$\n")
+    config = Config(project=ProjectConfig(root=PurePosixPath("book")))
+
+    result = check_documents((source, target), config=config)
+
+    assert not [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "REF006"]
 
 
 def test_already_normalized_and_external_targets_do_not_warn() -> None:
