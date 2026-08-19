@@ -75,6 +75,21 @@ def test_redeclaration_changes_only_later_use_context() -> None:
     assert second_use.active_declaration_fact_id == second.fact_id
 
 
+def test_providecommand_does_not_replace_an_active_macro_declaration() -> None:
+    source = r"$\newcommand{\x}{old}$ $\providecommand{\x}{new}$ $\x$"
+
+    snapshot = lower((doc(source),))
+    first, provided = snapshot.math_macro_declarations
+    [use] = snapshot.math_macro_uses
+
+    assert [fact.declaration_kind for fact in (first, provided)] == [
+        "newcommand",
+        "providecommand",
+    ]
+    assert [fact.replacement for fact in (first, provided)] == ["old", "new"]
+    assert use.active_declaration_fact_id == first.fact_id
+
+
 def test_common_newcommand_providecommand_and_def_forms_are_finite() -> None:
     source = " ".join(
         (

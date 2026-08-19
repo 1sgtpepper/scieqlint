@@ -121,9 +121,11 @@ def scan_scoped_inline_macros(
             use = syntax.uses[use_index] if use_index < len(syntax.uses) else None
             if use is None or (declaration is not None and declaration.start < use.start):
                 assert declaration is not None
-                active[(source.document_id, declaration.name)] = MacroDeclarationKey(
-                    source.source_fact_id, declaration.start
-                )
+                declaration_key = (source.document_id, declaration.name)
+                if declaration.declaration_kind != "providecommand" or declaration_key not in active:
+                    active[declaration_key] = MacroDeclarationKey(
+                        source.source_fact_id, declaration.start
+                    )
                 declaration_index += 1
                 continue
             if use.name in declared_names.get(source.document_id, set()):
