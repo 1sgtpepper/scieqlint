@@ -4,9 +4,10 @@ The stable API surface is exported from `scieqlint.api`:
 
 - `check_paths(paths, *, config_path=None, no_algebra=False, inline_math=False,
   strict_unknowns=False, absolute_paths=False)`
-- `check_documents(documents, *, config, accessibility_metadata=None)`
+- `check_documents(documents, *, config, accessibility_metadata=None,
+  project_visibility=None)`
 - `graph_paths(paths, *, config_path=None)`
-- `graph_documents(documents, *, config)`
+- `graph_documents(documents, *, config, project_visibility=None)`
 - `load_config(path=None, *, preset=None)`
 
 Public API usage:
@@ -48,7 +49,11 @@ CLI guard before writing a file output.
 
 `accessibility_metadata` is a caller-owned mapping from the stable inline-math fact ID
 to accessible text. SciEqLint applies it at the orchestration boundary; it does not
-infer alternative text from surrounding prose. An unknown fact ID is rejected.
+infer alternative text from surrounding prose. An unknown fact ID is rejected. The
+`project_visibility` mapping uses each document's project-relative path as its key and
+accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents are visible.
+Hidden and excluded equation targets remain queryable as non-visible facts, while
+excluded documents are omitted from `graph_documents()`.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a

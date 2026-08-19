@@ -275,5 +275,6 @@ analysis, notebook execution, and full Jupyter schema validation are deferred.
 - Notebook output facts use logical cell locations and recorded output indexes; SciEqLint does
   not execute notebooks, inspect runtime objects, or re-render outputs.
 
-- Hidden/excluded equation-label checks consume explicit project visibility facts. SciEqLint
-  does not read ignored files or infer table-of-contents visibility from filenames.
+- Hidden/excluded equation-label checks consume the caller-owned `project_visibility`
+  mapping accepted by `check_documents()` and `graph_documents()`. SciEqLint does not
+  read ignored files or infer table-of-contents visibility from filenames.
