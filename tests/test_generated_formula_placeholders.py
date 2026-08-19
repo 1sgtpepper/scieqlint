@@ -193,6 +193,27 @@ def test_formula_image_placeholder_at_end_of_file_is_standalone() -> None:
     ]
 
 
+def test_formula_image_placeholders_use_complete_markdown_link_boundaries() -> None:
+    source = (
+        "![formula](assets/equation-(draft-(v2)).svg)\n"
+        r"![equation](assets/equation\).svg)" + "\n"
+        '![formula](assets/equation.svg "title\ncontinued")\n'
+    )
+
+    facts = placeholder_facts(source)
+
+    assert [fact.placeholder_kind for fact in facts] == [
+        "formula-image",
+        "formula-image",
+        "formula-image",
+    ]
+    assert [source[fact.span.start : fact.span.end] for fact in facts if fact.span] == [
+        "![formula](assets/equation-(draft-(v2)).svg)",
+        r"![equation](assets/equation\).svg)",
+        '![formula](assets/equation.svg "title\ncontinued")',
+    ]
+
+
 def test_generated_profile_json_preserves_span_and_placeholder_kind() -> None:
     source = "Before.\n\n![equation](equation.svg)\n"
     result = check_documents(

@@ -19,7 +19,6 @@ _FORMULA_MARKER = "formula-not-decoded"
 _FORMULA_MARKER_LINE_RE = re.compile(
     r"(?:formula-not-decoded|\[formula-not-decoded\]|<!--\s*formula-not-decoded\s*-->)"
 )
-_SIMPLE_IMAGE_RE = re.compile(r"!\[(?P<alt>[^\]\r\n]*)\]\((?P<destination>[^)\r\n]+)\)")
 _FORMULA_IMAGE_ALT_RE = re.compile(
     r"(?:formula|equation|math)(?:[ _-]*(?:image|placeholder|not[ _-]*decoded))?",
     re.IGNORECASE,
@@ -238,14 +237,14 @@ def scan_formula_placeholders(
         occupied.append((start, close_end))
 
     for token in links:
-        if not token.is_image or in_ranges(token.start, code):
+        if not token.is_image or token.destination is None or in_ranges(token.start, code):
             continue
-        raw = document.text[token.start : token.end]
-        image = _SIMPLE_IMAGE_RE.fullmatch(raw)
-        if image is None or not _is_standalone_line(document.text, token.start, token.end):
+        if token.image_alt is None or not _is_standalone_line(
+            document.text, token.start, token.end
+        ):
             continue
-        alt = image.group("alt").strip()
-        destination = image.group("destination").strip().split(maxsplit=1)[0].strip("<>")
+        alt = token.image_alt.strip()
+        destination = token.destination.strip()
         filename = destination.rsplit("/", 1)[-1]
         if _FORMULA_IMAGE_ALT_RE.fullmatch(alt) is None and not (
             not alt and _FORMULA_IMAGE_NAME_RE.fullmatch(filename) is not None
