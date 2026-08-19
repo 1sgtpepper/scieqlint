@@ -84,6 +84,27 @@ def test_myst_frontend_lowers_source_neutral_crossref_metadata() -> None:
     assert equation.display_metadata == (("reference_role", "eq"),)
 
 
+def test_myst_frontend_produces_target_definitions_and_reference_engine_consumes_them() -> None:
+    heading_target = doc("heading.md", "(shared)=\n# Shared heading\n")
+    block_target = doc("block.md", "(shared)=\n```python\npass\n```\n")
+
+    snapshot = MySTFrontend().lower((heading_target, block_target))
+    definitions = tuple(
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
+    )
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [(fact.normalized_target, fact.resolved_target_kind) for fact in definitions] == [
+        ("shared", "heading"),
+        ("shared", "block"),
+    ]
+    conflicts = QueryHost(snapshot).references.conflicting_metadata()
+    assert len(conflicts) == 1
+    assert conflicts[0][0] == "shared"
+    assert {fact.resolved_target_kind for fact in conflicts[0][1]} == {"heading", "block"}
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF007"]
+
+
 def test_query_reports_only_cross_boundary_metadata_conflicts() -> None:
     markdown = metadata(
         "m1",

@@ -150,7 +150,13 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
             ),
         )
     )
-    crossref_metadata = crossref_metadata_facts(document, generic_refs, equation_refs)
+    crossref_metadata = crossref_metadata_facts(
+        document,
+        generic_refs,
+        equation_refs,
+        target_anchors=target_anchors,
+        equation_labels=equation_labels,
+    )
     inline_math = tuple(
         scan_inline_math(
             document,
