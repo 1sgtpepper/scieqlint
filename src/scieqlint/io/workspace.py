@@ -122,7 +122,7 @@ class WorkspaceHost:
         snapshot: FactSnapshot,
         visibility: Mapping[str, WorkspaceVisibility] | None = None,
     ) -> FactSnapshot:
-        """Apply caller-owned workspace state to labels and project facts."""
+        """Apply caller-owned workspace state to equation facts and project facts."""
 
         members, hidden_excluded = self.project_facts(snapshot.documents, visibility)
         states = {member.document_id: _member_visibility(member) for member in members}
@@ -130,9 +130,14 @@ class WorkspaceHost:
             replace(label, visibility=states.get(label.document_id, "visible"))
             for label in snapshot.equation_labels
         )
+        refs = tuple(
+            replace(ref, visibility=states.get(ref.document_id, "visible"))
+            for ref in snapshot.equation_refs
+        )
         return replace(
             snapshot,
             equation_labels=labels,
+            equation_refs=refs,
             project_members=members,
             hidden_excluded=hidden_excluded,
         )

@@ -62,6 +62,9 @@ class ReferenceQueryView:
     def equation_refs(self) -> tuple[EquationRefFact, ...]:
         return self.snapshot.equation_refs
 
+    def visible_equation_refs(self) -> tuple[EquationRefFact, ...]:
+        return tuple(ref for ref in self.snapshot.equation_refs if ref.visibility == "visible")
+
     def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
         return self.snapshot.crossref_metadata
 
@@ -110,14 +113,14 @@ class ReferenceQueryView:
     def unresolved_equation_refs(self) -> tuple[EquationRefFact, ...]:
         targets = self.equation_target_index()
         return tuple(
-            ref for ref in self.snapshot.equation_refs if ref.normalized_target not in targets
+            ref for ref in self.visible_equation_refs() if ref.normalized_target not in targets
         )
 
     def ambiguous_equation_refs(self) -> tuple[EquationRefFact, ...]:
         targets = self.equation_target_index()
         return tuple(
             ref
-            for ref in self.snapshot.equation_refs
+            for ref in self.visible_equation_refs()
             if len(targets.get(ref.normalized_target, ())) > 1
         )
 
@@ -130,7 +133,7 @@ class ReferenceQueryView:
         hidden = self.hidden_equation_target_index()
         excluded = self.excluded_equation_target_index()
         impacts: list[NonvisibleEquationTargetImpact] = []
-        for ref in sorted(self.snapshot.equation_refs, key=_reference_source_key):
+        for ref in sorted(self.visible_equation_refs(), key=_reference_source_key):
             hidden_targets = tuple(
                 sorted(hidden.get(ref.normalized_target, ()), key=_equation_label_source_key)
             )

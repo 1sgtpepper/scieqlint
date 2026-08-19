@@ -333,10 +333,6 @@ def _generated_profile_snapshot(
                 *notebook_snapshot.crossref_metadata,
             ),
         )
-    snapshot = workspace.apply_visibility(
-        snapshot,
-        project_visibility,
-    )
     snapshot = replace(
         snapshot,
         inline_math=_apply_accessibility_metadata(
@@ -345,6 +341,10 @@ def _generated_profile_snapshot(
         ),
     )
     snapshot = MathHost().classify(snapshot)
+    snapshot = workspace.apply_visibility(
+        snapshot,
+        project_visibility,
+    )
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(

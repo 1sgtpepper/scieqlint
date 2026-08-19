@@ -76,5 +76,6 @@ class EquationRefFact(FactBase):
     target: str
     normalized_target: str
     source_block_id: str | None = None
+    visibility: TargetVisibility = "visible"
     target_span: SourceSpan | None = None
     role_span: SourceSpan | None = None

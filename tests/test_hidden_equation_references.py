@@ -51,16 +51,19 @@ def reference(
     *,
     target: str = "eq-energy",
     start: int = 20,
+    visibility: TargetVisibility = "visible",
+    document: str = "paper.md",
 ) -> EquationRefFact:
-    target_span = span("paper.md", start)
+    target_span = span(document, start)
     return EquationRefFact(
         fact_id=fact_id,
-        document_id="paper.md",
+        document_id=document,
         span=target_span,
         raw=f"{{eq}}`{target}`",
         ref_kind="eq",
         target=target,
         normalized_target=target,
+        visibility=visibility,
         target_span=target_span,
         role_span=target_span,
     )
@@ -159,6 +162,62 @@ def test_hidden_only_target_remains_unresolved_and_reports_visibility_impact() -
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF002", "REF008"]
     assert diagnostics[1].provenance_ids == ("ref", "hidden")
     assert dict(diagnostics[1].properties)["visible_target_count"] == "0"
+
+
+def test_hidden_equation_references_are_not_checked_against_any_target_visibility() -> None:
+    visible = label("visible", document="target.md", target="eq-visible")
+    hidden = label("hidden", document="target.md", visibility="hidden", target="eq-hidden")
+
+    assert ReferenceEngine().run(
+        QueryHost(
+            FactSnapshot(
+                equation_labels=(visible,),
+                equation_refs=(
+                    reference(
+                        target="eq-visible",
+                        visibility="hidden",
+                        document="source.md",
+                    ),
+                ),
+            )
+        )
+    ) == ()
+    assert ReferenceEngine().run(
+        QueryHost(
+            FactSnapshot(
+                equation_labels=(hidden,),
+                equation_refs=(
+                    reference(
+                        target="eq-hidden",
+                        visibility="hidden",
+                        document="source.md",
+                    ),
+                ),
+            )
+        )
+    ) == ()
+    assert ReferenceEngine().run(
+        QueryHost(
+            FactSnapshot(
+                equation_refs=(
+                    reference(
+                        target="eq-missing",
+                        visibility="hidden",
+                        document="source.md",
+                    ),
+                )
+            )
+        )
+    ) == ()
+
+    visible_missing = ReferenceEngine().run(
+        QueryHost(
+            FactSnapshot(
+                equation_refs=(reference(target="eq-missing", document="source.md"),)
+            )
+        )
+    )
+    assert [diagnostic.code for diagnostic in visible_missing] == ["REF002"]
 
 
 def test_nonvisible_labels_without_matching_references_do_not_warn() -> None:
