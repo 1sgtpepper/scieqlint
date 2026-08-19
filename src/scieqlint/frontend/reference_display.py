@@ -124,7 +124,7 @@ def _resolved_target_type(
     target = targets[0]
     if isinstance(target, EquationLabelFact):
         return "equation", "resolved"
-    if isinstance(target, TargetAnchorFact) and target.target_kind is not None:
+    if target.target_kind is not None:
         return target.target_kind, "resolved"
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
