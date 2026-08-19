@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar
@@ -29,6 +29,7 @@ from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
@@ -142,8 +143,9 @@ def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents."""
+    """Check already-loaded documents with caller-owned accessibility metadata."""
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -203,7 +205,13 @@ def check_documents(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     if markdown_documents and config.scanner.markdown:
-        query = QueryHost(_profile_snapshot(markdown_documents, config))
+        query = QueryHost(
+            _profile_snapshot(
+                markdown_documents,
+                config,
+                accessibility_metadata=accessibility_metadata,
+            )
+        )
         if config.checks.references.enabled:
             _extend_unique_diagnostics(
                 diagnostics,
@@ -220,7 +228,10 @@ def check_documents(
                 diagnostic.to_diagnostic()
                 for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
             )
-        elif config.profile.name == "cross-format-references":
+        elif config.profile.name in {
+            "cross-format-references",
+            "math-accessibility",
+        }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
                 for diagnostic in PortabilityEngine(profile=config.profile.name).run(query)
@@ -253,8 +264,14 @@ def _extend_unique_diagnostics(
 def _profile_snapshot(
     documents: Sequence[SourceDocument],
     config: Config,
+    *,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> FactSnapshot:
-    snapshot = _generated_profile_snapshot(documents, config)
+    snapshot = _generated_profile_snapshot(
+        documents,
+        config,
+        accessibility_metadata=accessibility_metadata,
+    )
     if config.profile.name == "cross-format-references":
         if config.profile.output_profile is None:
             raise ValueError("cross-format-references requires profile.output_profile")
@@ -270,10 +287,20 @@ def _profile_snapshot(
 def _generated_profile_snapshot(
     documents: Sequence[SourceDocument],
     config: Config,
+    *,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
-    snapshot = MathHost().classify(MySTFrontend().lower(documents))
+    snapshot = MySTFrontend().lower(documents)
+    snapshot = replace(
+        snapshot,
+        inline_math=_apply_accessibility_metadata(
+            snapshot.inline_math,
+            accessibility_metadata,
+        ),
+    )
+    snapshot = MathHost().classify(snapshot)
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(
@@ -304,6 +331,28 @@ def _generated_profile_snapshot(
         if document.origin is not None
     )
     return replace(snapshot, generated_provenance=provenance)
+
+
+def _apply_accessibility_metadata(
+    inline_math: Sequence[InlineMathFact],
+    metadata: Mapping[str, str] | None,
+) -> tuple[InlineMathFact, ...]:
+    if metadata is None:
+        return tuple(inline_math)
+    known_ids = {fact.fact_id for fact in inline_math}
+    unknown_ids = sorted(set(metadata) - known_ids)
+    if unknown_ids:
+        raise ValueError(
+            "accessibility metadata references unknown inline math fact(s): "
+            + ", ".join(unknown_ids)
+        )
+    return tuple(
+        replace(
+            fact,
+            alt=(metadata[fact.fact_id].strip() or None) if fact.fact_id in metadata else fact.alt,
+        )
+        for fact in inline_math
+    )
 
 
 def graph_paths(

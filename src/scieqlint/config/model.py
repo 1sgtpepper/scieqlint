@@ -8,7 +8,11 @@ from typing import Literal
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
-ValidationProfile = Literal["generated-myst", "cross-format-references"]
+ValidationProfile = Literal[
+    "generated-myst",
+    "cross-format-references",
+    "math-accessibility",
+]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 
 

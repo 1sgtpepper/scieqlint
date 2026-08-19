@@ -25,7 +25,11 @@ class PortabilityQueryView:
         return tuple(fact for fact in self.snapshot.portability if fact.risk_kind == risk_kind)
 
     def inline_math_missing_alt(self) -> tuple[InlineMathFact, ...]:
-        return tuple(fact for fact in self.snapshot.inline_math if fact.alt is None)
+        return tuple(
+            fact
+            for fact in self.snapshot.inline_math
+            if fact.delimiter_kind != "plain-text" and fact.alt is None
+        )
 
     def display_math_missing_alt(self) -> tuple[DisplayMathFact, ...]:
         return tuple(fact for fact in self.snapshot.display_math if fact.alt is None)
