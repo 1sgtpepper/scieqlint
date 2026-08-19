@@ -7,9 +7,11 @@ from scieqlint.app import check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.engine.reference import ReferenceEngine
+from scieqlint.facts.reference import GenericRefFact, TargetAnchorFact
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.myst_refs import _role_title_span
 from scieqlint.frontend.myst_shared import ROLE_RE
+from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
@@ -157,6 +159,55 @@ def test_resolved_heading_kind_wins_over_figure_prefix_in_display_resolution() -
     assert fact.target_type == "heading"
     assert fact.target_type_source == "resolved"
     assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
+
+
+def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
+    prefix_target = TargetAnchorFact(
+        fact_id="target-figure",
+        document_id="paper.md",
+        span=None,
+        label="fig-raw",
+        normalized_label="fig-raw",
+        target_kind=None,
+        attaches_to_fact_id=None,
+        placement="standalone",
+    )
+    unknown_target = TargetAnchorFact(
+        fact_id="target-unknown",
+        document_id="paper.md",
+        span=None,
+        label="custom-target",
+        normalized_label="custom-target",
+        target_kind=None,
+        attaches_to_fact_id=None,
+        placement="standalone",
+    )
+    refs = tuple(
+        GenericRefFact(
+            fact_id=f"ref-{target}",
+            document_id="paper.md",
+            span=None,
+            raw=None,
+            role_kind="ref",
+            target=target,
+            normalized_target=target,
+        )
+        for target in ("fig-raw", "custom-target")
+    )
+
+    facts = reference_display_text_facts(
+        refs,
+        (),
+        (prefix_target, unknown_target),
+        (),
+    )
+
+    assert [
+        (fact.normalized_target, fact.target_type, fact.target_type_source) for fact in facts
+    ] == [
+        ("custom-target", None, "unresolved"),
+        ("fig-raw", "figure", "inferred"),
+    ]
 
 
 def test_unrepresentable_role_title_has_no_source_span() -> None:
