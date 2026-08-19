@@ -19,6 +19,8 @@ Release notes must use these sections:
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the explicit
   `generated-myst` profile is selected.
+- Replace the permissive YAML-like accuracy fixtures with a strict versioned JSON
+  corpus of independently labeled positive and negative cases and expanded rule coverage.
 - Add bounded deterministic Hypothesis properties for source-span integrity, newline
   normalization, and Markdown code-cell fence lowering.
 - Add the opt-in `code-cell-metadata` profile, exact code-cell label/language

@@ -41,6 +41,16 @@ To replay against an existing base checkout directly:
 python tools/public_regression_replay.py --base ../scieqlint-base
 ```
 
+## Accuracy corpus
+
+`benchmarks/accuracy/corpus-v1.json` is strict versioned JSON. Every case has an
+independent positive or negative label, one target rule, source format, scientific
+domain, provenance, and license or synthetic status. Keep expected diagnostics
+human-authored and execute cases through `scieqlint.api.check_documents`; do not derive
+expectations from the implementation under test. Unknown, missing, and duplicate fields
+are errors. Canary comparisons and precision/recall release gates remain out of scope
+until the corpus is larger and baseline variance has been measured.
+
 ## Bounded property checks
 
 The pull-request suite includes at most three deterministic Hypothesis properties for
