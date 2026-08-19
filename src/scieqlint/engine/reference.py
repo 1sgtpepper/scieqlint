@@ -10,7 +10,7 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF011"})
+    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -72,6 +72,49 @@ class ReferenceEngine:
                     false_positive_risk="low",
                 )
             )
+        metadata_info = CATALOG["REF007"]
+        for target, facts in query.references.conflicting_metadata():
+            canonical = facts[0]
+            canonical_kind = canonical.resolved_target_kind or canonical.reference_kind
+            canonical_metadata = canonical.target_metadata or canonical.display_metadata
+            canonical_signature = (canonical_kind, tuple(sorted(canonical_metadata)))
+            for fact in facts:
+                fact_kind = fact.resolved_target_kind or fact.reference_kind
+                fact_metadata = fact.target_metadata or fact.display_metadata
+                signature = (fact_kind, tuple(sorted(fact_metadata)))
+                if signature == canonical_signature:
+                    continue
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=metadata_info.code,
+                        severity_default=metadata_info.severity,
+                        message=f"{metadata_info.message}: {target}",
+                        span=fact.target_span or fact.span,
+                        detail=(
+                            f"{fact.output_boundary!r} reports "
+                            f"kind={fact_kind!r}, "
+                            f"format={fact.source_format!r}, "
+                            f"metadata={dict(fact_metadata)!r}; "
+                            f"canonical boundary {canonical.output_boundary!r} reports "
+                            f"kind={canonical_kind!r}, "
+                            f"format={canonical.source_format!r}, "
+                            f"metadata={dict(canonical_metadata)!r}"
+                        ),
+                        hint="Use consistent cross-reference metadata for this target.",
+                        rule="references.crossref_metadata_conflict",
+                        false_positive_risk="low",
+                        provenance_ids=(canonical.fact_id, fact.fact_id),
+                        properties=(
+                            ("target", target),
+                            ("output_boundary", fact.output_boundary),
+                            ("resolved_target_kind", fact_kind or ""),
+                            ("source_format", fact.source_format),
+                            ("canonical_boundary", canonical.output_boundary),
+                            ("canonical_resolved_target_kind", canonical_kind or ""),
+                            ("canonical_source_format", canonical.source_format),
+                        ),
+                    )
+                )
         normalized_path_info = CATALOG["REF006"]
         for (
             ref,

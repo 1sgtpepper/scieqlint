@@ -6,6 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from scieqlint.facts.reference import (
+    CrossrefMetadataFact,
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
@@ -37,6 +38,27 @@ class ReferenceQueryView:
 
     def equation_refs(self) -> tuple[EquationRefFact, ...]:
         return self.snapshot.equation_refs
+
+    def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
+        return self.snapshot.crossref_metadata
+
+    def conflicting_metadata(
+        self,
+    ) -> tuple[tuple[str, tuple[CrossrefMetadataFact, ...]], ...]:
+        """Return targets with distinct metadata signatures across output boundaries."""
+
+        by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
+        for fact in self.snapshot.crossref_metadata:
+            if fact.metadata_kind != "target-definition":
+                continue
+            by_target[fact.normalized_target].append(fact)
+        conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
+        for target, facts in sorted(by_target.items()):
+            boundaries = {fact.output_boundary for fact in facts}
+            signatures = {_producer_signature(fact) for fact in facts}
+            if len(boundaries) > 1 and len(signatures) > 1:
+                conflicts.append((target, tuple(sorted(facts, key=_metadata_source_key))))
+        return tuple(conflicts)
 
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         index: dict[str, list[TargetFact]] = defaultdict(list)
@@ -119,3 +141,25 @@ class ReferenceQueryView:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
         )
+
+
+def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str, str]:
+    """Return a content-independent source order for conflict baselines."""
+
+    span = fact.target_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.output_boundary,
+        fact.fact_id,
+    )
+
+
+def _producer_signature(
+    fact: CrossrefMetadataFact,
+) -> tuple[str | None, tuple[tuple[str, str], ...]]:
+    return (
+        fact.resolved_target_kind or fact.reference_kind,
+        tuple(sorted(fact.target_metadata or fact.display_metadata)),
+    )

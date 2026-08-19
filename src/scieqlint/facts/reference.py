@@ -10,6 +10,7 @@ from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 TargetPlacement = Literal["before_heading", "before_block", "standalone", "orphaned"]
+CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -35,6 +36,26 @@ class GenericRefFact(FactBase):
     resolved_raw_target_path: str | None = None
     normalized_target_path: PurePosixPath | None = None
     target_fragment: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CrossrefMetadataFact(FactBase):
+    """Source-neutral cross-reference metadata for one output boundary."""
+
+    source_fact_id: str
+    logical_target: str
+    normalized_target: str
+    source_format: str
+    output_boundary: str
+    reference_role: str | None = None
+    resolved_target_kind: str | None = None
+    target_metadata: tuple[tuple[str, str], ...] = ()
+    metadata_kind: CrossrefMetadataKind = "reference-use"
+    # Compatibility fields remain readable for older callers while all new
+    # conflict decisions use the separated fields above.
+    reference_kind: str | None = None
+    display_metadata: tuple[tuple[str, str], ...] = ()
+    target_span: SourceSpan | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

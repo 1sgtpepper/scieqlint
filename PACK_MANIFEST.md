@@ -159,6 +159,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/facts/snapshot.py`
 - `src/scieqlint/facts/structure.py`
 - `src/scieqlint/frontend/__init__.py`
+- `src/scieqlint/frontend/crossref.py`
 - `src/scieqlint/frontend/generated.py`
 - `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/frontend/myst_blocks.py`
@@ -278,6 +279,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`
+- `tests/test_crossref_metadata_facts.py`
 - `tests/test_crossref_path_normalization.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`

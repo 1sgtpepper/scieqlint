@@ -31,6 +31,7 @@ codes before every code is emitted by the current analyzer.
 | `REF005` | warning | Ambiguous generic reference target |
 | `REF011` | warning | Ambiguous equation reference |
 | `REF006` | warning | Local reference path changes resolution after normalization |
+| `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -181,3 +182,11 @@ dimension checks are active.
 `REF006` warns when a local cross-document reference resolves only after lexical
 project-path normalization, for example when `./chapter.md` must be normalized to
 `chapter.md`. External URLs and fragment-only references are not project paths.
+
+## REF007
+
+`REF007` warns when separate source or engine-output boundaries describe the same
+logical cross-reference target with conflicting kind or display metadata. Source
+format is retained as provenance and does not conflict by itself. The diagnostic
+properties preserve both boundary identities; reporters do not inspect source
+documents to reconstruct them.

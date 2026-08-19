@@ -126,7 +126,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert reference_diagnostics
     assert structure_diagnostics
     assert engine_rule_codes(ReferenceEngine()) == frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF011"}
+        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"}
     )
     assert "STR005" in engine_rule_codes(StructureEngine())
     assert analysis_result.summary() == {
