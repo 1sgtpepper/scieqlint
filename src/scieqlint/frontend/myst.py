@@ -15,7 +15,7 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import code_fence_ranges, markdown_reference_snapshot
 from scieqlint.source.maps import SourceMap
 
-from .generated import scan_formula_candidates
+from .generated import scan_bracketed_latex_blocks, scan_formula_candidates
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
@@ -114,6 +114,15 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         inline_math,
         display_math,
     )
+    bracketed_blocks = scan_bracketed_latex_blocks(
+        document,
+        smap,
+        (
+            *reference_snapshot.opaque_ranges,
+            *math_occupied_ranges(display_math),
+            *((fact.span.start, fact.span.end) for fact in inline_math if fact.span is not None),
+        ),
+    )
     return FactSnapshot(
         documents=(document,),
         headings=headings,
@@ -128,5 +137,5 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         equation_refs=equation_refs,
         inline_math=inline_math,
         display_math=display_math,
-        generated_formulas=generated_formulas,
+        generated_formulas=(*generated_formulas, *bracketed_blocks),
     )

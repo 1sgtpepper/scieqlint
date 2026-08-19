@@ -16,7 +16,7 @@ class GeneratedOutputEngine:
         self.profile = profile
 
     name = "generated-output"
-    rule_codes = frozenset({"GEN001", "GEN002"})
+    rule_codes = frozenset({"GEN001", "GEN002", "GEN003"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -44,6 +44,10 @@ class GeneratedOutputEngine:
             self._suspicious_formula_diagnostic(query, fact)
             for fact in query.generated.suspicious_formula_text()
         )
+        diagnostics.extend(
+            self._bracketed_latex_diagnostic(query, fact)
+            for fact in query.generated.bracketed_latex_blocks()
+        )
         return tuple(diagnostics)
 
     def _suspicious_formula_diagnostic(
@@ -64,6 +68,40 @@ class GeneratedOutputEngine:
             detail=f"{fact.kind} artifact: {fact.text!r}",
             hint="Restore the intended LaTeX formula before publishing or conversion.",
             rule="generated.suspicious_formula_text",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            provenance_ids=provenance_ids,
+            properties=properties,
+        )
+
+    def _bracketed_latex_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        complete = fact.complete is True
+        provenance_ids, properties = _fact_metadata(
+            query,
+            fact,
+            (
+                ("formula_artifact_kind", fact.kind),
+                ("complete", "true" if complete else "false"),
+            ),
+        )
+        detail = (
+            r"standalone \[...\] display delimiters are not portable generated Markdown"
+            if complete
+            else r"standalone \[ display opener is not closed before end of file"
+        )
+        return DiagnosticIR(
+            code="GEN003",
+            severity_default=Severity.WARNING,
+            message="nonstandard bracketed LaTeX display block",
+            span=fact.span,
+            detail=detail,
+            hint="Use a supported $$ block or a MyST math directive.",
+            rule="generated.bracketed_latex_block",
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,
