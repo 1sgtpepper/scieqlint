@@ -64,10 +64,11 @@ external renderer execution. JSON and SARIF results include `profile`,
 math facts whose `alt` metadata is absent. Inferred equation-like prose is not
 treated as an owned math span, and SciEqLint does not synthesize accessible
 text. JSON and SARIF include the accessibility requirement, delimiter kind,
-surrounding text role, and parse status recorded by the frontend.
+surrounding text role, and parse status recorded by `MathHost`. Callers provide
+fact-ID-keyed accessibility metadata through `check_documents()`.
 
 `PORT003` is opt-in through `typst-portability`. It reports only the focused
-display-math forms modeled by the frontend: `\dfrac`, `\argmin`, and
+display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
 `aligned`, `array`, or `matrix` environments combined with `\left` or
 `\right`. Diagnostics retain the exact source span and command or environment
 metadata. The profile does not render Typst or claim complete translation
@@ -101,8 +102,10 @@ target. It points to the duplicate cell label; references to the shared target
 remain subject to `REF005` ambiguity diagnostics.
 
 `DIR013` is opt-in through `code-cell-metadata`. It reports language metadata
-that is present but cannot name one language identifier. Custom identifiers such
-as `custom.kernel-3` remain valid. SciEqLint does not execute cells or validate
+that is present but is not syntactically one identifier: the value must start
+with a letter and may continue with letters, digits, `_`, `.`, `+`, or `-`.
+Custom identifiers such as `custom.kernel-3` remain valid. SciEqLint does not
+maintain an execution-language allowlist, execute cells, or validate
 language-specific syntax.
 
 ## Generated-output engine
@@ -223,7 +226,8 @@ project-path normalization, for example when `./chapter.md` must be normalized t
 ## REF007
 
 `REF007` warns when separate source or engine-output boundaries describe the same
-logical cross-reference target with conflicting kind or display metadata. Source
-format is retained as provenance and does not conflict by itself. The diagnostic
-properties preserve both boundary identities; reporters do not inspect source
-documents to reconstruct them.
+logical cross-reference target with conflicting resolved kind or target-definition
+metadata. A reference role or local display title belongs to the reference use and
+does not participate in this comparison. Source format is retained as provenance
+and does not conflict by itself. The diagnostic properties preserve both boundary
+identities; reporters do not inspect source documents to reconstruct them.

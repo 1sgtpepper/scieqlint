@@ -164,7 +164,7 @@ class StructureEngine:
             )
         if self.profile != "code-cell-metadata":
             return tuple(out)
-        for cell in query.structure.unknown_code_cell_languages():
+        for cell in query.structure.invalid_code_cell_languages():
             assert cell.language is not None
             out.append(
                 DiagnosticIR(
@@ -184,7 +184,7 @@ class StructureEngine:
                     properties=(
                         ("source_format", cell.source_format),
                         ("language", cell.language),
-                        ("reason", "unknown"),
+                        ("reason", "invalid"),
                     ),
                 )
             )

@@ -217,7 +217,7 @@ pass
     assert profiled[1].properties == (
         ("source_format", "markdown"),
         ("language", "python shell"),
-        ("reason", "unknown"),
+        ("reason", "invalid"),
     )
 
 
