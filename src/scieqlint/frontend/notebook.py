@@ -12,7 +12,8 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import CodeCellFact, NotebookOutputFact
 from scieqlint.io.source import DocumentKind, SourceDocument
 
-from .myst_shared import QUARTO_OPTION_RE, normalize_label
+from .myst_blocks import quarto_option_prefix
+from .myst_shared import normalize_label
 
 _CELL_OPTION_KEYS = frozenset(
     {
@@ -199,10 +200,9 @@ def _cell_options(
         if value is not None:
             normalized[key] = value
     if source is not None:
-        for line in source.splitlines():
-            match = QUARTO_OPTION_RE.match(line)
-            if match is not None and match.group("key") in _CELL_OPTION_KEYS:
-                normalized[match.group("key")] = match.group("value").strip()
+        for key, value in quarto_option_prefix(source):
+            if key in _CELL_OPTION_KEYS:
+                normalized[key] = value
     return tuple(sorted(normalized.items()))
 
 

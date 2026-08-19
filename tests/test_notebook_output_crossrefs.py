@@ -196,6 +196,7 @@ def test_notebook_source_cell_options_override_generated_metadata() -> None:
                     "#| fig-cap: Source caption\n"
                     "#| renderings: [light, dark]\n"
                     "plot()\n"
+                    "#| label: fig-late\n"
                 ),
             )
         )
