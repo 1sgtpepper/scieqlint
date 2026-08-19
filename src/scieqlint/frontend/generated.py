@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
+from scieqlint.facts.generated import GeneratedFormulaFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import MarkdownLinkToken
@@ -172,7 +172,6 @@ def scan_formula_placeholders(
                 smap,
                 math_fact.span.start,
                 math_fact.span.end,
-                "placeholder",
                 _FORMULA_MARKER,
                 source_math_fact_id=math_fact.fact_id,
             )
@@ -197,7 +196,6 @@ def scan_formula_placeholders(
                         smap,
                         start,
                         start + 4,
-                        "empty-display",
                         "empty-display-math",
                         complete=True,
                     )
@@ -217,7 +215,6 @@ def scan_formula_placeholders(
                 smap,
                 start,
                 end,
-                "placeholder",
                 _FORMULA_MARKER,
             )
         )
@@ -234,7 +231,6 @@ def scan_formula_placeholders(
                 smap,
                 start,
                 close_end,
-                "empty-display",
                 "empty-display-math",
                 complete=True,
             )
@@ -261,7 +257,6 @@ def scan_formula_placeholders(
                 smap,
                 token.start,
                 token.end,
-                "image-placeholder",
                 "formula-image",
             )
         )
@@ -279,7 +274,6 @@ def _placeholder_fact(
     smap: SourceMap,
     start: int,
     end: int,
-    kind: GeneratedFormulaKind,
     placeholder_kind: str,
     *,
     source_math_fact_id: str | None = None,
@@ -287,13 +281,14 @@ def _placeholder_fact(
 ) -> GeneratedFormulaFact:
     text = document.text[start:end]
     return GeneratedFormulaFact(
-        fact_id=f"{document.path.as_posix()}::generated-formula::{kind}::{start}",
+        fact_id=f"{document.path.as_posix()}::generated-formula::{placeholder_kind}::{start}",
         document_id=document.path.as_posix(),
         span=smap.span(start, end),
         raw=text,
         confidence="source",
-        kind=kind,
+        kind="candidate",
         text=text,
+        candidate_kind="placeholder",
         source_math_fact_id=source_math_fact_id,
         placeholder_kind=placeholder_kind,
         complete=complete,

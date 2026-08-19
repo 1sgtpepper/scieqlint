@@ -11,6 +11,7 @@ from scieqlint.facts.math import InlineMathFact
 from scieqlint.frontend.generated import scan_formula_placeholders
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.parse.math import MathHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.source.maps import SourceMap
 
@@ -27,7 +28,7 @@ def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
 def placeholder_facts(text: str):
     return tuple(
         fact
-        for fact in MySTFrontend().lower((doc(text),)).generated_formulas
+        for fact in MathHost().classify(MySTFrontend().lower((doc(text),))).generated_formulas
         if fact.placeholder_kind is not None
     )
 
@@ -162,9 +163,9 @@ def test_empty_display_ranges_are_deduplicated() -> None:
         (),
     )
 
-    assert [(fact.kind, fact.placeholder_kind, fact.text) for fact in facts] == [
-        ("empty-display", "empty-display-math", "$$$$")
-    ]
+    assert [
+        (fact.kind, fact.candidate_kind, fact.placeholder_kind, fact.text) for fact in facts
+    ] == [("candidate", "placeholder", "empty-display-math", "$$$$")]
 
 
 @pytest.mark.parametrize(

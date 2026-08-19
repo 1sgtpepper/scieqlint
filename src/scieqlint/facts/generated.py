@@ -16,7 +16,7 @@ GeneratedFormulaKind = Literal[
     "empty-display",
     "image-placeholder",
 ]
-GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block"]
+GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block", "placeholder"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
