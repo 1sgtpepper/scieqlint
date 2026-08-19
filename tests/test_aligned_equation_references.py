@@ -97,7 +97,7 @@ $$
     )
 
 
-def test_duplicate_aligned_labels_make_refs_ambiguous_without_duplicate_public_reports() -> None:
+def test_duplicate_aligned_labels_report_declaration_and_reference_ambiguity() -> None:
     source = """\
 $$
 \\begin{align}
@@ -122,9 +122,12 @@ $$
 
     assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
     assert [(diagnostic.code, diagnostic.message) for diagnostic in engine] == [
-        ("REF001", "duplicate equation label: dup")
+        ("REF001", "duplicate equation label: dup"),
+        ("REF009", "ambiguous equation reference: dup"),
     ]
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF001") == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics].count("REF009") == 1
+    assert query.references.ambiguous_equation_refs() == (snapshot.equation_refs[0],)
 
 
 def test_tex_reference_scanning_is_container_bounded_and_source_ordered() -> None:
