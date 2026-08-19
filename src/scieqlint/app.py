@@ -30,6 +30,7 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.reference import TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -146,8 +147,9 @@ def check_documents(
     *,
     config: Config,
     accessibility_metadata: Mapping[str, str] | None = None,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents with caller-owned accessibility metadata."""
+    """Check already-loaded documents with caller-owned profile metadata."""
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -218,6 +220,7 @@ def check_documents(
                 profile_documents,
                 config,
                 accessibility_metadata=accessibility_metadata,
+                project_visibility=project_visibility,
             )
         )
         if config.checks.references.enabled:
@@ -276,11 +279,13 @@ def _profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
         config,
         accessibility_metadata=accessibility_metadata,
+        project_visibility=project_visibility,
     )
     if config.profile.name == "cross-format-references":
         if config.profile.output_profile is None:
@@ -301,6 +306,7 @@ def _generated_profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
@@ -327,6 +333,10 @@ def _generated_profile_snapshot(
                 *notebook_snapshot.crossref_metadata,
             ),
         )
+    snapshot = workspace.apply_visibility(
+        snapshot,
+        project_visibility,
+    )
     snapshot = replace(
         snapshot,
         inline_math=_apply_accessibility_metadata(
@@ -334,7 +344,6 @@ def _generated_profile_snapshot(
             accessibility_metadata,
         ),
     )
-    snapshot = replace(snapshot, project_members=workspace.project_members(documents))
     snapshot = MathHost().classify(snapshot)
     if config.profile.name != "generated-myst":
         return snapshot
@@ -432,14 +441,19 @@ def graph_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
+    members, _hidden_excluded = WorkspaceHost().project_facts(documents, project_visibility)
+    excluded_documents = {member.document_id for member in members if member.excluded}
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     for document in documents:
+        if document.path.as_posix() in excluded_documents:
+            continue
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
