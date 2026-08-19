@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from scieqlint.diag.ir import DiagnosticIR
-from scieqlint.diag.model import Severity
 from scieqlint.facts.portability import OutputPortabilityFact
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 
 
@@ -12,8 +12,9 @@ class PortabilityEngine:
     name = "portability"
     rule_codes = frozenset({"PORT001"})
 
-    def __init__(self, *, profile: str) -> None:
+    def __init__(self, *, profile: str, policy: PolicyHost | None = None) -> None:
         self.profile = profile
+        self.policy = policy or PolicyHost()
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         return tuple(
@@ -30,7 +31,7 @@ class PortabilityEngine:
         target = metadata["target"]
         return DiagnosticIR(
             code="PORT001",
-            severity_default=Severity.WARNING,
+            severity_default=self.policy.severity("PORT001"),
             message="equation reference syntax may not survive configured output profile",
             span=fact.span,
             detail=(

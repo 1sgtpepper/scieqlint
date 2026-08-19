@@ -31,13 +31,13 @@ from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.portability import cross_format_reference_risks
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
@@ -260,9 +260,8 @@ def _profile_snapshot(
             raise ValueError("cross-format-references requires profile.output_profile")
         return replace(
             snapshot,
-            portability=cross_format_reference_risks(
+            portability=PolicyHost(config.profile.output_profile).cross_format_reference_risks(
                 snapshot,
-                config.profile.output_profile,
             ),
         )
     return snapshot
