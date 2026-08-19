@@ -51,9 +51,8 @@ class StructureQueryView:
     def invalid_code_cell_languages(self) -> tuple[CodeCellFact, ...]:
         """Return code-cell languages that are not syntactically valid identifiers.
 
-        This check intentionally does not maintain an execution-language
-        allowlist. A language can be valid metadata even when this linter does
-        not execute or otherwise understand it.
+        PolicyHost separately classifies syntactically valid values against the
+        configured supported-language policy.
         """
 
         return tuple(

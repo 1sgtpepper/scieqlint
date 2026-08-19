@@ -23,6 +23,7 @@ from scieqlint.frontend.myst_blocks import (
 from scieqlint.frontend.myst_shared import DIRECTIVE_INFO_RE, QUARTO_OPTION_RE
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 
 
@@ -195,6 +196,10 @@ pass
 pass
 ```
 
+```{code-cell} brainfuck
+pass
+```
+
 ```{code-cell} custom.kernel-3
 pass
 ```
@@ -210,7 +215,7 @@ pass
     assert default[0].profile is None
     assert default[0].provenance_ids == ()
     assert default[0].properties == ()
-    assert [diagnostic.code for diagnostic in profiled] == ["DIR010", "DIR013"]
+    assert [diagnostic.code for diagnostic in profiled] == ["DIR010", "DIR013", "DIR013"]
     assert profiled[0].profile == "code-cell-metadata"
     assert profiled[0].properties == (("source_format", "markdown"), ("reason", "missing"))
     assert source_slice(document, profiled[1].span) == "python shell"
@@ -219,6 +224,22 @@ pass
         ("language", "python shell"),
         ("reason", "invalid"),
     )
+    assert source_slice(document, profiled[2].span) == "brainfuck"
+    assert profiled[2].properties == (
+        ("source_format", "markdown"),
+        ("language", "brainfuck"),
+        ("reason", "unknown"),
+    )
+
+
+def test_code_cell_language_policy_has_bounded_and_custom_escape_hatches() -> None:
+    policy = PolicyHost(profile="code-cell-metadata")
+
+    assert policy.code_cell_metadata_profile() == "code-cell-metadata"
+    assert policy.code_cell_language_is_known("python")
+    assert policy.code_cell_language_is_known("c++")
+    assert policy.code_cell_language_is_known("custom.kernel-3")
+    assert not policy.code_cell_language_is_known("brainfuck")
 
 
 def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> None:

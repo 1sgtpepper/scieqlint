@@ -24,7 +24,7 @@ codes before every code is emitted by the current analyzer.
 | `DIR010` | warning | Code-cell directive missing language |
 | `DIR011` | warning | Malformed MyST role |
 | `DIR012` | warning | Malformed code-cell tags |
-| `DIR013` | warning | Code-cell language metadata is not one identifier |
+| `DIR013` | warning | Code-cell language metadata is unknown or malformed |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
@@ -102,10 +102,11 @@ target. It points to the duplicate cell label; references to the shared target
 remain subject to `REF005` ambiguity diagnostics.
 
 `DIR013` is opt-in through `code-cell-metadata`. It reports language metadata
-that is present but is not syntactically one identifier: the value must start
-with a letter and may continue with letters, digits, `_`, `.`, `+`, or `-`.
-Custom identifiers such as `custom.kernel-3` remain valid. SciEqLint does not
-maintain an execution-language allowlist, execute cells, or validate
+that is missing from the supported language set or is not syntactically one
+identifier. The built-in set covers common executable languages such as
+`python`, `julia`, `r`, `bash`, `c++`, `rust`, `javascript`, and `sql`.
+Explicit identifiers beginning with `custom` (for example,
+`custom.kernel-3`) remain valid. SciEqLint does not execute cells or validate
 language-specific syntax.
 
 ## Generated-output engine

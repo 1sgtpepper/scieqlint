@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from scieqlint.diag.catalog import CATALOG
@@ -22,6 +23,35 @@ _REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     # TeX reference commands are output-profile-specific source syntax.
     "typst": frozenset({"eq", "numref"}),
 }
+_CODE_CELL_METADATA_PROFILE = "code-cell-metadata"
+_KNOWN_CODE_CELL_LANGUAGES = frozenset(
+    {
+        "bash",
+        "c",
+        "c++",
+        "cpp",
+        "fortran",
+        "go",
+        "java",
+        "javascript",
+        "julia",
+        "kotlin",
+        "lua",
+        "matlab",
+        "perl",
+        "php",
+        "python",
+        "r",
+        "ruby",
+        "rust",
+        "scala",
+        "sh",
+        "sql",
+        "swift",
+        "typescript",
+    }
+)
+_CUSTOM_CODE_CELL_LANGUAGE_RE = re.compile(r"custom(?:[._+-][A-Za-z0-9_.+-]+)?")
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,11 +59,26 @@ class PolicyHost:
     """Resolve configured support and severity policy for fact consumers."""
 
     output_profile: str | None = None
+    profile: str | None = None
 
     def severity(self, code: str) -> Severity:
         """Return the catalog severity selected for one diagnostic code."""
 
         return CATALOG[code].severity
+
+    def code_cell_metadata_profile(self) -> str | None:
+        """Return the active profile name when code-cell policy is enabled."""
+
+        if self.profile == _CODE_CELL_METADATA_PROFILE:
+            return _CODE_CELL_METADATA_PROFILE
+        return None
+
+    def code_cell_language_is_known(self, language: str) -> bool:
+        """Accept supported language names and explicit ``custom`` identifiers."""
+
+        return language in _KNOWN_CODE_CELL_LANGUAGES or bool(
+            _CUSTOM_CODE_CELL_LANGUAGE_RE.fullmatch(language)
+        )
 
     def cross_format_reference_risks(
         self,

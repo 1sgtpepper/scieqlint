@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
 from scieqlint.facts.structure import HeadingFact, StructureSyntaxIssueFact
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 
 
@@ -26,8 +28,9 @@ class StructureEngine:
         }
     )
 
-    def __init__(self, *, profile: str | None = None) -> None:
+    def __init__(self, *, profile: str | None = None, policy: PolicyHost | None = None) -> None:
         self.profile = profile
+        self.policy = policy or PolicyHost(profile=profile)
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -141,50 +144,61 @@ class StructureEngine:
 
     def _code_cell_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         out: list[DiagnosticIR] = []
+        metadata_profile = self.policy.code_cell_metadata_profile()
+        missing_info = CATALOG["DIR010"]
         for cell in query.structure.missing_code_cell_languages():
-            profile_metadata = self.profile == "code-cell-metadata"
             out.append(
                 DiagnosticIR(
-                    code="DIR010",
-                    severity_default=Severity.WARNING,
-                    message="code-cell directive is missing an executable language",
+                    code=missing_info.code,
+                    severity_default=self.policy.severity(missing_info.code),
+                    message=missing_info.message,
                     span=cell.span,
                     hint="Use a directive argument such as ```{code-cell} python.",
                     rule="directive.code_cell_language",
                     profile_gated=True,
                     false_positive_risk="medium",
-                    profile=self.profile if profile_metadata else None,
-                    provenance_ids=(cell.fact_id,) if profile_metadata else (),
+                    profile=metadata_profile,
+                    provenance_ids=(cell.fact_id,) if metadata_profile else (),
                     properties=(
                         (("source_format", cell.source_format), ("reason", "missing"))
-                        if profile_metadata
+                        if metadata_profile
                         else ()
                     ),
                 )
             )
-        if self.profile != "code-cell-metadata":
+        if metadata_profile is None:
             return tuple(out)
-        for cell in query.structure.invalid_code_cell_languages():
-            assert cell.language is not None
+
+        invalid_ids = {cell.fact_id for cell in query.structure.invalid_code_cell_languages()}
+        language_info = CATALOG["DIR013"]
+        for cell in query.structure.code_cells():
+            if cell.language is None:
+                continue
+            if cell.fact_id in invalid_ids:
+                reason = "invalid"
+            elif self.policy.code_cell_language_is_known(cell.language):
+                continue
+            else:
+                reason = "unknown"
             out.append(
                 DiagnosticIR(
-                    code="DIR013",
-                    severity_default=Severity.WARNING,
-                    message=(
-                        "code-cell language metadata is not a valid language identifier: "
-                        f"{cell.language}"
-                    ),
+                    code=language_info.code,
+                    severity_default=self.policy.severity(language_info.code),
+                    message=(f"{language_info.message}: {cell.language}"),
                     span=cell.language_span or cell.span,
-                    hint="Use one language identifier such as python, julia, or c++.",
+                    hint=(
+                        "Use a supported language identifier such as python, julia, or c++, "
+                        "or an explicit custom.* identifier."
+                    ),
                     rule="directive.code_cell_language",
                     profile_gated=True,
                     false_positive_risk="low",
-                    profile=self.profile,
+                    profile=metadata_profile,
                     provenance_ids=(cell.fact_id,),
                     properties=(
                         ("source_format", cell.source_format),
                         ("language", cell.language),
-                        ("reason", "invalid"),
+                        ("reason", reason),
                     ),
                 )
             )

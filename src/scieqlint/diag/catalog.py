@@ -153,9 +153,9 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "DIR013": DiagnosticInfo(
         "DIR013",
         Severity.WARNING,
-        "code-cell language metadata is not a valid language identifier",
+        "code-cell language metadata is unknown or malformed",
         "v1.1.0",
-        "A code-cell language value is present but cannot identify one executable language.",
+        "A code-cell language value is present but is not a supported or explicit custom identifier.",
     ),
     "DIR011": DiagnosticInfo(
         "DIR011",
