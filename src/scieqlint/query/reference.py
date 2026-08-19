@@ -159,7 +159,7 @@ def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str
 def _producer_signature(
     fact: CrossrefMetadataFact,
 ) -> tuple[str | None, tuple[tuple[str, str], ...]]:
-    """Return only metadata owned by the producer of the referenced target."""
-
-    metadata = fact.target_metadata or fact.display_metadata
-    return fact.resolved_target_kind or fact.reference_kind, tuple(sorted(metadata))
+    return (
+        fact.resolved_target_kind or fact.reference_kind,
+        tuple(sorted(fact.target_metadata or fact.display_metadata)),
+    )

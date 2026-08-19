@@ -45,17 +45,15 @@ class CrossrefMetadataFact(FactBase):
     source_fact_id: str
     logical_target: str
     normalized_target: str
-    reference_kind: str
     source_format: str
     output_boundary: str
-    # ``reference_kind`` and ``display_metadata`` are retained as compatibility
-    # fields for callers that serialize the original fact shape. REF007 must
-    # use the producer-side fields below: a reference's local role or title is
-    # not metadata of the target it names.
     reference_role: str | None = None
     resolved_target_kind: str | None = None
     target_metadata: tuple[tuple[str, str], ...] = ()
     metadata_kind: CrossrefMetadataKind = "reference-use"
+    # Compatibility fields remain readable for older callers while all new
+    # conflict decisions use the separated fields above.
+    reference_kind: str | None = None
     display_metadata: tuple[tuple[str, str], ...] = ()
     target_span: SourceSpan | None = None
 
