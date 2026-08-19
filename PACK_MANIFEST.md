@@ -330,5 +330,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_stabilization.py`
 - `tests/test_symbols.py`
 - `tests/test_typst_portability.py`
+- `tests/test_workspace_visibility.py`
 - `tools/architecture/terminology_drift.py`
 - `tools/public_regression_replay.py`
