@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+import pytest
+
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -74,7 +76,7 @@ c &= d \eqref{missing}
     assert source[span.start : span.end] == "missing"
 
 
-def test_unsupported_raw_environment_is_unknown_without_losing_refs_or_labels() -> None:
+def test_unsupported_raw_math_environment_is_unknown_without_losing_refs_or_labels() -> None:
     source = r"""\begin{cases}
 x & \text{if } y \label{piecewise}
 \ref{outside}
@@ -93,6 +95,42 @@ x & \text{if } y \label{piecewise}
     assert [
         (fact.source_math_fact_id, fact.reason, fact.excerpt) for fact in snapshot.unknown_math
     ] == [(snapshot.display_math[0].fact_id, "environment", "cases")]
+
+
+@pytest.mark.parametrize("environment", ["figure", "table", "itemize", "document"])
+def test_nonmath_raw_environments_are_not_equation_candidates(environment: str) -> None:
+    source = rf"""\begin{{{environment}}}
+\label{{not-an-equation}}
+\ref{{missing}}
+\end{{{environment}}}
+"""
+
+    snapshot = lower(doc(source))
+
+    assert snapshot.display_math == ()
+    assert snapshot.equation_labels == ()
+    assert snapshot.equation_refs == ()
+    assert snapshot.unknown_math == ()
+    assert snapshot.generated_formulas == ()
+
+
+def test_nonmath_raw_label_does_not_collide_with_an_equation_label() -> None:
+    source = r"""\begin{figure}
+\label{shared}
+\end{figure}
+
+\begin{equation}
+x = 1 \label{shared}
+\end{equation}
+
+{eq}`shared`
+"""
+
+    snapshot = lower(doc(source))
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+
+    assert [label.label for label in snapshot.equation_labels] == ["shared"]
+    assert [diagnostic.code for diagnostic in diagnostics] == []
 
 
 def test_nested_aligned_environment_remains_owned_by_supported_outer_equation() -> None:

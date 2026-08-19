@@ -14,6 +14,7 @@ from scieqlint.facts.math import (
     UnknownMathFact,
     UnknownReason,
 )
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.source.maps import SourceMap
 
@@ -41,6 +42,27 @@ _SUPPORTED_RAW_ENVIRONMENTS = frozenset(
         "multline*",
     }
 )
+_RAW_MATH_ENVIRONMENTS = frozenset(
+    {
+        *_SUPPORTED_RAW_ENVIRONMENTS,
+        "aligned",
+        "alignedat",
+        "split",
+        "cases",
+        "array",
+        "matrix",
+        "pmatrix",
+        "bmatrix",
+        "Bmatrix",
+        "vmatrix",
+        "Vmatrix",
+        "smallmatrix",
+        "gathered",
+        "multlined",
+    }
+)
+_TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
+_TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
 
 
 class MathHost:
@@ -56,8 +78,28 @@ class MathHost:
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
         display_math: list[DisplayMathFact] = []
+        equation_labels = list(snapshot.equation_labels)
+        equation_refs = list(snapshot.equation_refs)
+        dropped_display_ids: set[str] = set()
+        source_maps = {
+            document.path.as_posix(): SourceMap.for_document(document)
+            for document in snapshot.documents
+        }
         for fact in snapshot.display_math:
+            if fact.container == "raw-latex" and fact.environment not in _RAW_MATH_ENVIRONMENTS:
+                dropped_display_ids.add(fact.fact_id)
+                continue
             display, unknown = _classify_display(fact)
+            if fact.container == "raw-latex":
+                source_map = source_maps.get(fact.document_id)
+                if source_map is not None:
+                    labels, references = _raw_equation_facts(display, source_map)
+                    display = replace(
+                        display,
+                        label_fact_ids=tuple(label.fact_id for label in labels),
+                    )
+                    equation_labels.extend(labels)
+                    equation_refs.extend(references)
             display_math.append(display)
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
@@ -65,8 +107,14 @@ class MathHost:
             snapshot,
             inline_math=tuple(inline_math),
             display_math=tuple(display_math),
+            equation_labels=tuple(equation_labels),
+            equation_refs=tuple(equation_refs),
             unknown_math=(*snapshot.unknown_math, *unknown_math),
-            generated_formulas=_classify_generated_formulas(snapshot),
+            generated_formulas=tuple(
+                formula
+                for formula in _classify_generated_formulas(snapshot)
+                if formula.source_math_fact_id not in dropped_display_ids
+            ),
         )
 
 
@@ -87,6 +135,68 @@ def _classify_display(
     if environment is None:
         return fact, None
     return replace(fact, container="ams", environment=environment), None
+
+
+def _raw_equation_facts(
+    fact: DisplayMathFact,
+    source_map: SourceMap,
+) -> tuple[tuple[EquationLabelFact, ...], tuple[EquationRefFact, ...]]:
+    """Materialize equation semantics from a classified raw math candidate."""
+
+    if fact.span is None:
+        return (), ()
+    raw = fact.raw or ""
+    labels: list[EquationLabelFact] = []
+    references: list[EquationRefFact] = []
+    for match in _TEX_LABEL_RE.finditer(raw):
+        if _is_escaped(raw, match.start()):
+            continue
+        label = match.group("label")
+        label_start = fact.span.start + match.start("label")
+        labels.append(
+            EquationLabelFact(
+                fact_id=f"{fact.fact_id}::label::{label_start}",
+                document_id=fact.document_id,
+                span=source_map.span(label_start, label_start + len(label)),
+                raw=label,
+                label=label,
+                normalized_label=_normalize_label(label),
+                label_syntax_kind="tex-label",
+                source_block_id=fact.fact_id,
+                label_span=source_map.span(label_start, label_start + len(label)),
+            )
+        )
+    for match in _TEX_REFERENCE_RE.finditer(raw):
+        if _is_escaped(raw, match.start()):
+            continue
+        raw_target = match.group("target")
+        target = raw_target.strip()
+        if not target:
+            continue
+        leading = len(raw_target) - len(raw_target.lstrip())
+        target_start = fact.span.start + match.start("target") + leading
+        role_start = fact.span.start + match.start()
+        role_end = fact.span.start + match.end()
+        references.append(
+            EquationRefFact(
+                fact_id=f"{fact.fact_id}::ref::{target_start}",
+                document_id=fact.document_id,
+                span=source_map.span(role_start, role_end),
+                raw=match.group(0),
+                ref_kind=f"tex-{match.group('kind')}",
+                target=target,
+                normalized_target=_normalize_label(target),
+                source_block_id=fact.fact_id,
+                role_span=source_map.span(role_start, role_end),
+                target_span=source_map.span(target_start, target_start + len(target)),
+            )
+        )
+    return tuple(labels), tuple(references)
+
+
+def _normalize_label(value: str) -> str:
+    value = value.strip()
+    return value[1:] if value.startswith("#") else value
 
 
 def _complete_ams_environment(body: str) -> str | None:

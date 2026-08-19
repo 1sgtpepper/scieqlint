@@ -96,8 +96,6 @@ def scan_raw_latex_math(
     """Lower top-level raw-LaTeX environment candidates without classifying them."""
 
     displays: list[DisplayMathFact] = []
-    labels: list[EquationLabelFact] = []
-    references: list[EquationRefFact] = []
     occupied_ranges = _merge_occupied(occupied)
     for environment, start, body_start, body_end, end, complete in _raw_math_environment_ranges(
         document.text, occupied_ranges
@@ -105,10 +103,6 @@ def scan_raw_latex_math(
         fact_id = f"{document.path.as_posix()}::raw-math::{start}"
         raw = document.text[start:end]
         body_text = document.text[body_start:body_end]
-        label_facts = tuple(_tex_label_facts(document, smap, fact_id, body_start, body_text))
-        reference_facts = tuple(
-            _tex_reference_facts(document, smap, fact_id, body_start, body_text)
-        )
         display = DisplayMathFact(
             fact_id=fact_id,
             document_id=document.path.as_posix(),
@@ -116,14 +110,14 @@ def scan_raw_latex_math(
             raw=raw,
             body=body_text.strip(),
             container="raw-latex",
-            label_fact_ids=tuple(fact.fact_id for fact in label_facts),
             environment=environment,
             complete=complete,
         )
         displays.append(display)
-        labels.extend(label_facts)
-        references.extend(reference_facts)
-    return tuple(displays), tuple(labels), tuple(references)
+    # Raw environments are lexical candidates only. MathHost decides whether
+    # the environment is mathematical and materializes labels/references only
+    # for candidates that survive that classification.
+    return tuple(displays), (), ()
 
 
 def _raw_math_environment_ranges(
