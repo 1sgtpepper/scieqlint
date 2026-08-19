@@ -93,11 +93,7 @@ class ReferenceEngine:
 def _fact_source_key(
     fact: EquationLabelFact | EquationRefFact,
 ) -> tuple[str, int, int, str]:
-    span = (
-        fact.label_span
-        if isinstance(fact, EquationLabelFact)
-        else fact.target_span or fact.span
-    )
+    span = fact.label_span if isinstance(fact, EquationLabelFact) else fact.target_span or fact.span
     return (
         fact.document_id,
         -1 if span is None else span.start,
