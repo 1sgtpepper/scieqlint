@@ -279,3 +279,47 @@ def _producer_signature(
         fact.resolved_target_kind or fact.reference_kind,
         tuple(sorted(fact.target_metadata or fact.display_metadata)),
     )
+
+
+def _is_target_definition(fact: CrossrefMetadataFact) -> bool:
+    if fact.metadata_kind == "target-definition":
+        return True
+    # Older callers constructed producer facts with the legacy fields. Keep
+    # that data useful while requiring all frontend-produced reference uses to
+    # identify themselves explicitly through ``reference_role``.
+    return fact.reference_role is None and (
+        fact.resolved_target_kind is not None or fact.reference_kind is not None
+    )
+
+
+def _unclear_display_reason(fact: ReferenceDisplayTextFact) -> str | None:
+    text = fact.explicit_text
+    if text is None or not text.strip():
+        return "missing"
+    normalized = " ".join(text.casefold().split()).strip(" .:#-_[]()")
+    target = " ".join(fact.normalized_target.casefold().split()).strip(" .:#-_[]()")
+    target_type = (fact.target_type or "").casefold()
+    generic = {
+        target,
+        target_type,
+        "reference",
+        "link",
+        "this",
+        "here",
+        f"{target_type} reference",
+    }
+    if target_type == "block":
+        generic.add("paragraph")
+    return "generic" if normalized in generic else None
+
+
+def _display_source_key(
+    fact: ReferenceDisplayTextFact,
+) -> tuple[str, int, int, str]:
+    span = fact.display_text_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
+    )
