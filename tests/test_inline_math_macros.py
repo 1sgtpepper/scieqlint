@@ -6,15 +6,19 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.facts.snapshot import FactSnapshot
-from scieqlint.frontend.math_macros import inline_math_macro_facts
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.macros import scan_inline_macro_syntax
+from scieqlint.parse.math import MathHost, inline_math_macro_facts
 from scieqlint.query.host import QueryHost
 
 
 def doc(text: str, path: str = "macros.md") -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+def lower(documents: tuple[SourceDocument, ...]) -> FactSnapshot:
+    return MathHost().classify(MySTFrontend().lower(documents))
 
 
 def test_macro_facts_preserve_document_order_scope_and_exact_name_spans() -> None:
@@ -23,7 +27,7 @@ def test_macro_facts_preserve_document_order_scope_and_exact_name_spans() -> Non
         r"After $\RR$."
     )
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
     query = QueryHost(snapshot)
 
     declaration = query.math.macro_declarations()[0]
@@ -58,7 +62,7 @@ def test_redeclaration_changes_only_later_use_context() -> None:
         r"$\renewcommand{\v}[1]{\mathbf{#1}}$ $\v{y}$"
     )
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
     first, second = snapshot.math_macro_declarations
     first_use, second_use = snapshot.math_macro_uses
 
@@ -80,7 +84,7 @@ def test_common_newcommand_providecommand_and_def_forms_are_finite() -> None:
         )
     )
 
-    declarations = MySTFrontend().lower((doc(source),)).math_macro_declarations
+    declarations = lower((doc(source),)).math_macro_declarations
 
     assert [fact.macro_name for fact in declarations] == [
         r"\scalar",
@@ -103,7 +107,7 @@ def test_common_newcommand_providecommand_and_def_forms_are_finite() -> None:
 def test_macro_facts_cover_myst_role_and_latex_parenthesis_inline_forms() -> None:
     source = r"{math}`\newcommand{\A}{a}` then \(\A + 1\)."
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
 
     declaration = snapshot.math_macro_declarations[0]
     use = snapshot.math_macro_uses[0]
@@ -115,8 +119,8 @@ def test_macro_context_is_document_scoped_and_input_order_independent() -> None:
     a = doc(r"$\newcommand{\same}{A}$ $\same$", "a.md")
     b = doc(r"$\same$ $\newcommand{\same}{B}$", "b.md")
 
-    forward = MySTFrontend().lower((b, a))
-    reverse = MySTFrontend().lower((a, b))
+    forward = lower((b, a))
+    reverse = lower((a, b))
 
     def contract(
         snapshot: FactSnapshot,
@@ -163,7 +167,7 @@ def test_literal_malformed_and_unsupported_declarations_do_not_create_facts() ->
         )
     )
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
 
     assert snapshot.math_macro_declarations == ()
     assert snapshot.math_macro_uses == ()
@@ -205,7 +209,7 @@ def test_parser_handles_whitespace_escaped_groups_and_later_uses() -> None:
 
 def test_stale_inline_math_facts_are_ignored_before_macro_lowering() -> None:
     source = doc(r"$\newcommand{\x}{1}$")
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = lower((source,))
     stale = replace(snapshot.inline_math[0], body=snapshot.inline_math[0].body + " stale")
 
     assert inline_math_macro_facts((source,), (stale,)) == ((), ())
@@ -213,7 +217,7 @@ def test_stale_inline_math_facts_are_ignored_before_macro_lowering() -> None:
 
 def test_plain_text_math_facts_are_ignored_before_macro_lowering() -> None:
     source = doc(r"$\newcommand{\x}{1}$")
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = lower((source,))
     plain_text = replace(snapshot.inline_math[0], delimiter_kind="plain-text")
 
     assert inline_math_macro_facts((source,), (plain_text,)) == ((), ())
@@ -226,7 +230,7 @@ def test_macro_commands_inside_declaration_replacements_are_not_use_sites() -> N
         r"$\derived + \base$"
     )
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
 
     assert [use.macro_name for use in snapshot.math_macro_uses] == [
         r"\derived",
@@ -235,9 +239,9 @@ def test_macro_commands_inside_declaration_replacements_are_not_use_sites() -> N
 
 
 def test_macro_facts_are_stable_across_newline_normalization_and_eof() -> None:
-    lf = MySTFrontend().lower((doc(r"$\newcommand{\x}{1}$" + "\n"),))
-    crlf = MySTFrontend().lower((doc(r"$\newcommand{\x}{1}$" + "\r\n"),))
-    eof = MySTFrontend().lower((doc(r"$\newcommand{\x}{1}$"),))
+    lf = lower((doc(r"$\newcommand{\x}{1}$" + "\n"),))
+    crlf = lower((doc(r"$\newcommand{\x}{1}$" + "\r\n"),))
+    eof = lower((doc(r"$\newcommand{\x}{1}$"),))
 
     assert lf.math_macro_declarations == crlf.math_macro_declarations
     assert eof.math_macro_declarations[0].raw == r"\newcommand{\x}{1}"
@@ -246,7 +250,7 @@ def test_macro_facts_are_stable_across_newline_normalization_and_eof() -> None:
 def test_macro_scanning_handles_many_inline_facts_without_cross_fact_rescans() -> None:
     source = " ".join([r"$\newcommand{\x}{1}$"] + [r"$\x$" for _ in range(256)])
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower((doc(source),))
 
     assert len(snapshot.math_macro_declarations) == 1
     assert len(snapshot.math_macro_uses) == 256

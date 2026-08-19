@@ -27,7 +27,6 @@ from .generated import (
     scan_formula_candidates,
     scan_formula_placeholders,
 )
-from .math_macros import inline_math_macro_facts
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
@@ -73,7 +72,6 @@ class MySTFrontend:
         equation_labels = _flatten(parts, "equation_labels")
         equation_refs = _flatten(parts, "equation_refs")
         inline_math = _flatten(parts, "inline_math")
-        macro_declarations, macro_uses = inline_math_macro_facts(documents, inline_math)
         return FactSnapshot(
             documents=tuple(documents),
             headings=_flatten(parts, "headings"),
@@ -94,9 +92,8 @@ class MySTFrontend:
                 equation_labels,
             ),
             inline_math=inline_math,
-            math_macro_declarations=macro_declarations,
-            math_macro_uses=macro_uses,
             display_math=_flatten(parts, "display_math"),
+            unknown_math=_flatten(parts, "unknown_math"),
             generated_formulas=_flatten(parts, "generated_formulas"),
         )
 
@@ -242,5 +239,6 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
         crossref_metadata=crossref_metadata,
         inline_math=inline_math,
         display_math=display_math,
+        unknown_math=(),
         generated_formulas=generated_formulas,
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
@@ -11,14 +11,23 @@ from scieqlint.facts.math import (
     DisplayMathFact,
     InlineMathFact,
     InlineParseStatus,
+    MathMacroDeclarationFact,
+    MathMacroUseFact,
     UnknownMathFact,
     UnknownReason,
 )
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import is_escaped
 from scieqlint.source.maps import SourceMap
+
+from .macros import (
+    InlineMacroSource,
+    MacroDeclarationKey,
+    scan_scoped_inline_macros,
+)
 
 _UNSUPPORTED_ENVIRONMENT_RE = re.compile(r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
 _MISSING_BRACED_ARGUMENT_RE = re.compile(r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$")
@@ -108,12 +117,18 @@ class MathHost:
             display_math.append(display)
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
+        macro_declarations, macro_uses = inline_math_macro_facts(
+            snapshot.documents,
+            tuple(inline_math),
+        )
         return replace(
             snapshot,
             inline_math=tuple(inline_math),
             display_math=tuple(display_math),
             equation_labels=tuple(equation_labels),
             equation_refs=tuple(equation_refs),
+            math_macro_declarations=macro_declarations,
+            math_macro_uses=macro_uses,
             unknown_math=(*snapshot.unknown_math, *unknown_math),
             generated_formulas=tuple(
                 formula
@@ -410,6 +425,93 @@ def _high_confidence_spaced_command(artifact: str) -> bool:
 
 def _always_accept(_artifact: str) -> bool:
     return True
+
+
+def inline_math_macro_facts(
+    documents: Sequence[SourceDocument],
+    inline_math: Sequence[InlineMathFact],
+) -> tuple[tuple[MathMacroDeclarationFact, ...], tuple[MathMacroUseFact, ...]]:
+    """Resolve macro declarations and uses after MathHost owns math candidates."""
+
+    documents_by_id = {document.path.as_posix(): document for document in documents}
+    source_maps = {
+        document_id: SourceMap.for_document(document)
+        for document_id, document in documents_by_id.items()
+    }
+    facts_by_id: dict[str, InlineMathFact] = {}
+    sources: list[InlineMacroSource] = []
+    for fact in inline_math:
+        if (
+            fact.delimiter_kind == "plain-text"
+            or fact.confidence != "source"
+            or fact.span is None
+            or fact.document_id not in documents_by_id
+        ):
+            continue
+        document = documents_by_id[fact.document_id]
+        if document.text[fact.span.start : fact.span.end] != fact.body:
+            continue
+        facts_by_id[fact.fact_id] = fact
+        sources.append(
+            InlineMacroSource(
+                document_id=fact.document_id,
+                source_fact_id=fact.fact_id,
+                source_start=fact.span.start,
+                body=fact.body,
+            )
+        )
+
+    scoped = scan_scoped_inline_macros(tuple(sources))
+    declarations: list[MathMacroDeclarationFact] = []
+    declaration_ids: dict[MacroDeclarationKey, str] = {}
+    for item in scoped.declarations:
+        fact = facts_by_id[item.source.source_fact_id]
+        assert fact.span is not None
+        syntax = item.declaration
+        fact_id = f"{fact.fact_id}::macro-declaration::{syntax.start}"
+        declaration_ids[MacroDeclarationKey(fact.fact_id, syntax.start)] = fact_id
+        declarations.append(
+            MathMacroDeclarationFact(
+                fact_id=fact_id,
+                document_id=fact.document_id,
+                span=source_maps[fact.document_id].span(
+                    fact.span.start + syntax.name_start,
+                    fact.span.start + syntax.name_end,
+                ),
+                raw=fact.body[syntax.start : syntax.end],
+                source_math_fact_id=fact.fact_id,
+                macro_name=syntax.name,
+                declaration_kind=syntax.declaration_kind,
+                parameter_count=syntax.parameter_count,
+                replacement=syntax.replacement,
+                declaration_order=item.declaration_order,
+            )
+        )
+
+    uses: list[MathMacroUseFact] = []
+    for item in scoped.uses:
+        fact = facts_by_id[item.source.source_fact_id]
+        assert fact.span is not None
+        syntax = item.use
+        uses.append(
+            MathMacroUseFact(
+                fact_id=f"{fact.fact_id}::macro-use::{syntax.start}",
+                document_id=fact.document_id,
+                span=source_maps[fact.document_id].span(
+                    fact.span.start + syntax.start,
+                    fact.span.start + syntax.end,
+                ),
+                raw=fact.body[syntax.start : syntax.end],
+                source_math_fact_id=fact.fact_id,
+                macro_name=syntax.name,
+                active_declaration_fact_id=(
+                    declaration_ids[item.active_declaration]
+                    if item.active_declaration is not None
+                    else None
+                ),
+            )
+        )
+    return tuple(declarations), tuple(uses)
 
 
 def _typst_math_risks(
