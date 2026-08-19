@@ -4,7 +4,7 @@ The stable API surface is exported from `scieqlint.api`:
 
 - `check_paths(paths, *, config_path=None, no_algebra=False, inline_math=False,
   strict_unknowns=False, absolute_paths=False)`
-- `check_documents(documents, *, config)`
+- `check_documents(documents, *, config, accessibility_metadata=None)`
 - `graph_paths(paths, *, config_path=None)`
 - `graph_documents(documents, *, config)`
 - `load_config(path=None, *, preset=None)`
@@ -45,6 +45,10 @@ syntax are expanded.
 do not read baseline files from disk. Path-based APIs preserve their analysis result
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
+
+`accessibility_metadata` is a caller-owned mapping from the stable inline-math fact ID
+to accessible text. SciEqLint applies it at the orchestration boundary; it does not
+infer alternative text from surrounding prose. An unknown fact ID is rejected.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a
