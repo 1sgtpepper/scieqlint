@@ -166,7 +166,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/myst_math.py`
 - `src/scieqlint/frontend/myst_refs.py`
 - `src/scieqlint/frontend/myst_shared.py`
-- `src/scieqlint/frontend/portability.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -188,6 +187,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/policy/__init__.py`
+- `src/scieqlint/policy/host.py`
 - `src/scieqlint/pre_commit.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/generated-myst.toml`
