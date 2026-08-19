@@ -49,9 +49,7 @@ class ProfileConfig:
         if self.name == "cross-format-references" and self.output_profile is None:
             raise ValueError("profile.output_profile is required for cross-format-references")
         if self.name != "cross-format-references" and self.output_profile is not None:
-            raise ValueError(
-                "profile.output_profile is only valid for cross-format-references"
-            )
+            raise ValueError("profile.output_profile is only valid for cross-format-references")
 
 
 @dataclass(frozen=True, slots=True)
