@@ -6,6 +6,15 @@ import tomllib
 from pathlib import Path
 
 
+def _workflow_job(workflow: str, name: str) -> str:
+    marker = f"  {name}:\n"
+    start = workflow.index(marker)
+    match = re.search(r"\n  [a-z][a-z0-9-]*:\n", workflow[start + len(marker) :])
+    if match is None:
+        return workflow[start:]
+    return workflow[start : start + len(marker) + match.start()]
+
+
 def test_release_version_metadata_is_consistent() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
     init_tree = ast.parse(Path("src/scieqlint/__init__.py").read_text(encoding="utf-8"))
@@ -82,6 +91,34 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
         r"    needs: smoke$",
         workflow,
     )
+
+
+def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
+    workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    build = _workflow_job(workflow, "build")
+    smoke = _workflow_job(workflow, "smoke")
+    publish = _workflow_job(workflow, "publish")
+
+    assert workflow.count("uses: actions/upload-artifact@") == 1
+    assert "id: release-artifact" in build
+    assert "distribution_id: ${{ steps.release-artifact.outputs.artifact-id }}" in build
+    assert "distribution_digest" not in build
+    assert "if-no-files-found: error" in build
+
+    assert "needs: build" in smoke
+    assert "distribution_id: ${{ needs.build.outputs.distribution_id }}" in smoke
+    assert "artifact-ids: ${{ needs.build.outputs.distribution_id }}" in smoke
+    assert "Approve verified release artifact" not in smoke
+    assert "digest-mismatch" not in smoke
+    assert "name: dist" not in smoke
+
+    assert "needs: smoke" in publish
+    assert "artifact-ids: ${{ needs.smoke.outputs.distribution_id }}" in publish
+    assert "distribution_digest" not in publish
+    assert "digest-mismatch" not in publish
+    assert "name: dist" not in publish
+    assert "actions/checkout@" not in publish
+    assert "python -m build" not in publish
 
 
 def test_stable_release_accuracy_gate_counts_executed_equation_fixtures() -> None:
