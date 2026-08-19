@@ -349,9 +349,7 @@ def _apply_accessibility_metadata(
     return tuple(
         replace(
             fact,
-            alt=(metadata[fact.fact_id].strip() or None)
-            if fact.fact_id in metadata
-            else fact.alt,
+            alt=(metadata[fact.fact_id].strip() or None) if fact.fact_id in metadata else fact.alt,
         )
         for fact in inline_math
     )
