@@ -49,14 +49,14 @@ def test_frontend_keeps_bracketed_blocks_as_candidates_until_math_host() -> None
     source = doc("\\[\nx = y\n\\]\n")
 
     frontend = MySTFrontend().lower((source,))
-    assert [
-        (fact.kind, fact.candidate_kind) for fact in frontend.generated_formulas
-    ] == [("candidate", "bracketed-block")]
+    assert [(fact.kind, fact.candidate_kind) for fact in frontend.generated_formulas] == [
+        ("candidate", "bracketed-block")
+    ]
 
     classified = MathHost().classify(frontend)
-    assert [
-        (fact.kind, fact.candidate_kind) for fact in classified.generated_formulas
-    ] == [("bracketed-block", None)]
+    assert [(fact.kind, fact.candidate_kind) for fact in classified.generated_formulas] == [
+        ("bracketed-block", None)
+    ]
 
 
 def test_bracketed_scanner_excludes_owned_math_code_inline_and_nonstandalone_text() -> None:
