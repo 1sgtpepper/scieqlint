@@ -1,0 +1,48 @@
+tests/fixtures/generated/formula_quality_bad.md:5:2: warning GEN002 generated math contains suspicious formula text
+  detail: garbled-marker artifact: '/C0 apod'
+  profile: generated-myst
+  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
+  formula_artifact_kind: garbled-marker
+  generated_document: tests/fixtures/generated/formula_quality_bad.md
+  source_document: source/formula_quality.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
+tests/fixtures/generated/formula_quality_bad.md:7:1: warning GEN004 generated output contains a formula placeholder
+  detail: formula-not-decoded marker remains in generated output
+  profile: generated-myst
+  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
+  formula_artifact_kind: placeholder
+  placeholder_kind: formula-not-decoded
+  generated_document: tests/fixtures/generated/formula_quality_bad.md
+  source_document: source/formula_quality.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
+tests/fixtures/generated/formula_quality_bad.md:9:1: warning GEN003 nonstandard bracketed LaTeX display block
+  detail: standalone \[...\] display delimiters are not portable generated Markdown
+  profile: generated-myst
+  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
+  formula_artifact_kind: bracketed-block
+  complete: true
+  generated_document: tests/fixtures/generated/formula_quality_bad.md
+  source_document: source/formula_quality.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
+tests/fixtures/generated/formula_quality_bad.md:13:1: warning GEN005 standalone text block looks like an equation
+  detail: equation-like text was emitted outside a math container: 'F(x) = x + 1'
+  profile: generated-myst
+  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
+  formula_artifact_kind: equation-like-text
+  generated_document: tests/fixtures/generated/formula_quality_bad.md
+  source_document: source/formula_quality.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
+tests/fixtures/generated/formula_quality_bad.md:15:1: warning GEN004 generated output contains a formula placeholder
+  detail: standalone formula image remains in generated output
+  profile: generated-myst
+  provenance: tests/fixtures/generated/formula_quality_bad.md::generated-provenance
+  formula_artifact_kind: image-placeholder
+  placeholder_kind: formula-image
+  generated_document: tests/fixtures/generated/formula_quality_bad.md
+  source_document: source/formula_quality.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
