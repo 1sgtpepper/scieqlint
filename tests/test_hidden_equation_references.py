@@ -277,5 +277,5 @@ def test_visible_duplicate_behavior_and_default_visibility_are_unchanged() -> No
     )
 
     assert first.visibility == "visible"
-    assert [diagnostic.code for diagnostic in diagnostics] == ["REF001"]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF001", "REF011"]
     assert diagnostics[0].span == second.label_span
