@@ -1187,7 +1187,6 @@ def _markdown_link_tokens_from_lexical(
                         destination_start,
                         destination_end,
                         frame.is_image,
-                        index,
                         child_metadata_ranges,
                     )
                     surviving_metadata_end = metadata_prefix[frame.child_start]
@@ -1284,7 +1283,6 @@ def _make_link_token(
     destination_start: int,
     destination_end: int,
     is_image: bool,
-    label_end: int,
     child_metadata_ranges: Iterable[OffsetRange],
 ) -> MarkdownLinkToken:
     destination, decoded_spans = _decode_destination_span(text, destination_start, destination_end)
