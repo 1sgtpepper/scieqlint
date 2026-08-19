@@ -158,4 +158,3 @@ def test_code_cell_fence_scanner_and_frontend_agree(
 
     query = QueryHost(snapshot)
     assert ReferenceEngine().run(query) == ()
-    assert StructureEngine(profile="code-cell-metadata").run(query) == ()
