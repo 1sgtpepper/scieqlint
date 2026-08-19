@@ -161,7 +161,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/__init__.py`
 - `src/scieqlint/frontend/crossref.py`
 - `src/scieqlint/frontend/generated.py`
-- `src/scieqlint/frontend/math_macros.py`
 - `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/frontend/myst_blocks.py`
 - `src/scieqlint/frontend/myst_headings.py`
