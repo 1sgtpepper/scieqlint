@@ -13,6 +13,7 @@ class ReferenceEngine:
 
     def __init__(self, *, profile: str | None = None) -> None:
         self.profile = profile
+
     rule_codes = frozenset(
         {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008", "REF011"}
     )
