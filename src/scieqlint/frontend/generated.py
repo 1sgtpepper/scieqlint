@@ -315,7 +315,7 @@ def scan_equation_like_text_items(
     inline_math: Sequence[InlineMathFact],
     occupied: Sequence[OffsetRange],
 ) -> tuple[GeneratedFormulaFact, ...]:
-    """Classify whole isolated text items, never equation substrings in prose."""
+    """Record whole isolated text items, never equation substrings in prose."""
 
     lines = line_ranges(document.text)
     occupied = _merge_ranges(occupied)
@@ -343,7 +343,6 @@ def scan_equation_like_text_items(
             or end != math_fact.span.end
             or text != math_fact.body
             or not _is_isolated_text_item(lines, line_index, math_fact.surrounding_text_role)
-            or not _has_high_confidence_math_signal(text)
         ):
             continue
         facts.append(
@@ -354,9 +353,10 @@ def scan_equation_like_text_items(
                 document_id=document.path.as_posix(),
                 span=smap.span(start, end),
                 raw=text,
-                confidence="inferred",
-                kind="equation-like-text",
+                confidence="source",
+                kind="candidate",
                 text=text,
+                candidate_kind="equation-like-text",
                 source_math_fact_id=math_fact.fact_id,
             )
         )
@@ -402,12 +402,3 @@ def _is_isolated_text_item(
 
 def _list_boundary(line: str) -> bool:
     return not line.strip() or _LIST_ITEM_RE.fullmatch(line) is not None
-
-
-def _has_high_confidence_math_signal(text: str) -> bool:
-    if any(character.isdigit() for character in text):
-        return True
-    if any(character in text for character in r"\_^{}*/+()[]"):
-        return True
-    words = _ALPHA_WORD_RE.findall(text)
-    return bool(words) and all(len(word) <= 3 for word in words)

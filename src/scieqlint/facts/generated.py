@@ -17,7 +17,12 @@ GeneratedFormulaKind = Literal[
     "image-placeholder",
     "equation-like-text",
 ]
-GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block", "placeholder"]
+GeneratedFormulaCandidateKind = Literal[
+    "formula-text",
+    "bracketed-block",
+    "placeholder",
+    "equation-like-text",
+]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

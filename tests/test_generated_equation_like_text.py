@@ -9,6 +9,7 @@ from scieqlint.facts.math import InlineMathFact
 from scieqlint.frontend.generated import _text_item_content, scan_equation_like_text_items
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.parse.math import MathHost
 from scieqlint.source.maps import SourceMap
 
 
@@ -24,7 +25,7 @@ def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
 def equation_text_facts(text: str):
     return tuple(
         fact
-        for fact in MySTFrontend().lower((doc(text),)).generated_formulas
+        for fact in MathHost().classify(MySTFrontend().lower((doc(text),))).generated_formulas
         if fact.kind == "equation-like-text"
     )
 

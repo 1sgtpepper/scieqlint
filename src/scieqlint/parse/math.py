@@ -152,6 +152,17 @@ def _classify_generated_candidate(
             else "placeholder"
         )
         return (replace(candidate, kind=kind, candidate_kind=None),)
+    if candidate.candidate_kind == "equation-like-text":
+        if not _has_high_confidence_math_signal(candidate.text):
+            return ()
+        return (
+            replace(
+                candidate,
+                kind="equation-like-text",
+                candidate_kind=None,
+                confidence="inferred",
+            ),
+        )
     raise ValueError(f"unsupported generated formula candidate kind: {candidate.candidate_kind}")
 
 
@@ -194,6 +205,15 @@ def _suspicious_formula_facts(
                 )
             )
     return tuple(facts)
+
+
+def _has_high_confidence_math_signal(text: str) -> bool:
+    if any(character.isdigit() for character in text):
+        return True
+    if any(character in text for character in r"\_^{}*/+()[]"):
+        return True
+    words = re.findall(r"(?<!\\)[A-Za-z]+", text)
+    return bool(words) and all(len(word) <= 3 for word in words)
 
 
 def _high_confidence_spaced_command(artifact: str) -> bool:
