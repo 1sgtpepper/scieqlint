@@ -139,7 +139,7 @@ def attach_anchors(
         if next_fact is None or not is_immediate_attachment(document, anchor, next_fact):
             yield replace(anchor, placement="orphaned")
             continue
-        kind = "heading" if isinstance(next_fact, HeadingFact) else "block"
+        kind = _attached_target_kind(next_fact)
         placement = "before_heading" if kind == "heading" else "before_block"
         yield replace(
             anchor,
@@ -147,6 +147,17 @@ def attach_anchors(
             attaches_to_fact_id=next_fact.fact_id,
             placement=placement,
         )
+
+
+def _attached_target_kind(fact: HeadingFact | FenceFact) -> str:
+    if isinstance(fact, HeadingFact):
+        return "heading"
+    directive = fact.info_string.split(maxsplit=1)[0] if fact.info_string else ""
+    return {
+        "{figure}": "figure",
+        "{table}": "table",
+        "{code-cell}": "code-cell",
+    }.get(directive, "block")
 
 
 def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFact]:

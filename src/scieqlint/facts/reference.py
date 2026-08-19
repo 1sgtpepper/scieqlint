@@ -13,6 +13,7 @@ TargetPlacement = Literal["before_heading", "before_block", "standalone", "orpha
 CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 TargetVisibility = Literal["visible", "hidden", "excluded"]
 ReferenceDisplayIntent = Literal["explicit", "target-default", "typed-number"]
+TargetTypeSource = Literal["resolved", "explicit", "inferred", "ambiguous", "unresolved"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -95,5 +96,6 @@ class ReferenceDisplayTextFact(FactBase):
     explicit_text: str | None
     target_type: str | None
     display_intent: ReferenceDisplayIntent
+    target_type_source: TargetTypeSource = "unresolved"
     target_fact_ids: tuple[str, ...] = ()
     display_text_span: SourceSpan | None = None

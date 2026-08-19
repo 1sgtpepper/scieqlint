@@ -13,6 +13,7 @@ from scieqlint.facts.reference import (
     ReferenceDisplayIntent,
     ReferenceDisplayTextFact,
     TargetAnchorFact,
+    TargetTypeSource,
 )
 
 TargetFact = TargetAnchorFact | EquationLabelFact
@@ -82,7 +83,10 @@ def _display_fact(
     matched_targets: tuple[TargetFact, ...],
     typed_number: bool,
 ) -> ReferenceDisplayTextFact:
-    target_type = _resolved_target_type(ref.normalized_target, matched_targets)
+    target_type, target_type_source = _resolved_target_type(
+        ref.normalized_target,
+        matched_targets,
+    )
     display_intent: ReferenceDisplayIntent
     if explicit_text is not None:
         display_intent = "explicit"
@@ -103,6 +107,7 @@ def _display_fact(
         explicit_text=explicit_text,
         target_type=target_type,
         display_intent=display_intent,
+        target_type_source=target_type_source,
         target_fact_ids=tuple(target.fact_id for target in matched_targets),
         display_text_span=display_text_span,
     )
@@ -111,17 +116,21 @@ def _display_fact(
 def _resolved_target_type(
     normalized_target: str,
     targets: tuple[TargetFact, ...],
-) -> str | None:
+) -> tuple[str | None, TargetTypeSource]:
+    if not targets:
+        return None, "unresolved"
     if len(targets) != 1:
-        return None
+        return None, "ambiguous"
     target = targets[0]
     if isinstance(target, EquationLabelFact):
-        return "equation"
+        return "equation", "resolved"
+    if isinstance(target, TargetAnchorFact) and target.target_kind is not None:
+        return target.target_kind, "resolved"
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
         if lowered.startswith(prefix):
-            return target_type
-    return target.target_kind
+            return target_type, "inferred"
+    return None, "unresolved"
 
 
 def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:

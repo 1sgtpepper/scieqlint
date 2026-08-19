@@ -148,6 +148,17 @@ def test_query_exposes_display_facts_and_classifies_generic_block_text() -> None
     ] == [("tip", "generic")]
 
 
+def test_resolved_heading_kind_wins_over_figure_prefix_in_display_resolution() -> None:
+    source = doc("(fig-intro)=\n# Introduction\n\nSee [](#fig-intro).\n")
+    snapshot = MySTFrontend().lower((source,))
+
+    [fact] = snapshot.reference_display_text
+
+    assert fact.target_type == "heading"
+    assert fact.target_type_source == "resolved"
+    assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
+
+
 def test_unrepresentable_role_title_has_no_source_span() -> None:
     document = doc("{ref}`Readable title <target>`")
     match = ROLE_RE.search(document.text)
