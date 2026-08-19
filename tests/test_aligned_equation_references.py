@@ -7,6 +7,7 @@ from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 
 
@@ -22,6 +23,10 @@ def without_algebra() -> Config:
     return Config(checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)))
 
 
+def lower(document: SourceDocument):
+    return MathHost().classify(MySTFrontend().lower((document,)))
+
+
 def test_aligned_display_models_labels_internal_refs_and_paragraph_start_refs() -> None:
     source = """\
 $$
@@ -34,7 +39,7 @@ $$
 {eq}`eq:first` begins the next paragraph.
 """
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
     query = QueryHost(snapshot)
 
     assert [(fact.container, fact.label_fact_ids) for fact in snapshot.display_math] == [
@@ -69,7 +74,7 @@ $$
 """
     document = doc(source)
 
-    snapshot = MySTFrontend().lower((document,))
+    snapshot = lower(document)
     engine = ReferenceEngine().run(QueryHost(snapshot))
     result = check_documents([document], config=without_algebra())
     reference_diagnostics = tuple(
@@ -110,7 +115,7 @@ $$
 """
     document = doc(source)
 
-    snapshot = MySTFrontend().lower((document,))
+    snapshot = lower(document)
     query = QueryHost(snapshot)
     engine = ReferenceEngine().run(query)
     result = check_documents([document], config=without_algebra())
@@ -140,7 +145,7 @@ b &= \\eqref{second}
 $$
 """
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
 
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-ref", "first"),
@@ -158,7 +163,7 @@ x &= \\ref{escaped} + \ref{ } + \ref{valid}
 \\end{align}
 $$"""
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
 
     assert snapshot.display_math[0].container == "dollar-dollar"
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
@@ -174,7 +179,7 @@ x &= \\eqref{missing}
 $$
 """
 
-    snapshot = MySTFrontend().lower((doc(source),))
+    snapshot = lower(doc(source))
 
     assert [fact.container for fact in snapshot.display_math] == ["dollar-dollar"]
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [

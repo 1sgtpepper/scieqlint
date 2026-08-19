@@ -59,6 +59,7 @@ class DisplayMathFact(FactBase):
     label_fact_ids: tuple[str, ...] = ()
     alt: str | None = None
     enumerated: bool | None = None
+    environment: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -43,7 +43,6 @@ _REFERENCE_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
 _LIST_PREFIX_RE = re.compile(r"^[ \t]*(?:[-+*]|\d+[.)])[ \t]+")
 _HEADING_PREFIX_RE = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
 _TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
-_AMS_BEGIN_RE = re.compile(r"\\begin\{(?P<environment>align\*?|aligned|alignedat|split)\}")
 
 
 def math_occupied_ranges(
@@ -263,13 +262,7 @@ def _math_fact_from_fence(
             span=fence.body_span,
             raw=body,
             body=body,
-            container=(
-                "ams"
-                if _has_supported_ams_environment(body_text)
-                else "myst-math-directive"
-                if fence.info_string == "{math}"
-                else "fenced-math"
-            ),
+            container=("myst-math-directive" if fence.info_string == "{math}" else "fenced-math"),
             label_fact_ids=tuple(label.fact_id for label in labels),
         ),
         tuple(labels),
@@ -311,25 +304,11 @@ def _dollar_display_math(
                 span=smap.span(span_start, span_end),
                 raw=body,
                 body=body,
-                container=("ams" if _has_supported_ams_environment(body_text) else "dollar-dollar"),
+                container="dollar-dollar",
                 label_fact_ids=tuple(label.fact_id for label in label_facts),
             )
         )
     return tuple(display), tuple(labels), tuple(references)
-
-
-def _has_supported_ams_environment(body_text: str) -> bool:
-    for match in _AMS_BEGIN_RE.finditer(body_text):
-        if is_escaped(body_text, match.start()):
-            continue
-        environment = match.group("environment")
-        end = re.search(
-            rf"\\end\{{{re.escape(environment)}\}}",
-            body_text[match.end() :],
-        )
-        if end is not None:
-            return True
-    return False
 
 
 def _tex_reference_facts(

@@ -8,6 +8,7 @@ from dataclasses import replace
 
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
 from scieqlint.facts.math import (
+    DisplayMathFact,
     InlineMathFact,
     InlineParseStatus,
     UnknownMathFact,
@@ -26,6 +27,8 @@ _SPACED_COMMAND_RE = re.compile(
     r"(?P<artifact>\\[ \t]*(?:[A-Za-z][ \t]+){3,}[A-Za-z](?=[ \t]*[\[{]))"
 )
 _GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])")
+_AMS_ENVIRONMENTS = frozenset({"align", "align*", "aligned", "alignedat", "split"})
+_AMS_BEGIN_RE = re.compile(r"\\begin\{(?P<environment>[A-Za-z]+\*?)\}")
 
 
 class MathHost:
@@ -40,12 +43,53 @@ class MathHost:
             inline_math.append(replace(fact, parse_status=status))
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
+        display_math = []
+        for fact in snapshot.display_math:
+            display, unknown = _classify_display(fact)
+            display_math.append(display)
+            if unknown is not None and fact.fact_id not in existing_unknown_ids:
+                unknown_math.append(unknown)
         return replace(
             snapshot,
             inline_math=tuple(inline_math),
+            display_math=tuple(display_math),
             unknown_math=(*snapshot.unknown_math, *unknown_math),
             generated_formulas=_classify_generated_formulas(snapshot),
         )
+
+
+def _classify_display(
+    fact: DisplayMathFact,
+) -> tuple[DisplayMathFact, UnknownMathFact | None]:
+    """Resolve AMS semantics after the frontend has preserved display identity."""
+
+    environment = _complete_ams_environment(fact.body)
+    if environment is None:
+        return fact, None
+    return replace(fact, container="ams", environment=environment), None
+
+
+def _complete_ams_environment(body: str) -> str | None:
+    for match in _AMS_BEGIN_RE.finditer(body):
+        environment = match.group("environment")
+        if environment not in _AMS_ENVIRONMENTS or _is_escaped(body, match.start()):
+            continue
+        end_pattern = re.compile(rf"\\end\{{{re.escape(environment)}\}}")
+        if any(
+            not _is_escaped(body, end_match.start())
+            for end_match in end_pattern.finditer(body, match.end())
+        ):
+            return environment
+    return None
+
+
+def _is_escaped(text: str, offset: int) -> bool:
+    backslashes = 0
+    cursor = offset - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        backslashes += 1
+        cursor -= 1
+    return backslashes % 2 == 1
 
 
 def _classify_inline(
@@ -69,7 +113,7 @@ def _classify_inline(
 
 
 def _unknown(
-    fact: InlineMathFact,
+    fact: InlineMathFact | DisplayMathFact,
     reason: UnknownReason,
     excerpt: str,
 ) -> UnknownMathFact:
