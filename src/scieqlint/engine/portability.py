@@ -119,7 +119,7 @@ class PortabilityEngine:
         label = cell.label or "<caption-only cell>"
         return DiagnosticIR(
             code="PORT004",
-            severity_default=Severity.WARNING,
+            severity_default=self.policy.severity("PORT004"),
             message="cell renderings are incompatible with cross-reference options",
             span=cell.span,
             detail=(
