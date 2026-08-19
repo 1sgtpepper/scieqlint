@@ -10,7 +10,6 @@ from urllib.parse import urlsplit
 from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.io.source import SourceDocument
 
-
 _DEFAULT_PROJECT_ROOT = PurePosixPath(".")
 
 
