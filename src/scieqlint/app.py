@@ -347,6 +347,7 @@ def _generated_profile_snapshot(
             snapshot.equation_refs,
             snapshot.target_anchors,
             snapshot.equation_labels,
+            snapshot.code_cells,
         ),
     )
     snapshot = replace(

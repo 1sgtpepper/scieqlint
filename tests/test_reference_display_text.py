@@ -210,6 +210,23 @@ def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
     ]
 
 
+def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() -> None:
+    source = doc(
+        "```{code-cell} python\n"
+        ":label: fig-table\n"
+        ":tbl-cap: A table\n"
+        "value = 1\n"
+        "```\n\n"
+        "See [](#fig-table).\n"
+    )
+    snapshot = MySTFrontend().lower((source,))
+
+    [fact] = snapshot.reference_display_text
+
+    assert fact.target_type == "table"
+    assert fact.target_type_source == "explicit"
+
+
 def test_unrepresentable_role_title_has_no_source_span() -> None:
     document = doc("{ref}`Readable title <target>`")
     match = ROLE_RE.search(document.text)

@@ -15,8 +15,9 @@ from scieqlint.facts.reference import (
     TargetAnchorFact,
     TargetTypeSource,
 )
+from scieqlint.facts.structure import CodeCellFact
 
-TargetFact = TargetAnchorFact | EquationLabelFact
+TargetFact = TargetAnchorFact | EquationLabelFact | CodeCellFact
 
 _TARGET_PREFIX_TYPES = (
     ("eq-", "equation"),
@@ -31,6 +32,7 @@ def reference_display_text_facts(
     equation_refs: Sequence[EquationRefFact],
     target_anchors: Sequence[TargetAnchorFact],
     equation_labels: Sequence[EquationLabelFact],
+    code_cells: Sequence[CodeCellFact] = (),
 ) -> tuple[ReferenceDisplayTextFact, ...]:
     """Describe display text only after visible project targets are known."""
 
@@ -41,6 +43,9 @@ def reference_display_text_facts(
     for label in equation_labels:
         if label.visibility == "visible":
             targets[label.normalized_label].append(label)
+    for cell in code_cells:
+        if cell.normalized_label is not None:
+            targets[cell.normalized_label].append(cell)
 
     facts: list[ReferenceDisplayTextFact] = []
     for ref in generic_refs:
@@ -124,13 +129,30 @@ def _resolved_target_type(
     target = targets[0]
     if isinstance(target, EquationLabelFact):
         return "equation", "resolved"
-    if target.target_kind is not None:
+    if isinstance(target, TargetAnchorFact) and target.target_kind is not None:
         return target.target_kind, "resolved"
+    if isinstance(target, CodeCellFact):
+        explicit = _explicit_code_cell_target_type(target)
+        if explicit is not None:
+            return explicit, "explicit"
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
         if lowered.startswith(prefix):
             return target_type, "inferred"
     return None, "unresolved"
+
+
+def _explicit_code_cell_target_type(cell: CodeCellFact) -> str | None:
+    options = cell.option_dict()
+    if "fig-cap" in options:
+        return "figure"
+    if "tbl-cap" in options:
+        return "table"
+    if "lst-cap" in options:
+        return "listing"
+    if any(key in options for key in ("cap", "caption")):
+        return "block"
+    return None
 
 
 def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:
