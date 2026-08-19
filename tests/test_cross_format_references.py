@@ -17,8 +17,10 @@ from scieqlint.config.model import (
     ProfileConfig,
 )
 from scieqlint.engine.portability import PortabilityEngine
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -212,3 +214,13 @@ def test_manual_cross_format_profile_without_target_fails_closed() -> None:
         match="cross-format-references requires profile.output_profile",
     ):
         check_documents((doc(_SOURCE),), config=invalid)
+
+
+def test_policy_rejects_missing_and_unknown_output_profiles() -> None:
+    snapshot = FactSnapshot()
+
+    with pytest.raises(ValueError, match="requires an output profile"):
+        PolicyHost().cross_format_reference_risks(snapshot)
+
+    with pytest.raises(ValueError, match="unsupported output profile: pdf"):
+        PolicyHost().cross_format_reference_risks(snapshot, "pdf")
