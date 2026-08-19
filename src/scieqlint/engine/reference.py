@@ -10,9 +10,7 @@ from scieqlint.query.host import QueryHost
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"}
-    )
+    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
