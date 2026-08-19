@@ -214,8 +214,7 @@ class ReferenceQueryView:
                 continue
             non_cell_count = len(facts) - len(cells)
             offending = cells if non_cell_count else cells[1:]
-            if offending:
-                duplicates[key] = offending
+            duplicates[key] = offending
         return duplicates
 
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
