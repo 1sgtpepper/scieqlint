@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from scieqlint.config.load import load_config
-from scieqlint.config.model import DimensionConfig
+from scieqlint.config.model import DimensionConfig, ProfileConfig
 from scieqlint.config.presets import list_presets, read_preset_text
 
 
@@ -555,6 +555,23 @@ def test_load_config_accepts_cross_format_reference_output_profile(tmp_path) -> 
 
     assert config.profile.name == "cross-format-references"
     assert config.profile.output_profile == "typst"
+
+
+@pytest.mark.parametrize("output_profile", ["commonmark", "myst", "notebook", "typst"])
+def test_profile_config_accepts_each_cross_format_output_profile(output_profile: str) -> None:
+    profile = ProfileConfig(
+        name="cross-format-references",
+        output_profile=output_profile,
+    )
+
+    assert profile.output_profile == output_profile
+
+
+def test_profile_config_rejects_incompatible_output_profile_states() -> None:
+    with pytest.raises(ValueError, match="output_profile is required"):
+        ProfileConfig(name="cross-format-references")
+    with pytest.raises(ValueError, match="output_profile is only valid"):
+        ProfileConfig(name="generated-myst", output_profile="typst")
 
 
 def test_load_config_requires_output_profile_for_cross_format_references(tmp_path) -> None:

@@ -203,17 +203,9 @@ def test_frontend_without_profile_does_not_materialize_portability_policy() -> N
     assert snapshot.portability == ()
 
 
-def test_manual_cross_format_profile_without_target_fails_closed() -> None:
-    invalid = Config(
-        profile=ProfileConfig(name="cross-format-references"),
-        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="cross-format-references requires profile.output_profile",
-    ):
-        check_documents((doc(_SOURCE),), config=invalid)
+def test_manual_cross_format_profile_without_target_is_rejected_at_construction() -> None:
+    with pytest.raises(ValueError, match="profile.output_profile is required"):
+        ProfileConfig(name="cross-format-references")
 
 
 def test_policy_rejects_missing_and_unknown_output_profiles() -> None:

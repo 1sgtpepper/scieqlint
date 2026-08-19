@@ -86,7 +86,6 @@ def _load_config_with_inputs(
         conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
         output_profile=_output_profile(profile_data, "output_profile"),
     )
-    _validate_profile(profile)
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
         profile=profile,
@@ -212,13 +211,6 @@ def _output_profile(data: dict[str, Any], key: str) -> OutputProfile | None:
         choices = ", ".join(sorted(_OUTPUT_PROFILES))
         raise ValueError(f"{key} must be one of: {choices}")
     return cast(OutputProfile, value)
-
-
-def _validate_profile(profile: ProfileConfig) -> None:
-    if profile.name == "cross-format-references" and profile.output_profile is None:
-        raise ValueError("[profile].output_profile is required for cross-format-references")
-    if profile.name != "cross-format-references" and profile.output_profile is not None:
-        raise ValueError("[profile].output_profile is only valid for cross-format-references")
 
 
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
