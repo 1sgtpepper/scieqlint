@@ -10,6 +10,7 @@ from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 TargetPlacement = Literal["before_heading", "before_block", "standalone", "orphaned"]
+CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -47,6 +48,14 @@ class CrossrefMetadataFact(FactBase):
     reference_kind: str
     source_format: str
     output_boundary: str
+    # ``reference_kind`` and ``display_metadata`` are retained as compatibility
+    # fields for callers that serialize the original fact shape. REF007 must
+    # use the producer-side fields below: a reference's local role or title is
+    # not metadata of the target it names.
+    reference_role: str | None = None
+    resolved_target_kind: str | None = None
+    target_metadata: tuple[tuple[str, str], ...] = ()
+    metadata_kind: CrossrefMetadataKind = "reference-use"
     display_metadata: tuple[tuple[str, str], ...] = ()
     target_span: SourceSpan | None = None
 

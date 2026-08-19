@@ -49,13 +49,13 @@ class ReferenceQueryView:
 
         by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
         for fact in self.snapshot.crossref_metadata:
+            if fact.metadata_kind != "target-definition":
+                continue
             by_target[fact.normalized_target].append(fact)
         conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
         for target, facts in sorted(by_target.items()):
             boundaries = {fact.output_boundary for fact in facts}
-            signatures = {
-                (fact.reference_kind, tuple(sorted(fact.display_metadata))) for fact in facts
-            }
+            signatures = {_producer_signature(fact) for fact in facts}
             if len(boundaries) > 1 and len(signatures) > 1:
                 conflicts.append((target, tuple(sorted(facts, key=_metadata_source_key))))
         return tuple(conflicts)
@@ -154,3 +154,12 @@ def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str
         fact.output_boundary,
         fact.fact_id,
     )
+
+
+def _producer_signature(
+    fact: CrossrefMetadataFact,
+) -> tuple[str | None, tuple[tuple[str, str], ...]]:
+    """Return only metadata owned by the producer of the referenced target."""
+
+    metadata = fact.target_metadata or fact.display_metadata
+    return fact.resolved_target_kind or fact.reference_kind, tuple(sorted(metadata))

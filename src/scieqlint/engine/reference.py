@@ -77,15 +77,13 @@ class ReferenceEngine:
         metadata_info = CATALOG["REF007"]
         for target, facts in query.references.conflicting_metadata():
             canonical = facts[0]
-            canonical_signature = (
-                canonical.reference_kind,
-                tuple(sorted(canonical.display_metadata)),
-            )
+            canonical_kind = canonical.resolved_target_kind or canonical.reference_kind
+            canonical_metadata = canonical.target_metadata or canonical.display_metadata
+            canonical_signature = (canonical_kind, tuple(sorted(canonical_metadata)))
             for fact in facts:
-                signature = (
-                    fact.reference_kind,
-                    tuple(sorted(fact.display_metadata)),
-                )
+                fact_kind = fact.resolved_target_kind or fact.reference_kind
+                fact_metadata = fact.target_metadata or fact.display_metadata
+                signature = (fact_kind, tuple(sorted(fact_metadata)))
                 if signature == canonical_signature:
                     continue
                 diagnostics.append(
@@ -96,13 +94,13 @@ class ReferenceEngine:
                         span=fact.target_span or fact.span,
                         detail=(
                             f"{fact.output_boundary!r} reports "
-                            f"kind={fact.reference_kind!r}, "
+                            f"kind={fact_kind!r}, "
                             f"format={fact.source_format!r}, "
-                            f"display={dict(fact.display_metadata)!r}; "
+                            f"metadata={dict(fact_metadata)!r}; "
                             f"canonical boundary {canonical.output_boundary!r} reports "
-                            f"kind={canonical.reference_kind!r}, "
+                            f"kind={canonical_kind!r}, "
                             f"format={canonical.source_format!r}, "
-                            f"display={dict(canonical.display_metadata)!r}"
+                            f"metadata={dict(canonical_metadata)!r}"
                         ),
                         hint="Use consistent cross-reference metadata for this target.",
                         rule="references.crossref_metadata_conflict",
@@ -111,10 +109,10 @@ class ReferenceEngine:
                         properties=(
                             ("target", target),
                             ("output_boundary", fact.output_boundary),
-                            ("reference_kind", fact.reference_kind),
+                            ("resolved_target_kind", fact_kind or ""),
                             ("source_format", fact.source_format),
                             ("canonical_boundary", canonical.output_boundary),
-                            ("canonical_reference_kind", canonical.reference_kind),
+                            ("canonical_resolved_target_kind", canonical_kind or ""),
                             ("canonical_source_format", canonical.source_format),
                         ),
                     )

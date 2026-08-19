@@ -49,6 +49,9 @@ def metadata(
         reference_kind=kind,
         source_format=source_format,
         output_boundary=boundary,
+        resolved_target_kind=kind,
+        target_metadata=display,
+        metadata_kind="target-definition",
         display_metadata=display,
         target_span=span(document),
     )
@@ -68,10 +71,16 @@ def test_myst_frontend_lowers_source_neutral_crossref_metadata() -> None:
     ]
     generic, equation = snapshot.crossref_metadata
     assert generic.reference_kind == "ref"
+    assert generic.reference_role == "ref"
+    assert generic.metadata_kind == "reference-use"
     assert generic.source_format == "markdown"
     assert generic.output_boundary == "paper.md"
+    assert generic.target_metadata == ()
     assert generic.display_metadata == (("display_text", "Energy balance"),)
     assert equation.reference_kind == "eq"
+    assert equation.reference_role == "eq"
+    assert equation.metadata_kind == "reference-use"
+    assert equation.target_metadata == ()
     assert equation.display_metadata == (("reference_role", "eq"),)
 
 
@@ -100,10 +109,15 @@ def test_query_reports_only_cross_boundary_metadata_conflicts() -> None:
         source_format="custom-engine",
         display=(("display_text", "Plot"),),
     )
+    reference_use = (
+        MySTFrontend()
+        .lower((doc("use.md", "See {ref}`Local title <energy>`.\n"),))
+        .crossref_metadata[0]
+    )
 
     # Source format is provenance, not a semantic conflict by itself. The custom
     # output changes both the reference kind and display contract.
-    query = QueryHost(FactSnapshot(crossref_metadata=(markdown, same, conflicting)))
+    query = QueryHost(FactSnapshot(crossref_metadata=(markdown, same, conflicting, reference_use)))
     conflicts = query.references.conflicting_metadata()
 
     assert conflicts == (("energy", (markdown, same, conflicting)),)
@@ -115,15 +129,15 @@ def test_query_reports_only_cross_boundary_metadata_conflicts() -> None:
     assert diagnostics[0].properties == (
         ("target", "energy"),
         ("output_boundary", "custom-engine:c:0"),
-        ("reference_kind", "custom-figure"),
+        ("resolved_target_kind", "custom-figure"),
         ("source_format", "custom-engine"),
         ("canonical_boundary", "a.md"),
-        ("canonical_reference_kind", "ref"),
+        ("canonical_resolved_target_kind", "ref"),
         ("canonical_source_format", "markdown"),
     )
 
     reversed_diagnostics = ReferenceEngine().run(
-        QueryHost(FactSnapshot(crossref_metadata=(conflicting, same, markdown)))
+        QueryHost(FactSnapshot(crossref_metadata=(conflicting, same, markdown, reference_use)))
     )
     assert reversed_diagnostics == diagnostics
 

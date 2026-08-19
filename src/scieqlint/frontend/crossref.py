@@ -36,6 +36,8 @@ def crossref_metadata_facts(
                 reference_kind=ref.role_kind,
                 source_format=source_format,
                 output_boundary=boundary,
+                reference_role=ref.role_kind,
+                metadata_kind="reference-use",
                 display_metadata=metadata,
                 target_span=ref.target_span,
             )
@@ -53,6 +55,8 @@ def crossref_metadata_facts(
                 reference_kind=ref.ref_kind,
                 source_format=source_format,
                 output_boundary=boundary,
+                reference_role=ref.ref_kind,
+                metadata_kind="reference-use",
                 display_metadata=(("reference_role", ref.ref_kind),),
                 target_span=ref.target_span,
             )
