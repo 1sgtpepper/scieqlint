@@ -12,8 +12,8 @@ from scieqlint.facts.math import DisplayMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.portability import typst_math_risks
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -326,7 +326,7 @@ def test_typst_risk_projection_skips_unspanned_foreign_and_escaped_displays() ->
     )
 
     assert (
-        typst_math_risks(
+        MathHost().typst_portability(
             FactSnapshot(
                 documents=(document,),
                 display_math=(unspanned, foreign, escaped_environment),
