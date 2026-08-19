@@ -186,6 +186,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
+- `src/scieqlint/parse/macros.py`
 - `src/scieqlint/parse/math.py`
 - `src/scieqlint/parse/normalize.py`
 - `src/scieqlint/parse/parser.py`
@@ -299,6 +300,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_hidden_equation_references.py`
 - `tests/test_inline_math_accessibility.py`
 - `tests/test_inline_math_facts.py`
+- `tests/test_inline_math_macros.py`
 - `tests/test_jats_inline_formula_fixtures.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`

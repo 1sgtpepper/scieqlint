@@ -63,7 +63,7 @@ facts.
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |
 | non-integer powers and symbolic square roots | deferred |
-| user TeX macros | deferred |
+| user TeX macro declarations/use sites | tracked in explicit inline math; expansion deferred |
 
 Configured dimension aliases match complete surface tokens and do not split a
 longer identifier. This boundary also applies when an alias ends in punctuation,
