@@ -43,7 +43,7 @@ class MathHost:
             inline_math.append(replace(fact, parse_status=status))
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
-        display_math = []
+        display_math: list[DisplayMathFact] = []
         for fact in snapshot.display_math:
             display, unknown = _classify_display(fact)
             display_math.append(display)
