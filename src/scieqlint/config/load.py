@@ -190,6 +190,7 @@ _PROFILE_NAMES = frozenset(
         "cross-format-references",
         "math-accessibility",
         "notebook-crossrefs",
+        "reference-display",
         "typst-portability",
     }
 )

@@ -34,6 +34,7 @@ from scieqlint.facts.reference import TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
+from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
@@ -226,7 +227,10 @@ def check_documents(
         if config.checks.references.enabled:
             _extend_unique_diagnostics(
                 diagnostics,
-                (diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)),
+                (
+                    diagnostic.to_diagnostic()
+                    for diagnostic in ReferenceEngine(profile=config.profile.name).run(query)
+                ),
             )
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
@@ -333,6 +337,15 @@ def _generated_profile_snapshot(
                 *notebook_snapshot.crossref_metadata,
             ),
         )
+    snapshot = replace(
+        snapshot,
+        reference_display_text=reference_display_text_facts(
+            snapshot.generic_refs,
+            snapshot.equation_refs,
+            snapshot.target_anchors,
+            snapshot.equation_labels,
+        ),
+    )
     snapshot = replace(
         snapshot,
         inline_math=_apply_accessibility_metadata(

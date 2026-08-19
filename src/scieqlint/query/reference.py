@@ -10,6 +10,7 @@ from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
+    ReferenceDisplayTextFact,
     TargetAnchorFact,
 )
 from scieqlint.facts.snapshot import FactSnapshot
@@ -29,6 +30,12 @@ class NonvisibleEquationTargetImpact:
     visible_targets: tuple[EquationLabelFact, ...]
     hidden_targets: tuple[EquationLabelFact, ...]
     excluded_targets: tuple[EquationLabelFact, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UnclearReferenceDisplayText:
+    fact: ReferenceDisplayTextFact
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +75,23 @@ class ReferenceQueryView:
     def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
         return self.snapshot.crossref_metadata
 
+    def display_text_facts(self) -> tuple[ReferenceDisplayTextFact, ...]:
+        return self.snapshot.reference_display_text
+
+    def unclear_nonheading_display_text(
+        self,
+    ) -> tuple[UnclearReferenceDisplayText, ...]:
+        """Return resolved non-heading references with missing or generic labels."""
+
+        unclear: list[UnclearReferenceDisplayText] = []
+        for fact in sorted(self.snapshot.reference_display_text, key=_display_source_key):
+            if fact.target_type in {None, "heading"} or fact.display_intent == "typed-number":
+                continue
+            reason = _unclear_display_reason(fact)
+            if reason is not None:
+                unclear.append(UnclearReferenceDisplayText(fact=fact, reason=reason))
+        return tuple(unclear)
+
     def conflicting_metadata(
         self,
     ) -> tuple[tuple[str, tuple[CrossrefMetadataFact, ...]], ...]:
@@ -75,9 +99,8 @@ class ReferenceQueryView:
 
         by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
         for fact in self.snapshot.crossref_metadata:
-            if fact.metadata_kind != "target-definition":
-                continue
-            by_target[fact.normalized_target].append(fact)
+            if _is_target_definition(fact):
+                by_target[fact.normalized_target].append(fact)
         conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
         for target, facts in sorted(by_target.items()):
             boundaries = {fact.output_boundary for fact in facts}
@@ -255,4 +278,48 @@ def _producer_signature(
     return (
         fact.resolved_target_kind or fact.reference_kind,
         tuple(sorted(fact.target_metadata or fact.display_metadata)),
+    )
+
+
+def _is_target_definition(fact: CrossrefMetadataFact) -> bool:
+    if fact.metadata_kind == "target-definition":
+        return True
+    # Older callers constructed producer facts with the legacy fields. Keep
+    # that data useful while requiring all frontend-produced reference uses to
+    # identify themselves explicitly through ``reference_role``.
+    return fact.reference_role is None and (
+        fact.resolved_target_kind is not None or fact.reference_kind is not None
+    )
+
+
+def _unclear_display_reason(fact: ReferenceDisplayTextFact) -> str | None:
+    text = fact.explicit_text
+    if text is None or not text.strip():
+        return "missing"
+    normalized = " ".join(text.casefold().split()).strip(" .:#-_[]()")
+    target = " ".join(fact.normalized_target.casefold().split()).strip(" .:#-_[]()")
+    target_type = (fact.target_type or "").casefold()
+    generic = {
+        target,
+        target_type,
+        "reference",
+        "link",
+        "this",
+        "here",
+        f"{target_type} reference",
+    }
+    if target_type == "block":
+        generic.add("paragraph")
+    return "generic" if normalized in generic else None
+
+
+def _display_source_key(
+    fact: ReferenceDisplayTextFact,
+) -> tuple[str, int, int, str]:
+    span = fact.display_text_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
     )

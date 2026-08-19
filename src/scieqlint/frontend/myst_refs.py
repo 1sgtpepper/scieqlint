@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
@@ -57,7 +58,7 @@ def scan_refs(
             )
         else:
             equation.append(
-                _equation_role_ref_fact(document, smap, match, role, target, target_start)
+                _equation_role_ref_fact(document, smap, match, role, target, title, target_start)
             )
     return tuple(generic), tuple(equation)
 
@@ -73,6 +74,14 @@ def _markdown_link_ref_fact(
     assert token.destination_start is not None
     assert token.destination_end is not None
     project_target = workspace.project_reference_target(document.path, token.destination)
+    assert token.label_start is not None
+    assert token.label_end is not None
+    label_text = document.text[token.label_start : token.label_end].strip()
+    title = label_text or None
+    title_span = None
+    if title is not None:
+        title_offset = document.text.find(title, token.label_start, token.label_end)
+        title_span = smap.span(title_offset, title_offset + len(title))
     if token.fragment_target is not None:
         assert token.fragment_target_start is not None
         assert token.fragment_target_end is not None
@@ -89,6 +98,8 @@ def _markdown_link_ref_fact(
         role_kind="markdown-link",
         target=target,
         normalized_target=normalize_label(target),
+        title=title,
+        title_span=title_span,
         role_span=smap.span(token.start, token.end),
         target_span=smap.span(token.destination_start, token.destination_end),
         raw_target_path=None if project_target is None else project_target.raw_path,
@@ -117,6 +128,7 @@ def _generic_role_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         title=title,
+        title_span=_role_title_span(smap, match, title),
         role_span=smap.span(match.start(), match.end()),
         target_span=smap.span(target_start, target_start + len(target)),
     )
@@ -128,6 +140,7 @@ def _equation_role_ref_fact(
     match: re.Match[str],
     role: str,
     target: str,
+    title: str | None,
     target_start: int,
 ) -> EquationRefFact:
     return EquationRefFact(
@@ -138,6 +151,23 @@ def _equation_role_ref_fact(
         ref_kind=role,
         target=target,
         normalized_target=normalize_label(target),
+        title=title,
+        title_span=_role_title_span(smap, match, title),
         role_span=smap.span(match.start(), match.end()),
         target_span=smap.span(target_start, target_start + len(target)),
     )
+
+
+def _role_title_span(
+    smap: SourceMap,
+    match: re.Match[str],
+    title: str | None,
+) -> SourceSpan | None:
+    if title is None:
+        return None
+    body = match.group("body")
+    relative_start = body.find(title)
+    if relative_start < 0:
+        return None
+    start = match.start("body") + relative_start
+    return smap.span(start, start + len(title))
