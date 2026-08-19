@@ -11,6 +11,9 @@ from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.io.source import SourceDocument
 
 
+_DEFAULT_PROJECT_ROOT = PurePosixPath(".")
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectReferenceTarget:
     """Raw and normalized path identity for one local cross-document target."""
@@ -63,7 +66,7 @@ def project_reference_target(
     source_path: PurePosixPath,
     destination: str,
     *,
-    project_root: PurePosixPath = PurePosixPath("."),
+    project_root: PurePosixPath = _DEFAULT_PROJECT_ROOT,
 ) -> ProjectReferenceTarget | None:
     """Return lexical project identity for a local path-bearing destination.
 
@@ -101,11 +104,13 @@ def project_reference_target(
 def normalize_project_path(
     path: str | PurePosixPath,
     *,
-    project_root: PurePosixPath = PurePosixPath("."),
+    project_root: PurePosixPath = _DEFAULT_PROJECT_ROOT,
 ) -> PurePosixPath:
     """Normalize a project-relative POSIX path without filesystem access."""
 
-    normalized = _normalize_project_path(path.as_posix() if isinstance(path, PurePosixPath) else path)
+    normalized = _normalize_project_path(
+        path.as_posix() if isinstance(path, PurePosixPath) else path
+    )
     return _relative_to_project_root(
         normalized,
         _normalize_project_path(project_root.as_posix()),
