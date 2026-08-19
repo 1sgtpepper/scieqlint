@@ -168,53 +168,60 @@ def test_hidden_equation_references_are_not_checked_against_any_target_visibilit
     visible = label("visible", document="target.md", target="eq-visible")
     hidden = label("hidden", document="target.md", visibility="hidden", target="eq-hidden")
 
-    assert ReferenceEngine().run(
-        QueryHost(
-            FactSnapshot(
-                equation_labels=(visible,),
-                equation_refs=(
-                    reference(
-                        target="eq-visible",
-                        visibility="hidden",
-                        document="source.md",
-                    ),
-                ),
-            )
-        )
-    ) == ()
-    assert ReferenceEngine().run(
-        QueryHost(
-            FactSnapshot(
-                equation_labels=(hidden,),
-                equation_refs=(
-                    reference(
-                        target="eq-hidden",
-                        visibility="hidden",
-                        document="source.md",
-                    ),
-                ),
-            )
-        )
-    ) == ()
-    assert ReferenceEngine().run(
-        QueryHost(
-            FactSnapshot(
-                equation_refs=(
-                    reference(
-                        target="eq-missing",
-                        visibility="hidden",
-                        document="source.md",
+    assert (
+        ReferenceEngine().run(
+            QueryHost(
+                FactSnapshot(
+                    equation_labels=(visible,),
+                    equation_refs=(
+                        reference(
+                            target="eq-visible",
+                            visibility="hidden",
+                            document="source.md",
+                        ),
                     ),
                 )
             )
         )
-    ) == ()
+        == ()
+    )
+    assert (
+        ReferenceEngine().run(
+            QueryHost(
+                FactSnapshot(
+                    equation_labels=(hidden,),
+                    equation_refs=(
+                        reference(
+                            target="eq-hidden",
+                            visibility="hidden",
+                            document="source.md",
+                        ),
+                    ),
+                )
+            )
+        )
+        == ()
+    )
+    assert (
+        ReferenceEngine().run(
+            QueryHost(
+                FactSnapshot(
+                    equation_refs=(
+                        reference(
+                            target="eq-missing",
+                            visibility="hidden",
+                            document="source.md",
+                        ),
+                    )
+                )
+            )
+        )
+        == ()
+    )
 
     visible_missing = ReferenceEngine().run(
         QueryHost(
-            FactSnapshot(
-                equation_refs=(reference(target="eq-missing", document="source.md"),)
-            )
+            FactSnapshot(equation_refs=(reference(target="eq-missing", document="source.md"),))
         )
     )
     assert [diagnostic.code for diagnostic in visible_missing] == ["REF002"]
