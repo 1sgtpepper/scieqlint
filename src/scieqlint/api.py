@@ -17,6 +17,7 @@ from scieqlint.app import graph_documents as _graph_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config
 from scieqlint.diag.model import CheckResult
+from scieqlint.facts.reference import TargetVisibility
 from scieqlint.graph.model import Graph
 from scieqlint.io.source import SourceDocument
 
@@ -48,12 +49,14 @@ def check_documents(
     *,
     config: Config,
     accessibility_metadata: Mapping[str, str] | None = None,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents with caller-owned accessibility metadata."""
+    """Check already-loaded documents with caller-owned profile metadata."""
     return _check_documents(
         documents,
         config=config,
         accessibility_metadata=accessibility_metadata,
+        project_visibility=project_visibility,
     )
 
 
@@ -70,9 +73,14 @@ def graph_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
-    return _graph_documents(documents, config=config)
+    return _graph_documents(
+        documents,
+        config=config,
+        project_visibility=project_visibility,
+    )
 
 
 def _run_check_paths(
