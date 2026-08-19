@@ -7,6 +7,7 @@ from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.generated import _merge_ranges
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.parse.math import MathHost
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -21,7 +22,7 @@ def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
 def bracketed_facts(text: str):
     return tuple(
         fact
-        for fact in MySTFrontend().lower((doc(text),)).generated_formulas
+        for fact in MathHost().classify(MySTFrontend().lower((doc(text),))).generated_formulas
         if fact.kind == "bracketed-block"
     )
 

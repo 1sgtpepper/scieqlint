@@ -126,13 +126,24 @@ def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormu
         source_map = source_maps.get(candidate.document_id)
         if source_map is None or candidate.span is None:
             continue
-        facts.extend(_suspicious_formula_facts(candidate, source_map))
+        facts.extend(_classify_generated_candidate(candidate, source_map))
     return tuple(
         sorted(
             facts,
             key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
         )
     )
+
+
+def _classify_generated_candidate(
+    candidate: GeneratedFormulaFact,
+    source_map: SourceMap,
+) -> tuple[GeneratedFormulaFact, ...]:
+    if candidate.candidate_kind in {None, "formula-text"}:
+        return _suspicious_formula_facts(candidate, source_map)
+    if candidate.candidate_kind == "bracketed-block":
+        return (replace(candidate, kind="bracketed-block", candidate_kind=None),)
+    raise ValueError(f"unsupported generated formula candidate kind: {candidate.candidate_kind}")
 
 
 def _suspicious_formula_facts(
@@ -169,6 +180,7 @@ def _suspicious_formula_facts(
                     confidence="inferred",
                     kind=kind,
                     text=artifact,
+                    candidate_kind=None,
                     source_math_fact_id=candidate.source_math_fact_id,
                 )
             )

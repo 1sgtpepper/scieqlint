@@ -42,6 +42,7 @@ def scan_formula_candidates(
                 confidence="source",
                 kind="candidate",
                 text=segment,
+                candidate_kind="formula-text",
                 source_math_fact_id=math_fact.fact_id,
             )
         )
@@ -106,8 +107,9 @@ def _bracketed_block_fact(
         span=smap.span(start, end),
         raw=text,
         confidence="source",
-        kind="bracketed-block",
+        kind="candidate",
         text=text,
+        candidate_kind="bracketed-block",
         complete=complete,
     )
 
