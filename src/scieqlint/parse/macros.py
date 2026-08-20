@@ -59,29 +59,12 @@ class MacroDeclarationKey:
     start: int
 
 
-@dataclass(frozen=True, slots=True)
-class ScopedMacroDeclarationSyntax:
-    source: InlineMacroSource
-    declaration: MacroDeclarationSyntax
-    declaration_order: int
-
-
-@dataclass(frozen=True, slots=True)
-class ScopedMacroUseSyntax:
-    source: InlineMacroSource
-    use: MacroUseSyntax
-    active_declaration: MacroDeclarationKey | None
-
-
-@dataclass(frozen=True, slots=True)
-class ScopedInlineMacroSyntax:
-    declarations: tuple[ScopedMacroDeclarationSyntax, ...]
-    uses: tuple[ScopedMacroUseSyntax, ...]
-
-
-def scan_scoped_inline_macros(
+def _scan_scoped_inline_macros(
     sources: tuple[InlineMacroSource, ...],
-) -> ScopedInlineMacroSyntax:
+) -> tuple[
+    tuple[tuple[InlineMacroSource, MacroDeclarationSyntax, int], ...],
+    tuple[tuple[InlineMacroSource, MacroUseSyntax, MacroDeclarationKey | None], ...],
+]:
     """Resolve declaration order and active macro context per document."""
 
     parsed = tuple(
@@ -95,20 +78,20 @@ def scan_scoped_inline_macros(
             ),
         )
     )
-    declarations: list[ScopedMacroDeclarationSyntax] = []
+    declarations: list[tuple[InlineMacroSource, MacroDeclarationSyntax, int]] = []
     declaration_order: dict[str, int] = {}
     declared_names: dict[str, set[str]] = {}
     for source, syntax in parsed:
         order = declaration_order.get(source.document_id, 0)
         names = declared_names.setdefault(source.document_id, set())
         for declaration in syntax.declarations:
-            declarations.append(ScopedMacroDeclarationSyntax(source, declaration, order))
+            declarations.append((source, declaration, order))
             order += 1
             names.add(declaration.name)
         declaration_order[source.document_id] = order
 
     active: dict[tuple[str, str], MacroDeclarationKey] = {}
-    uses: list[ScopedMacroUseSyntax] = []
+    uses: list[tuple[InlineMacroSource, MacroUseSyntax, MacroDeclarationKey | None]] = []
     for source, syntax in parsed:
         declaration_index = 0
         use_index = 0
@@ -133,14 +116,10 @@ def scan_scoped_inline_macros(
                 continue
             if use.name in declared_names.get(source.document_id, set()):
                 uses.append(
-                    ScopedMacroUseSyntax(
-                        source,
-                        use,
-                        active.get((source.document_id, use.name)),
-                    )
+                    (source, use, active.get((source.document_id, use.name)))
                 )
             use_index += 1
-    return ScopedInlineMacroSyntax(tuple(declarations), tuple(uses))
+    return tuple(declarations), tuple(uses)
 
 
 def scan_inline_macro_syntax(body: str) -> InlineMacroSyntax:

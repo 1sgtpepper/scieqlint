@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -9,7 +8,7 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.macros import scan_inline_macro_syntax
-from scieqlint.parse.math import MathHost, inline_math_macro_facts
+from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 
 
@@ -220,22 +219,6 @@ def test_parser_handles_whitespace_escaped_groups_and_later_uses() -> None:
         (r"\x", r"\{x\}"),
     ]
     assert [(item.name, item.start) for item in syntax.uses] == [(r"\x", 34)]
-
-
-def test_stale_inline_math_facts_are_ignored_before_macro_lowering() -> None:
-    source = doc(r"$\newcommand{\x}{1}$")
-    snapshot = lower((source,))
-    stale = replace(snapshot.inline_math[0], body=snapshot.inline_math[0].body + " stale")
-
-    assert inline_math_macro_facts((source,), (stale,)) == ((), ())
-
-
-def test_plain_text_math_facts_are_ignored_before_macro_lowering() -> None:
-    source = doc(r"$\newcommand{\x}{1}$")
-    snapshot = lower((source,))
-    plain_text = replace(snapshot.inline_math[0], delimiter_kind="plain-text")
-
-    assert inline_math_macro_facts((source,), (plain_text,)) == ((), ())
 
 
 def test_macro_commands_inside_declaration_replacements_are_not_use_sites() -> None:

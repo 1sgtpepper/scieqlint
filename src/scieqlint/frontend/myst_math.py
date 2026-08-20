@@ -192,7 +192,6 @@ def scan_inline_math(
                 raw=document.text[start:end],
                 body=text,
                 delimiter_kind="dollar",
-                context=role,
                 surrounding_text_role=role,
             )
         )
@@ -275,7 +274,6 @@ def _delimited_inline_facts(
             raw=match.group(0),
             body=text,
             delimiter_kind=delimiter_kind,
-            context=role,
             surrounding_text_role=role,
         )
 
@@ -300,7 +298,6 @@ def _plain_text_math_facts(
                 raw=body,
                 body=body,
                 delimiter_kind="plain-text",
-                context=role,
                 surrounding_text_role=role,
                 confidence="inferred",
             )

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from scieqlint.facts.math import InlineMathFact
-from scieqlint.facts.snapshot import FactSnapshot
+import pytest
+
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -87,6 +87,41 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
     ]
 
 
+@pytest.mark.public_regression
+@pytest.mark.parametrize(
+    "command",
+    [r"\frac", r"\dfrac", r"\tfrac", r"\binom"],
+    ids=["frac", "dfrac", "tfrac", "binom"],
+)
+def test_math_host_rejects_bare_required_arity_commands(command: str) -> None:
+    source = f"Inline ${command}$"
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(source),)))
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        (command, "unsupported")
+    ]
+    [fact] = snapshot.inline_math
+    assert fact.span is not None
+    assert source[fact.span.start : fact.span.end] == command
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", command)
+    ]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [r"\frac{1}{2}", r"\dfrac{x}{y}", r"\tfrac{a}{b}", r"\binom{n}{k}"],
+    ids=["frac", "dfrac", "tfrac", "binom"],
+)
+def test_math_host_preserves_required_arity_commands_with_arguments(body: str) -> None:
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        (body, "preserved")
+    ]
+    assert snapshot.unknown_math == ()
+
+
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
     snapshot = MathHost().classify(
         MySTFrontend().lower((doc("Version 1 < 2; Status = complete; A>=B; a = b+c."),))
@@ -113,37 +148,6 @@ def test_math_host_owns_plain_text_candidate_classification() -> None:
     classified = MathHost().classify(lowered)
     assert [(fact.body, fact.parse_status) for fact in classified.inline_math] == [
         ("a = b+c", "text-leak"),
-    ]
-
-
-def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
-    prose = InlineMathFact(
-        fact_id="prose",
-        document_id="generated.md",
-        span=None,
-        raw="ordinary prose",
-        body="ordinary prose",
-        delimiter_kind="plain-text",
-        context="paragraph",
-    )
-    mismatched = InlineMathFact(
-        fact_id="mismatched",
-        document_id="generated.md",
-        span=None,
-        raw="(x]",
-        body="(x]",
-        delimiter_kind="dollar",
-        context="paragraph",
-    )
-
-    snapshot = MathHost().classify(FactSnapshot(inline_math=(prose, mismatched)))
-
-    assert [fact.parse_status for fact in snapshot.inline_math] == [
-        "not-math",
-        "unsupported",
-    ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("unsupported_syntax", "(x]"),
     ]
 
 

@@ -26,11 +26,11 @@ from scieqlint.source.maps import SourceMap
 from .macros import (
     InlineMacroSource,
     MacroDeclarationKey,
-    scan_scoped_inline_macros,
+    _scan_scoped_inline_macros,
 )
 
 _UNSUPPORTED_ENVIRONMENT_RE = re.compile(r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
-_MISSING_BRACED_ARGUMENT_RE = re.compile(r"\\(?:frac|dfrac|tfrac|binom)\s*\{[^{}]*\}\s*$")
+_REQUIRED_ARITY_COMMAND_RE = re.compile(r"\\(?:frac|dfrac|tfrac|binom)(?![A-Za-z])")
 _TRAILING_OPERATOR_RE = re.compile(r"(?:[+\-*/^=]|<=|>=|<|>|\\(?:le|ge))\s*$")
 _RELATION_RE = re.compile(r"(?:=|<=|>=|<|>|≤|≥|→)")
 _OPENING_DELIMITERS = {"(": ")", "[": "]", "{": "}"}
@@ -121,7 +121,7 @@ class MathHost:
             display_math.append(display)
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
-        macro_declarations, macro_uses = inline_math_macro_facts(
+        macro_declarations, macro_uses = _inline_math_macro_facts(
             snapshot.documents,
             tuple(inline_math),
         )
@@ -175,8 +175,7 @@ def _raw_equation_facts(
 ) -> tuple[tuple[EquationLabelFact, ...], tuple[EquationRefFact, ...]]:
     """Materialize equation semantics from a classified raw math candidate."""
 
-    if fact.span is None:
-        return (), ()
+    assert fact.span is not None, "raw-LaTeX candidates must retain source spans"
     raw = fact.raw or ""
     labels: list[EquationLabelFact] = []
     references: list[EquationRefFact] = []
@@ -267,11 +266,54 @@ def _classify_inline(
         return "unsupported", _unknown(fact, "environment", environment.group("environment"))
     if (
         not _balanced_delimiters(fact.body)
-        or _MISSING_BRACED_ARGUMENT_RE.search(fact.body)
+        or _has_missing_required_argument(fact.body)
         or _TRAILING_OPERATOR_RE.search(fact.body)
     ):
         return "unsupported", _unknown(fact, "unsupported_syntax", fact.body[:80])
     return "preserved", None
+
+
+def _has_missing_required_argument(body: str) -> bool:
+    for match in _REQUIRED_ARITY_COMMAND_RE.finditer(body):
+        if _is_escaped(body, match.start()):
+            continue
+        cursor = _skip_tex_space(body, match.end())
+        first_end = _tex_argument_end(body, cursor)
+        if first_end is None:
+            return True
+        second_end = _tex_argument_end(body, _skip_tex_space(body, first_end))
+        if second_end is None:
+            return True
+    return False
+
+
+def _tex_argument_end(text: str, start: int) -> int | None:
+    if start >= len(text):
+        return None
+    if text[start] != "{":
+        return start + 1
+
+    depth = 1
+    cursor = start + 1
+    while cursor < len(text):
+        character = text[cursor]
+        if character == "\\":
+            cursor += 2
+            continue
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return cursor + 1
+        cursor += 1
+    return None
+
+
+def _skip_tex_space(text: str, start: int) -> int:
+    while start < len(text) and text[start].isspace():
+        start += 1
+    return start
 
 
 def _unknown(
@@ -420,7 +462,7 @@ def _high_confidence_spaced_command(artifact: str) -> bool:
     return len(letters) >= 4 and sum(letter.islower() for letter in letters) >= 2
 
 
-def inline_math_macro_facts(
+def _inline_math_macro_facts(
     documents: Sequence[SourceDocument],
     inline_math: Sequence[InlineMathFact],
 ) -> tuple[tuple[MathMacroDeclarationFact, ...], tuple[MathMacroUseFact, ...]]:
@@ -434,16 +476,9 @@ def inline_math_macro_facts(
     facts_by_id: dict[str, InlineMathFact] = {}
     sources: list[InlineMacroSource] = []
     for fact in inline_math:
-        if (
-            fact.delimiter_kind == "plain-text"
-            or fact.confidence != "source"
-            or fact.span is None
-            or fact.document_id not in documents_by_id
-        ):
+        if fact.confidence != "source":
             continue
-        document = documents_by_id[fact.document_id]
-        if document.text[fact.span.start : fact.span.end] != fact.body:
-            continue
+        assert fact.span is not None, "source inline math facts must retain source spans"
         facts_by_id[fact.fact_id] = fact
         sources.append(
             InlineMacroSource(
@@ -454,13 +489,12 @@ def inline_math_macro_facts(
             )
         )
 
-    scoped = scan_scoped_inline_macros(tuple(sources))
+    scoped_declarations, scoped_uses = _scan_scoped_inline_macros(tuple(sources))
     declarations: list[MathMacroDeclarationFact] = []
     declaration_ids: dict[MacroDeclarationKey, str] = {}
-    for item in scoped.declarations:
-        fact = facts_by_id[item.source.source_fact_id]
+    for source, syntax, declaration_order in scoped_declarations:
+        fact = facts_by_id[source.source_fact_id]
         assert fact.span is not None
-        syntax = item.declaration
         fact_id = f"{fact.fact_id}::macro-declaration::{syntax.start}"
         declaration_ids[MacroDeclarationKey(fact.fact_id, syntax.start)] = fact_id
         declarations.append(
@@ -477,15 +511,14 @@ def inline_math_macro_facts(
                 declaration_kind=syntax.declaration_kind,
                 parameter_count=syntax.parameter_count,
                 replacement=syntax.replacement,
-                declaration_order=item.declaration_order,
+                declaration_order=declaration_order,
             )
         )
 
     uses: list[MathMacroUseFact] = []
-    for item in scoped.uses:
-        fact = facts_by_id[item.source.source_fact_id]
+    for source, syntax, active_declaration in scoped_uses:
+        fact = facts_by_id[source.source_fact_id]
         assert fact.span is not None
-        syntax = item.use
         uses.append(
             MathMacroUseFact(
                 fact_id=f"{fact.fact_id}::macro-use::{syntax.start}",
@@ -498,8 +531,8 @@ def inline_math_macro_facts(
                 source_math_fact_id=fact.fact_id,
                 macro_name=syntax.name,
                 active_declaration_fact_id=(
-                    declaration_ids[item.active_declaration]
-                    if item.active_declaration is not None
+                    declaration_ids[active_declaration]
+                    if active_declaration is not None
                     else None
                 ),
             )

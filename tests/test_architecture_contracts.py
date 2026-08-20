@@ -1378,7 +1378,7 @@ def test_fact_snapshot_is_deterministic_and_immutable():
         raw="$x$",
         body="x",
         delimiter_kind="dollar",
-        context="paragraph",
+        surrounding_text_role="paragraph",
     )
 
     snapshot = FactSnapshot(documents=(document,), inline_math=(inline,))
@@ -1414,7 +1414,7 @@ def test_snapshot_with_unknown_math_appends_without_mutating_original():
         raw="$x$",
         body="x",
         delimiter_kind="dollar",
-        context="paragraph",
+        surrounding_text_role="paragraph",
     )
     unknown = UnknownMathFact(
         fact_id="a.md::unknown-math::6",
@@ -1595,7 +1595,7 @@ def test_query_host_views_expose_snapshot_contracts():
         raw="$x$",
         body="x",
         delimiter_kind="dollar",
-        context="paragraph",
+        surrounding_text_role="paragraph",
     )
     display = DisplayMathFact(
         fact_id="display-1",

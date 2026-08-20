@@ -6,7 +6,7 @@ import re
 from collections.abc import Sequence
 
 from scieqlint.facts.generated import GeneratedFormulaFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact
+from scieqlint.facts.math import DisplayMathFact, InlineMathFact, InlineTextRole
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import MarkdownLinkToken
 from scieqlint.source.maps import SourceMap
@@ -366,7 +366,7 @@ def scan_equation_like_text_items(
     return tuple(facts)
 
 
-def _text_item_content(line: str, role: str) -> tuple[int, str] | None:
+def _text_item_content(line: str, role: InlineTextRole) -> tuple[int, str] | None:
     if role == "heading":
         return None
     if role == "list-item":
@@ -392,7 +392,7 @@ def _text_item_content(line: str, role: str) -> tuple[int, str] | None:
 def _is_isolated_text_item(
     lines: Sequence[tuple[int, int, str]],
     index: int,
-    role: str,
+    role: InlineTextRole,
 ) -> bool:
     previous = lines[index - 1][2] if index > 0 else ""
     following = lines[index + 1][2] if index + 1 < len(lines) else ""

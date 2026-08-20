@@ -58,6 +58,7 @@ facts.
 | implicit multiplication | supported within documented parser rules |
 | integer powers | supported for exponents from `-1000` through `1000` |
 | `\frac{a}{b}` | supported |
+| bare `\frac`-family commands | unsupported; retained as unknown inline math |
 | `\sqrt{n}` | supported for numeric perfect-square rational operands only |
 | trig/log/exp | deferred |
 | integrals/derivatives/limits | deferred |
