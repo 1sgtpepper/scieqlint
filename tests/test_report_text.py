@@ -60,6 +60,33 @@ def test_text_report_includes_equation_before_detail() -> None:
     ]
 
 
+def test_text_report_includes_profile_provenance_and_properties() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="GEN001",
+                severity=Severity.WARNING,
+                message="generated output is missing a preserved anchor",
+                span=None,
+                profile="generated-myst",
+                provenance_ids=("out/paper.md::generated-provenance",),
+                properties=(("generated_document", "out/paper.md"),),
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="0.1.0",
+    )
+
+    assert TextReporter().render(result).splitlines() == [
+        "<unknown>: warning GEN001 generated output is missing a preserved anchor",
+        "  profile: generated-myst",
+        "  provenance: out/paper.md::generated-provenance",
+        "  generated_document: out/paper.md",
+    ]
+
+
 def _suppressed_result(*, show_suppressed: bool) -> CheckResult:
     return CheckResult(
         diagnostics=(

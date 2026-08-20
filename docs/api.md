@@ -4,7 +4,7 @@ The stable API surface is exported from `scieqlint.api`:
 
 - `check_paths(paths, *, config_path=None, no_algebra=False, inline_math=False,
   strict_unknowns=False, absolute_paths=False)`
-- `check_documents(documents, *, config)`
+- `check_documents(documents, *, config, accessibility_metadata=None)`
 - `graph_paths(paths, *, config_path=None)`
 - `graph_documents(documents, *, config)`
 - `load_config(path=None, *, preset=None)`
@@ -46,6 +46,67 @@ do not read baseline files from disk. Path-based APIs preserve their analysis re
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
 
+`accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
+accessibility ID to accessible text. An ID has the form
+`<document-path>::inline-math::<delimiter-kind>::<percent-encoded-body>`; repeated identical
+source tokens append a deterministic occurrence suffix such as `::1`. These identities
+percent-encode the path and body segments, so delimiter-like source text cannot collide
+with the occurrence suffix. They do not depend on the token's byte offset, so edits
+before a formula that do not add an earlier identical token do not invalidate the
+mapping. Only explicit inline-math containers receive IDs; inferred plain-text
+candidates cannot accept caller metadata. SciEqLint applies metadata at the orchestration
+boundary and does not infer alternative text from surrounding prose. An unknown
+accessibility ID is rejected. The
+`[project].visibility` configuration table uses each document's project-relative path as
+its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents are
+visible, and a configured path that is not present in the analyzed project is rejected.
+Hidden and excluded equation or code-cell targets remain queryable as non-visible facts,
+do not resolve ordinary references, and excluded documents are omitted from
+`graph_documents()`.
+
+Generated-output validation never infers a source document from a filename, input order,
+or directory layout. A caller that wants the `generated-myst` profile to compare a
+generated document with its source attaches an explicit `SourceOrigin` to that
+`SourceDocument`:
+
+```python
+from pathlib import PurePosixPath
+from scieqlint.api import check_documents
+from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+
+source = SourceDocument.from_text(
+    PurePosixPath("source/lecture.md"),
+    "(energy)=\n## Energy\n",
+    DocumentKind.MARKDOWN,
+)
+generated = SourceDocument.from_text(
+    PurePosixPath("translated/lecture.md"),
+    "## Energy\n",
+    DocumentKind.MARKDOWN,
+    origin=SourceOrigin(
+        source_document_id="source/lecture.md",
+        source_kind="markdown",
+        conversion_stage="translation",
+        preserved_anchor_inventory=("energy",),
+    ),
+)
+result = check_documents(
+    (source, generated),
+    config=Config(profile=ProfileConfig(name="generated-myst")),
+)
+```
+
+An absent explicit source mapping means that source-to-generated identity is unknown,
+so the loaded-document API does not manufacture a provenance relationship. The
+path-based API records the generated document and any configured profile metadata
+when `generated-myst` is selected, but it still leaves source-document identity and
+preserved-anchor comparison to an explicit `SourceOrigin`. When that identity matches
+another supplied document, the matched source is comparison-only: its anchors are used
+only for preservation comparison (and narrowed by `preserved_anchor_inventory` when
+provided), it is not linted as generated output, and it cannot resolve references from
+the generated document.
+
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
 relative to the current working directory by default. For `check_paths()`,
@@ -63,7 +124,12 @@ returns `1` only when an unsuppressed error diagnostic exists.
 `Diagnostic` exposes stable diagnostic data used by reporters and JSON output:
 `code`, `severity`, `message`, `span`, `equation`, `detail`, `hint`, `rule`,
 `suppressed`, and `suppression_reason`.
+Semantic generated provenance remains available on the in-process diagnostic;
+reporters and JSON output use the versioned `SchemaHost` projection for public
+property names and provenance IDs.
 
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
-the user config file, so user config values override preset values.
+the user config file, so user config values override preset values. The
+`generated-myst` preset supplies scanner and parser defaults and selects the
+generated-output profile. User config values still override the preset.

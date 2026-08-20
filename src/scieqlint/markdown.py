@@ -89,9 +89,15 @@ class MarkdownLinkToken:
     start: int
     end: int
     is_image: bool
+    destination: str | None = None
+    destination_start: int | None = None
+    destination_end: int | None = None
+    image_alt: str | None = None
     fragment_target: str | None = None
     fragment_target_start: int | None = None
     fragment_target_end: int | None = None
+    label_start: int | None = None
+    label_end: int | None = None
     metadata_ranges: tuple[OffsetRange, ...] = ()
 
 
@@ -1176,6 +1182,7 @@ def _markdown_link_tokens_from_lexical(
                     token = _make_link_token(
                         text,
                         frame.token_start,
+                        index,
                         end,
                         destination_start,
                         destination_end,
@@ -1271,6 +1278,7 @@ def _starts_display_block(line: str) -> bool:
 def _make_link_token(
     text: str,
     token_start: int,
+    label_end: int,
     end: int,
     destination_start: int,
     destination_end: int,
@@ -1293,9 +1301,15 @@ def _make_link_token(
         start=token_start,
         end=end,
         is_image=is_image,
+        destination=destination,
+        destination_start=destination_start,
+        destination_end=destination_end,
+        image_alt=(text[token_start + 2 : label_end] if is_image else None),
         fragment_target=fragment_target,
         fragment_target_start=fragment_target_start,
         fragment_target_end=fragment_target_end,
+        label_start=token_start + (2 if is_image else 1),
+        label_end=label_end,
         metadata_ranges=metadata_ranges,
     )
 

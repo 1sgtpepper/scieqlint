@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Literal
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
 
 TargetPlacement = Literal["before_heading", "before_block", "standalone", "orphaned"]
+TargetVisibility = Literal["visible", "hidden", "excluded"]
+ReferenceDisplayIntent = Literal["explicit", "target-default", "typed-number"]
+TargetTypeSource = Literal["resolved", "inferred", "ambiguous", "unresolved"]
+NormalizedReferenceTarget = tuple[PurePosixPath, str]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -18,6 +23,7 @@ class TargetAnchorFact(FactBase):
     target_kind: str | None
     attaches_to_fact_id: str | None
     placement: TargetPlacement
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 
@@ -27,9 +33,42 @@ class GenericRefFact(FactBase):
     target: str
     normalized_target: str
     title: str | None = None
+    title_span: SourceSpan | None = None
     role_span: SourceSpan | None = None
     target_span: SourceSpan | None = None
     local_or_external: str = "local"
+    raw_target_path: str | None = None
+    resolved_raw_target_path: str | None = None
+    normalized_target_path: PurePosixPath | None = None
+    target_fragment: str | None = None
+    visibility: TargetVisibility = "visible"
+
+
+def normalized_reference_target(ref: GenericRefFact) -> NormalizedReferenceTarget | None:
+    """Return the complete normalized member-path and fragment identity, if any."""
+
+    if ref.normalized_target_path is None or ref.target_fragment is None:
+        return None
+    fragment = ref.target_fragment.strip()
+    if fragment.startswith("#"):
+        fragment = fragment[1:]
+    if not fragment:
+        return None
+    return ref.normalized_target_path, fragment
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CrossrefMetadataFact(FactBase):
+    """Source-neutral target-definition metadata for one output boundary."""
+
+    source_fact_id: str
+    logical_target: str
+    normalized_target: str
+    target_kind: str
+    source_format: str
+    output_boundary: str
+    target_metadata: tuple[tuple[str, str], ...] = ()
+    target_span: SourceSpan | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -39,6 +78,7 @@ class EquationLabelFact(FactBase):
     label_syntax_kind: str
     source_block_id: str | None
     namespace: str = "equation"
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 
@@ -47,5 +87,24 @@ class EquationRefFact(FactBase):
     ref_kind: str
     target: str
     normalized_target: str
+    title: str | None = None
+    title_span: SourceSpan | None = None
+    source_block_id: str | None = None
+    visibility: TargetVisibility = "visible"
     target_span: SourceSpan | None = None
     role_span: SourceSpan | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ReferenceDisplayTextFact(FactBase):
+    """Resolved display-text intent for one source reference."""
+
+    source_fact_id: str
+    normalized_target: str
+    reference_kind: str
+    explicit_text: str | None
+    target_type: str | None
+    display_intent: ReferenceDisplayIntent
+    target_type_source: TargetTypeSource = "unresolved"
+    target_fact_ids: tuple[str, ...] = ()
+    display_text_span: SourceSpan | None = None

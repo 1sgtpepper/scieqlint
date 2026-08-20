@@ -376,7 +376,7 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
         (anchor.label, anchor.placement, anchor.target_kind) for anchor in snapshot.target_anchors
     ] == [("intro", "before_heading", "heading")]
     assert [(ref.role_kind, ref.target, ref.title) for ref in snapshot.generic_refs] == [
-        ("markdown-link", "intro", None),
+        ("markdown-link", "intro", "intro"),
         ("ref", "intro", "Intro"),
     ]
     assert [(ref.ref_kind, ref.target) for ref in snapshot.equation_refs] == [
@@ -688,3 +688,10 @@ def test_directive_option_prefix_lines_skip_blank_lines_and_ignore_empty_bodies(
         list(_directive_option_prefix_lines(source, replace(snapshot.fences[0], body_span=None)))
         == []
     )
+
+
+def test_quarto_options_stop_after_the_code_preamble() -> None:
+    source = doc("```python\n# leading comment\n#| label: first\nprint(1)\n#| label: late\n```\n")
+    snapshot = MySTFrontend().lower((source,))
+
+    assert _quarto_options(source, snapshot.fences[0]) == (("label", "first"),)

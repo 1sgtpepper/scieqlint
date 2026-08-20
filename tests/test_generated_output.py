@@ -3,11 +3,15 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import PurePosixPath
 
+from scieqlint.app import check_documents
+from scieqlint.config.load import load_config
+from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.config.presets import read_preset_text
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.query.host import QueryHost
 
 
@@ -61,3 +65,108 @@ def test_generated_output_engine_is_quiet_when_generated_output_preserves_anchor
     diagnostics = GeneratedOutputEngine().run(QueryHost(snapshot))
 
     assert diagnostics == ()
+
+
+def test_generated_profile_uses_one_fact_snapshot_for_reference_structure_and_generated_engines(
+    monkeypatch,
+):
+    document = doc(
+        "generated.md",
+        "# Generated\n\nSee {ref}`missing-target`.\n",
+    )
+    calls = 0
+    original_lower = MySTFrontend.lower
+
+    def count_lower(self, documents):
+        nonlocal calls
+        calls += 1
+        return original_lower(self, documents)
+
+    monkeypatch.setattr(MySTFrontend, "lower", count_lower)
+
+    from scieqlint.config.model import Config, ProfileConfig
+
+    result = check_documents(
+        (document,),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    assert calls == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]
+
+
+def test_generated_profile_respects_reference_check_toggle() -> None:
+    from scieqlint.config.model import ChecksConfig, Config, ProfileConfig, ReferencesConfig
+
+    reference_document = doc(
+        "generated.md",
+        "# Generated\n\nSee {ref}`missing-target`.\n",
+    )
+    disabled_references = check_documents(
+        (reference_document,),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            checks=ChecksConfig(references=ReferencesConfig(enabled=False)),
+        ),
+    )
+    assert disabled_references.diagnostics == ()
+
+
+def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None:
+    source = doc(
+        "source/lecture.md",
+        "(energy)=\n## Energy\n\nText.\n",
+    )
+    generated = SourceDocument.from_text(
+        PurePosixPath("translated/lecture.md"),
+        "## Energy\n\nTranslated text.\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source.path.as_posix(),
+            tool="translation",
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
+
+    generated_result = check_documents(
+        (source, generated),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+    default_result = check_documents((source, generated), config=Config())
+
+    assert [
+        (diagnostic.code, diagnostic.detail) for diagnostic in generated_result.diagnostics
+    ] == [
+        (
+            "GEN001",
+            "source anchor 'energy' from source/lecture.md is absent in translated/lecture.md",
+        )
+    ]
+    assert default_result.diagnostics == ()
+
+
+def test_documented_generated_workflow_uses_preset_defaults_and_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.generated-myst.toml"
+    config_path.write_text(
+        read_preset_text("generated-myst"),
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+
+    source = doc("source/lecture.md", "(energy)=\n## Energy\n")
+    generated = SourceDocument.from_text(
+        PurePosixPath("translated/lecture.md"),
+        "Inline generated math can drift: $\\sin(x) = x$.\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(
+            source_document_id=source.path.as_posix(),
+            preserved_anchor_inventory=("energy",),
+        ),
+    )
+
+    result = check_documents((source, generated), config=config)
+
+    assert config.profile.name == "generated-myst"
+    assert config.scanner.inline_math is True
+    assert config.parser.strict_unknowns is True
+    assert {diagnostic.code for diagnostic in result.diagnostics} == {"GEN001", "PARSE021"}

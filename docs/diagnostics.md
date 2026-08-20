@@ -24,32 +24,121 @@ codes before every code is emitted by the current analyzer.
 | `DIR010` | warning | Code-cell directive missing language |
 | `DIR011` | warning | Malformed MyST role |
 | `DIR012` | warning | Malformed code-cell tags |
+| `DIR013` | warning | Code-cell language metadata is unknown or malformed |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
 | `REF004` | warning | Missing generic reference target |
 | `REF005` | warning | Ambiguous generic reference target |
+| `REF011` | warning | Ambiguous equation reference |
+| `REF006` | warning | Local reference path changes resolution after normalization |
+| `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
+| `REF008` | warning | Equation reference matches a hidden or excluded target |
+| `REF009` | warning | Non-heading reference has missing or generic display text |
+| `REF010` | warning | Duplicate code-cell target label |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
 | `DIM010` | warning | Unknown variable dimension |
 | `DIM020` | info | Dimension check skipped |
 | `SYM001` | warning | Undefined symbol used before explicit definition |
+| `PORT001` | warning | Equation reference syntax may not survive the configured output profile |
+| `PORT002` | warning | Inline math lacks accessible text metadata |
+| `PORT003` | warning | Equation syntax may not survive Typst export |
+| `PORT004` | warning | Cell renderings conflict with cross-reference options |
 
 `DIM020` also covers dimension expressions that exceed a parser resource budget. The
 diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
 numeric-component limit or the 64-level group-nesting limit. Over-budget expressions
 are skipped; analysis continues with later expressions and documents.
 
+
+## Portability engine
+
+`PORT001` is opt-in through the `cross-format-references` profile. It is
+emitted from equation-reference and output-profile facts, not by reporters or
+external renderer execution. JSON and SARIF results include `profile`,
+`output_profile`, `ref_kind`, and `target` metadata.
+
+`PORT002` is opt-in through `math-accessibility`. It reports explicit inline
+math facts whose `alt` metadata is absent. Inferred equation-like prose is not
+treated as an owned math span, and SciEqLint does not synthesize accessible
+text. JSON and SARIF include the accessibility requirement, delimiter kind,
+surrounding text role, and parse status recorded by `MathHost`. Callers provide
+source-owned accessibility-ID-keyed metadata through `check_documents()`; the
+`subject_fact_id` property uses that same stable source identity.
+
+`PORT003` is opt-in through `typst-portability`. It reports only the focused
+display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
+`aligned`, `array`, or `matrix` environments combined with `\left` or
+`\right`. TeX-commented and escaped tokens are ignored. Diagnostics retain the
+exact source span and command or environment metadata. The profile does not
+render Typst or claim complete translation coverage.
+
+`PORT004` is opt-in through `notebook-crossrefs`. It reports executable Markdown
+or notebook code cells that combine `renderings` with a cross-reference label or
+caption option, including those options recorded on a notebook output. Notebook
+diagnostics retain logical cell locations, exact JSON output locations when an
+output supplies the cross-reference metadata, normalized cell options, and the
+originating fact IDs. SciEqLint does not execute or re-render notebook outputs.
+
+All four portability profiles accept `[profile].severity = "warning"`, `"error"`,
+or `"disabled"`. The setting is resolved by `PolicyHost`; it changes the emitted
+diagnostic severity or suppresses that profile's diagnostics without changing the
+underlying source facts.
+
+## REF008
+
+`REF008` warns when an equation reference has a matching label fact from a hidden or
+excluded source. Visible labels continue to define ordinary resolution; hidden and excluded
+labels are retained as separate facts and do not create `REF001` duplicates by themselves.
+The rule does not read ignored files or change project include/exclude behavior.
+
+## REF009
+
+`REF009` is opt-in through `reference-display`. It reports resolved non-heading targets
+whose display text is absent or only repeats the target/type. Heading targets and typed
+`{eq}`/`{numref}` roles remain quiet. Diagnostics retain the explicit display span when one
+exists, target type, reference kind, display intent, and originating fact IDs. The rule does
+not render final prose or enforce a universal writing style.
+
+## REF010 and DIR013
+
+`REF010` reports a code-cell label that collides with another visible reference
+target. It points to the duplicate cell label; references to the shared target
+remain subject to `REF005` ambiguity diagnostics.
+
+`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata that is
+not syntactically one identifier, or a syntactically valid identifier absent from the
+optional project-authoritative `[project].code_cell_languages` catalog. With no catalog,
+valid uncommon kernel names are accepted. SciEqLint does not execute cells or validate
+language-specific syntax.
+
 ## Generated-output engine
 
-`GEN001` is emitted by the generated-output engine when callers provide
-source-to-generated provenance facts. The current CLI/config path does not load
-translation provenance.
+`GEN001` is emitted when callers provide source-to-generated provenance facts
+and a preserved source anchor is missing from the generated document. `GEN002`
+is emitted for suspicious generated math and does not require provenance;
+caller-supplied provenance enriches it when available. Source kind and
+conversion stage are retained per generated document when supplied on its
+`SourceOrigin`; path-based `generated-myst` checks also retain configured
+generated-document metadata without inventing a source-document mapping.
+Missing source identity is never inferred. The engine carries semantic
+provenance through `DiagnosticIR`; `SchemaHost` owns the public property names.
+If a diagnostic has more than one provenance fact, `provenance_ids` retains every
+fact ID and the serialized metadata uses deterministic `provenance_1_*`,
+`provenance_2_*`, and later keys instead of discarding all but the first fact.
+`GEN004` treats formula images as placeholders only when the alt text or filename
+contains an explicit placeholder marker; a standalone rendered equation image
+with ordinary alt text remains content.
 
 | Code | Default | Meaning |
 |---|---|---|
 | `GEN001` | warning | Generated output is missing a preserved source anchor |
+| `GEN002` | warning | Generated math contains suspicious formula text |
+| `GEN003` | warning | Nonstandard bracketed LaTeX display block |
+| `GEN004` | warning | Generated output contains a formula placeholder |
+| `GEN005` | warning | Standalone text block looks like an equation |
 
 ## Reserved in catalog
 
@@ -113,10 +202,43 @@ Output:
 REF004 missing generic reference target: missing
 ```
 
+## Example: REF011
+
+Input:
+
+```md
+$$x = 1$$ {#shared}
+$$y = 2$$ {#shared}
+
+See {eq}`shared`.
+```
+
+Output:
+
+```text
+REF011 ambiguous equation reference: shared
+```
+
 ## Severity controls
 
-The current loader does not implement `[severity]` overrides. Current
+The current loader does not implement global `[severity]` overrides. Profile-local
+portability severity is configured through `[profile].severity`. Other
 severity-affecting controls are exposed through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when
 dimension checks are active.
+
+## REF006
+
+`REF006` warns when a local cross-document reference resolves only after lexical
+project-path normalization, for example when `./chapter.md` must be normalized to
+`chapter.md`. External URLs and fragment-only references are not project paths.
+
+## REF007
+
+`REF007` warns when separate source or engine-output boundaries describe the same
+logical cross-reference target with conflicting resolved kind or target-definition
+metadata. A reference role or local display title belongs to the reference use and
+does not participate in this comparison. Source format is retained as provenance
+and does not conflict by itself. The diagnostic properties preserve both boundary
+identities; reporters do not inspect source documents to reconstruct them.

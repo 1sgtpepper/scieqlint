@@ -15,14 +15,19 @@ from scieqlint.config.model import (
     DimensionMode,
     DimVector,
     IgnoreConfig,
+    OutputProfile,
     ParserConfig,
+    ProfileConfig,
+    ProfileSeverity,
     ProjectConfig,
+    ProjectVisibility,
     ReferencesConfig,
     ReportConfig,
     ScannerConfig,
     SymbolAlias,
     SymbolsConfig,
     UnknownVariablePolicy,
+    ValidationProfile,
     VarDimension,
 )
 from scieqlint.config.presets import read_preset_text
@@ -62,6 +67,7 @@ def _load_config_with_inputs(
     errors = validate_config(data)
     if errors:
         raise ValueError("; ".join(errors))
+    profile_data = _table(data, "profile")
     project_data = _table(data, "project")
     baseline_data = _table(data, "baseline")
     parser_data = _table(data, "parser")
@@ -76,11 +82,21 @@ def _load_config_with_inputs(
     dimension_data = _table(checks_data, "dimension")
     symbols_data = _table(checks_data, "symbols")
     vars_config = _vars_config(vars_data)
+    profile = ProfileConfig(
+        name=_profile_name(profile_data, "name"),
+        source_kind=_optional_nonempty_str(profile_data, "source_kind"),
+        conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
+        output_profile=_output_profile(profile_data, "output_profile"),
+        severity=_profile_severity(profile_data, "severity"),
+    )
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
+        profile=profile,
         project=ProjectConfig(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
+            visibility=_project_visibility(project_data.get("visibility", {})),
+            code_cell_languages=_nonempty_str_tuple(project_data, "code_cell_languages"),
         ),
         baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
         scanner=ScannerConfig(
@@ -164,6 +180,60 @@ def _table(data: dict[str, Any], key: str) -> dict[str, Any]:
     return cast(dict[str, Any], value)
 
 
+def _optional_nonempty_str(data: dict[str, Any], key: str) -> str | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{key} must be a non-empty string")
+    return value.strip()
+
+
+_PROFILE_NAMES = frozenset(
+    {
+        "generated-myst",
+        "cross-format-references",
+        "math-accessibility",
+        "notebook-crossrefs",
+        "reference-display",
+        "typst-portability",
+        "code-cell-metadata",
+    }
+)
+_OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})
+_PROFILE_SEVERITIES = frozenset({"warning", "error", "disabled"})
+
+
+def _profile_name(data: dict[str, Any], key: str) -> ValidationProfile | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if value not in _PROFILE_NAMES:
+        choices = ", ".join(sorted(_PROFILE_NAMES))
+        raise ValueError(f"{key} must be one of: {choices}")
+    return value
+
+
+def _output_profile(data: dict[str, Any], key: str) -> OutputProfile | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if value not in _OUTPUT_PROFILES:
+        choices = ", ".join(sorted(_OUTPUT_PROFILES))
+        raise ValueError(f"{key} must be one of: {choices}")
+    return cast(OutputProfile, value)
+
+
+def _profile_severity(data: dict[str, Any], key: str) -> ProfileSeverity | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or value not in _PROFILE_SEVERITIES:
+        choices = ", ".join(sorted(_PROFILE_SEVERITIES))
+        raise ValueError(f"{key} must be one of: {choices}")
+    return cast(ProfileSeverity, value)
+
+
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
     value = data.get(key, default)
     if not isinstance(value, bool):
@@ -181,6 +251,28 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
     return tuple(items)
+
+
+def _nonempty_str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
+    items = _str_tuple(data, key)
+    if any(not item.strip() for item in items):
+        raise ValueError(f"{key} must be a list of non-empty strings")
+    return tuple(item.strip() for item in items)
+
+
+def _project_visibility(value: object) -> tuple[tuple[str, ProjectVisibility], ...]:
+    if not isinstance(value, dict):
+        raise ValueError("[project].visibility must be a table")
+    entries: list[tuple[str, ProjectVisibility]] = []
+    for raw_path, raw_state in cast(dict[object, object], value).items():
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError("[project].visibility keys must be non-empty strings")
+        if not isinstance(raw_state, str) or raw_state not in {"visible", "hidden", "excluded"}:
+            raise ValueError(
+                f"[project].visibility.{raw_path} must be visible, hidden, or excluded"
+            )
+        entries.append((raw_path, cast(ProjectVisibility, raw_state)))
+    return tuple(sorted(entries))
 
 
 def _posix_path(data: dict[str, Any], key: str, default: PurePosixPath) -> PurePosixPath:

@@ -16,21 +16,67 @@ Release notes must use these sections:
 
 ### Added
 
-- Nothing yet.
+- Generated-document validation now reports high-confidence suspicious formula
+  text as source-spanned `GEN002` diagnostics when the explicit
+  `generated-myst` profile is selected.
+- Replace the permissive YAML-like accuracy fixtures with a strict versioned JSON
+  corpus of labeled positive and negative cases and expanded rule coverage; synthetic
+  wrappers do not count as independent accuracy evidence.
+- Add bounded deterministic Hypothesis properties for source-token span integrity, raw
+  newline ingress, and Markdown code-cell fence lowering.
+- Add the opt-in `code-cell-metadata` profile, exact code-cell label/language
+  facts for Markdown and notebooks, code-cell reference targets, and duplicate-label
+  and malformed-language diagnostics.
+- Warn when local cross-document references resolve differently after lexical
+  project-path normalization.
+- Model source-neutral cross-reference metadata across document and engine-output
+  boundaries, warning when the same target has incompatible kind or display metadata.
+- Lower notebook code-cell renderings, cross-reference options, and output-boundary
+  facts, with an opt-in warning for incompatible renderings/crossref combinations.
+- Keep visible, hidden, and excluded equation-label facts separate and warn when
+  non-visible targets affect a rendered equation reference.
+- Track cross-reference display text, target type, and rendered-label intent, with an
+  opt-in warning for missing or generic labels on resolved non-heading targets.
+- Preserve document-scoped inline-math macro declarations and use sites in source
+  order without expanding document-provided TeX.
 
 ### Changed
 
+- Generated diagnostic metadata now crosses a versioned SchemaHost projection
+  seam, so engines carry semantic provenance and text, JSON, SARIF, and GitHub
+  reporters share one public provenance and profile projection instead of
+  reconstructing it independently. The complete AnalysisResult registry and
+  serializer migration remain tracked by #190/#191.
+- The packaged `generated-myst` preset now activates generated-output checks
+  alongside the existing scientific checks; path-based checks retain configured
+  generated-document metadata without inferring source-document identity.
 - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
+- Project visibility is now configured through `[project].visibility` and is applied
+  before legacy and profile reference observations, including labeled code-cell targets.
+- Code-cell language validation now accepts valid uncommon identifiers by default and
+  uses an optional `[project].code_cell_languages` catalog when a project needs a closed set.
 
 ### Fixed
 
+- Generated formula checks now recognize direct spaced formula artifacts and
+  multiline bracketed displays with content on the opener, while leaving
+  ordinary rendered equation images out of placeholder diagnostics.
+- Portability profiles now consume cross-format references from Markdown/MyST,
+  raw LaTeX, and notebook Markdown cells through one PolicyHost severity policy;
+  accessibility metadata uses stable source-owned inline-math identities, and
+  Typst portability ignores TeX-commented or escaped tokens.
+- Stable publication now downloads the exact immutable distribution artifact
+  approved by smoke, carrying its artifact ID through the release jobs without
+  rebuilding or accepting a separately downloaded artifact; both wheel and source
+  distribution members are installed and smoke-tested before publication.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
-- Stable-tag publication now fails closed unless source, wheel, and tag versions
-  agree, at least 100 documented equation fixtures execute successfully, and the
-  100-document/500-equation/500-reference workload stays under three seconds.
+- Stable-tag publication now fails closed unless source, wheel, source distribution,
+  and tag versions agree, at least 100 independently labeled semantic equations
+  execute successfully, and the 100-document/500-equation/500-reference workload
+  stays under three seconds.
 - Markdown math fences now follow the shared CommonMark opener and closer rules,
   including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct
@@ -56,6 +102,8 @@ Release notes must use these sections:
 - Text diagnostics now include the equation that produced a finding, and the
   DIM002 and REF002 messages match their documented wording.
 - Strict missing-label checks no longer require labels on inline math spans.
+- Bare required-arity inline TeX commands now remain source-spanned unknown math
+  instead of being classified as preserved math.
 - Explicit missing inputs and operational/configuration failures now return controlled
   exit status 2; invalid UTF-8 files report `INP001` without stopping later inputs.
 - Graph path analysis now shares check path project discovery, ordering, ignore, display

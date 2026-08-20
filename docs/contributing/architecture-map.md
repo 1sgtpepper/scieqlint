@@ -9,7 +9,7 @@
 | Grammar | `src/scieqlint/parse/grammar.lark` | reporters |
 | Algebra | `src/scieqlint/check/algebra.py` | scanner |
 | References | `src/scieqlint/check/references.py` | algebra |
-| Generated-output anchor audits | `src/scieqlint/facts/generated.py`, `src/scieqlint/query/generated.py`, `src/scieqlint/engine/generated.py` | CLI/config provenance inference |
+| Generated-output anchor audits | `src/scieqlint/facts/generated.py`, `src/scieqlint/query/generated.py`, `src/scieqlint/engine/generated.py` | filename/order source provenance inference |
 | JSON output | `src/scieqlint/report/json.py` | scanner/parser/checker behavior |
 | Docs | `docs/` | code unless examples are being corrected |
 

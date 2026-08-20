@@ -46,17 +46,30 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-For generated or MyST-heavy scientific docs, initialize the packaged profile and
-run the same deterministic checks in CI:
+For generated or MyST-heavy scientific docs, materialize the generated-document
+preset. It selects the `generated-myst` profile and keeps the existing scientific
+checks enabled:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-That profile enables stricter generated-document checks while keeping the scope
-source-based: math containers, supported equation and generic references, MyST
-anchors and directives, heading hierarchy, and parse-unknown diagnostics.
+The materialized config already contains the profile section. When the conversion
+pipeline has stable source metadata, add it to that section while keeping the
+scope source-based: math containers, supported equation and generic references,
+MyST anchors and directives, heading hierarchy, and parse-unknown diagnostics:
+
+```toml
+[profile]
+source_kind = "jats-xml"
+conversion_stage = "xml-to-markdown"
+```
+
+Path-based checks retain the configured generated-document provenance, but they do
+not infer a source document or preserved anchors. Use `SourceOrigin` with an
+explicit `source_document_id` through the loaded-document API when anchor
+comparison is required.
 
 ## Local development
 

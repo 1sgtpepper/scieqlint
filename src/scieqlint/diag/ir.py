@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
+from scieqlint.diag.model import Diagnostic, DiagnosticProvenance, Severity, SourceSpan
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +25,10 @@ class DiagnosticIR:
     profile_gated: bool = False
     false_positive_risk: str | None = None
     related_locations: tuple[RelatedLocation, ...] = ()
+    profile: str | None = None
+    provenance_ids: tuple[str, ...] = ()
+    properties: tuple[tuple[str, str], ...] = ()
+    provenance: tuple[DiagnosticProvenance, ...] = ()
 
     def to_diagnostic(self, severity: Severity | None = None) -> Diagnostic:
         return Diagnostic(
@@ -35,4 +39,8 @@ class DiagnosticIR:
             detail=self.detail,
             hint=self.hint,
             rule=self.rule,
+            profile=self.profile,
+            provenance_ids=self.provenance_ids,
+            properties=self.properties,
+            provenance=self.provenance,
         )

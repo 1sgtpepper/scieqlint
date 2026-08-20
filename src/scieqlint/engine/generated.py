@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from scieqlint.diag.ir import DiagnosticIR
-from scieqlint.diag.model import Severity
+from scieqlint.diag.model import DiagnosticProvenance, Severity
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.query.host import QueryHost
 
 
 class GeneratedOutputEngine:
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
     name = "generated-output"
-    rule_codes = frozenset({"GEN001"})
+    rule_codes = frozenset({"GEN001", "GEN002", "GEN003", "GEN004", "GEN005"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -28,6 +34,166 @@ class GeneratedOutputEngine:
                     hint="Keep the MyST target anchor in the generated output before building.",
                     rule="generated.preserved_anchor",
                     false_positive_risk="low",
+                    profile=self.profile,
+                    provenance=(_diagnostic_provenance(provenance),),
                 )
             )
+        diagnostics.extend(
+            self._suspicious_formula_diagnostic(query, fact)
+            for fact in query.generated.suspicious_formula_text()
+        )
+        diagnostics.extend(
+            self._bracketed_latex_diagnostic(query, fact)
+            for fact in query.generated.bracketed_latex_blocks()
+        )
+        diagnostics.extend(
+            self._formula_placeholder_diagnostic(query, fact)
+            for fact in query.generated.formula_placeholders()
+        )
+        diagnostics.extend(
+            self._equation_like_text_diagnostic(query, fact)
+            for fact in query.generated.equation_like_text_items()
+        )
         return tuple(diagnostics)
+
+    def _suspicious_formula_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        provenance, properties = _fact_metadata(
+            query,
+            fact,
+            (("formula_artifact_kind", fact.kind),),
+        )
+        return DiagnosticIR(
+            code="GEN002",
+            severity_default=Severity.WARNING,
+            message="generated math contains suspicious formula text",
+            span=fact.span,
+            detail=f"{fact.kind} artifact: {fact.text!r}",
+            hint="Restore the intended LaTeX formula before publishing or conversion.",
+            rule="generated.suspicious_formula_text",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            properties=properties,
+            provenance=provenance,
+        )
+
+    def _bracketed_latex_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        complete = fact.complete is True
+        provenance, properties = _fact_metadata(
+            query,
+            fact,
+            (
+                ("formula_artifact_kind", fact.kind),
+                ("complete", "true" if complete else "false"),
+            ),
+        )
+        detail = (
+            r"standalone \[...\] display delimiters are not portable generated Markdown"
+            if complete
+            else r"standalone \[ display opener is not closed before end of file"
+        )
+        return DiagnosticIR(
+            code="GEN003",
+            severity_default=Severity.WARNING,
+            message="nonstandard bracketed LaTeX display block",
+            span=fact.span,
+            detail=detail,
+            hint="Use a supported $$ block or a MyST math directive.",
+            rule="generated.bracketed_latex_block",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            properties=properties,
+            provenance=provenance,
+        )
+
+    def _formula_placeholder_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        assert fact.placeholder_kind is not None
+        provenance, properties = _fact_metadata(
+            query,
+            fact,
+            (
+                ("formula_artifact_kind", fact.kind),
+                ("placeholder_kind", fact.placeholder_kind),
+            ),
+        )
+        details = {
+            "formula-not-decoded": "formula-not-decoded marker remains in generated output",
+            "empty-display-math": "display math container has no formula content",
+            "formula-image": "standalone formula image remains in generated output",
+        }
+        return DiagnosticIR(
+            code="GEN004",
+            severity_default=Severity.WARNING,
+            message="generated output contains a formula placeholder",
+            span=fact.span,
+            detail=details[fact.placeholder_kind],
+            hint="Restore source math before publishing; SciEqLint does not guess the formula.",
+            rule="generated.formula_placeholder",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            properties=properties,
+            provenance=provenance,
+        )
+
+    def _equation_like_text_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        provenance, properties = _fact_metadata(
+            query,
+            fact,
+            (("formula_artifact_kind", fact.kind),),
+        )
+        return DiagnosticIR(
+            code="GEN005",
+            severity_default=Severity.WARNING,
+            message="standalone text block looks like an equation",
+            span=fact.span,
+            detail=f"equation-like text was emitted outside a math container: {fact.text!r}",
+            hint="Emit the source expression as supported math; SciEqLint will not rewrite it.",
+            rule="generated.equation_like_text",
+            profile_gated=True,
+            false_positive_risk="medium",
+            profile=self.profile,
+            properties=properties,
+            provenance=provenance,
+        )
+
+
+def _fact_metadata(
+    query: QueryHost,
+    fact: GeneratedFormulaFact,
+    properties: Iterable[tuple[str, str]],
+) -> tuple[tuple[DiagnosticProvenance, ...], tuple[tuple[str, str], ...]]:
+    provenance = tuple(
+        sorted(
+            query.generated.provenance_for_document(fact.document_id),
+            key=lambda item: item.fact_id,
+        )
+    )
+    return tuple(_diagnostic_provenance(item) for item in provenance), tuple(properties)
+
+
+def _diagnostic_provenance(provenance: GeneratedProvenanceFact) -> DiagnosticProvenance:
+    return DiagnosticProvenance(
+        fact_id=provenance.fact_id,
+        generated_document_id=provenance.generated_document_id,
+        source_document_id=provenance.source_document_id,
+        source_kind=provenance.source_kind,
+        conversion_stage=provenance.conversion_stage,
+    )

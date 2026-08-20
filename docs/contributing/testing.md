@@ -41,6 +41,30 @@ To replay against an existing base checkout directly:
 python tools/public_regression_replay.py --base ../scieqlint-base
 ```
 
+## Accuracy corpus
+
+`benchmarks/accuracy/corpus-v1.json` is strict versioned JSON. Every case has a
+positive or negative label, one target rule, source format, scientific domain,
+provenance, and license or synthetic status. A non-synthetic case must also carry
+an `independent_equation_id`; only those explicit labels count toward the stable
+accuracy threshold, so format wrappers and synthetic fixtures cannot inflate it.
+Keep expected diagnostics human-authored and execute cases through
+`scieqlint.api.check_documents`; do not derive expectations from the implementation
+under test. Unknown, missing, and duplicate fields are errors. The checked-in corpus
+currently has no independently labeled equation evidence, so the stable gate remains
+blocked until real licensed evidence is added. Canary comparisons and precision/recall
+release gates remain out of scope until the corpus is larger and baseline variance has
+been measured.
+
+## Bounded property checks
+
+The pull-request suite includes at most three deterministic Hypothesis properties for
+semantic invariants that benefit from nearby generated forms. Keep each property bounded,
+set `derandomize=True`, disable the example database, and do not suppress health checks.
+When a property exposes a production defect, first reduce the example to an owner-local
+regression test; the production fix must make that fixed reproducer pass. Scheduled deep
+profiles, fuzzers, and mutation workflows remain separate work.
+
 ## Local loop
 
 ```bash

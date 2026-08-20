@@ -7,8 +7,10 @@ from typing import Literal
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
+from scieqlint.facts.reference import TargetVisibility
 
 FenceKind = Literal["generic", "math", "directive", "code-cell", "div"]
+CodeCellSourceFormat = Literal["markdown", "notebook"]
 StructureSyntaxKind = Literal[
     "atx-heading",
     "myst-directive",
@@ -73,11 +75,26 @@ class CodeCellFact(FactBase):
     engine: str | None
     options: tuple[tuple[str, str], ...]
     label: str | None = None
+    normalized_label: str | None = None
+    label_span: SourceSpan | None = None
+    language_span: SourceSpan | None = None
+    source_format: CodeCellSourceFormat = "markdown"
+    visibility: TargetVisibility = "visible"
     tags: tuple[str, ...] = ()
     output_target_labels: tuple[str, ...] = ()
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class NotebookOutputFact(FactBase):
+    cell_fact_id: str
+    cell_index: int
+    output_index: int
+    output_type: str
+    mime_types: tuple[str, ...] = ()
+    metadata: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

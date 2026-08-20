@@ -27,6 +27,7 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
+    normalize_label,
 )
 
 
@@ -170,7 +171,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
     if fence.language not in {"python", "r", "julia"}:
         return None
     options = quarto_options(document, fence)
-    label = dict(options).get("label")
+    label = dict(options).get("label") or None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -182,6 +183,13 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         engine=fence.language,
         options=options,
         label=label,
+        normalized_label=normalize_label(label) if label else None,
+        label_span=(
+            _option_value_span(document, fence, QUARTO_OPTION_RE, "label")
+            if label is not None
+            else None
+        ),
+        language_span=_fence_info_span(document, fence, fence.language),
     )
 
 
@@ -218,6 +226,13 @@ def _directive_code_cell_fact(
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
+    label_key = "label" if option_map.get("label") else "name"
+    label = option_map.get(label_key) or None
+    language_span = (
+        _directive_group_span(document, fence, directive_match, "arg")
+        if is_myst_code_cell
+        else _directive_group_span(document, fence, directive_match, "name")
+    )
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -228,7 +243,16 @@ def _directive_code_cell_fact(
         language=language,
         engine=language,
         options=options,
-        label=option_map.get("label") or option_map.get("name"),
+        label=label,
+        normalized_label=normalize_label(label) if label else None,
+        label_span=(
+            _option_value_span(document, fence, MYST_OPTION_RE, label_key)
+            if is_myst_code_cell and label is not None
+            else _option_value_span(document, fence, QUARTO_OPTION_RE, label_key)
+            if label is not None
+            else None
+        ),
+        language_span=language_span,
         tags=tags,
     )
 
@@ -379,6 +403,65 @@ def _clean_tag(value: str) -> str:
     return value.strip().strip("\"'")
 
 
+def _option_value_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    pattern: re.Pattern[str],
+    key: str,
+) -> SourceSpan | None:
+    if fence.body_span is None:
+        return None
+    body = document.text[fence.body_span.start : fence.body_span.end]
+    offset = fence.body_span.start
+    for line in body.splitlines(keepends=True):
+        match = pattern.match(line.rstrip("\n"))
+        if match is not None and match.group("key") == key:
+            raw_value = match.group("value")
+            leading = len(raw_value) - len(raw_value.lstrip())
+            value = raw_value.strip()
+            if not value:
+                return None
+            start = offset + match.start("value") + leading
+            return SourceMap.for_document(document).span(start, start + len(value))
+        offset += len(line)
+    return None
+
+
+def _fence_info_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    value: str | None,
+) -> SourceSpan | None:
+    if value is None:
+        return None
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.find(fence.info_string)
+    value_start = fence.info_string.find(value)
+    if info_start < 0 or value_start < 0:
+        return fence.opener_span
+    start = fence.opener_span.start + info_start + value_start
+    return SourceMap.for_document(document).span(start, start + len(value))
+
+
+def _directive_group_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    match: re.Match[str],
+    group: str,
+) -> SourceSpan | None:
+    raw_value = match.group(group)
+    value = raw_value.strip()
+    if not value:
+        return None
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.find(fence.info_string)
+    if info_start < 0:
+        return fence.opener_span
+    leading = len(raw_value) - len(raw_value.lstrip())
+    start = fence.opener_span.start + info_start + match.start(group) + leading
+    return SourceMap.for_document(document).span(start, start + len(value))
+
+
 def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:
     if fence.body_span is None:
         return ()
@@ -397,9 +480,19 @@ def quarto_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[st
     if fence.body_span is None:
         return ()
     body = document.text[fence.body_span.start : fence.body_span.end]
+    return quarto_option_prefix(body)
+
+
+def quarto_option_prefix(text: str) -> tuple[tuple[str, str], ...]:
+    """Return Quarto options from the source preamble before executable code."""
+
     options: list[tuple[str, str]] = []
-    for line in body.splitlines():
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or (stripped.startswith("#") and not stripped.startswith("#|")):
+            continue
         match = QUARTO_OPTION_RE.match(line)
-        if match is not None:
-            options.append((match.group("key"), match.group("value").strip()))
+        if match is None:
+            break
+        options.append((match.group("key"), match.group("value").strip()))
     return tuple(options)

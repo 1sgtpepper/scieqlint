@@ -166,6 +166,7 @@ def test_nested_link_candidates_bound_child_summary_work(
         destination_start: int,
         destination_end: int,
         is_image: bool,
+        label_end: int,
         child_values: Iterable[tuple[int, int]],
     ) -> markdown_module.MarkdownLinkToken:
         nonlocal child_work
@@ -178,6 +179,7 @@ def test_nested_link_candidates_bound_child_summary_work(
             destination_start,
             destination_end,
             is_image,
+            label_end,
             materialized,
         )
 
@@ -902,7 +904,10 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
         ("eq", "active-label")
     ]
     assert snapshot.structure_syntax_issues == ()
-    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+    assert [
+        (diagnostic.code, diagnostic.detail)
+        for diagnostic in ReferenceEngine().run(QueryHost(snapshot))
+    ] == [("REF002", "reference text: {eq}`active-label`")]
 
     scan = MarkdownScanner().scan(document, Config())
     assert [(ref.source.value, ref.target) for ref in scan.references] == [

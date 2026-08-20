@@ -26,6 +26,17 @@ class SourceSpan:
     cell_line: int | None = None
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DiagnosticProvenance:
+    """Semantic provenance facts carried until the reporter projection boundary."""
+
+    fact_id: str
+    generated_document_id: str
+    source_document_id: str | None = None
+    source_kind: str | None = None
+    conversion_stage: str | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class Diagnostic:
     code: str
@@ -38,6 +49,10 @@ class Diagnostic:
     rule: str | None = None
     suppressed: bool = False
     suppression_reason: str | None = None
+    profile: str | None = None
+    provenance_ids: tuple[str, ...] = ()
+    properties: tuple[tuple[str, str], ...] = ()
+    provenance: tuple[DiagnosticProvenance, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

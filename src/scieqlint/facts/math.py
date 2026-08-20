@@ -7,13 +7,36 @@ from typing import Literal
 
 from scieqlint.facts.base import FactBase
 
-InlineDelimiter = Literal["dollar", "myst-role", "quarto-inline"]
+InlineDelimiter = Literal[
+    "dollar",
+    "myst-role",
+    "quarto-inline",
+    "latex-paren",
+    "plain-text",
+]
+# Frontend candidates are classified by MathHost; ``not-math`` is retained for
+# provenance but is excluded from the engine-facing math query.
+InlineParseStatus = Literal[
+    "candidate",
+    "preserved",
+    "not-math",
+    "unsupported",
+    "text-leak",
+]
+InlineTextRole = Literal["paragraph", "heading", "list-item", "blockquote"]
 DisplayContainer = Literal[
     "dollar-dollar",
     "myst-math-directive",
     "fenced-math",
     "ams",
     "quarto-equation",
+    "raw-latex",
+]
+MathMacroDeclarationKind = Literal[
+    "newcommand",
+    "renewcommand",
+    "providecommand",
+    "def",
 ]
 UnknownReason = Literal[
     "unsupported_syntax",
@@ -30,8 +53,10 @@ UnknownReason = Literal[
 class InlineMathFact(FactBase):
     body: str
     delimiter_kind: InlineDelimiter
-    context: str
+    accessibility_id: str | None = None
     alt: str | None = None
+    surrounding_text_role: InlineTextRole = "paragraph"
+    parse_status: InlineParseStatus = "candidate"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -41,6 +66,8 @@ class DisplayMathFact(FactBase):
     label_fact_ids: tuple[str, ...] = ()
     alt: str | None = None
     enumerated: bool | None = None
+    environment: str | None = None
+    complete: bool = True
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -49,3 +76,20 @@ class UnknownMathFact(FactBase):
     reason: UnknownReason
     excerpt: str
     classifier: str = "MathHost"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MathMacroDeclarationFact(FactBase):
+    source_math_fact_id: str
+    macro_name: str
+    declaration_kind: MathMacroDeclarationKind
+    parameter_count: int
+    replacement: str
+    declaration_order: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MathMacroUseFact(FactBase):
+    source_math_fact_id: str
+    macro_name: str
+    active_declaration_fact_id: str | None

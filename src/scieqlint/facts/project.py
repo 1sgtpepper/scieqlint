@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from scieqlint.facts.base import FactBase
+from scieqlint.facts.reference import TargetVisibility
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -16,8 +17,7 @@ class ProjectMemberFact(FactBase):
     discovered: bool
     explicit_input: bool = False
     static_asset: bool = False
-    hidden: bool = False
-    excluded: bool = False
+    visibility: TargetVisibility = "visible"
     generated: bool = False
     normalized_path: PurePosixPath | None = None
 

@@ -8,6 +8,26 @@ from typing import Literal
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
+ProjectVisibility = Literal["visible", "hidden", "excluded"]
+ValidationProfile = Literal[
+    "generated-myst",
+    "cross-format-references",
+    "math-accessibility",
+    "notebook-crossrefs",
+    "reference-display",
+    "typst-portability",
+    "code-cell-metadata",
+]
+OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
+ProfileSeverity = Literal["warning", "error", "disabled"]
+_PORTABILITY_PROFILES = frozenset(
+    {
+        "cross-format-references",
+        "math-accessibility",
+        "notebook-crossrefs",
+        "typst-portability",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +48,34 @@ class SymbolAlias:
 
 
 @dataclass(frozen=True, slots=True)
+class ProfileConfig:
+    """Named validation policy selected explicitly by project configuration."""
+
+    name: ValidationProfile | None = None
+    source_kind: str | None = None
+    conversion_stage: str | None = None
+    output_profile: OutputProfile | None = None
+    severity: ProfileSeverity | None = None
+
+    def __post_init__(self) -> None:
+        if self.name != "generated-myst" and (
+            self.source_kind is not None or self.conversion_stage is not None
+        ):
+            raise ValueError(
+                "profile.source_kind and profile.conversion_stage require "
+                'profile.name = "generated-myst"'
+            )
+        if self.name == "cross-format-references" and self.output_profile is None:
+            raise ValueError("profile.output_profile is required for cross-format-references")
+        if self.name != "cross-format-references" and self.output_profile is not None:
+            raise ValueError("profile.output_profile is only valid for cross-format-references")
+        if self.severity is not None and self.severity not in ("warning", "error", "disabled"):
+            raise ValueError("profile.severity must be one of: disabled, error, warning")
+        if self.severity is not None and self.name not in _PORTABILITY_PROFILES:
+            raise ValueError("profile.severity is only valid for portability validation profiles")
+
+
+@dataclass(frozen=True, slots=True)
 class ScannerConfig:
     markdown: bool = True
     inline_math: bool = False
@@ -38,6 +86,8 @@ class ScannerConfig:
 class ProjectConfig:
     root: PurePosixPath = PurePosixPath(".")
     order: tuple[str, ...] = ()
+    visibility: tuple[tuple[str, ProjectVisibility], ...] = ()
+    code_cell_languages: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +152,7 @@ class Config:
     """Config model for the first supported Markdown/MyST checks."""
 
     path: PurePosixPath | None = None
+    profile: ProfileConfig = field(default_factory=ProfileConfig)
     project: ProjectConfig = field(default_factory=ProjectConfig)
     baseline: BaselineConfig = field(default_factory=BaselineConfig)
     scanner: ScannerConfig = field(default_factory=ScannerConfig)

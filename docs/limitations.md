@@ -58,12 +58,13 @@ facts.
 | implicit multiplication | supported within documented parser rules |
 | integer powers | supported for exponents from `-1000` through `1000` |
 | `\frac{a}{b}` | supported |
+| bare `\frac`-family commands | unsupported; retained as unknown inline math |
 | `\sqrt{n}` | supported for numeric perfect-square rational operands only |
 | trig/log/exp | deferred |
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |
 | non-integer powers and symbolic square roots | deferred |
-| user TeX macros | deferred |
+| user TeX macro declarations/use sites | tracked in explicit inline math; expansion deferred |
 
 Configured dimension aliases match complete surface tokens and do not split a
 longer identifier. This boundary also applies when an alias ends in punctuation,
@@ -174,7 +175,10 @@ engine emits deterministic diagnostics for malformed ATX headings, unclosed
 non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
-syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+syntax, missing or unknown code-cell language metadata, and malformed code-cell
+tag lists. Language identifiers are accepted when syntactically valid unless a project
+declares a closed `[project].code_cell_languages` catalog; in that case an identifier
+outside the catalog is unknown.
 Malformed ATX candidates are syntax issues only and do not enter heading, section,
 slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
 such as `# #` are valid empty headings.
@@ -260,8 +264,23 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 ## Notebooks
 
-Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
-cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
-or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
-4096 decimal digits are rejected with `INP001`. Code-cell variable
-analysis, notebook execution, and full Jupyter schema validation are deferred.
+Notebooks are never executed. SciEqLint scans Markdown cells, lowers code-cell
+metadata and recorded outputs, and emits deterministic `INP001` or `INP002` input
+diagnostics for malformed notebook inputs. JSON integers over 4096 decimal digits
+are rejected with `INP001`. Code-cell variable analysis, notebook execution, and
+full Jupyter schema validation are deferred.
+
+- Project reference paths are normalized lexically; SciEqLint does not resolve symlinks or
+  fetch external URLs.
+
+- Cross-reference metadata conflicts are checked only for explicit facts and known
+  source/output boundaries; arbitrary custom kinds are not inferred.
+
+- Notebook output facts use recorded JSON output locations when available, along with logical
+  cell locations and output indexes; SciEqLint does not execute notebooks, inspect runtime
+  objects, or re-render outputs.
+
+- Hidden/excluded equation-label and labeled code-cell checks consume the
+  `[project].visibility` mapping. Visibility is applied before legacy and profile
+  reference resolution; SciEqLint does not read ignored files or infer table-of-contents
+  visibility from filenames.

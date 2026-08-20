@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from scieqlint.app import _AnalysisRun as _AnalysisRun  # pyright: ignore[reportPrivateUsage]
@@ -47,9 +47,14 @@ def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents."""
-    return _check_documents(documents, config=config)
+    """Check already-loaded documents with project-owned profile metadata."""
+    return _check_documents(
+        documents,
+        config=config,
+        accessibility_metadata=accessibility_metadata,
+    )
 
 
 def graph_paths(

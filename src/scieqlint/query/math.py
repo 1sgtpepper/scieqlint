@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import (
+    DisplayMathFact,
+    InlineMathFact,
+    MathMacroDeclarationFact,
+    MathMacroUseFact,
+    UnknownMathFact,
+)
 from scieqlint.facts.snapshot import FactSnapshot
 
 
@@ -16,10 +22,18 @@ class MathContainerQueryView:
         return self.snapshot.display_math
 
     def inline_math(self) -> tuple[InlineMathFact, ...]:
-        return self.snapshot.inline_math
+        """Return candidates and classified math, excluding rejected prose."""
+
+        return tuple(fact for fact in self.snapshot.inline_math if fact.parse_status != "not-math")
 
     def unknown_math(self) -> tuple[UnknownMathFact, ...]:
         return self.snapshot.unknown_math
+
+    def macro_declarations(self) -> tuple[MathMacroDeclarationFact, ...]:
+        return self.snapshot.math_macro_declarations
+
+    def macro_uses(self) -> tuple[MathMacroUseFact, ...]:
+        return self.snapshot.math_macro_uses
 
     def display_with_multiple_labels(self) -> tuple[DisplayMathFact, ...]:
         return tuple(fact for fact in self.snapshot.display_math if len(fact.label_fact_ids) > 1)

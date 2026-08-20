@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar
@@ -24,19 +24,36 @@ from scieqlint.diag.baseline import (
 )
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.engine.generated import GeneratedOutputEngine
+from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
+from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact, TargetVisibility
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
+from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.io.workspace import WorkspaceHost, normalize_project_path
+from scieqlint.parse.math import MathHost
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    MathBlock,
+    ReferenceSource,
+    SymbolDirective,
+)
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
-from scieqlint.scan.notebook import NotebookScanner
+from scieqlint.scan.notebook import NotebookInput, NotebookScanner
 
 _ResultT = TypeVar("_ResultT")
 
@@ -92,6 +109,14 @@ def _run_check_paths(
     diagnostics: list[Diagnostic] = []
     consumed_inputs = list(config_inputs)
     input_identities_complete = _consumed_inputs_complete(consumed_inputs)
+    path_origin = (
+        SourceOrigin(
+            source_kind=config.profile.source_kind,
+            conversion_stage=config.profile.conversion_stage,
+        )
+        if config.profile.name == "generated-myst"
+        else None
+    )
 
     for path in discovered:
         consumed_count = len(consumed_inputs)
@@ -100,6 +125,7 @@ def _run_check_paths(
                 path,
                 absolute_paths=absolute_paths,
                 consumed_inputs=consumed_inputs,
+                origin=path_origin,
             )
         except (OSError, UnicodeError) as exc:
             if len(consumed_inputs) == consumed_count:
@@ -136,11 +162,24 @@ def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents."""
+    """Check already-loaded documents with project-owned profile metadata."""
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
+    workspace = WorkspaceHost(project_root=config.project.root)
+    members, _hidden_excluded = workspace.project_facts(
+        documents,
+        dict(config.project.visibility),
+    )
+    source_only_document_ids = _generated_source_only_document_ids(documents, config)
+    visible_document_ids = {
+        member.document_id
+        for member in members
+        if member.visibility == "visible" and member.document_id not in source_only_document_ids
+    }
+    parsed_notebooks: dict[str, NotebookInput] = {}
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -149,12 +188,18 @@ def check_documents(
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
+        if document.kind is DocumentKind.UNKNOWN:
+            raise _unsupported_source_kind(document.path)
+        if document.path.as_posix() in source_only_document_ids:
+            continue
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
             scan = scanner.scan(document, config)
         elif document.kind is DocumentKind.NOTEBOOK:
-            scan = notebook_scanner.scan(document, config)
+            parsed = notebook_scanner.parse(document)
+            parsed_notebooks[document.path.as_posix()] = parsed
+            scan = notebook_scanner.scan(document, config, parsed=parsed)
         else:
             raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
@@ -179,20 +224,24 @@ def check_documents(
     if config.checks.references.enabled:
         diagnostics.extend(
             check_references(
-                tuple(labels),
-                tuple(references),
-                blocks=tuple(blocks),
+                tuple(
+                    label
+                    for label in labels
+                    if _span_document_id(label.span) in visible_document_ids
+                ),
+                tuple(
+                    reference
+                    for reference in references
+                    if _span_document_id(reference.span) in visible_document_ids
+                ),
+                blocks=tuple(
+                    block
+                    for block in blocks
+                    if _span_document_id(block.span) in visible_document_ids
+                ),
                 strict_missing_labels=config.checks.references.missing_label_strict,
             )
         )
-        markdown_documents = tuple(
-            document for document in documents if document.kind is DocumentKind.MARKDOWN
-        )
-        if markdown_documents and config.scanner.markdown:
-            query = QueryHost(MySTFrontend().lower(markdown_documents))
-            diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
-            )
     if config.checks.symbols.enabled:
         diagnostics.extend(
             check_symbols(
@@ -201,14 +250,73 @@ def check_documents(
                 path_order=path_order,
             )
         )
-    markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
-    )
-    if markdown_documents and config.scanner.markdown:
-        query = QueryHost(MySTFrontend().lower(markdown_documents))
-        diagnostics.extend(
-            diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
+    profile_documents = tuple(
+        document
+        for document in documents
+        if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
+        or (
+            document.kind is DocumentKind.LATEX
+            and config.profile.name
+            in {"cross-format-references", "math-accessibility", "typst-portability"}
         )
+        or (
+            document.kind is DocumentKind.NOTEBOOK
+            and config.profile.name
+            in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
+        )
+    )
+    if profile_documents:
+        policy = PolicyHost(
+            config.profile,
+            code_cell_languages=config.project.code_cell_languages,
+        )
+        query = QueryHost(
+            _profile_snapshot(
+                profile_documents,
+                config,
+                accessibility_metadata=accessibility_metadata,
+                parsed_notebooks=parsed_notebooks,
+                source_references=tuple(references),
+                source_labels=tuple(labels),
+                policy=policy,
+            )
+        )
+        if config.checks.references.enabled:
+            _extend_unique_diagnostics(
+                diagnostics,
+                (
+                    diagnostic.to_diagnostic()
+                    for diagnostic in ReferenceEngine(profile=config.profile.name).run(query)
+                ),
+            )
+        diagnostics.extend(
+            diagnostic.to_diagnostic()
+            for diagnostic in StructureEngine(
+                profile=config.profile.name,
+                policy=policy,
+            ).run(query)
+        )
+        # This compatibility path is the current shared owner for loaded and
+        # path-based checks. Keep profile dispatch here until the planned
+        # project-mode/AnalysisSession owner for issue #90 is available.
+        if config.profile.name == "generated-myst":
+            diagnostics.extend(
+                diagnostic.to_diagnostic()
+                for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
+            )
+        elif config.profile.name in {
+            "cross-format-references",
+            "math-accessibility",
+            "notebook-crossrefs",
+            "typst-portability",
+        }:
+            diagnostics.extend(
+                diagnostic.to_diagnostic()
+                for diagnostic in PortabilityEngine(
+                    profile=config.profile.name,
+                    policy=policy,
+                ).run(query)
+            )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
         diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
@@ -218,6 +326,340 @@ def check_documents(
         version=__version__,
         show_suppressed=config.report.show_suppressed,
     )
+
+
+def _extend_unique_diagnostics(
+    diagnostics: list[Diagnostic],
+    additions: Iterable[Diagnostic],
+) -> None:
+    """Append compatibility-kernel diagnostics without reporting the same fact twice."""
+
+    seen = set(diagnostics)
+    for diagnostic in additions:
+        if diagnostic in seen:
+            continue
+        diagnostics.append(diagnostic)
+        seen.add(diagnostic)
+
+
+def _profile_snapshot(
+    documents: Sequence[SourceDocument],
+    config: Config,
+    *,
+    accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    source_references: Sequence[EquationReference] | None = None,
+    source_labels: Sequence[EquationLabel] | None = None,
+    policy: PolicyHost | None = None,
+) -> FactSnapshot:
+    snapshot = _generated_profile_snapshot(
+        documents,
+        config,
+        accessibility_metadata=accessibility_metadata,
+        parsed_notebooks=parsed_notebooks,
+        source_references=source_references,
+        source_labels=source_labels,
+    )
+    active_policy = policy or PolicyHost(config.profile)
+    if config.profile.name == "cross-format-references":
+        return replace(
+            snapshot,
+            portability=active_policy.cross_format_reference_risks(snapshot),
+        )
+    if config.profile.name == "typst-portability":
+        return replace(snapshot, portability=MathHost().typst_portability(snapshot))
+    return snapshot
+
+
+def _generated_profile_snapshot(
+    documents: Sequence[SourceDocument],
+    config: Config,
+    *,
+    accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    source_references: Sequence[EquationReference] | None = None,
+    source_labels: Sequence[EquationLabel] | None = None,
+) -> FactSnapshot:
+    """Build one profile snapshot from caller-owned source-to-generated mappings."""
+
+    source_only_document_ids = _generated_source_only_document_ids(documents, config)
+    markdown_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.MARKDOWN
+        and document.path.as_posix() not in source_only_document_ids
+    )
+    notebook_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.NOTEBOOK
+    )
+    workspace = WorkspaceHost(project_root=config.project.root)
+    frontend = MySTFrontend(workspace=workspace)
+    snapshot = frontend.lower(markdown_documents)
+    source_markdown_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.MARKDOWN
+        and document.path.as_posix() in source_only_document_ids
+    )
+    source_anchors = (
+        tuple(
+            replace(
+                anchor,
+                target_kind=None,
+                attaches_to_fact_id=None,
+                placement="standalone",
+                visibility="excluded",
+            )
+            for anchor in frontend.lower(source_markdown_documents).target_anchors
+        )
+        if source_markdown_documents
+        else ()
+    )
+    if source_anchors:
+        snapshot = replace(
+            snapshot,
+            target_anchors=(*snapshot.target_anchors, *source_anchors),
+        )
+    latex_math_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.LATEX
+        and config.profile.name in {"math-accessibility", "typst-portability"}
+    )
+    if latex_math_documents:
+        latex_math = frontend.lower(latex_math_documents)
+        snapshot = replace(
+            snapshot,
+            inline_math=(*snapshot.inline_math, *latex_math.inline_math),
+            display_math=(*snapshot.display_math, *latex_math.display_math),
+        )
+    if (
+        config.profile.name
+        in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
+        and notebook_documents
+    ):
+        notebook_snapshot = NotebookFrontend(workspace=workspace).lower(
+            notebook_documents,
+            parsed=parsed_notebooks,
+        )
+        snapshot = replace(
+            snapshot,
+            documents=tuple(documents),
+            code_cells=(*snapshot.code_cells, *notebook_snapshot.code_cells),
+            notebook_outputs=notebook_snapshot.notebook_outputs,
+            generic_refs=(*snapshot.generic_refs, *notebook_snapshot.generic_refs),
+            equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
+            equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
+            crossref_metadata=(
+                *snapshot.crossref_metadata,
+                *notebook_snapshot.crossref_metadata,
+            ),
+        )
+    source_label_facts = _source_label_facts(documents, source_labels, config)
+    source_reference_facts = _source_reference_facts(documents, source_references, config)
+    if source_label_facts or source_reference_facts:
+        snapshot = replace(
+            snapshot,
+            equation_labels=(*snapshot.equation_labels, *source_label_facts),
+            equation_refs=(*snapshot.equation_refs, *source_reference_facts),
+        )
+    # Full-input membership was validated by check_documents; this snapshot may
+    # intentionally contain only profile-supported document kinds.
+    profile_paths = {workspace.normalize_project_path(document.path) for document in documents}
+    profile_visibility: dict[str, TargetVisibility] = {
+        path: state
+        for path, state in config.project.visibility
+        if normalize_project_path(path) in profile_paths
+    }
+    snapshot = replace(snapshot, documents=tuple(documents))
+    snapshot = replace(
+        snapshot,
+        inline_math=_apply_accessibility_metadata(
+            snapshot.inline_math,
+            accessibility_metadata,
+        ),
+    )
+    snapshot = MathHost().classify(snapshot)
+    snapshot = workspace.apply_visibility(
+        snapshot,
+        profile_visibility,
+    )
+    if source_only_document_ids:
+        snapshot = replace(
+            snapshot,
+            target_anchors=tuple(
+                replace(anchor, visibility="excluded")
+                if anchor.document_id in source_only_document_ids
+                else anchor
+                for anchor in snapshot.target_anchors
+            ),
+        )
+    snapshot = replace(
+        snapshot,
+        reference_display_text=reference_display_text_facts(
+            snapshot.generic_refs,
+            snapshot.equation_refs,
+            snapshot.target_anchors,
+            snapshot.equation_labels,
+            snapshot.code_cells,
+            project_members=snapshot.project_members,
+        ),
+    )
+    if config.profile.name != "generated-myst":
+        return snapshot
+    provenance = tuple(
+        GeneratedProvenanceFact(
+            fact_id=f"{document.path.as_posix()}::generated-provenance",
+            document_id=document.path.as_posix(),
+            span=None,
+            raw=None,
+            confidence="generated",
+            generated_document_id=document.path.as_posix(),
+            source_document_id=document.origin.source_document_id,
+            source_kind=(
+                document.origin.source_kind
+                if document.origin.source_kind is not None
+                else config.profile.source_kind
+            ),
+            conversion_stage=(
+                document.origin.conversion_stage
+                if document.origin.conversion_stage is not None
+                else config.profile.conversion_stage
+            ),
+            source_sha=document.origin.source_sha,
+            tool=document.origin.tool,
+            tool_version=document.origin.tool_version,
+            preserved_anchor_inventory=document.origin.preserved_anchor_inventory,
+        )
+        for document in documents
+        if document.origin is not None
+    )
+    return replace(snapshot, generated_provenance=provenance)
+
+
+def _apply_accessibility_metadata(
+    inline_math: Sequence[InlineMathFact],
+    metadata: Mapping[str, str] | None,
+) -> tuple[InlineMathFact, ...]:
+    if metadata is None:
+        return tuple(inline_math)
+    known_ids = {fact.accessibility_id for fact in inline_math if fact.accessibility_id is not None}
+    unknown_ids = sorted(set(metadata) - known_ids)
+    if unknown_ids:
+        raise ValueError(
+            "accessibility metadata references unknown inline math fact(s): "
+            + ", ".join(unknown_ids)
+        )
+    return tuple(
+        replace(
+            fact,
+            alt=(metadata[fact.accessibility_id].strip() or None)
+            if fact.accessibility_id is not None and fact.accessibility_id in metadata
+            else fact.alt,
+        )
+        for fact in inline_math
+    )
+
+
+_SOURCE_REFERENCE_KINDS = {
+    ReferenceSource.MYST_EQ_ROLE: "eq",
+    ReferenceSource.MYST_NUMREF_ROLE: "numref",
+    ReferenceSource.LATEX_REF: "tex-ref",
+    ReferenceSource.LATEX_EQREF: "tex-eqref",
+}
+
+
+def _source_label_facts(
+    documents: Sequence[SourceDocument],
+    source_labels: Sequence[EquationLabel] | None,
+    config: Config,
+) -> tuple[EquationLabelFact, ...]:
+    if config.profile.name != "cross-format-references":
+        return ()
+    source_ids = {
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
+    }
+    if not source_ids:
+        return ()
+    labels = source_labels
+    if labels is None:
+        labels = tuple(
+            label
+            for document in documents
+            if document.kind is DocumentKind.LATEX
+            for label in LatexScanner().scan(document, config).labels
+        )
+    facts: list[EquationLabelFact] = []
+    for label in labels:
+        if label.span.path.as_posix() not in source_ids:
+            continue
+        span = label.span
+        cell = span.cell if span.cell is not None else -1
+        normalized_label = label.label.strip()
+        if normalized_label.startswith("#"):
+            normalized_label = normalized_label[1:]
+        facts.append(
+            EquationLabelFact(
+                fact_id=f"{span.path.as_posix()}::source-label::{cell}:{span.start}",
+                document_id=span.path.as_posix(),
+                span=span,
+                raw=label.label,
+                label=label.label,
+                normalized_label=normalized_label,
+                label_syntax_kind=label.source.value,
+                source_block_id=label.block_id,
+                label_span=span,
+            )
+        )
+    return tuple(facts)
+
+
+def _source_reference_facts(
+    documents: Sequence[SourceDocument],
+    source_references: Sequence[EquationReference] | None,
+    config: Config,
+) -> tuple[EquationRefFact, ...]:
+    """Carry scanner-owned raw-LaTeX equation references into the snapshot."""
+
+    if config.profile.name != "cross-format-references":
+        return ()
+    source_ids = {
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
+    }
+    if not source_ids:
+        return ()
+    references = source_references
+    if references is None:
+        references = tuple(
+            reference
+            for document in documents
+            if document.kind is DocumentKind.LATEX
+            for reference in LatexScanner().scan(document, config).references
+        )
+    facts: list[EquationRefFact] = []
+    for reference in references:
+        if reference.span.path.as_posix() not in source_ids:
+            continue
+        ref_kind = _SOURCE_REFERENCE_KINDS.get(reference.source)
+        target = reference.target.strip()
+        if ref_kind is None or not target:
+            continue
+        span = reference.span
+        cell = span.cell if span.cell is not None else -1
+        fact_id = f"{span.path.as_posix()}::source-reference::{cell}:{span.start}"
+        facts.append(
+            EquationRefFact(
+                fact_id=fact_id,
+                document_id=span.path.as_posix(),
+                span=span,
+                raw=reference.raw,
+                ref_kind=ref_kind,
+                target=target,
+                normalized_target=target[1:] if target.startswith("#") else target,
+                role_span=span,
+            )
+        )
+    return tuple(facts)
 
 
 def graph_paths(
@@ -264,12 +706,21 @@ def graph_documents(
     config: Config,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
+    members, _hidden_excluded = WorkspaceHost(project_root=config.project.root).project_facts(
+        documents,
+        dict(config.project.visibility),
+    )
+    excluded_documents = {
+        member.document_id for member in members if member.visibility == "excluded"
+    }
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     for document in documents:
+        if document.path.as_posix() in excluded_documents:
+            continue
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
@@ -334,6 +785,7 @@ def _load_source(
     *,
     absolute_paths: bool,
     consumed_inputs: list[ConsumedInput],
+    origin: SourceOrigin | None = None,
 ) -> SourceDocument:
     kind = _document_kind(path)
     if kind is DocumentKind.UNKNOWN:
@@ -345,6 +797,7 @@ def _load_source(
         _display_path(path, absolute_paths=absolute_paths),
         text,
         kind,
+        origin=origin,
     )
 
 
@@ -575,3 +1028,26 @@ def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, st
         diagnostic.code,
         diagnostic.message,
     )
+
+
+def _span_document_id(span: SourceSpan) -> str:
+    return span.path.as_posix()
+
+
+def _generated_source_only_document_ids(
+    documents: Sequence[SourceDocument],
+    config: Config,
+) -> frozenset[str]:
+    """Return inputs whose only declared role is source provenance for another input."""
+
+    if config.profile.name != "generated-myst":
+        return frozenset()
+    generated_ids = {
+        document.path.as_posix() for document in documents if document.origin is not None
+    }
+    source_ids = {
+        document.origin.source_document_id
+        for document in documents
+        if document.origin is not None and document.origin.source_document_id is not None
+    }
+    return frozenset(source_ids - generated_ids)

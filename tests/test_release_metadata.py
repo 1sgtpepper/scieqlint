@@ -6,6 +6,15 @@ import tomllib
 from pathlib import Path
 
 
+def _workflow_job(workflow: str, name: str) -> str:
+    marker = f"  {name}:\n"
+    start = workflow.index(marker)
+    match = re.search(r"\n  [a-z][a-z0-9-]*:\n", workflow[start + len(marker) :])
+    if match is None:
+        return workflow[start:]
+    return workflow[start : start + len(marker) + match.start()]
+
+
 def test_release_version_metadata_is_consistent() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
     init_tree = ast.parse(Path("src/scieqlint/__init__.py").read_text(encoding="utf-8"))
@@ -63,17 +72,26 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
 
     assert 'version("scieqlint")' in workflow
     assert "${GITHUB_REF_NAME#v}" in workflow
+    assert "sdist_version" in workflow
+    assert 'test "$sdist_version" = "$source_version"' in workflow
     assert "tests/test_accuracy_benchmarks.py" in workflow
     assert "tests/test_stabilization.py" in workflow
     smoke_start = workflow.index("\n  smoke:")
     publish_start = workflow.index("\n  publish:")
-    assert smoke_start < workflow.index("Verify source, wheel, and tag versions") < publish_start
+    assert (
+        smoke_start
+        < workflow.index("Verify source, wheel, source distribution, and tag versions")
+        < publish_start
+    )
     release_gate_start = workflow.index("Enforce stable-release accuracy")
     assert smoke_start < release_gate_start < publish_start
     release_gate = workflow[release_gate_start:publish_start]
-    assert "/tmp/scieqlint-release-smoke/bin/python -m pip install pytest" in release_gate
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pip install pytest" in release_gate
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pip install pytest" in release_gate
     assert "SCIEQLINT_RELEASE_GATE=1 python -m pytest" not in release_gate
-    assert "/tmp/scieqlint-release-smoke/bin/python -m pytest" in release_gate
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pytest" in release_gate
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pytest" in release_gate
+    assert release_gate.count("SCIEQLINT_RELEASE_GATE=1") == 2
     assert "-o pythonpath=" in release_gate
     assert "pip install -e" not in release_gate
     assert "PYTHONPATH=" not in release_gate
@@ -84,16 +102,35 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     )
 
 
-def test_stable_release_accuracy_gate_counts_executed_equation_fixtures() -> None:
-    accuracy_gate = Path("tests/test_accuracy_benchmarks.py").read_text(encoding="utf-8")
+def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
+    workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    build = _workflow_job(workflow, "build")
+    smoke = _workflow_job(workflow, "smoke")
+    publish = _workflow_job(workflow, "publish")
 
-    assert "result.math_blocks_checked > 0" in accuracy_gate
-    assert 'equation_fixture_ids.append(str(case["id"]))' in accuracy_gate
-    assert "assert len(equation_fixture_ids) >= 100" in accuracy_gate
-    assert "assert len(case_ids) >= 100" not in accuracy_gate
-    assert accuracy_gate.index("equation_fixture_ids.append") < accuracy_gate.index(
-        "assert len(equation_fixture_ids) >= 100"
-    )
+    assert workflow.count("uses: actions/upload-artifact@") == 1
+    assert "id: release-artifact" in build
+    assert "distribution_id: ${{ steps.release-artifact.outputs.artifact-id }}" in build
+    assert "distribution_digest" not in build
+    assert "if-no-files-found: error" in build
+
+    assert "needs: build" in smoke
+    assert "distribution_id: ${{ needs.build.outputs.distribution_id }}" in smoke
+    assert "artifact-ids: ${{ needs.build.outputs.distribution_id }}" in smoke
+    assert "Approve verified release artifact" not in smoke
+    assert "digest-mismatch" not in smoke
+    assert "name: dist" not in smoke
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pip install dist/*.whl" in smoke
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pip install dist/*.tar.gz" in smoke
+    assert "mechanics preset missing from installed sdist" in smoke
+
+    assert "needs: smoke" in publish
+    assert "artifact-ids: ${{ needs.smoke.outputs.distribution_id }}" in publish
+    assert "distribution_digest" not in publish
+    assert "digest-mismatch" not in publish
+    assert "name: dist" not in publish
+    assert "actions/checkout@" not in publish
+    assert "python -m build" not in publish
 
 
 def test_ci_test_matrix_covers_declared_python_versions() -> None:

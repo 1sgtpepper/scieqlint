@@ -88,6 +88,11 @@ CI instead of being advisory. It is currently the only accepted key under
 [project]
 root = "."
 order = ["symbols.md", "chapters/**/*.md"]
+code_cell_languages = ["python", "julia"]
+
+[project.visibility]
+"draft.md" = "hidden"
+"generated.md" = "excluded"
 ```
 
 `project.root` is resolved relative to the config file when a config path is
@@ -99,6 +104,18 @@ controls the analysis order of discovered files. When no paths are passed and
 `project.order` is non-empty, both commands discover those ordered project entries.
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
+
+`project.code_cell_languages` is an optional authoritative catalog for the
+`code-cell-metadata` profile. An empty list leaves syntactically valid language
+identifiers open; when the list is non-empty, a valid identifier not in the list is
+reported as unknown. The catalog does not execute cells or validate kernel-specific
+syntax.
+
+`project.visibility` applies the rendered-project state before legacy or profile
+reference checks. Omitted documents are visible. Hidden and excluded documents remain
+available as non-visible facts for diagnostics such as `REF008`, but their labels and
+labeled code cells cannot satisfy ordinary reference resolution. Visibility entries
+must match analyzed project members; unknown paths and visibility values are errors.
 
 `report.show_suppressed` controls text and JSON output. By default, suppressed
 diagnostics are hidden from text output, JSON diagnostics, and JSON summary
@@ -166,6 +183,78 @@ read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 
+
+## Validation profile
+
+```toml
+[profile]
+name = "generated-myst"
+source_kind = "jats-xml"
+conversion_stage = "xml-to-markdown"
+```
+
+The named profile is policy metadata consumed by the normal fact/query/engine
+pipeline. Unknown profile names and output targets are rejected rather than
+silently running a different rule set.
+
+- `generated-myst` enables generated-output diagnostics. `source_kind` and
+  `conversion_stage` are optional caller-supplied provenance; SciEqLint records
+  them but never reconstructs missing origin metadata.
+- `cross-format-references` enables equation-reference portability diagnostics
+  and requires `output_profile`. The accepted conservative targets are
+  `commonmark`, `myst`, `notebook`, and `typst`; it consumes Markdown/MyST, raw
+  LaTeX, and notebook Markdown-cell equation references. The profile does not
+  run an external renderer or claim output parity.
+- `math-accessibility` emits diagnostics for explicit inline-math facts that
+  lack accessible text metadata. It does not generate alternative text, infer
+  metadata from surrounding prose, or apply the policy by default.
+- `notebook-crossrefs` lowers notebook code-cell labels, `renderings`, caption
+  options, and output-boundary metadata. It warns when renderings are combined
+  with options that create a cross-reference, without executing the notebook.
+- `reference-display` warns when a resolved non-heading target relies on missing
+  or generic display text. Typed equation roles retain their numbered-display
+  intent, and the profile does not render final prose or impose a project-wide style guide.
+- `typst-portability` checks a focused set of display-math forms known to be
+  unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
+  and `aligned`, `array`, or `matrix` environments combined with TeX
+  `\left`/`\right` sizing. TeX-commented and escaped tokens are ignored. It does
+  not invoke Typst or translate equations.
+- `code-cell-metadata` includes notebook-derived cells, treats labeled code
+  cells as reference targets, and reports missing, unknown, or malformed
+  language metadata without executing cell contents. Language names are checked for
+  identifier syntax first and then against the optional authoritative
+  `project.code_cell_languages` catalog.
+
+Portability profiles accept an optional `severity` setting with one of
+`warning`, `error`, or `disabled`. It applies to diagnostics owned by that profile;
+when omitted, the diagnostic catalog default is used. `disabled` keeps source facts
+available to the profile snapshot but emits no diagnostics for that profile.
+
+The profile table does not enable scanner or parser defaults by itself; those
+defaults come from the packaged preset. The packaged `generated-myst` preset
+selects that profile as part of its documented workflow. Other profiles remain
+explicit project configuration.
+
+For example, to check reference syntax against plain CommonMark:
+
+```toml
+[profile]
+name = "cross-format-references"
+output_profile = "commonmark"
+severity = "warning"
+```
+
+The profile consumes caller-owned source mappings when the already-loaded-document
+API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,
+conversion_stage=..., preserved_anchor_inventory=...)` to each generated
+`SourceDocument`; the checker does not infer that mapping from filenames or
+document order. Per-document origin values take precedence over profile metadata,
+which allows one batch to carry heterogeneous source and conversion identities.
+For path-based checks using the `generated-myst` profile, normal source loading
+records the generated document and configured `source_kind`/
+`conversion_stage` as metadata-only provenance. It leaves `source_document_id`
+unknown, so anchor comparison still requires an explicit loaded-document origin.
+
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
@@ -173,10 +262,12 @@ override preset values.
 
 Available presets:
 
-- `generated-myst`: validates generated Markdown/MyST scientific output with
-  Markdown/MyST math fences, inline math, algebra checks, reference checks, and
-  strict parser unknowns enabled. Dimension checks stay in `auto` mode and run
-  only when the project adds `[vars]`.
+- `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
+  math, algebra, reference, and strict parser checks used by generated-document
+  workflows and selects the `generated-myst` validation profile. The profile
+  also enables generated-output checks.
+  Dimension checks stay in `auto` mode and run only when the project adds
+  `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
   `m`, `a`, `F`, and `E`.
 
@@ -202,18 +293,25 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
+The materialized file already contains the `[profile]` selection. Add optional
+source metadata to that existing table when the conversion pipeline supplies it;
+the path workflow does not infer source-document identity.
+
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[project.visibility]`, `[baseline]`,
+`[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.
-`[vars]` and `[aliases]` are dynamic mappings; their entries are validated as
-dimension names and aliases rather than as fixed option names.
+`[project.visibility]`, `[vars]`, and `[aliases]` are dynamic mappings; visibility
+entries are validated as project paths and allowed states, while variables and aliases
+are validated as dimension names and aliases rather than as fixed option names.
 
-The severity overrides and resource limits shown in `SPEC.md` are future
-specification surface, not accepted settings in the current loader. Use
+The global severity overrides and resource limits shown in `SPEC.md` are future
+specification surface, not accepted settings in the current loader. Profile-local
+portability severity is the current exception. Use
 documented CLI/config toggles such as `--strict-unknowns`,
 `[parser].strict_unknowns`, `[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables` for current behavior.

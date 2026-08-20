@@ -150,6 +150,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.1.0",
         "A MyST code-cell directive has no executable language argument.",
     ),
+    "DIR013": DiagnosticInfo(
+        "DIR013",
+        Severity.WARNING,
+        "code-cell language metadata is unknown or malformed",
+        "v1.1.0",
+        "A code-cell language value is malformed or is absent from the optional "
+        "project-authoritative language catalog.",
+    ),
     "DIR011": DiagnosticInfo(
         "DIR011",
         Severity.WARNING,
@@ -242,6 +250,38 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A source MyST target anchor expected by generated-output provenance is absent "
         "from the generated document.",
     ),
+    "GEN002": DiagnosticInfo(
+        "GEN002",
+        Severity.WARNING,
+        "generated math contains suspicious formula text",
+        "v1.1.0",
+        "An explicit generated-math container contains a high-confidence spaced-token "
+        "or garbled-marker artifact.",
+    ),
+    "GEN003": DiagnosticInfo(
+        "GEN003",
+        Severity.WARNING,
+        "nonstandard bracketed LaTeX display block",
+        "v1.1.0",
+        r"Generated Markdown contains a standalone \[...\] display block outside a "
+        "supported math container.",
+    ),
+    "GEN004": DiagnosticInfo(
+        "GEN004",
+        Severity.WARNING,
+        "generated output contains a formula placeholder",
+        "v1.1.0",
+        "Generated Markdown contains a formula-not-decoded marker, empty display math, "
+        "or a standalone formula image placeholder.",
+    ),
+    "GEN005": DiagnosticInfo(
+        "GEN005",
+        Severity.WARNING,
+        "standalone text block looks like an equation",
+        "v1.1.0",
+        "An isolated generated Markdown text item has high-confidence equation signals "
+        "but is not inside a math container.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,
@@ -276,6 +316,84 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "ambiguous generic reference target",
         "v1.1.0",
         "A supported MyST generic reference points to more than one target.",
+    ),
+    "REF011": DiagnosticInfo(
+        "REF011",
+        Severity.WARNING,
+        "ambiguous equation reference",
+        "v1.1.0",
+        "A supported equation reference points to more than one equation target.",
+    ),
+    "REF006": DiagnosticInfo(
+        "REF006",
+        Severity.WARNING,
+        "cross-reference path resolves differently after project normalization",
+        "v1.1.0",
+        "A local cross-document target resolves only after lexical project-path "
+        "normalization, such as removal of a './' component.",
+    ),
+    "REF007": DiagnosticInfo(
+        "REF007",
+        Severity.WARNING,
+        "conflicting cross-reference metadata",
+        "v1.1.0",
+        "Two source or engine-output boundaries describe the same logical target "
+        "with different reference kind or display metadata.",
+    ),
+    "REF008": DiagnosticInfo(
+        "REF008",
+        Severity.WARNING,
+        "equation reference matches a hidden or excluded target",
+        "v1.1.0",
+        "A rendered equation reference has matching target identity in a hidden or "
+        "excluded source, which can change project-level resolution.",
+    ),
+    "REF010": DiagnosticInfo(
+        "REF010",
+        Severity.WARNING,
+        "duplicate code-cell target label",
+        "v1.1.0",
+        "A code-cell label collides with another visible reference target.",
+    ),
+    "REF009": DiagnosticInfo(
+        "REF009",
+        Severity.WARNING,
+        "non-heading reference has missing or generic display text",
+        "v1.1.0",
+        "A resolved non-heading target relies on missing or generic display text under "
+        "the opt-in reference-display profile.",
+    ),
+    "PORT001": DiagnosticInfo(
+        "PORT001",
+        Severity.WARNING,
+        "equation reference syntax may not survive configured output profile",
+        "v1.1.0",
+        "An equation reference uses source syntax outside the configured output "
+        "profile's conservative portability baseline.",
+    ),
+    "PORT002": DiagnosticInfo(
+        "PORT002",
+        Severity.WARNING,
+        "inline math lacks accessible text metadata",
+        "v1.1.0",
+        "An explicit inline-math span has no accessible text in the lowered "
+        "source facts for the selected accessibility profile.",
+    ),
+    "PORT003": DiagnosticInfo(
+        "PORT003",
+        Severity.WARNING,
+        "equation syntax may not survive Typst export",
+        "v1.1.0",
+        "A focused TeX display-math form is known to be unsupported or fragile "
+        "in current Typst publishing paths.",
+    ),
+    "PORT004": DiagnosticInfo(
+        "PORT004",
+        Severity.WARNING,
+        "cell renderings are incompatible with cross-reference options",
+        "v1.1.0",
+        "A notebook or executable Markdown cell combines renderings with a label or "
+        "caption option that creates a cross-reference.",
     ),
     "SUP001": DiagnosticInfo(
         "SUP001",

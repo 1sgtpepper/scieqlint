@@ -32,12 +32,18 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-Generated or MyST-heavy docs can use the packaged profile:
+Generated or MyST-heavy docs can materialize the generated-document preset. The
+preset selects `generated-myst` and keeps the existing scientific checks enabled:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
 ```
+
+The materialized config already contains `[profile] name = "generated-myst"`.
+Path-based checks retain configured generated-document provenance without
+inferring a source document; use an explicit `SourceOrigin` through the loaded-
+document API when preserved-anchor comparison is required.
 
 ## Read next
 

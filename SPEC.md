@@ -111,7 +111,7 @@ A release is done only when all of the following are true:
 - golden fixtures lock expected output,
 - the diagnostic catalog and schemas are updated when applicable,
 - issue labels and starter issues reflect the current release scope,
-- a clean wheel install smoke test passes,
+- clean wheel and source-distribution install smoke tests pass,
 - release notes explicitly list deferred scope.
 
 A feature without docs and fixtures is not shipped.
@@ -154,7 +154,7 @@ Ships:
 - CLI commands exist: `check`, `init`, `demo`, `explain`.
 - `check` can discover files and return “no checks implemented” without crashing.
 - Config defaults load.
-- Ruff, Pyright, pytest, wheel build, wheel install smoke.
+- Ruff, Pyright, pytest, wheel and source-distribution build/install smoke.
 - `py.typed` included.
 - `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, and `MAINTAINERS.md` exist.
 - GitHub issue templates and PR template exist.
@@ -988,7 +988,7 @@ v1.0.0 ships only when:
 - compatibility matrix is green,
 - accuracy benchmark summary is published,
 - performance budgets are met,
-- at least 100 documented equation fixtures exist.
+- at least 100 independently labeled semantic equations execute through the public analysis path.
 
 v1.0.0 must not be date-shipped if these conditions are not met.
 
@@ -1869,10 +1869,12 @@ files = ["build/**", "dist/**", ".venv/**"]
 
 This is a future schema sketch, not a complete current configuration file. The
 v1.1.0 loader accepts only the documented fixed schema: `[project]`,
-`[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
+`[project.visibility]`, `[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
 `[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
 `[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
-`[vars]` and `[aliases]` remain dynamic mappings.
+`[project.visibility]`, `[vars]`, and `[aliases]` remain dynamic mappings.
+The current `[project]` table also accepts the optional `code_cell_languages`
+catalog used by the code-cell metadata profile.
 
 v0.1.2 adds:
 
@@ -2060,27 +2062,22 @@ Golden tests must be stable across operating systems.
 
 ### Accuracy benchmark fixtures
 
-v0.1.0 includes a small deterministic accuracy benchmark set:
+The current corpus is a strict, versioned JSON document:
 
 ```text
-benchmarks/accuracy/
-  algebra.yml
-  references.yml
-  parse_unknown.yml
-```
-
-v0.1.2 adds:
-
-```text
-benchmarks/accuracy/dimensions.yml
+benchmarks/accuracy/corpus-v1.json
 ```
 
 Rules:
 
-- Each benchmark case has input, config if needed, expected diagnostic codes, and expected pass/fail status.
+- The top-level object and every case, document, and config object reject missing, unknown, and duplicate fields.
+- Each case records a positive or negative label, target rule, source format, scientific domain, provenance, and license or synthetic status. Only a non-synthetic case with an explicit `independent_equation_id` contributes to the stable independent-equation count; wrappers and synthetic fixtures remain executable coverage, not accuracy evidence.
+- Expected diagnostic codes and pass/fail status are human-authored and every case runs through the public analysis path.
 - Benchmarks must run in PR CI as ordinary fast tests.
 - Release notes should report benchmark count and changed expectations.
 - Benchmark cases must be small and license-safe.
+- The checked-in corpus currently has no independently labeled equation evidence, so the stable release gate remains disabled by default and fails closed when explicitly enabled.
+- Canary differentials and precision/recall gates require a larger independently labeled corpus and measured baseline variance.
 
 ### Coverage gates
 
@@ -2181,7 +2178,7 @@ Every release must include:
 - JSON/SARIF schema update when needed,
 - accuracy benchmark update when expectations change,
 - golden test update when output changes,
-- wheel install smoke test,
+- wheel and source-distribution install smoke tests,
 - package-data verification,
 - release notes with migration notes.
 
@@ -2754,7 +2751,7 @@ Package:
 - Accuracy benchmark summary published.
 - Performance budgets met.
 - Security/release docs complete.
-- At least 100 documented equation fixtures.
+- At least 100 independently labeled semantic equations execute through the public analysis path with their expected diagnostics and exit status.
 
 ---
 

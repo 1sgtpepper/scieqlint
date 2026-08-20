@@ -18,8 +18,14 @@ def test_catalog_has_core_codes() -> None:
         "SUP001",
         "SCAN010",
         "GEN001",
+        "GEN002",
+        "GEN003",
+        "GEN004",
+        "GEN005",
         "REF004",
         "REF005",
+        "REF011",
+        "REF008",
         "STR001",
         "STR002",
         "STR003",
@@ -30,6 +36,8 @@ def test_catalog_has_core_codes() -> None:
         "DIR010",
         "DIR011",
         "DIR012",
+        "DIR013",
+        "REF010",
     ]:
         assert code in CATALOG
         assert explain_code(code) is not None

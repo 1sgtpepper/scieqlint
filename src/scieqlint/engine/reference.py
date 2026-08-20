@@ -4,15 +4,169 @@ from __future__ import annotations
 
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.ir import DiagnosticIR
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.query.host import QueryHost
 
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF004", "REF005"})
+
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
+    rule_codes = frozenset(
+        {
+            "REF001",
+            "REF002",
+            "REF004",
+            "REF005",
+            "REF006",
+            "REF007",
+            "REF008",
+            "REF009",
+            "REF010",
+            "REF011",
+        }
+    )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
+        duplicate_equation_info = CATALOG["REF001"]
+        duplicate_targets = query.references.duplicate_equation_targets().values()
+        for same_name in sorted(duplicate_targets, key=lambda facts: _fact_source_key(facts[0])):
+            for duplicate in sorted(same_name, key=_fact_source_key)[1:]:
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=duplicate_equation_info.code,
+                        severity_default=duplicate_equation_info.severity,
+                        message=(f"{duplicate_equation_info.message}: {duplicate.label}"),
+                        span=duplicate.label_span or duplicate.span,
+                        rule="references",
+                        false_positive_risk="low",
+                    )
+                )
+        duplicate_cell_info = CATALOG["REF010"]
+        target_index = query.references.target_index()
+        for target, duplicates in query.references.duplicate_code_cell_targets().items():
+            facts = tuple(sorted(target_index[target], key=lambda fact: fact.fact_id))
+            for duplicate in duplicates:
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=duplicate_cell_info.code,
+                        severity_default=duplicate_cell_info.severity,
+                        message=f"{duplicate_cell_info.message}: {target}",
+                        span=duplicate.label_span or duplicate.span,
+                        rule="references.code_cell_target",
+                        false_positive_risk="low",
+                        provenance_ids=tuple(fact.fact_id for fact in facts),
+                        properties=(
+                            ("target", target),
+                            ("target_count", str(len(facts))),
+                        ),
+                    )
+                )
+        missing_equation_info = CATALOG["REF002"]
+        for ref in query.references.unresolved_equation_refs():
+            diagnostics.append(
+                DiagnosticIR(
+                    code=missing_equation_info.code,
+                    severity_default=missing_equation_info.severity,
+                    message=f"{missing_equation_info.message}: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=f"reference text: {ref.raw}",
+                    rule="references",
+                    false_positive_risk="low",
+                )
+            )
+        ambiguous_equation_info = CATALOG["REF011"]
+        for ref in sorted(
+            query.references.ambiguous_equation_refs(),
+            key=_fact_source_key,
+        ):
+            diagnostics.append(
+                DiagnosticIR(
+                    code=ambiguous_equation_info.code,
+                    severity_default=ambiguous_equation_info.severity,
+                    message=f"{ambiguous_equation_info.message}: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=f"reference text: {ref.raw}",
+                    rule="references.equation_target_ambiguous",
+                    false_positive_risk="low",
+                )
+            )
+        nonvisible_info = CATALOG["REF008"]
+        for impact in query.references.nonvisible_equation_target_impacts():
+            ref = impact.reference
+            hidden_documents = tuple(
+                dict.fromkeys(label.document_id for label in impact.hidden_targets)
+            )
+            excluded_documents = tuple(
+                dict.fromkeys(label.document_id for label in impact.excluded_targets)
+            )
+            diagnostics.append(
+                DiagnosticIR(
+                    code=nonvisible_info.code,
+                    severity_default=nonvisible_info.severity,
+                    message=f"{nonvisible_info.message}: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=(
+                        f"visible targets={len(impact.visible_targets)}; "
+                        f"hidden targets={list(hidden_documents)!r}; "
+                        f"excluded targets={list(excluded_documents)!r}"
+                    ),
+                    hint=(
+                        "Rename the non-visible target or make its source visible in "
+                        "the rendered project."
+                    ),
+                    rule="references.nonvisible_equation_target",
+                    false_positive_risk="low",
+                    provenance_ids=(
+                        ref.fact_id,
+                        *(label.fact_id for label in impact.hidden_targets),
+                        *(label.fact_id for label in impact.excluded_targets),
+                    ),
+                    properties=(
+                        ("target", ref.normalized_target),
+                        ("visible_target_count", str(len(impact.visible_targets))),
+                        ("hidden_target_count", str(len(impact.hidden_targets))),
+                        ("excluded_target_count", str(len(impact.excluded_targets))),
+                        ("hidden_documents", ",".join(hidden_documents)),
+                        ("excluded_documents", ",".join(excluded_documents)),
+                    ),
+                )
+            )
+        if self.profile == "reference-display":
+            display_info = CATALOG["REF009"]
+            for issue in query.references.unclear_nonheading_display_text():
+                fact = issue.fact
+                rendered = fact.explicit_text if fact.explicit_text is not None else ""
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=display_info.code,
+                        severity_default=display_info.severity,
+                        message=f"{display_info.message}: {fact.normalized_target}",
+                        span=fact.display_text_span or fact.span,
+                        detail=(
+                            f"target_type={fact.target_type!r}; "
+                            f"reference_kind={fact.reference_kind!r}; "
+                            f"display_text={rendered!r}; reason={issue.reason!r}"
+                        ),
+                        hint="Provide descriptive display text for this non-heading target.",
+                        rule="references.display_text",
+                        profile_gated=True,
+                        false_positive_risk="medium",
+                        profile=self.profile,
+                        provenance_ids=(fact.source_fact_id, fact.fact_id, *fact.target_fact_ids),
+                        properties=(
+                            ("target", fact.normalized_target),
+                            ("target_type", fact.target_type or ""),
+                            ("reference_kind", fact.reference_kind),
+                            ("display_intent", fact.display_intent),
+                            ("display_text", rendered),
+                            ("reason", issue.reason),
+                        ),
+                    )
+                )
         missing_info = CATALOG["REF004"]
         for ref in query.references.unresolved_generic_refs():
             if ref.role_kind != "ref":
@@ -26,6 +180,79 @@ class ReferenceEngine:
                     detail=f"reference text: {ref.raw}",
                     rule="references.generic_target",
                     false_positive_risk="low",
+                )
+            )
+        metadata_info = CATALOG["REF007"]
+        for target, facts in query.references.conflicting_metadata():
+            canonical = facts[0]
+            canonical_kind = canonical.target_kind
+            canonical_metadata = canonical.target_metadata
+            canonical_signature = (canonical_kind, tuple(sorted(canonical_metadata)))
+            for fact in facts:
+                fact_kind = fact.target_kind
+                fact_metadata = fact.target_metadata
+                signature = (fact_kind, tuple(sorted(fact_metadata)))
+                if signature == canonical_signature:
+                    continue
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=metadata_info.code,
+                        severity_default=metadata_info.severity,
+                        message=f"{metadata_info.message}: {target}",
+                        span=fact.target_span or fact.span,
+                        detail=(
+                            f"{fact.output_boundary!r} reports "
+                            f"kind={fact_kind!r}, "
+                            f"format={fact.source_format!r}, "
+                            f"metadata={dict(fact_metadata)!r}; "
+                            f"canonical boundary {canonical.output_boundary!r} reports "
+                            f"kind={canonical_kind!r}, "
+                            f"format={canonical.source_format!r}, "
+                            f"metadata={dict(canonical_metadata)!r}"
+                        ),
+                        hint="Use consistent cross-reference metadata for this target.",
+                        rule="references.crossref_metadata_conflict",
+                        false_positive_risk="low",
+                        provenance_ids=(canonical.fact_id, fact.fact_id),
+                        properties=(
+                            ("target", target),
+                            ("output_boundary", fact.output_boundary),
+                            ("target_kind", fact_kind),
+                            ("source_format", fact.source_format),
+                            ("canonical_boundary", canonical.output_boundary),
+                            ("canonical_target_kind", canonical_kind),
+                            ("canonical_source_format", canonical.source_format),
+                        ),
+                    )
+                )
+        normalized_path_info = CATALOG["REF006"]
+        for (
+            ref,
+            raw_matches,
+            normalized_matches,
+        ) in query.references.path_normalization_mismatches():
+            assert ref.resolved_raw_target_path is not None
+            assert ref.normalized_target_path is not None
+            diagnostics.append(
+                DiagnosticIR(
+                    code=normalized_path_info.code,
+                    severity_default=normalized_path_info.severity,
+                    message=(f"{normalized_path_info.message}: {ref.resolved_raw_target_path}"),
+                    span=ref.target_span or ref.span,
+                    detail=(
+                        f"raw matches={list(raw_matches)!r}; normalized "
+                        f"{ref.normalized_target_path.as_posix()!r} "
+                        f"matches={list(normalized_matches)!r}"
+                    ),
+                    hint="Use the normalized project-relative path spelling.",
+                    rule="references.project_path_normalization",
+                    false_positive_risk="low",
+                    properties=(
+                        ("raw_path", ref.resolved_raw_target_path),
+                        ("normalized_path", ref.normalized_target_path.as_posix()),
+                        ("raw_match_count", str(len(raw_matches))),
+                        ("normalized_match_count", str(len(normalized_matches))),
+                    ),
                 )
             )
         ambiguous_info = CATALOG["REF005"]
@@ -44,3 +271,15 @@ class ReferenceEngine:
                 )
             )
         return tuple(diagnostics)
+
+
+def _fact_source_key(
+    fact: EquationLabelFact | EquationRefFact,
+) -> tuple[str, int, int, str]:
+    span = fact.label_span if isinstance(fact, EquationLabelFact) else fact.target_span or fact.span
+    return (
+        fact.document_id,
+        -1 if span is None else span.start,
+        -1 if span is None else span.end,
+        fact.fact_id,
+    )

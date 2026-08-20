@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from scieqlint.diag.model import SourceSpan
-from scieqlint.io.source import SourceDocument
+from scieqlint.io.source import SourceDocument, SourceOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +41,7 @@ class SourceMap:
 
     identity: SourceIdentity
     document: SourceDocument
+    origin: SourceOrigin | None = None
 
     @classmethod
     def for_document(cls, document: SourceDocument) -> SourceMap:
@@ -49,8 +50,10 @@ class SourceMap:
                 document_id=document.path.as_posix(),
                 path=document.path,
                 kind=document.kind.value,
+                generated=document.origin is not None,
             ),
             document,
+            document.origin,
         )
 
     def span(self, start: int, end: int) -> SourceSpan:

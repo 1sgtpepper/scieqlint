@@ -12,9 +12,21 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import code_fence_ranges, markdown_reference_snapshot
+from scieqlint.io.workspace import WorkspaceHost
+from scieqlint.markdown import (
+    code_fence_ranges,
+    inline_code_ranges,
+    markdown_reference_snapshot,
+)
 from scieqlint.source.maps import SourceMap
 
+from .crossref import crossref_metadata_facts
+from .generated import (
+    scan_bracketed_latex_blocks,
+    scan_equation_like_text_items,
+    scan_formula_candidates,
+    scan_formula_placeholders,
+)
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
@@ -31,9 +43,15 @@ from .myst_headings import (
     scan_headings,
     sections_for_headings,
 )
-from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math
+from .myst_math import (
+    math_occupied_ranges,
+    scan_display_math,
+    scan_inline_math,
+    scan_raw_latex_math,
+)
 from .myst_refs import scan_refs
-from .myst_shared import line_ranges
+from .myst_shared import dollar_display_ranges, line_ranges
+from .reference_display import reference_display_text_facts
 
 _directive_option_prefix_lines = directive_option_prefix_lines
 _myst_options = myst_options
@@ -44,22 +62,44 @@ _is_immediate_attachment = is_immediate_attachment
 class MySTFrontend:
     """Lower source documents into a ``FactSnapshot`` without diagnostics."""
 
+    def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
+        self.workspace = workspace or WorkspaceHost()
+
     def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
-        parts = tuple(_lower_document(document) for document in documents)
+        documents = tuple(documents)
+        parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
+        target_anchors = _flatten(parts, "target_anchors")
+        generic_refs = _flatten(parts, "generic_refs")
+        equation_labels = _flatten(parts, "equation_labels")
+        equation_refs = _flatten(parts, "equation_refs")
+        inline_math = _flatten(parts, "inline_math")
+        project_members, _hidden_excluded = self.workspace.project_facts(documents)
         return FactSnapshot(
-            documents=tuple(documents),
+            documents=documents,
             headings=_flatten(parts, "headings"),
             sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),
             directives=_flatten(parts, "directives"),
             code_cells=_flatten(parts, "code_cells"),
             structure_syntax_issues=_flatten(parts, "structure_syntax_issues"),
-            target_anchors=_flatten(parts, "target_anchors"),
-            generic_refs=_flatten(parts, "generic_refs"),
-            equation_labels=_flatten(parts, "equation_labels"),
-            equation_refs=_flatten(parts, "equation_refs"),
-            inline_math=_flatten(parts, "inline_math"),
+            target_anchors=target_anchors,
+            generic_refs=generic_refs,
+            equation_labels=equation_labels,
+            equation_refs=equation_refs,
+            crossref_metadata=_flatten(parts, "crossref_metadata"),
+            reference_display_text=reference_display_text_facts(
+                generic_refs,
+                equation_refs,
+                target_anchors,
+                equation_labels,
+                _flatten(parts, "code_cells"),
+                project_members=project_members,
+            ),
+            inline_math=inline_math,
             display_math=_flatten(parts, "display_math"),
+            unknown_math=_flatten(parts, "unknown_math"),
+            generated_formulas=_flatten(parts, "generated_formulas"),
+            project_members=project_members,
         )
 
 
@@ -70,7 +110,7 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
     return tuple(items)
 
 
-def _lower_document(document: SourceDocument) -> FactSnapshot:
+def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> FactSnapshot:
     smap = SourceMap.for_document(document)
     lines = line_ranges(document.text)
     reference_snapshot = markdown_reference_snapshot(document.text)
@@ -89,18 +129,103 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
     target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
     sections = tuple(sections_for_headings(headings))
-    display_math, equation_labels = scan_display_math(
+    dollar_displays = dollar_display_ranges(
+        document.text,
+        reference_snapshot.link_metadata_ranges,
+    )
+    display_math, equation_labels, display_equation_refs = scan_display_math(
         document,
         smap,
         fences,
-        reference_snapshot.link_metadata_ranges,
+        dollar_displays,
     )
-    generic_refs, equation_refs = scan_refs(document, smap, reference_snapshot)
+    raw_display_math, raw_labels, raw_refs = scan_raw_latex_math(
+        document,
+        smap,
+        (
+            *reference_snapshot.opaque_ranges,
+            *math_occupied_ranges(display_math),
+            *live_fence_ranges,
+            *inline_code_ranges(document.text),
+        ),
+    )
+    # Preserve the established fence-then-dollar fact ordering; raw-LaTeX facts
+    # extend that contract without reordering pre-existing buckets.
+    display_math = (*display_math, *raw_display_math)
+    equation_labels = (*equation_labels, *raw_labels)
+    generic_refs, prose_equation_refs = scan_refs(
+        document,
+        smap,
+        reference_snapshot,
+        workspace=workspace,
+    )
+    equation_refs = tuple(
+        sorted(
+            (*display_equation_refs, *raw_refs, *prose_equation_refs),
+            key=lambda fact: (
+                fact.span.start if fact.span is not None else -1,
+                fact.fact_id,
+            ),
+        )
+    )
+    crossref_metadata = crossref_metadata_facts(
+        document,
+        target_anchors=target_anchors,
+        equation_labels=equation_labels,
+        code_cells=code_cells,
+    )
     inline_math = tuple(
         scan_inline_math(
             document,
             smap,
             (*math_occupied_ranges(display_math), *reference_snapshot.link_metadata_ranges),
+            (
+                *reference_snapshot.opaque_ranges,
+                *((token.start, token.end) for token in reference_snapshot.links),
+            ),
+        )
+    )
+    generated_formulas = scan_formula_candidates(
+        document,
+        inline_math,
+        display_math,
+    )
+    bracketed_blocks = scan_bracketed_latex_blocks(
+        document,
+        smap,
+        (
+            *reference_snapshot.opaque_ranges,
+            *math_occupied_ranges(display_math),
+            *((fact.span.start, fact.span.end) for fact in inline_math if fact.span is not None),
+        ),
+    )
+    placeholders = scan_formula_placeholders(
+        document,
+        smap,
+        inline_math,
+        display_math,
+        dollar_displays,
+        reference_snapshot.links,
+        reference_snapshot.opaque_ranges,
+        (*live_fence_ranges, *inline_code_ranges(document.text)),
+    )
+    equation_like_text = scan_equation_like_text_items(
+        document,
+        smap,
+        inline_math,
+        tuple(
+            (fact.span.start, fact.span.end)
+            for fact in (*bracketed_blocks, *placeholders)
+            if fact.span is not None
+        ),
+    )
+    generated_formulas = tuple(
+        sorted(
+            (*generated_formulas, *bracketed_blocks, *placeholders, *equation_like_text),
+            key=lambda fact: (
+                fact.span.start if fact.span is not None else -1,
+                fact.fact_id,
+            ),
         )
     )
     return FactSnapshot(
@@ -115,6 +240,9 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         generic_refs=generic_refs,
         equation_labels=equation_labels,
         equation_refs=equation_refs,
+        crossref_metadata=crossref_metadata,
         inline_math=inline_math,
         display_math=display_math,
+        unknown_math=(),
+        generated_formulas=generated_formulas,
     )

@@ -17,11 +17,18 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 
 ## Layer rules
 
-- Scanners extract math text, labels, references, and source spans. They do not parse expressions.
-- Parser returns AST or unknown diagnostics. It does not call SymPy.
+- Frontends extract lexical math candidates, labels, references, and source spans. They do not
+  assign final generated-formula kinds, classify AMS/unsupported math, or apply portability policy.
+- MathHost owns final math classification, parser recovery, macro scope facts, and Typst math
+  portability facts. It does not call SymPy.
+- WorkspaceHost owns project-relative identity and the configured membership/visibility projection.
+- PolicyHost owns output-profile support policy and diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
 - Generated-output checks consume explicit source-to-generated provenance facts;
-  the current CLI/config path does not infer or load translation provenance.
+  configured path ingress records the generated document plus profile metadata,
+  while loaded-document source mappings remain caller-supplied and are never
+  inferred. DiagnosticIR carries semantic provenance and SchemaHost owns public
+  projection names.
 - Graph export models are built from scanner label/reference outputs and do not rescan documents.
 - Reporters render diagnostics. They do not read files or run checks.
 - CLI owns command-line plumbing only.
