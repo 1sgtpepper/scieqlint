@@ -5,7 +5,13 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.load import load_config
-from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    ChecksConfig,
+    Config,
+    ProfileConfig,
+    ProjectConfig,
+)
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -17,10 +23,15 @@ def doc(text: str, path: str = "paper.md") -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
 
 
-def profile_config(name: str | None = "reference-display") -> Config:
+def profile_config(
+    name: str | None = "reference-display",
+    *,
+    project: ProjectConfig = ProjectConfig(),
+) -> Config:
     return Config(
         profile=ProfileConfig(name=name),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+        project=project,
     )
 
 
@@ -257,8 +268,9 @@ def test_display_uses_only_the_visible_cross_document_target() -> None:
     visible = check_documents((source, target), config=profile_config())
     hidden = check_documents(
         (source, target),
-        config=profile_config(),
-        project_visibility={"target.md": "hidden"},
+        config=profile_config(
+            project=ProjectConfig(visibility=(("target.md", "hidden"),)),
+        ),
     )
 
     visible_display = tuple(d for d in visible.diagnostics if d.code == "REF009")
