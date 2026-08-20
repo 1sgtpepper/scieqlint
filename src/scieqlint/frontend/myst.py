@@ -66,14 +66,16 @@ class MySTFrontend:
         self.workspace = workspace or WorkspaceHost()
 
     def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
+        documents = tuple(documents)
         parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         target_anchors = _flatten(parts, "target_anchors")
         generic_refs = _flatten(parts, "generic_refs")
         equation_labels = _flatten(parts, "equation_labels")
         equation_refs = _flatten(parts, "equation_refs")
         inline_math = _flatten(parts, "inline_math")
+        project_members = self.workspace.project_members(documents)
         return FactSnapshot(
-            documents=tuple(documents),
+            documents=documents,
             headings=_flatten(parts, "headings"),
             sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),
@@ -91,11 +93,13 @@ class MySTFrontend:
                 target_anchors,
                 equation_labels,
                 _flatten(parts, "code_cells"),
+                project_members=project_members,
             ),
             inline_math=inline_math,
             display_math=_flatten(parts, "display_math"),
             unknown_math=_flatten(parts, "unknown_math"),
             generated_formulas=_flatten(parts, "generated_formulas"),
+            project_members=project_members,
         )
 
 

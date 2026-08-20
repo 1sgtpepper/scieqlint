@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from scieqlint.diag.model import SourceSpan
+from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
@@ -14,6 +15,7 @@ from scieqlint.facts.reference import (
     ReferenceDisplayTextFact,
     TargetAnchorFact,
     TargetTypeSource,
+    normalized_reference_target,
 )
 from scieqlint.facts.structure import CodeCellFact
 
@@ -33,6 +35,7 @@ def reference_display_text_facts(
     target_anchors: Sequence[TargetAnchorFact],
     equation_labels: Sequence[EquationLabelFact],
     code_cells: Sequence[CodeCellFact] = (),
+    project_members: Sequence[ProjectMemberFact] = (),
 ) -> tuple[ReferenceDisplayTextFact, ...]:
     """Describe display text only after visible project targets are known."""
 
@@ -51,7 +54,7 @@ def reference_display_text_facts(
     for ref in generic_refs:
         if ref.visibility != "visible":
             continue
-        matched = tuple(sorted(targets.get(ref.normalized_target, ()), key=_target_key))
+        matched = _matched_targets(ref, targets, project_members)
         facts.append(
             _display_fact(
                 ref,
@@ -133,12 +136,13 @@ def _resolved_target_type(
     target = targets[0]
     if isinstance(target, EquationLabelFact):
         return "equation", "resolved"
-    if isinstance(target, TargetAnchorFact) and target.target_kind is not None:
+    if isinstance(target, TargetAnchorFact):
+        assert target.target_kind is not None
         return target.target_kind, "resolved"
     if isinstance(target, CodeCellFact):
         explicit = _explicit_code_cell_target_type(target)
         if explicit is not None:
-            return explicit, "explicit"
+            return explicit, "resolved"
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
         if lowered.startswith(prefix):
@@ -158,6 +162,35 @@ def _explicit_code_cell_target_type(cell: CodeCellFact) -> str | None:
         return "block"
     return None
 
+
+def _matched_targets(
+    ref: GenericRefFact,
+    targets: dict[str, list[TargetFact]],
+    project_members: Sequence[ProjectMemberFact],
+) -> tuple[TargetFact, ...]:
+    if ref.normalized_target_path is None:
+        return tuple(sorted(targets.get(ref.normalized_target, ()), key=_target_key))
+    identity = normalized_reference_target(ref)
+    if identity is None:
+        return ()
+    member_ids = {
+        member.document_id
+        for member in project_members
+        if (member.normalized_path or member.path) == identity[0]
+        and member.visibility == "visible"
+    }
+    if not member_ids:
+        return ()
+    return tuple(
+        sorted(
+            (
+                target
+                for target in targets.get(identity[1], ())
+                if target.document_id in member_ids
+            ),
+            key=_target_key,
+        )
+    )
 
 def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:
     span = fact.label_span or fact.span

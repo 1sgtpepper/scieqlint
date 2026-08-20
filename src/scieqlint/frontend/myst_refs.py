@@ -82,11 +82,16 @@ def _markdown_link_ref_fact(
     if title is not None:
         title_offset = document.text.find(title, token.label_start, token.label_end)
         title_span = smap.span(title_offset, title_offset + len(title))
-    if token.fragment_target is not None:
-        assert token.fragment_target_start is not None
-        assert token.fragment_target_end is not None
-        target_start = token.fragment_target_start
-        target = token.fragment_target
+    fragment = token.fragment_target
+    if project_target is not None:
+        fragment = project_target.fragment
+    if fragment is not None:
+        if token.fragment_target is not None:
+            assert token.fragment_target_start is not None
+            target_start = token.fragment_target_start
+        else:
+            target_start = token.destination_start
+        target = fragment
     else:
         target_start = token.destination_start
         target = token.destination
@@ -107,7 +112,7 @@ def _markdown_link_ref_fact(
             None if project_target is None else project_target.resolved_raw_path
         ),
         normalized_target_path=(None if project_target is None else project_target.normalized_path),
-        target_fragment=None if project_target is None else project_target.fragment,
+        target_fragment=fragment,
     )
 
 

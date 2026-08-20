@@ -7,15 +7,10 @@ from scieqlint.app import check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.engine.reference import ReferenceEngine
-from scieqlint.facts.reference import GenericRefFact, TargetAnchorFact
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.myst_refs import _role_title_span
-from scieqlint.frontend.myst_shared import ROLE_RE
-from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
-from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, path: str = "paper.md") -> SourceDocument:
@@ -161,55 +156,6 @@ def test_resolved_heading_kind_wins_over_figure_prefix_in_display_resolution() -
     assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
 
 
-def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
-    prefix_target = TargetAnchorFact(
-        fact_id="target-figure",
-        document_id="paper.md",
-        span=None,
-        label="fig-raw",
-        normalized_label="fig-raw",
-        target_kind=None,
-        attaches_to_fact_id=None,
-        placement="standalone",
-    )
-    unknown_target = TargetAnchorFact(
-        fact_id="target-unknown",
-        document_id="paper.md",
-        span=None,
-        label="custom-target",
-        normalized_label="custom-target",
-        target_kind=None,
-        attaches_to_fact_id=None,
-        placement="standalone",
-    )
-    refs = tuple(
-        GenericRefFact(
-            fact_id=f"ref-{target}",
-            document_id="paper.md",
-            span=None,
-            raw=None,
-            role_kind="ref",
-            target=target,
-            normalized_target=target,
-        )
-        for target in ("fig-raw", "custom-target")
-    )
-
-    facts = reference_display_text_facts(
-        refs,
-        (),
-        (prefix_target, unknown_target),
-        (),
-    )
-
-    assert [
-        (fact.normalized_target, fact.target_type, fact.target_type_source) for fact in facts
-    ] == [
-        ("custom-target", None, "unresolved"),
-        ("fig-raw", "figure", "inferred"),
-    ]
-
-
 def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() -> None:
     source = doc(
         "```{code-cell} python\n"
@@ -224,7 +170,22 @@ def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() ->
     [fact] = snapshot.reference_display_text
 
     assert fact.target_type == "table"
-    assert fact.target_type_source == "explicit"
+    assert fact.target_type_source == "resolved"
+
+
+def test_source_code_cell_label_uses_reachable_prefix_inference() -> None:
+    source = doc(
+        "```{code-cell} python\n"
+        ":label: fig-raw\n"
+        "value = 1\n"
+        "```\n\n"
+        "See [](#fig-raw).\n"
+    )
+
+    snapshot = MySTFrontend().lower((source,))
+
+    [fact] = snapshot.reference_display_text
+    assert (fact.target_type, fact.target_type_source) == ("figure", "inferred")
 
 
 def test_code_cell_listing_and_generic_caption_metadata_resolve_display_types() -> None:
@@ -247,17 +208,9 @@ def test_code_cell_listing_and_generic_caption_metadata_resolve_display_types() 
         (fact.normalized_target, fact.target_type, fact.target_type_source)
         for fact in snapshot.reference_display_text
     ] == [
-        ("lst-cell", "listing", "explicit"),
-        ("block-cell", "block", "explicit"),
+        ("lst-cell", "listing", "resolved"),
+        ("block-cell", "block", "resolved"),
     ]
-
-
-def test_unrepresentable_role_title_has_no_source_span() -> None:
-    document = doc("{ref}`Readable title <target>`")
-    match = ROLE_RE.search(document.text)
-
-    assert match is not None
-    assert _role_title_span(SourceMap.for_document(document), match, "not present") is None
 
 
 def test_reference_display_profile_is_opt_in_and_reports_exact_metadata() -> None:
@@ -295,6 +248,31 @@ def test_reference_display_profile_is_opt_in_and_reports_exact_metadata() -> Non
     assert projected["profile"] == "reference-display"
     assert projected["properties"]["target_type"] == "equation"
     assert projected["provenance_ids"] == list(diagnostics[1].provenance_ids)
+
+
+def test_display_uses_only_the_visible_cross_document_target() -> None:
+    source = doc("See [](target.md#eq-target).\n", "source.md")
+    target = doc("$$\nx = 1\n$$ {#eq-target}\n", "target.md")
+
+    visible = check_documents((source, target), config=profile_config())
+    hidden = check_documents(
+        (source, target),
+        config=profile_config(),
+        project_visibility={"target.md": "hidden"},
+    )
+
+    visible_display = tuple(d for d in visible.diagnostics if d.code == "REF009")
+    hidden_display = tuple(d for d in hidden.diagnostics if d.code == "REF009")
+    assert len(visible_display) == 1
+    assert dict(visible_display[0].properties) == {
+        "target": "eq-target",
+        "target_type": "equation",
+        "reference_kind": "markdown-link",
+        "display_intent": "target-default",
+        "display_text": "",
+        "reason": "missing",
+    }
+    assert hidden_display == ()
 
 
 def test_typed_equation_roles_and_unresolved_or_ambiguous_targets_stay_quiet() -> None:

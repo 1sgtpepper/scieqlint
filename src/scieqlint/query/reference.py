@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
 from scieqlint.facts.reference import (
     CrossrefMetadataFact,
@@ -12,6 +13,7 @@ from scieqlint.facts.reference import (
     GenericRefFact,
     ReferenceDisplayTextFact,
     TargetAnchorFact,
+    normalized_reference_target,
 )
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import CodeCellFact
@@ -67,17 +69,25 @@ class ReferenceQueryView:
 
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
-            label for label in self.snapshot.equation_labels if label.visibility == "visible"
+            label
+            for label in self.snapshot.equation_labels
+            if label.visibility == "visible" and self._document_is_visible(label.document_id)
         )
 
     def hidden_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
-            label for label in self.snapshot.equation_labels if label.visibility == "hidden"
+            label
+            for label in self.snapshot.equation_labels
+            if label.visibility == "hidden"
+            or self._document_visibility(label.document_id) == "hidden"
         )
 
     def excluded_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
-            label for label in self.snapshot.equation_labels if label.visibility == "excluded"
+            label
+            for label in self.snapshot.equation_labels
+            if label.visibility == "excluded"
+            or self._document_visibility(label.document_id) == "excluded"
         )
 
     def generic_refs(self) -> tuple[GenericRefFact, ...]:
@@ -140,12 +150,18 @@ class ReferenceQueryView:
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         index: dict[str, list[TargetFact]] = defaultdict(list)
         for anchor in self.snapshot.target_anchors:
-            if anchor.visibility != "visible" or anchor.placement == "orphaned":
+            if (
+                anchor.visibility != "visible"
+                or anchor.placement == "orphaned"
+                or not self._document_is_visible(anchor.document_id)
+            ):
                 continue
             index[anchor.normalized_label].append(anchor)
         for label in self.visible_equation_targets():
             index[label.normalized_label].append(label)
         for cell in self.visible_code_cell_targets():
+            if not self._document_is_visible(cell.document_id):
+                continue
             assert cell.normalized_label is not None
             index[cell.normalized_label].append(cell)
         return {key: tuple(value) for key, value in index.items()}
@@ -238,7 +254,9 @@ class ReferenceQueryView:
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
         targets = self.target_index()
         return tuple(
-            ref for ref in self.visible_generic_refs() if ref.normalized_target not in targets
+            ref
+            for ref in self.visible_generic_refs()
+            if not self._generic_ref_targets(ref, targets)
         )
 
     def ambiguous_generic_refs(self) -> tuple[GenericRefFact, ...]:
@@ -246,7 +264,7 @@ class ReferenceQueryView:
         return tuple(
             ref
             for ref in self.visible_generic_refs()
-            if len(targets.get(ref.normalized_target, ())) > 1
+            if len(self._generic_ref_targets(ref, targets)) > 1
         )
 
     def path_normalization_mismatches(
@@ -262,28 +280,71 @@ class ReferenceQueryView:
             normalized_members[normalized.as_posix()].append(member.document_id)
 
         mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
+        target_index = self.target_index()
         for ref in self.visible_generic_refs():
             if ref.resolved_raw_target_path is None or ref.normalized_target_path is None:
+                continue
+            identity = normalized_reference_target(ref)
+            if identity is None:
                 continue
             raw_matches = tuple(raw_members.get(ref.resolved_raw_target_path, ()))
             normalized_matches = tuple(
                 normalized_members.get(ref.normalized_target_path.as_posix(), ())
             )
-            if raw_matches != normalized_matches and normalized_matches:
+            normalized_targets = tuple(
+                fact
+                for fact in target_index.get(identity[1], ())
+                if fact.document_id in normalized_matches
+            )
+            raw_targets = tuple(
+                fact
+                for fact in target_index.get(identity[1], ())
+                if fact.document_id in raw_matches
+            )
+            if raw_targets != normalized_targets and normalized_targets:
                 mismatches.append((ref, raw_matches, normalized_matches))
         return tuple(mismatches)
+
+    def _generic_ref_targets(
+        self,
+        ref: GenericRefFact,
+        target_index: dict[str, tuple[TargetFact, ...]],
+    ) -> tuple[TargetFact, ...]:
+        if ref.normalized_target_path is None:
+            return target_index.get(ref.normalized_target, ())
+        identity = normalized_reference_target(ref)
+        if identity is None:
+            return ()
+        member_ids = self._member_document_ids(identity[0])
+        if not member_ids:
+            return ()
+        return tuple(
+            target
+            for target in target_index.get(identity[1], ())
+            if target.document_id in member_ids
+        )
+
+    def _member_document_ids(self, normalized_path: PurePosixPath) -> frozenset[str]:
+        return frozenset(
+            member.document_id
+            for member in self.snapshot.project_members
+            if (member.normalized_path or member.path) == normalized_path
+            and self._document_is_visible(member.document_id)
+        )
+
+    def _document_visibility(self, document_id: str) -> str:
+        for member in self.snapshot.project_members:
+            if member.document_id != document_id:
+                continue
+            return member.visibility
+        return "visible"
+
+    def _document_is_visible(self, document_id: str) -> bool:
+        return self._document_visibility(document_id) == "visible"
 
     def orphaned_targets(self) -> tuple[TargetAnchorFact, ...]:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
-        )
-
-    def _document_is_visible(self, document_id: str) -> bool:
-        if not self.snapshot.project_members:
-            return True
-        return any(
-            member.document_id == document_id and member.visibility == "visible"
-            for member in self.snapshot.project_members
         )
 
 

@@ -380,6 +380,14 @@ def _generated_profile_snapshot(
         if workspace.normalize_project_path(path) in profile_paths
     }
     snapshot = replace(snapshot, documents=tuple(documents))
+    snapshot = replace(
+        snapshot,
+        inline_math=_apply_accessibility_metadata(
+            snapshot.inline_math,
+            accessibility_metadata,
+        ),
+    )
+    snapshot = MathHost().classify(snapshot)
     snapshot = workspace.apply_visibility(
         snapshot,
         profile_visibility,
@@ -392,16 +400,9 @@ def _generated_profile_snapshot(
             snapshot.target_anchors,
             snapshot.equation_labels,
             snapshot.code_cells,
+            project_members=snapshot.project_members,
         ),
     )
-    snapshot = replace(
-        snapshot,
-        inline_math=_apply_accessibility_metadata(
-            snapshot.inline_math,
-            accessibility_metadata,
-        ),
-    )
-    snapshot = MathHost().classify(snapshot)
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(

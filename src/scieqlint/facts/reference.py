@@ -13,7 +13,8 @@ TargetPlacement = Literal["before_heading", "before_block", "standalone", "orpha
 CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 TargetVisibility = Literal["visible", "hidden", "excluded"]
 ReferenceDisplayIntent = Literal["explicit", "target-default", "typed-number"]
-TargetTypeSource = Literal["resolved", "explicit", "inferred", "ambiguous", "unresolved"]
+TargetTypeSource = Literal["resolved", "inferred", "ambiguous", "unresolved"]
+NormalizedReferenceTarget = tuple[PurePosixPath, str]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -42,6 +43,19 @@ class GenericRefFact(FactBase):
     normalized_target_path: PurePosixPath | None = None
     target_fragment: str | None = None
     visibility: TargetVisibility = "visible"
+
+
+def normalized_reference_target(ref: GenericRefFact) -> NormalizedReferenceTarget | None:
+    """Return the complete normalized member-path and fragment identity, if any."""
+
+    if ref.normalized_target_path is None or ref.target_fragment is None:
+        return None
+    fragment = ref.target_fragment.strip()
+    if fragment.startswith("#"):
+        fragment = fragment[1:]
+    if not fragment:
+        return None
+    return ref.normalized_target_path, fragment
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

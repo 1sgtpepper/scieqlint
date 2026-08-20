@@ -8,6 +8,7 @@ from scieqlint.diag.model import Severity
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost, normalize_project_path, project_reference_target
+from scieqlint.query.host import QueryHost
 
 
 def doc(path: str, text: str) -> SourceDocument:
@@ -56,6 +57,8 @@ def test_frontend_preserves_raw_and_normalized_cross_document_target() -> None:
 
     assert len(snapshot.generic_refs) == 1
     ref = snapshot.generic_refs[0]
+    assert ref.target == "eq-energy"
+    assert ref.normalized_target == "eq-energy"
     assert ref.raw_target_path == "./energy.md"
     assert ref.resolved_raw_target_path == "chapters/./energy.md"
     assert ref.normalized_target_path == PurePosixPath("chapters/energy.md")
@@ -69,9 +72,9 @@ def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
     target = doc("chapters/energy.md", "(eq-energy)=\n$$\nE=mc^2\n$$\n")
 
     result = check_documents((source, target), config=Config())
-    diagnostics = tuple(d for d in result.diagnostics if d.code == "REF006")
+    diagnostics = tuple(result.diagnostics)
 
-    assert len(diagnostics) == 1
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF006"]
     diagnostic = diagnostics[0]
     assert diagnostic.severity is Severity.WARNING
     assert diagnostic.message.endswith("chapters/./energy.md")
@@ -85,6 +88,65 @@ def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
         ("raw_match_count", "0"),
         ("normalized_match_count", "1"),
     )
+
+
+def test_cross_document_resolution_uses_the_referenced_member_for_twins() -> None:
+    source = doc(
+        "index.md",
+        "[wrong](chapter-a.md#shared) [right](chapter-b.md#shared)\n",
+    )
+    first = doc("chapter-a.md", "(other)=\n```{figure}\nother.png\n```\n")
+    second = doc("chapter-b.md", "(shared)=\n```{figure}\nshared.png\n```\n")
+
+    snapshot = MySTFrontend().lower((source, first, second))
+
+    assert [fact.target_type for fact in snapshot.reference_display_text] == [
+        None,
+        "figure",
+    ]
+    unresolved = QueryHost(snapshot).references.unresolved_generic_refs()
+    assert [ref.normalized_target_path for ref in unresolved] == [PurePosixPath("chapter-a.md")]
+
+
+def test_cross_document_resolution_reports_unique_and_ambiguous_fragments() -> None:
+    source = doc(
+        "index.md",
+        "[unique](chapter.md#unique) [ambiguous](chapter.md#shared)\n",
+    )
+    target = doc(
+        "chapter.md",
+        "(unique)=\n```{figure}\nunique.png\n```\n\n"
+        "(shared)=\n```{figure}\nfirst.png\n```\n\n"
+        "(shared)=\n```{figure}\nsecond.png\n```\n",
+    )
+
+    snapshot = MySTFrontend().lower((source, target))
+
+    assert [fact.target_type for fact in snapshot.reference_display_text] == [
+        "figure",
+        None,
+    ]
+    query = QueryHost(snapshot).references
+    assert query.unresolved_generic_refs() == ()
+    assert [ref.target_fragment for ref in query.ambiguous_generic_refs()] == ["shared"]
+
+
+def test_cross_document_resolution_reports_missing_member_and_fragment() -> None:
+    source = doc(
+        "index.md",
+        "[member](missing.md#shared) [fragment](chapter.md#missing)\n",
+    )
+    target = doc("chapter.md", "(other)=\n```{figure}\nother.png\n```\n")
+    twin = doc("elsewhere.md", "(shared)=\n```{figure}\nshared.png\n```\n")
+
+    snapshot = MySTFrontend().lower((source, target, twin))
+
+    assert [fact.target_type for fact in snapshot.reference_display_text] == [
+        None,
+        None,
+    ]
+    unresolved = QueryHost(snapshot).references.unresolved_generic_refs()
+    assert [ref.target_fragment for ref in unresolved] == ["shared", "missing"]
 
 
 def test_configured_project_root_resolves_public_root_relative_links() -> None:
