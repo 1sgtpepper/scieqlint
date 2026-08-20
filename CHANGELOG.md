@@ -20,9 +20,10 @@ Release notes must use these sections:
   text as source-spanned `GEN002` diagnostics when the explicit
   `generated-myst` profile is selected.
 - Replace the permissive YAML-like accuracy fixtures with a strict versioned JSON
-  corpus of independently labeled positive and negative cases and expanded rule coverage.
-- Add bounded deterministic Hypothesis properties for source-span integrity, newline
-  normalization, and Markdown code-cell fence lowering.
+  corpus of labeled positive and negative cases and expanded rule coverage; synthetic
+  wrappers do not count as independent accuracy evidence.
+- Add bounded deterministic Hypothesis properties for source-token span integrity, raw
+  newline ingress, and Markdown code-cell fence lowering.
 - Add the opt-in `code-cell-metadata` profile, exact code-cell label/language
   facts for Markdown and notebooks, code-cell reference targets, and duplicate-label
   and malformed-language diagnostics.
@@ -60,12 +61,14 @@ Release notes must use these sections:
   ordinary rendered equation images out of placeholder diagnostics.
 - Stable publication now downloads the exact immutable distribution artifact
   approved by smoke, carrying its artifact ID through the release jobs without
-  rebuilding or accepting a separately downloaded artifact.
+  rebuilding or accepting a separately downloaded artifact; both wheel and source
+  distribution members are installed and smoke-tested before publication.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
-- Stable-tag publication now fails closed unless source, wheel, and tag versions
-  agree, at least 100 documented equation fixtures execute successfully, and the
-  100-document/500-equation/500-reference workload stays under three seconds.
+- Stable-tag publication now fails closed unless source, wheel, source distribution,
+  and tag versions agree, at least 100 independently labeled semantic equations
+  execute successfully, and the 100-document/500-equation/500-reference workload
+  stays under three seconds.
 - Markdown math fences now follow the shared CommonMark opener and closer rules,
   including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct

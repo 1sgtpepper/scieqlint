@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import string
-from dataclasses import fields, is_dataclass
 from pathlib import PurePosixPath
 
 from hypothesis import given, settings
@@ -9,12 +8,10 @@ from hypothesis import strategies as st
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
-from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.markdown import parse_fence_opener
 from scieqlint.query.host import QueryHost
-from scieqlint.source.maps import SourceMap
 
 PROPERTY_SETTINGS = settings(
     max_examples=40,
@@ -23,16 +20,11 @@ PROPERTY_SETTINGS = settings(
     deadline=None,
 )
 
-_MARKDOWN_FRAGMENTS = (
-    "# Heading\n",
-    "(target)=\n## Anchored heading\n",
-    "See {ref}`target`.\n",
-    "Inline math $x + y$ and {eq}`eq-one`.\n",
-    "```{math}\n:label: eq-one\nx = y\n```\n",
-    "```{code-cell} python\n:label: cell-one\nprint(1)\n```\n",
-    "\\begin{equation} z = 1 \\label{eq-raw} \\end{equation}\n",
-    "Text with `literal $x$` and [link](chapter.md#target).\n",
-    "<!-- generated: tool=test version=1 -->\n$$\na=b\n$$\n",
+_SOURCE_TOKEN_CASES = (
+    ("heading", "# Heading\n"),
+    ("anchor", "(target)=\n"),
+    ("reference", "See {ref}`target`.\n"),
+    ("inline_math", "Inline math $x + y$.\n"),
 )
 
 
@@ -44,55 +36,75 @@ def _markdown(text: str) -> SourceDocument:
     )
 
 
-def _source_spans(value: object) -> tuple[SourceSpan, ...]:
-    if isinstance(value, SourceSpan):
-        return (value,)
-    if isinstance(value, tuple):
-        return tuple(span for item in value for span in _source_spans(item))
-    if is_dataclass(value) and not isinstance(value, type):
-        return tuple(
-            span for field in fields(value) for span in _source_spans(getattr(value, field.name))
-        )
-    return ()
+def _span_text(document: SourceDocument, span: SourceSpan | None) -> str:
+    assert span is not None
+    assert span.path == document.path
+    assert 0 <= span.start <= span.end <= len(document.text)
+    return document.text[span.start : span.end]
 
 
 @PROPERTY_SETTINGS
-@given(st.lists(st.sampled_from(_MARKDOWN_FRAGMENTS), min_size=1, max_size=8))
-def test_myst_fact_spans_are_valid_source_slices(fragments: list[str]) -> None:
-    document = _markdown("".join(fragments))
+@given(st.lists(st.sampled_from(_SOURCE_TOKEN_CASES), min_size=1, max_size=8))
+def test_myst_fact_spans_select_their_source_tokens(
+    token_cases: list[tuple[str, str]],
+) -> None:
+    document = _markdown("".join(text for _name, text in token_cases))
     snapshot = MySTFrontend().lower((document,))
-    source_map = SourceMap.for_document(document)
+    expected = {
+        "heading": [text for name, text in token_cases if name == "heading"],
+        "anchor": [text for name, text in token_cases if name == "anchor"],
+        "reference": ["{ref}`target`" for name, _text in token_cases if name == "reference"],
+        "inline_math": ["x + y" for name, _text in token_cases if name == "inline_math"],
+    }
 
-    spans = tuple(span for fact in snapshot.all_facts() for span in _source_spans(fact))
-    assert spans
-    for span in spans:
-        assert span.path == document.path
-        assert 0 <= span.start <= span.end <= len(document.text)
-        assert span == source_map.span(span.start, span.end)
+    assert [_span_text(document, fact.span) for fact in snapshot.headings] == expected[
+        "heading"
+    ]
+    assert [_span_text(document, fact.span) for fact in snapshot.target_anchors] == expected[
+        "anchor"
+    ]
+    assert [_span_text(document, fact.span) for fact in snapshot.generic_refs] == expected[
+        "reference"
+    ]
+    assert [_span_text(document, fact.span) for fact in snapshot.inline_math] == expected[
+        "inline_math"
+    ]
 
 
 @PROPERTY_SETTINGS
 @given(
-    st.lists(st.sampled_from(_MARKDOWN_FRAGMENTS), min_size=1, max_size=8),
-    st.booleans(),
+    st.builds(
+        lambda first, tail: first + tail,
+        st.sampled_from(tuple(string.ascii_lowercase)),
+        st.text(alphabet=string.ascii_lowercase + string.digits + "-", max_size=8),
+    ),
+    st.sampled_from(("\n", "\r\n", "\r")),
 )
-def test_newline_normalization_preserves_facts_and_diagnostics(
-    fragments: list[str],
-    trailing_newline: bool,
+def test_raw_newline_ingress_preserves_reference_semantics(
+    label: str,
+    newline: str,
 ) -> None:
-    lf_text = "".join(fragments).rstrip("\n") + ("\n" if trailing_newline else "")
-    lf_document = _markdown(lf_text)
-    crlf_document = _markdown(lf_text.replace("\n", "\r\n"))
+    raw_text = (
+        f"```{{math}}{newline}"
+        f":label: {label}{newline}"
+        f"x = y{newline}"
+        f"```{newline}{newline}"
+        f"See {{eq}}`{label}`.{newline}"
+    )
+    document = _markdown(raw_text)
+    snapshot = MySTFrontend().lower((document,))
 
-    assert crlf_document == lf_document
-    lf_snapshot = MySTFrontend().lower((lf_document,))
-    crlf_snapshot = MySTFrontend().lower((crlf_document,))
-    assert crlf_snapshot == lf_snapshot
+    [equation_label] = snapshot.equation_labels
+    [equation_ref] = snapshot.equation_refs
+    assert equation_label.normalized_label == label
+    assert equation_ref.normalized_target == label
+    assert _span_text(document, equation_label.label_span) == label
+    assert _span_text(document, equation_ref.target_span) == label
 
-    lf_query = QueryHost(lf_snapshot)
-    crlf_query = QueryHost(crlf_snapshot)
-    assert StructureEngine().run(crlf_query) == StructureEngine().run(lf_query)
-    assert ReferenceEngine().run(crlf_query) == ReferenceEngine().run(lf_query)
+    query = QueryHost(snapshot)
+    assert query.references.equation_target_index() == {label: (equation_label,)}
+    assert query.references.unresolved_equation_refs() == ()
+    assert ReferenceEngine().run(query) == ()
 
 
 @st.composite
@@ -150,11 +162,18 @@ def test_code_cell_fence_scanner_and_frontend_agree(
     assert cell.label == label
     assert cell.normalized_label == label
 
-    source_map = SourceMap.for_document(document)
     language_start = len(prefix) + len(marker) + len("{code-cell} ")
     label_start = text.index(f":{label_key}: {label}") + len(label_key) + 3
-    assert cell.language_span == source_map.span(language_start, language_start + len(language))
-    assert cell.label_span == source_map.span(label_start, label_start + len(label))
+    assert cell.language_span is not None
+    assert cell.label_span is not None
+    assert cell.language_span.start == language_start
+    assert cell.label_span.start == label_start
+    assert _span_text(document, cell.language_span) == language
+    assert _span_text(document, cell.label_span) == label
 
     query = QueryHost(snapshot)
+    [reference] = snapshot.generic_refs
+    assert reference.normalized_target == label
+    assert _span_text(document, reference.target_span) == label
+    assert query.references.target_index()[label] == (cell,)
     assert ReferenceEngine().run(query) == ()

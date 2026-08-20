@@ -72,17 +72,25 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
 
     assert 'version("scieqlint")' in workflow
     assert "${GITHUB_REF_NAME#v}" in workflow
+    assert "sdist_version" in workflow
+    assert 'test "$sdist_version" = "$source_version"' in workflow
     assert "tests/test_accuracy_benchmarks.py" in workflow
     assert "tests/test_stabilization.py" in workflow
     smoke_start = workflow.index("\n  smoke:")
     publish_start = workflow.index("\n  publish:")
-    assert smoke_start < workflow.index("Verify source, wheel, and tag versions") < publish_start
+    assert (
+        smoke_start
+        < workflow.index("Verify source, wheel, source distribution, and tag versions")
+        < publish_start
+    )
     release_gate_start = workflow.index("Enforce stable-release accuracy")
     assert smoke_start < release_gate_start < publish_start
     release_gate = workflow[release_gate_start:publish_start]
-    assert "/tmp/scieqlint-release-smoke/bin/python -m pip install pytest" in release_gate
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pip install pytest" in release_gate
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pip install pytest" in release_gate
     assert "SCIEQLINT_RELEASE_GATE=1 python -m pytest" not in release_gate
-    assert "/tmp/scieqlint-release-smoke/bin/python -m pytest" in release_gate
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pytest" in release_gate
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pytest" in release_gate
     assert "-o pythonpath=" in release_gate
     assert "pip install -e" not in release_gate
     assert "PYTHONPATH=" not in release_gate
@@ -111,6 +119,9 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     assert "Approve verified release artifact" not in smoke
     assert "digest-mismatch" not in smoke
     assert "name: dist" not in smoke
+    assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pip install dist/*.whl" in smoke
+    assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pip install dist/*.tar.gz" in smoke
+    assert "mechanics preset missing from installed sdist" in smoke
 
     assert "needs: smoke" in publish
     assert "artifact-ids: ${{ needs.smoke.outputs.distribution_id }}" in publish
@@ -121,15 +132,21 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     assert "python -m build" not in publish
 
 
-def test_stable_release_accuracy_gate_counts_executed_equation_fixtures() -> None:
+def test_stable_release_accuracy_gate_counts_independently_labeled_equations() -> None:
     accuracy_gate = Path("tests/test_accuracy_benchmarks.py").read_text(encoding="utf-8")
 
     assert "result.math_blocks_checked > 0" in accuracy_gate
-    assert 'equation_fixture_ids.append(str(case["id"]))' in accuracy_gate
-    assert "assert len(equation_fixture_ids) >= 100" in accuracy_gate
+    assert 'case.get("independent_equation_id")' in accuracy_gate
+    assert "independent_equation_ids = _independent_equation_ids(cases)" in accuracy_gate
+    assert "assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD" in (
+        accuracy_gate
+    )
+    assert "equation_fixture_ids" not in accuracy_gate
     assert "assert len(case_ids) >= 100" not in accuracy_gate
-    assert accuracy_gate.index("equation_fixture_ids.append") < accuracy_gate.index(
-        "assert len(equation_fixture_ids) >= 100"
+    assert accuracy_gate.index(
+        "independent_equation_ids = _independent_equation_ids(cases)"
+    ) < accuracy_gate.index(
+        "assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD"
     )
 
 

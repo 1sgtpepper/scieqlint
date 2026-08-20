@@ -48,17 +48,29 @@ jobs:
           path: dist
       - name: Clean wheel smoke
         run: |
-          python -m venv /tmp/scieqlint-release-smoke
-          /tmp/scieqlint-release-smoke/bin/python -m pip install dist/*.whl
-          /tmp/scieqlint-release-smoke/bin/scieqlint --help
-          /tmp/scieqlint-release-smoke/bin/scieqlint demo
-          /tmp/scieqlint-release-smoke/bin/python - <<'PY'
+          python -m venv /tmp/scieqlint-release-wheel-smoke
+          /tmp/scieqlint-release-wheel-smoke/bin/python -m pip install dist/*.whl
+          /tmp/scieqlint-release-wheel-smoke/bin/scieqlint --help
+          /tmp/scieqlint-release-wheel-smoke/bin/scieqlint demo
+          /tmp/scieqlint-release-wheel-smoke/bin/python - <<'PY'
           from importlib import resources
 
           preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
           assert preset.is_file(), "mechanics preset missing from installed wheel"
           PY
-      - name: Verify source, wheel, and tag versions
+      - name: Clean source distribution smoke
+        run: |
+          python -m venv /tmp/scieqlint-release-sdist-smoke
+          /tmp/scieqlint-release-sdist-smoke/bin/python -m pip install dist/*.tar.gz
+          /tmp/scieqlint-release-sdist-smoke/bin/scieqlint --help
+          /tmp/scieqlint-release-sdist-smoke/bin/scieqlint demo
+          /tmp/scieqlint-release-sdist-smoke/bin/python - <<'PY'
+          from importlib import resources
+
+          preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
+          assert preset.is_file(), "mechanics preset missing from installed sdist"
+          PY
+      - name: Verify source, wheel, source distribution, and tag versions
         run: |
           source_version="$(python - <<'PY'
           import tomllib
@@ -66,19 +78,30 @@ jobs:
           print(tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"])
           PY
           )"
-          wheel_version="$(/tmp/scieqlint-release-smoke/bin/python - <<'PY'
+          wheel_version="$(/tmp/scieqlint-release-wheel-smoke/bin/python - <<'PY'
+          from importlib.metadata import version
+          print(version("scieqlint"))
+          PY
+          )"
+          sdist_version="$(/tmp/scieqlint-release-sdist-smoke/bin/python - <<'PY'
           from importlib.metadata import version
           print(version("scieqlint"))
           PY
           )"
           test "$wheel_version" = "$source_version"
+          test "$sdist_version" = "$source_version"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             test "${GITHUB_REF_NAME#v}" = "$source_version"
           fi
       - name: Enforce stable-release accuracy and performance evidence
         run: |
-          /tmp/scieqlint-release-smoke/bin/python -m pip install pytest
-          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-smoke/bin/python -m pytest \
+          /tmp/scieqlint-release-wheel-smoke/bin/python -m pip install pytest
+          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-wheel-smoke/bin/python -m pytest \
+            -o pythonpath= -q \
+            tests/test_accuracy_benchmarks.py \
+            tests/test_stabilization.py
+          /tmp/scieqlint-release-sdist-smoke/bin/python -m pip install pytest
+          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-sdist-smoke/bin/python -m pytest \
             -o pythonpath= -q \
             tests/test_accuracy_benchmarks.py \
             tests/test_stabilization.py

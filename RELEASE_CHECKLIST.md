@@ -11,10 +11,10 @@ Every release must include:
 - JSON/SARIF schema update when needed,
 - accuracy benchmark update when expectations change,
 - golden test update when output changes,
-- wheel install smoke test,
+- wheel and source-distribution install smoke tests,
 - package-data verification,
-- source, wheel, and stable-tag version identity,
-- at least 100 unique documented equation fixtures executed through their public behavior,
+- source, wheel, source-distribution, and stable-tag version identity,
+- at least 100 independently labeled semantic equations executed through their public behavior,
 - the 100-document/500-equation/500-reference representative workload completing within three seconds,
 - release notes with migration notes.
 

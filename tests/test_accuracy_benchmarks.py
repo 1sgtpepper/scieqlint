@@ -33,6 +33,7 @@ _CASE_FIELDS = frozenset(
         "expected_pass",
     }
 )
+_OPTIONAL_CASE_FIELDS = frozenset({"independent_equation_id"})
 _DOCUMENT_FIELDS = frozenset({"path", "format", "content"})
 _CONFIG_FIELDS = frozenset(
     {
@@ -44,18 +45,20 @@ _CONFIG_FIELDS = frozenset(
         "symbols",
     }
 )
+_OPTIONAL_CONFIG_FIELDS = frozenset({"output_profile"})
 _SOURCE_FORMATS = frozenset({"markdown", "latex", "notebook"})
-_PROFILE_NAMES = frozenset(
-    {
-        "generated-myst",
-        "cross-format-references",
-        "math-accessibility",
-        "notebook-crossrefs",
-        "reference-display",
-        "typst-portability",
-        "code-cell-metadata",
-    }
-)
+_PROFILE_SOURCE_FORMATS: dict[str, frozenset[str]] = {
+    "generated-myst": frozenset({"markdown"}),
+    "cross-format-references": frozenset({"markdown", "notebook"}),
+    "math-accessibility": frozenset({"markdown"}),
+    "notebook-crossrefs": frozenset({"markdown", "notebook"}),
+    "reference-display": frozenset({"markdown"}),
+    "typst-portability": frozenset({"markdown"}),
+    "code-cell-metadata": frozenset({"markdown", "notebook"}),
+}
+_PROFILE_NAMES = frozenset(_PROFILE_SOURCE_FORMATS)
+_OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})
+_INDEPENDENT_EQUATION_THRESHOLD = 100
 _CASE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 
 
@@ -80,6 +83,95 @@ def test_accuracy_corpus_is_strict_versioned_and_balanced() -> None:
     }
 
 
+def test_synthetic_wrappers_do_not_count_as_independent_equations(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    first = dict(source_case, id="synthetic-equation-one")
+    second = dict(source_case, id="synthetic-equation-two")
+    path = tmp_path / "synthetic-wrappers.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [first, second]}),
+        encoding="utf-8",
+    )
+
+    assert _independent_equation_ids(_load_corpus(path)) == set()
+
+
+def test_independent_equation_ids_deduplicate_labeled_wrappers(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    first = dict(
+        source_case,
+        id="independent-equation-one",
+        license="CC0-1.0",
+        synthetic=False,
+        independent_equation_id="equation-one",
+    )
+    second = dict(first, id="independent-equation-one-wrapper")
+    path = tmp_path / "labeled-wrappers.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [first, second]}),
+        encoding="utf-8",
+    )
+
+    assert _independent_equation_ids(_load_corpus(path)) == {"equation-one"}
+
+
+def test_synthetic_cases_cannot_claim_independent_equation_ids(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    case = dict(source_case, independent_equation_id="equation-one")
+    path = tmp_path / "synthetic-independent-id.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="synthetic cases cannot claim independent_equation_id"):
+        _load_corpus(path)
+
+
+def test_non_synthetic_cases_require_an_independent_equation_id(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    case = dict(source_case, license="CC0-1.0", synthetic=False)
+    path = tmp_path / "missing-independent-id.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="requires independent_equation_id"):
+        _load_corpus(path)
+
+
+def test_independent_equation_ids_reject_conflicting_labels(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    first = dict(
+        source_case,
+        id="independent-equation-negative",
+        license="CC0-1.0",
+        synthetic=False,
+        independent_equation_id="equation-one",
+    )
+    second = dict(
+        first,
+        id="independent-equation-positive",
+        label="positive",
+        expected_codes=["ALG001"],
+        expected_pass=False,
+    )
+    path = tmp_path / "conflicting-labels.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [first, second]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="independent equation label or rule conflicts"):
+        _load_corpus(path)
+
+
 def test_every_accuracy_case_runs_through_public_analysis(tmp_path: Path) -> None:
     for case in _load_corpus(CORPUS_PATH):
         result = _check_case(tmp_path, case)
@@ -87,6 +179,65 @@ def test_every_accuracy_case_runs_through_public_analysis(tmp_path: Path) -> Non
 
         assert actual_codes == case["expected_codes"], case["id"]
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
+@pytest.mark.parametrize("profile", sorted(_PROFILE_NAMES))
+def test_schema_admitted_profiles_have_an_executor(tmp_path: Path, profile: str) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    config = dict(cast(dict[str, object], source_case["config"]))
+    config["profile"] = profile
+    if profile == "cross-format-references":
+        config["output_profile"] = "commonmark"
+    case = dict(source_case, id=f"profile-{profile}", config=config)
+    path = tmp_path / f"{profile}.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    [loaded_case] = _load_corpus(path)
+    result = _check_case(tmp_path, loaded_case)
+
+    assert result.files_checked == 1
+
+
+def test_schema_rejects_profile_without_required_output_configuration(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    config = dict(cast(dict[str, object], source_case["config"]))
+    config["profile"] = "cross-format-references"
+    case = dict(source_case, config=config)
+    path = tmp_path / "invalid-profile.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="requires output_profile"):
+        _load_corpus(path)
+
+
+def test_schema_rejects_profile_for_unsupported_source_format(tmp_path: Path) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    source_document = cast(dict[str, object], source_case["documents"][0])
+    document = dict(source_document, format="latex", path="profile.tex")
+    config = dict(cast(dict[str, object], source_case["config"]), profile="typst-portability")
+    case = dict(
+        source_case,
+        source_format="latex",
+        documents=[document],
+        config=config,
+    )
+    path = tmp_path / "unsupported-profile-source.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"does not support source format\(s\): latex"):
+        _load_corpus(path)
 
 
 @pytest.mark.parametrize(
@@ -185,23 +336,24 @@ def test_accuracy_corpus_rejects_duplicate_json_fields(tmp_path: Path) -> None:
     os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
     reason="stable-release evidence is enforced by the release workflow",
 )
-def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path) -> None:
+def test_stable_release_executes_100_independently_labeled_equations(tmp_path: Path) -> None:
     cases = _load_corpus(CORPUS_PATH)
     case_ids = [str(case["id"]) for case in cases]
     assert len(case_ids) == len(set(case_ids)), "equation fixture IDs must be globally unique"
 
-    equation_fixture_ids: list[str] = []
+    independent_equation_ids = _independent_equation_ids(cases)
     for case in cases:
         result = _check_case(tmp_path, case)
         actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
         assert actual_codes == case["expected_codes"], case["id"]
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
-        if result.math_blocks_checked > 0:
-            equation_fixture_ids.append(str(case["id"]))
+        independent_equation_id = case.get("independent_equation_id")
+        if independent_equation_id is not None:
+            assert result.math_blocks_checked > 0, case["id"]
 
-    assert len(equation_fixture_ids) >= 100, (
-        "stable releases require at least 100 documented equation fixtures; "
-        f"found {len(equation_fixture_ids)}"
+    assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD, (
+        "stable releases require at least 100 independently labeled semantic equations; "
+        f"found {len(independent_equation_ids)}"
     )
 
 
@@ -243,8 +395,11 @@ def _case_config(tmp_path: Path, case: dict[str, object]):
         f"inline_math = {str(data['inline_math']).lower()}",
     ]
     profile = data["profile"]
+    output_profile = data.get("output_profile")
     if profile is not None:
         lines.extend(("", "[profile]", f'name = "{profile}"'))
+        if output_profile is not None:
+            lines.append(f'output_profile = "{output_profile}"')
     if variables:
         lines.extend(("", "[vars]"))
         lines.extend(f'{name} = "{dimension}"' for name, dimension in sorted(variables.items()))
@@ -272,6 +427,7 @@ def _load_corpus(path: Path) -> list[dict[str, object]]:
 
     cases: list[dict[str, object]] = []
     case_ids: set[str] = set()
+    independent_labels: dict[str, tuple[str, str]] = {}
     for index, raw_case in enumerate(raw_cases):
         if not isinstance(raw_case, dict):
             raise ValueError(f"accuracy case {index} must be a JSON object")
@@ -280,13 +436,25 @@ def _load_corpus(path: Path) -> list[dict[str, object]]:
         if case_id in case_ids:
             raise ValueError(f"duplicate accuracy case id: {case_id}")
         case_ids.add(case_id)
+        independent_equation_id = raw_case.get("independent_equation_id")
+        if isinstance(independent_equation_id, str):
+            label_and_rule = (
+                cast(str, raw_case["label"]),
+                cast(str, raw_case["rule"]),
+            )
+            previous = independent_labels.setdefault(independent_equation_id, label_and_rule)
+            if previous != label_and_rule:
+                raise ValueError(
+                    "independent equation label or rule conflicts: "
+                    f"{independent_equation_id}"
+                )
         cases.append(raw_case)
     return cases
 
 
 def _validate_case(case: dict[str, object], index: int) -> None:
     context = f"accuracy case {index}"
-    _require_exact_fields(case, _CASE_FIELDS, context)
+    _require_exact_fields(case, _CASE_FIELDS, context, optional=_OPTIONAL_CASE_FIELDS)
     case_id = _require_string(case["id"], f"{context} id")
     if _CASE_ID_RE.fullmatch(case_id) is None:
         raise ValueError(f"{context} id must be a lowercase hyphenated identifier")
@@ -307,6 +475,25 @@ def _validate_case(case: dict[str, object], index: int) -> None:
             raise ValueError(f"{context} synthetic cases must use a null license")
     else:
         _require_string(license_name, f"{context} license")
+    independent_equation_id = case.get("independent_equation_id")
+    if independent_equation_id is None:
+        if not synthetic:
+            raise ValueError(
+                f"{context} non-synthetic cases require independent_equation_id"
+            )
+    else:
+        if synthetic:
+            raise ValueError(
+                f"{context} synthetic cases cannot claim independent_equation_id"
+            )
+        independent_id = _require_string(
+            independent_equation_id,
+            f"{context} independent_equation_id",
+        )
+        if _CASE_ID_RE.fullmatch(independent_id) is None:
+            raise ValueError(
+                f"{context} independent_equation_id must be a lowercase hyphenated identifier"
+            )
 
     documents = case["documents"]
     if not isinstance(documents, list) or not documents:
@@ -318,6 +505,20 @@ def _validate_case(case: dict[str, object], index: int) -> None:
         raise ValueError(f"{context} source_format must match the first document")
 
     _validate_config(case["config"], context)
+    config = cast(dict[str, object], case["config"])
+    profile = config["profile"]
+    if profile is not None:
+        supported_formats = _PROFILE_SOURCE_FORMATS[cast(str, profile)]
+        document_formats = {
+            cast(dict[str, object], document)["format"]
+            for document in cast(list[object], documents)
+        }
+        unsupported_formats = sorted(document_formats - supported_formats)
+        if unsupported_formats:
+            raise ValueError(
+                f"{context} profile {profile} does not support source format(s): "
+                + ", ".join(cast(str, value) for value in unsupported_formats)
+            )
     expected_codes = case["expected_codes"]
     if not isinstance(expected_codes, list) or not all(
         isinstance(code, str) and code in CATALOG for code in expected_codes
@@ -347,7 +548,7 @@ def _validate_config(value: object, context: str) -> None:
     config_context = f"{context} config"
     if not isinstance(value, dict):
         raise ValueError(f"{config_context} must be a JSON object")
-    _require_exact_fields(value, _CONFIG_FIELDS, config_context)
+    _require_exact_fields(value, _CONFIG_FIELDS, config_context, optional=_OPTIONAL_CONFIG_FIELDS)
     variables = value["dimension_variables"]
     if not isinstance(variables, dict) or not all(
         isinstance(name, str) and isinstance(dimension, str)
@@ -362,6 +563,17 @@ def _validate_config(value: object, context: str) -> None:
     profile = value["profile"]
     if profile is not None:
         _require_choice(profile, _PROFILE_NAMES, f"{config_context} profile")
+    output_profile = value.get("output_profile")
+    if output_profile is not None:
+        _require_choice(output_profile, _OUTPUT_PROFILES, f"{config_context} output_profile")
+    if profile == "cross-format-references" and output_profile is None:
+        raise ValueError(
+            f"{config_context} profile cross-format-references requires output_profile"
+        )
+    if profile != "cross-format-references" and output_profile is not None:
+        raise ValueError(
+            f"{config_context} output_profile is only valid for cross-format-references"
+        )
     _require_bool(value["missing_label_strict"], f"{config_context} missing_label_strict")
     _require_bool(value["inline_math"], f"{config_context} inline_math")
     _require_bool(value["symbols"], f"{config_context} symbols")
@@ -380,10 +592,12 @@ def _require_exact_fields(
     value: dict[str, object],
     expected: frozenset[str],
     context: str,
+    *,
+    optional: frozenset[str] = frozenset(),
 ) -> None:
     actual = frozenset(value)
     missing = sorted(expected - actual)
-    unknown = sorted(actual - expected)
+    unknown = sorted(actual - expected - optional)
     if missing:
         raise ValueError(f"{context} missing fields: {', '.join(missing)}")
     if unknown:
@@ -407,3 +621,11 @@ def _require_bool(value: object, context: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{context} must be a boolean")
     return value
+
+
+def _independent_equation_ids(cases: list[dict[str, object]]) -> set[str]:
+    return {
+        cast(str, case["independent_equation_id"])
+        for case in cases
+        if case.get("independent_equation_id") is not None
+    }
