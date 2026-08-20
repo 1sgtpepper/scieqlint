@@ -48,7 +48,7 @@ CLI guard before writing a file output.
 
 `accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
 accessibility ID to accessible text. An ID has the form
-`<document-path>::inline-math::<delimiter-kind>::<trimmed-body>`; repeated identical
+`<document-path>::inline-math::<delimiter-kind>::<percent-encoded-body>`; repeated identical
 source tokens append a deterministic occurrence suffix such as `::1`. These identities
 percent-encode the path and body segments, so delimiter-like source text cannot collide
 with the occurrence suffix. They do not depend on the token's byte offset, so edits
