@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import cast
 
 from scieqlint.config.model import Config
@@ -23,37 +23,92 @@ from scieqlint.scan.markdown import MarkdownScanner
 _MAX_JSON_INTEGER_DIGITS = 4096
 
 
+@dataclass(frozen=True, slots=True)
+class NotebookInput:
+    """One validated JSON decode shared by notebook scanners and frontends."""
+
+    document: SourceDocument
+    root: Mapping[str, object] | None
+    cells: tuple[object, ...]
+    cell_spans: tuple[SourceSpan | None, ...]
+    output_spans: tuple[tuple[SourceSpan | None, ...], ...]
+    diagnostics: tuple[Diagnostic, ...]
+    valid: bool
+
+
 class NotebookScanner:
     def __init__(self) -> None:
         self._markdown = MarkdownScanner()
 
-    def scan(self, document: SourceDocument, config: Config) -> ScanResult:
+    def parse(self, document: SourceDocument) -> NotebookInput:
+        """Decode one notebook and retain the source ranges found in its JSON."""
+
         try:
             notebook_data: object = json.loads(document.text, parse_int=_parse_json_integer)
         except ValueError as exc:
-            return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
+            return NotebookInput(
+                document=document,
+                root=None,
+                cells=(),
+                cell_spans=(),
+                output_spans=(),
+                diagnostics=(_input_diagnostic(document, exc),),
+                valid=False,
+            )
         if not isinstance(notebook_data, Mapping):
-            return ScanResult(
-                blocks=(),
+            return NotebookInput(
+                document=document,
+                root=None,
+                cells=(),
+                cell_spans=(),
+                output_spans=(),
                 diagnostics=(_schema_diagnostic(document, "notebook root must be a JSON object"),),
+                valid=False,
             )
 
         notebook = cast(Mapping[str, object], notebook_data)
         raw_cells = notebook.get("cells")
         if not isinstance(raw_cells, list):
-            return ScanResult(
-                blocks=(),
+            return NotebookInput(
+                document=document,
+                root=None,
+                cells=(),
+                cell_spans=(),
+                output_spans=(),
                 diagnostics=(_schema_diagnostic(document, "notebook cells must be a list"),),
+                valid=False,
             )
+        cells = tuple(cast(list[object], raw_cells))
+        cell_spans, output_spans = _notebook_locations(document, len(cells))
+        return NotebookInput(
+            document=document,
+            root=notebook,
+            cells=cells,
+            cell_spans=cell_spans,
+            output_spans=output_spans,
+            diagnostics=_notebook_schema_diagnostics(document, notebook),
+            valid=True,
+        )
 
-        cells = cast(list[object], raw_cells)
+    def scan(
+        self,
+        document: SourceDocument,
+        config: Config,
+        *,
+        parsed: NotebookInput | None = None,
+    ) -> ScanResult:
+        notebook_input = parsed or self.parse(document)
+        if not notebook_input.valid:
+            return ScanResult(blocks=(), diagnostics=notebook_input.diagnostics)
+        assert notebook_input.root is not None
+
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         references: list[EquationReference] = []
         symbol_directives: list[SymbolDirective] = []
-        diagnostics = list(_notebook_schema_diagnostics(document, notebook))
+        diagnostics = list(notebook_input.diagnostics)
 
-        for cell_index, raw_cell in enumerate(cells):
+        for cell_index, raw_cell in enumerate(notebook_input.cells):
             if not isinstance(raw_cell, Mapping):
                 diagnostics.append(
                     _schema_diagnostic(
@@ -133,6 +188,133 @@ def _notebook_schema_diagnostics(
     if not isinstance(notebook.get("metadata"), Mapping):
         diagnostics.append(_schema_diagnostic(document, "notebook metadata must be an object"))
     return tuple(diagnostics)
+
+
+def _notebook_locations(
+    document: SourceDocument,
+    cell_count: int,
+) -> tuple[tuple[SourceSpan | None, ...], tuple[tuple[SourceSpan | None, ...], ...]]:
+    """Locate cell and output objects without giving semantic parsing a second owner."""
+
+    cell_spans: list[SourceSpan | None] = [None] * cell_count
+    output_spans: list[tuple[SourceSpan | None, ...]] = [()] * cell_count
+    try:
+        decoder = json.JSONDecoder(parse_int=_parse_json_integer)
+        root_start = _skip_json_whitespace(document.text, 0)
+        _root, root_end = decoder.raw_decode(document.text, root_start)
+        cells_range = _json_object_members(decoder, document.text, root_start, root_end).get(
+            "cells"
+        )
+        if cells_range is None:
+            return tuple(cell_spans), tuple(output_spans)
+        for cell_index, (cell_start, cell_end) in enumerate(
+            _json_array_ranges(decoder, document.text, *cells_range)
+        ):
+            if cell_index >= cell_count:
+                break
+            cell_spans[cell_index] = _json_span(document, cell_start, cell_end, cell_index)
+            output_range = _json_object_members(
+                decoder,
+                document.text,
+                cell_start,
+                cell_end,
+            ).get("outputs")
+            if output_range is None:
+                continue
+            output_spans[cell_index] = tuple(
+                _json_span(document, output_start, output_end, cell_index)
+                for output_start, output_end in _json_array_ranges(
+                    decoder,
+                    document.text,
+                    *output_range,
+                )
+            )
+    except (IndexError, TypeError, ValueError):
+        # A valid JSON document can still be outside this location walk's narrow
+        # object/array shape.  An absent span is honest; a guessed line is not.
+        return tuple(cell_spans), tuple(output_spans)
+    return tuple(cell_spans), tuple(output_spans)
+
+
+def _json_object_members(
+    decoder: json.JSONDecoder,
+    text: str,
+    start: int,
+    end: int,
+) -> dict[str, tuple[int, int]]:
+    if text[_skip_json_whitespace(text, start)] != "{":
+        return {}
+    position = _skip_json_whitespace(text, start) + 1
+    members: dict[str, tuple[int, int]] = {}
+    while True:
+        position = _skip_json_whitespace(text, position)
+        if position >= end or text[position] == "}":
+            return members
+        key, key_end = decoder.raw_decode(text, position)
+        if not isinstance(key, str):
+            return {}
+        position = _skip_json_whitespace(text, key_end)
+        if position >= end or text[position] != ":":
+            return {}
+        value_start = _skip_json_whitespace(text, position + 1)
+        _value, value_end = decoder.raw_decode(text, value_start)
+        members[key] = (value_start, value_end)
+        position = _skip_json_whitespace(text, value_end)
+        if position >= end or text[position] == "}":
+            return members
+        if text[position] != ",":
+            return {}
+        position += 1
+
+
+def _json_array_ranges(
+    decoder: json.JSONDecoder,
+    text: str,
+    start: int,
+    end: int,
+) -> tuple[tuple[int, int], ...]:
+    if text[_skip_json_whitespace(text, start)] != "[":
+        return ()
+    position = _skip_json_whitespace(text, start) + 1
+    ranges: list[tuple[int, int]] = []
+    while True:
+        position = _skip_json_whitespace(text, position)
+        if position >= end or text[position] == "]":
+            return tuple(ranges)
+        _value, value_end = decoder.raw_decode(text, position)
+        ranges.append((position, value_end))
+        position = _skip_json_whitespace(text, value_end)
+        if position >= end or text[position] == "]":
+            return tuple(ranges)
+        if text[position] != ",":
+            return ()
+        position += 1
+
+
+def _skip_json_whitespace(text: str, start: int) -> int:
+    while start < len(text) and text[start] in " \t\r\n":
+        start += 1
+    return start
+
+
+def _json_span(
+    document: SourceDocument,
+    start: int,
+    end: int,
+    cell: int,
+) -> SourceSpan:
+    line, col = document.line_index.position(start)
+    end_line, end_col = document.line_index.position(max(start, end - 1))
+    return SourceSpan(
+        path=document.path,
+        start=start,
+        end=end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+        cell=cell,
+    )
 
 
 def _is_json_integer(value: object) -> bool:

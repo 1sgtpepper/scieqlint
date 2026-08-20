@@ -103,6 +103,8 @@ class ReferenceQueryView:
         return tuple(ref for ref in self.snapshot.generic_refs if ref.visibility == "visible")
 
     def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
+        """Return visible source-owned target-definition metadata."""
+
         return tuple(
             fact
             for fact in self.snapshot.crossref_metadata
@@ -133,12 +135,11 @@ class ReferenceQueryView:
     def conflicting_metadata(
         self,
     ) -> tuple[tuple[str, tuple[CrossrefMetadataFact, ...]], ...]:
-        """Return targets with distinct metadata signatures across output boundaries."""
+        """Return target definitions with distinct signatures across output boundaries."""
 
         by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
         for fact in self.metadata_facts():
-            if _is_target_definition(fact):
-                by_target[fact.normalized_target].append(fact)
+            by_target[fact.normalized_target].append(fact)
         conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
         for target, facts in sorted(by_target.items()):
             boundaries = {fact.output_boundary for fact in facts}
@@ -404,21 +405,10 @@ def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str
 
 def _producer_signature(
     fact: CrossrefMetadataFact,
-) -> tuple[str | None, tuple[tuple[str, str], ...]]:
+) -> tuple[str, tuple[tuple[str, str], ...]]:
     return (
-        fact.resolved_target_kind or fact.reference_kind,
-        tuple(sorted(fact.target_metadata or fact.display_metadata)),
-    )
-
-
-def _is_target_definition(fact: CrossrefMetadataFact) -> bool:
-    if fact.metadata_kind == "target-definition":
-        return True
-    # Older callers constructed producer facts with the legacy fields. Keep
-    # that data useful while requiring all frontend-produced reference uses to
-    # identify themselves explicitly through ``reference_role``.
-    return fact.reference_role is None and (
-        fact.resolved_target_kind is not None or fact.reference_kind is not None
+        fact.target_kind,
+        tuple(sorted(fact.target_metadata)),
     )
 
 

@@ -116,14 +116,24 @@ class PortabilityEngine:
         conflict: NotebookRenderingConflict,
     ) -> DiagnosticIR:
         cell = conflict.cell
+        output = conflict.output
+        location = output or cell
         label = cell.label or "<caption-only cell>"
+        output_detail = ""
+        output_properties: tuple[tuple[str, str], ...] = ()
+        if output is not None:
+            output_detail = f" at output {output.output_index}"
+            output_properties = (("output_index", str(output.output_index)),)
+        provenance_ids = (
+            (cell.fact_id, output.fact_id) if output is not None else (cell.fact_id,)
+        )
         return DiagnosticIR(
             code="PORT004",
             severity_default=self.policy.severity("PORT004"),
             message="cell renderings are incompatible with cross-reference options",
-            span=cell.span,
+            span=location.span,
             detail=(
-                f"cell {label!r} combines renderings={conflict.renderings!r} "
+                f"cell {label!r}{output_detail} combines renderings={conflict.renderings!r} "
                 f"with {list(conflict.crossref_options)!r}"
             ),
             hint=(
@@ -134,18 +144,14 @@ class PortabilityEngine:
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,
-            provenance_ids=(cell.fact_id,),
+            provenance_ids=provenance_ids,
             properties=(
                 ("label", label),
                 ("renderings", conflict.renderings),
                 ("crossref_options", ",".join(conflict.crossref_options)),
-                (
-                    "source_format",
-                    "notebook"
-                    if cell.span is not None and cell.span.cell is not None
-                    else "markdown",
-                ),
+                ("source_format", cell.source_format),
                 ("subject_fact_id", cell.fact_id),
+                *output_properties,
             ),
         )
 

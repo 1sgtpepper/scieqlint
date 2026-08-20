@@ -76,9 +76,10 @@ coverage.
 
 `PORT004` is opt-in through `notebook-crossrefs`. It reports executable Markdown
 or notebook code cells that combine `renderings` with a cross-reference label or
-caption option. Notebook diagnostics retain logical cell locations, normalized
-cell options, and the originating cell fact ID. SciEqLint does not execute or
-re-render notebook outputs.
+caption option, including those options recorded on a notebook output. Notebook
+diagnostics retain logical cell locations, exact JSON output locations when an
+output supplies the cross-reference metadata, normalized cell options, and the
+originating fact IDs. SciEqLint does not execute or re-render notebook outputs.
 
 ## REF008
 

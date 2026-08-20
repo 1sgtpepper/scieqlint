@@ -264,11 +264,11 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 ## Notebooks
 
-Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
-cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
-or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
-4096 decimal digits are rejected with `INP001`. Code-cell variable
-analysis, notebook execution, and full Jupyter schema validation are deferred.
+Notebooks are never executed. SciEqLint scans Markdown cells, lowers code-cell
+metadata and recorded outputs, and emits deterministic `INP001` or `INP002` input
+diagnostics for malformed notebook inputs. JSON integers over 4096 decimal digits
+are rejected with `INP001`. Code-cell variable analysis, notebook execution, and
+full Jupyter schema validation are deferred.
 
 - Project reference paths are normalized lexically; SciEqLint does not resolve symlinks or
   fetch external URLs.
@@ -276,8 +276,9 @@ analysis, notebook execution, and full Jupyter schema validation are deferred.
 - Cross-reference metadata conflicts are checked only for explicit facts and known
   source/output boundaries; arbitrary custom kinds are not inferred.
 
-- Notebook output facts use logical cell locations and recorded output indexes; SciEqLint does
-  not execute notebooks, inspect runtime objects, or re-render outputs.
+- Notebook output facts use recorded JSON output locations when available, along with logical
+  cell locations and output indexes; SciEqLint does not execute notebooks, inspect runtime
+  objects, or re-render outputs.
 
 - Hidden/excluded equation-label and labeled code-cell checks consume the
   `[project].visibility` mapping. Visibility is applied before legacy and profile

@@ -46,7 +46,7 @@ from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
-from scieqlint.scan.notebook import NotebookScanner
+from scieqlint.scan.notebook import NotebookInput, NotebookScanner
 
 _ResultT = TypeVar("_ResultT")
 
@@ -169,6 +169,7 @@ def check_documents(
     visible_document_ids = {
         member.document_id for member in members if member.visibility == "visible"
     }
+    parsed_notebooks: dict[str, NotebookInput] = {}
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -182,7 +183,9 @@ def check_documents(
         elif document.kind is DocumentKind.MARKDOWN:
             scan = scanner.scan(document, config)
         elif document.kind is DocumentKind.NOTEBOOK:
-            scan = notebook_scanner.scan(document, config)
+            parsed = notebook_scanner.parse(document)
+            parsed_notebooks[document.path.as_posix()] = parsed
+            scan = notebook_scanner.scan(document, config, parsed=parsed)
         else:
             raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
@@ -249,6 +252,7 @@ def check_documents(
                 profile_documents,
                 config,
                 accessibility_metadata=accessibility_metadata,
+                parsed_notebooks=parsed_notebooks,
             )
         )
         if config.checks.references.enabled:
@@ -317,11 +321,13 @@ def _profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
         config,
         accessibility_metadata=accessibility_metadata,
+        parsed_notebooks=parsed_notebooks,
     )
     if config.profile.name == "cross-format-references":
         if config.profile.output_profile is None:
@@ -342,6 +348,7 @@ def _generated_profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
@@ -358,12 +365,18 @@ def _generated_profile_snapshot(
         in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
         and notebook_documents
     ):
-        notebook_snapshot = NotebookFrontend().lower(notebook_documents)
+        notebook_snapshot = NotebookFrontend(workspace=workspace).lower(
+            notebook_documents,
+            parsed=parsed_notebooks,
+        )
         snapshot = replace(
             snapshot,
             documents=tuple(documents),
             code_cells=(*snapshot.code_cells, *notebook_snapshot.code_cells),
             notebook_outputs=notebook_snapshot.notebook_outputs,
+            generic_refs=(*snapshot.generic_refs, *notebook_snapshot.generic_refs),
+            equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
+            equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
             crossref_metadata=(
                 *snapshot.crossref_metadata,
                 *notebook_snapshot.crossref_metadata,

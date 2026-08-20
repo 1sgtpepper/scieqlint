@@ -7,21 +7,23 @@ from collections.abc import Sequence
 from scieqlint.facts.reference import (
     CrossrefMetadataFact,
     EquationLabelFact,
-    EquationRefFact,
-    GenericRefFact,
     TargetAnchorFact,
 )
+from scieqlint.facts.structure import CodeCellFact
 from scieqlint.io.source import SourceDocument
+
+from .myst_shared import crossref_target_kind
+
+_CROSSREF_DISPLAY_KEYS = frozenset({"cap", "caption", "fig-cap", "lst-cap", "tbl-cap"})
 
 
 def crossref_metadata_facts(
     document: SourceDocument,
-    generic_refs: Sequence[GenericRefFact],
-    equation_refs: Sequence[EquationRefFact],
     target_anchors: Sequence[TargetAnchorFact] = (),
     equation_labels: Sequence[EquationLabelFact] = (),
+    code_cells: Sequence[CodeCellFact] = (),
 ) -> tuple[CrossrefMetadataFact, ...]:
-    """Lower source references and resolved target definitions."""
+    """Lower source-owned target definitions into conflict metadata facts."""
 
     facts: list[CrossrefMetadataFact] = []
     source_format = document.kind.value
@@ -39,10 +41,9 @@ def crossref_metadata_facts(
                 source_fact_id=anchor.fact_id,
                 logical_target=anchor.label,
                 normalized_target=anchor.normalized_label,
+                target_kind=anchor.target_kind,
                 source_format=source_format,
                 output_boundary=boundary,
-                resolved_target_kind=anchor.target_kind,
-                metadata_kind="target-definition",
                 target_metadata=(("placement", anchor.placement),),
                 target_span=target_span,
             )
@@ -58,54 +59,40 @@ def crossref_metadata_facts(
                 source_fact_id=label.fact_id,
                 logical_target=label.label,
                 normalized_target=label.normalized_label,
+                target_kind="equation",
                 source_format=source_format,
                 output_boundary=boundary,
-                resolved_target_kind="equation",
-                metadata_kind="target-definition",
                 target_metadata=(("label_syntax_kind", label.label_syntax_kind),),
                 target_span=target_span,
             )
         )
-    for ref in generic_refs:
-        metadata = () if ref.title is None else (("display_text", ref.title),)
+    for cell in code_cells:
+        if cell.label is None:
+            continue
+        target_kind = crossref_target_kind(cell.label)
+        if target_kind is None:
+            continue
+        options = cell.option_dict()
         facts.append(
             CrossrefMetadataFact(
-                fact_id=f"{ref.fact_id}::crossref-metadata",
-                document_id=ref.document_id,
-                span=ref.span,
-                raw=ref.raw,
-                source_fact_id=ref.fact_id,
-                logical_target=ref.target,
-                normalized_target=ref.normalized_target,
-                reference_kind=ref.role_kind,
-                source_format=source_format,
+                fact_id=f"{cell.fact_id}::crossref-metadata",
+                document_id=cell.document_id,
+                span=cell.span,
+                raw=cell.raw,
+                source_fact_id=cell.fact_id,
+                logical_target=cell.label,
+                normalized_target=cell.normalized_label or cell.label,
+                target_kind=target_kind,
+                source_format=cell.source_format,
                 output_boundary=boundary,
-                reference_role=ref.role_kind,
-                metadata_kind="reference-use",
-                display_metadata=metadata,
-                target_span=ref.target_span,
-            )
-        )
-    for ref in equation_refs:
-        metadata = (("reference_role", ref.ref_kind),)
-        if ref.title is not None:
-            metadata = (*metadata, ("display_text", ref.title))
-        facts.append(
-            CrossrefMetadataFact(
-                fact_id=f"{ref.fact_id}::crossref-metadata",
-                document_id=ref.document_id,
-                span=ref.span,
-                raw=ref.raw,
-                source_fact_id=ref.fact_id,
-                logical_target=ref.target,
-                normalized_target=ref.normalized_target,
-                reference_kind=ref.ref_kind,
-                source_format=source_format,
-                output_boundary=boundary,
-                reference_role=ref.ref_kind,
-                metadata_kind="reference-use",
-                display_metadata=metadata,
-                target_span=ref.target_span,
+                target_metadata=tuple(
+                    sorted(
+                        (key, value)
+                        for key, value in options.items()
+                        if key in _CROSSREF_DISPLAY_KEYS
+                    )
+                ),
+                target_span=cell.label_span or cell.span,
             )
         )
     return tuple(

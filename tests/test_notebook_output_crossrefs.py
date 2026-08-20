@@ -127,15 +127,21 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
     assert snapshot.notebook_outputs[0].metadata == (("needs_background", "light"),)
     assert all(output.span is not None for output in snapshot.notebook_outputs)
     assert [output.span.cell for output in snapshot.notebook_outputs if output.span] == [0, 0]
-    assert [output.span.cell_line for output in snapshot.notebook_outputs if output.span] == [
-        1,
-        1,
-    ]
+    assert all(
+        output.span and output.span.cell_line is None for output in snapshot.notebook_outputs
+    )
+    assert all(
+        output.raw is not None
+        and document.text[output.span.start : output.span.end] == output.raw
+        for output in snapshot.notebook_outputs
+        if output.span is not None
+    )
+    assert "needs_background" in (snapshot.notebook_outputs[0].raw or "")
     assert [fact.output_boundary for fact in snapshot.crossref_metadata] == [
         "theme.ipynb::notebook-cell::0::output::0",
         "theme.ipynb::notebook-cell::0::output::1",
     ]
-    assert [fact.reference_kind for fact in snapshot.crossref_metadata] == [
+    assert [fact.target_kind for fact in snapshot.crossref_metadata] == [
         "figure",
         "figure",
     ]
@@ -180,6 +186,45 @@ def test_notebook_profile_warns_once_for_renderings_with_crossref_options() -> N
     projected = [item for item in payload["diagnostics"] if item["code"] == "PORT004"]
     assert projected[0]["cell"] == 0
     assert projected[0]["properties"]["renderings"] == '["light","dark"]'
+
+
+def test_output_metadata_is_a_rendering_conflict_input_with_an_exact_location() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": ["light", "dark"]},
+                outputs=(display_output(output_metadata={"fig-cap": "Rendered figure"}),),
+            )
+        )
+    )
+
+    result = check_documents((document,), config=config())
+
+    [diagnostic] = [item for item in result.diagnostics if item.code == "PORT004"]
+    assert diagnostic.span is not None
+    assert diagnostic.span.cell == 0
+    assert diagnostic.span.cell_line is None
+    assert dict(diagnostic.properties)["output_index"] == "0"
+    assert diagnostic.provenance_ids == (
+        "theme.ipynb::notebook-cell::0",
+        "theme.ipynb::notebook-cell::0::output::0",
+    )
+    output = NotebookFrontend().lower((document,)).notebook_outputs[0]
+    assert output.span is not None
+    assert diagnostic.span == output.span
+    assert document.text[diagnostic.span.start : diagnostic.span.end] == output.raw
+
+    quiet_document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": ["light", "dark"]},
+                outputs=(display_output(output_metadata={}),),
+            )
+        ),
+        path="quiet.ipynb",
+    )
+    quiet_result = check_documents((quiet_document,), config=config())
+    assert not any(item.code == "PORT004" for item in quiet_result.diagnostics)
 
 
 def test_notebook_source_cell_options_override_generated_metadata() -> None:
@@ -291,19 +336,25 @@ def test_notebook_frontend_rejects_non_notebook_documents() -> None:
         NotebookFrontend().lower((markdown("# not a notebook\n"),))
 
 
-@pytest.mark.parametrize("text", ["{", "[]", '{"cells": {}}'])
-def test_notebook_frontend_bounds_invalid_json_roots_and_cell_collections(text: str) -> None:
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [("{", "INP001"), ("[]", "INP002"), ('{"cells": {}}', "INP002")],
+)
+def test_notebook_frontend_bounds_invalid_json_roots_and_cell_collections(
+    text: str,
+    code: str,
+) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("malformed.ipynb"),
         text,
         DocumentKind.NOTEBOOK,
     )
 
-    snapshot = NotebookFrontend().lower((document,))
+    with pytest.raises(ValueError, match="invalid notebook input"):
+        NotebookFrontend().lower((document,))
 
-    assert snapshot.documents == (document,)
-    assert snapshot.code_cells == ()
-    assert snapshot.notebook_outputs == ()
+    result = check_documents((document,), config=config())
+    assert [item.code for item in result.diagnostics] == [code]
 
 
 def test_notebook_frontend_skips_non_cell_entries_and_normalizes_scalar_metadata() -> None:

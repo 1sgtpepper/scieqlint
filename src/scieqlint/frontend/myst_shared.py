@@ -26,6 +26,21 @@ MYST_OPTION_RE = re.compile(
 )
 CODE_CELL_TAG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
+_CROSSREF_TARGET_KINDS = (
+    ("eq-", "equation"),
+    ("fig-", "figure"),
+    ("lst-", "listing"),
+    ("tbl-", "table"),
+)
+
+
+def crossref_target_kind(label: str) -> str | None:
+    normalized = label.strip().lower()
+    for prefix, kind in _CROSSREF_TARGET_KINDS:
+        if normalized.startswith(prefix):
+            return kind
+    return None
+
 
 def line_ranges(text: str) -> tuple[LineRange, ...]:
     ranges: list[LineRange] = []
