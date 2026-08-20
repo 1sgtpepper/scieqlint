@@ -73,7 +73,7 @@ class MySTFrontend:
         equation_labels = _flatten(parts, "equation_labels")
         equation_refs = _flatten(parts, "equation_refs")
         inline_math = _flatten(parts, "inline_math")
-        project_members = self.workspace.project_members(documents)
+        project_members, _hidden_excluded = self.workspace.project_facts(documents)
         return FactSnapshot(
             documents=documents,
             headings=_flatten(parts, "headings"),

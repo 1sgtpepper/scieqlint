@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
+from urllib.parse import quote
 
 from scieqlint.facts.math import (
     DisplayMathFact,
@@ -247,13 +248,17 @@ def _with_accessibility_ids(
     """Assign source-owned identities independent of lexical byte offsets."""
 
     occurrences: dict[tuple[str, str], int] = {}
+    encoded_path = quote(document.path.as_posix(), safe="")
     for fact in facts:
+        if fact.delimiter_kind == "plain-text":
+            yield fact
+            continue
         identity_key = (fact.delimiter_kind, fact.body)
         occurrence = occurrences.get(identity_key, 0)
         occurrences[identity_key] = occurrence + 1
+        encoded_body = quote(fact.body, safe="")
         accessibility_id = (
-            f"{document.path.as_posix()}::inline-math::"
-            f"{fact.delimiter_kind}::{fact.body}"
+            f"{encoded_path}::inline-math::{fact.delimiter_kind}::{encoded_body}"
         )
         if occurrence:
             accessibility_id += f"::{occurrence}"

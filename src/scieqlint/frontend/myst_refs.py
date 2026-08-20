@@ -85,6 +85,11 @@ def _markdown_link_ref_fact(
     fragment = token.fragment_target
     if project_target is not None:
         fragment = project_target.fragment
+    source_member = (
+        workspace.normalize_project_path(document.path)
+        if project_target is None and fragment is not None
+        else None
+    )
     if fragment is not None:
         if token.fragment_target is not None:
             assert token.fragment_target_start is not None
@@ -111,7 +116,9 @@ def _markdown_link_ref_fact(
         resolved_raw_target_path=(
             None if project_target is None else project_target.resolved_raw_path
         ),
-        normalized_target_path=(None if project_target is None else project_target.normalized_path),
+        normalized_target_path=(
+            project_target.normalized_path if project_target is not None else source_member
+        ),
         target_fragment=fragment,
     )
 

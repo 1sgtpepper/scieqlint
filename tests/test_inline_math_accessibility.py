@@ -8,7 +8,14 @@ import pytest
 
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
-from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    ChecksConfig,
+    Config,
+    ProfileConfig,
+    ProfileSeverity,
+)
+from scieqlint.diag.model import Severity
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -26,9 +33,9 @@ def doc(text: str) -> SourceDocument:
     )
 
 
-def accessibility_config() -> Config:
+def accessibility_config(*, severity: ProfileSeverity | None = None) -> Config:
     return Config(
-        profile=ProfileConfig(name="math-accessibility"),
+        profile=ProfileConfig(name="math-accessibility", severity=severity),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
 
@@ -94,12 +101,52 @@ def test_accessibility_ids_distinguish_repeated_source_tokens() -> None:
     ]
 
 
+def test_accessibility_ids_do_not_confuse_body_text_with_occurrence_suffixes() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("chapters/math::notes.md"),
+        "Use $x$, then $x$, and finally $x::1$.\n",
+        DocumentKind.MARKDOWN,
+    )
+    snapshot = _profile_snapshot((document,), accessibility_config())
+
+    assert [fact.accessibility_id for fact in snapshot.inline_math[:3]] == [
+        "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x",
+        "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x::1",
+        "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x%3A%3A1",
+    ]
+
+    result = public_check_documents(
+        (document,),
+        config=accessibility_config(),
+        accessibility_metadata={
+            "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x": "the variable x",
+            "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x::1": "the variable x",
+            "chapters%2Fmath%3A%3Anotes.md::inline-math::dollar::x%3A%3A1": (
+                "the identifier x double-colon one"
+            ),
+        },
+    )
+
+    assert not any(item.code == "PORT002" for item in result.diagnostics)
+
+
 def test_public_api_rejects_accessibility_metadata_for_unknown_ids() -> None:
     with pytest.raises(ValueError, match="unknown inline math fact"):
         public_check_documents(
             (doc("Use $x$ here.\n"),),
             config=accessibility_config(),
             accessibility_metadata={"unknown-inline": "not a source fact"},
+        )
+
+
+def test_inferred_plain_text_candidates_cannot_accept_accessibility_metadata() -> None:
+    with pytest.raises(ValueError, match="unknown inline math fact"):
+        public_check_documents(
+            (doc("An inferred candidate x = y stays plain text.\n"),),
+            config=accessibility_config(),
+            accessibility_metadata={
+                "accessible-math.md::inline-math::plain-text::x = y": "an equation"
+            },
         )
 
 
@@ -135,6 +182,31 @@ def test_accessibility_profile_is_opt_in_and_non_math_text_stays_quiet() -> None
     assert not any(item.code == "PORT002" for item in default.diagnostics)
     assert [item.code for item in profiled.diagnostics if item.code == "PORT002"] == ["PORT002"]
     assert not any(item.code == "PORT002" for item in non_math.diagnostics)
+
+
+@pytest.mark.parametrize(
+    ("severity", "expected"),
+    [
+        ("warning", Severity.WARNING),
+        ("error", Severity.ERROR),
+        ("disabled", None),
+    ],
+)
+def test_accessibility_profile_uses_configured_policy_severity(
+    severity: ProfileSeverity,
+    expected: Severity | None,
+) -> None:
+    result = check_documents(
+        (doc("Use $x$.\n"),),
+        config=accessibility_config(severity=severity),
+    )
+    diagnostics = [item for item in result.diagnostics if item.code == "PORT002"]
+
+    if expected is None:
+        assert diagnostics == []
+    else:
+        assert len(diagnostics) == 1
+        assert diagnostics[0].severity is expected
 
 
 def test_unsupported_inline_environment_keeps_accessibility_span_and_status() -> None:

@@ -234,6 +234,46 @@ def test_generated_profile_keeps_heterogeneous_origins_through_public_path() -> 
     }
 
 
+def test_generated_rules_do_not_diagnose_a_document_known_only_as_the_source() -> None:
+    source = doc("source/paper.md", "<!-- formula-not-decoded -->\n")
+    generated = SourceDocument.from_text(
+        PurePosixPath("out/paper.md"),
+        "<!-- formula-not-decoded -->\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(source_document_id=source.path.as_posix()),
+    )
+
+    result = check_documents(
+        (source, generated),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    diagnostics = [item for item in result.diagnostics if item.code == "GEN004"]
+    assert len(diagnostics) == 1
+    assert diagnostics[0].span is not None
+    assert diagnostics[0].span.path == generated.path
+
+
+def test_source_only_targets_cannot_resolve_references_in_generated_output() -> None:
+    source = doc("source/paper.md", "(source-only)=\n# Source\n")
+    generated = SourceDocument.from_text(
+        PurePosixPath("out/paper.md"),
+        "See {ref}`source-only`.\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(source_document_id=source.path.as_posix()),
+    )
+
+    result = check_documents(
+        (source, generated),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    unresolved = [item for item in result.diagnostics if item.code == "REF004"]
+    assert len(unresolved) == 1
+    assert unresolved[0].span is not None
+    assert unresolved[0].span.path == generated.path
+
+
 def test_generated_profile_path_ingress_preserves_configured_provenance(tmp_path) -> None:
     config_path = tmp_path / "generated-myst.toml"
     config_path.write_text(

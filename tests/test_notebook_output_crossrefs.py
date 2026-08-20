@@ -12,8 +12,10 @@ from scieqlint.config.model import (
     ChecksConfig,
     Config,
     ProfileConfig,
+    ProfileSeverity,
     ValidationProfile,
 )
+from scieqlint.diag.model import Severity
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -37,9 +39,13 @@ def markdown(text: str, path: str = "theme.qmd") -> SourceDocument:
     )
 
 
-def config(profile: ValidationProfile | None = "notebook-crossrefs") -> Config:
+def config(
+    profile: ValidationProfile | None = "notebook-crossrefs",
+    *,
+    severity: ProfileSeverity | None = None,
+) -> Config:
     return Config(
-        profile=ProfileConfig(name=profile),
+        profile=ProfileConfig(name=profile, severity=severity),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
 
@@ -186,6 +192,40 @@ def test_notebook_profile_warns_once_for_renderings_with_crossref_options() -> N
     projected = [item for item in payload["diagnostics"] if item["code"] == "PORT004"]
     assert projected[0]["cell"] == 0
     assert projected[0]["properties"]["renderings"] == '["light","dark"]'
+
+
+@pytest.mark.parametrize(
+    ("severity", "expected"),
+    [
+        ("warning", Severity.WARNING),
+        ("error", Severity.ERROR),
+        ("disabled", None),
+    ],
+)
+def test_notebook_profile_uses_configured_policy_severity(
+    severity: ProfileSeverity,
+    expected: Severity | None,
+) -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "fig-theme",
+                    "fig-cap": "Theme comparison",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+
+    result = check_documents((document,), config=config(severity=severity))
+    diagnostics = [item for item in result.diagnostics if item.code == "PORT004"]
+
+    if expected is None:
+        assert diagnostics == []
+    else:
+        assert len(diagnostics) == 1
+        assert diagnostics[0].severity is expected
 
 
 def test_output_metadata_is_a_rendering_conflict_input_with_an_exact_location() -> None:

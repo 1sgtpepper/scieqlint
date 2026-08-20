@@ -27,7 +27,6 @@ _MAX_JSON_INTEGER_DIGITS = 4096
 class NotebookInput:
     """One validated JSON decode shared by notebook scanners and frontends."""
 
-    document: SourceDocument
     root: Mapping[str, object] | None
     cells: tuple[object, ...]
     cell_spans: tuple[SourceSpan | None, ...]
@@ -47,7 +46,6 @@ class NotebookScanner:
             notebook_data: object = json.loads(document.text, parse_int=_parse_json_integer)
         except ValueError as exc:
             return NotebookInput(
-                document=document,
                 root=None,
                 cells=(),
                 cell_spans=(),
@@ -57,7 +55,6 @@ class NotebookScanner:
             )
         if not isinstance(notebook_data, Mapping):
             return NotebookInput(
-                document=document,
                 root=None,
                 cells=(),
                 cell_spans=(),
@@ -70,7 +67,6 @@ class NotebookScanner:
         raw_cells = notebook.get("cells")
         if not isinstance(raw_cells, list):
             return NotebookInput(
-                document=document,
                 root=None,
                 cells=(),
                 cell_spans=(),
@@ -81,7 +77,6 @@ class NotebookScanner:
         cells = tuple(cast(list[object], raw_cells))
         cell_spans, output_spans = _notebook_locations(document, len(cells))
         return NotebookInput(
-            document=document,
             root=notebook,
             cells=cells,
             cell_spans=cell_spans,

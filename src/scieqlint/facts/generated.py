@@ -23,6 +23,11 @@ GeneratedFormulaCandidateKind = Literal[
     "placeholder",
     "equation-like-text",
 ]
+GeneratedPlaceholderKind = Literal[
+    "formula-not-decoded",
+    "empty-display-math",
+    "formula-image",
+]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -45,7 +50,7 @@ class GeneratedFormulaFact(FactBase):
     text: str
     candidate_kind: GeneratedFormulaCandidateKind | None = None
     source_math_fact_id: str | None = None
-    placeholder_kind: str | None = None
+    placeholder_kind: GeneratedPlaceholderKind | None = None
     complete: bool | None = None
 
     def __post_init__(self) -> None:
@@ -59,6 +64,15 @@ class GeneratedFormulaFact(FactBase):
         if expects_placeholder_kind != (self.placeholder_kind is not None):
             raise ValueError(
                 "GeneratedFormulaFact placeholder_kind does not match its artifact state"
+            )
+        if self.placeholder_kind not in {
+            None,
+            "formula-not-decoded",
+            "empty-display-math",
+            "formula-image",
+        }:
+            raise ValueError(
+                f"unsupported GeneratedFormulaFact placeholder_kind: {self.placeholder_kind}"
             )
         expects_complete = (
             self.kind == "candidate"

@@ -54,11 +54,10 @@ class PortabilityQueryView:
         return tuple(bad)
 
     def renderings_with_crossref_options(self) -> tuple[CodeCellFact, ...]:
-        outputs = _outputs_by_cell(self.snapshot)
         out: list[CodeCellFact] = []
         for cell in self.snapshot.code_cells:
             options = cell.option_dict()
-            if "renderings" in options and _crossref_options(cell, outputs.get(cell.fact_id, ())):
+            if "renderings" in options and _cell_creates_crossref(cell):
                 out.append(cell)
         return tuple(out)
 

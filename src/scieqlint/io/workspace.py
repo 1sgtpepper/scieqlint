@@ -57,7 +57,9 @@ class WorkspaceHost:
         for path, state in (visibility or {}).items():
             if not isinstance(state, str) or state not in {"visible", "hidden", "excluded"}:
                 raise ValueError(f"unsupported workspace visibility: {state}")
-            normalized_path = self.normalize_project_path(path)
+            # Configuration keys are already project-relative; the workspace root
+            # applies only when normalizing discovered document paths.
+            normalized_path = normalize_project_path(path)
             previous = supplied.get(normalized_path)
             if previous is not None and previous != state:
                 raise ValueError(

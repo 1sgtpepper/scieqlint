@@ -40,7 +40,7 @@ from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
-from scieqlint.io.workspace import WorkspaceHost
+from scieqlint.io.workspace import WorkspaceHost, normalize_project_path
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
@@ -173,8 +173,11 @@ def check_documents(
         documents,
         dict(config.project.visibility),
     )
+    source_only_document_ids = _generated_source_only_document_ids(documents, config)
     visible_document_ids = {
-        member.document_id for member in members if member.visibility == "visible"
+        member.document_id
+        for member in members
+        if member.visibility == "visible" and member.document_id not in source_only_document_ids
     }
     parsed_notebooks: dict[str, NotebookInput] = {}
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
@@ -185,6 +188,10 @@ def check_documents(
     diagnostics: list[Diagnostic] = []
 
     for document in documents:
+        if document.kind is DocumentKind.UNKNOWN:
+            raise _unsupported_source_kind(document.path)
+        if document.path.as_posix() in source_only_document_ids:
+            continue
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
@@ -375,8 +382,12 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
+    source_only_document_ids = _generated_source_only_document_ids(documents, config)
     markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
+        document
+        for document in documents
+        if document.kind is DocumentKind.MARKDOWN
+        and document.path.as_posix() not in source_only_document_ids
     )
     notebook_documents = tuple(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
@@ -384,6 +395,31 @@ def _generated_profile_snapshot(
     workspace = WorkspaceHost(project_root=config.project.root)
     frontend = MySTFrontend(workspace=workspace)
     snapshot = frontend.lower(markdown_documents)
+    source_markdown_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.MARKDOWN
+        and document.path.as_posix() in source_only_document_ids
+    )
+    source_anchors = (
+        tuple(
+            replace(
+                anchor,
+                target_kind=None,
+                attaches_to_fact_id=None,
+                placement="standalone",
+                visibility="excluded",
+            )
+            for anchor in frontend.lower(source_markdown_documents).target_anchors
+        )
+        if source_markdown_documents
+        else ()
+    )
+    if source_anchors:
+        snapshot = replace(
+            snapshot,
+            target_anchors=(*snapshot.target_anchors, *source_anchors),
+        )
     latex_math_documents = tuple(
         document
         for document in documents
@@ -435,7 +471,7 @@ def _generated_profile_snapshot(
     profile_visibility = {
         path: state
         for path, state in config.project.visibility
-        if workspace.normalize_project_path(path) in profile_paths
+        if normalize_project_path(path) in profile_paths
     }
     snapshot = replace(snapshot, documents=tuple(documents))
     snapshot = replace(
@@ -450,6 +486,16 @@ def _generated_profile_snapshot(
         snapshot,
         profile_visibility,
     )
+    if source_only_document_ids:
+        snapshot = replace(
+            snapshot,
+            target_anchors=tuple(
+                replace(anchor, visibility="excluded")
+                if anchor.document_id in source_only_document_ids
+                else anchor
+                for anchor in snapshot.target_anchors
+            ),
+        )
     snapshot = replace(
         snapshot,
         reference_display_text=reference_display_text_facts(
@@ -994,3 +1040,22 @@ def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, st
 
 def _span_document_id(span: SourceSpan) -> str:
     return span.path.as_posix()
+
+
+def _generated_source_only_document_ids(
+    documents: Sequence[SourceDocument],
+    config: Config,
+) -> frozenset[str]:
+    """Return inputs whose only declared role is source provenance for another input."""
+
+    if config.profile.name != "generated-myst":
+        return frozenset()
+    generated_ids = {
+        document.path.as_posix() for document in documents if document.origin is not None
+    }
+    source_ids = {
+        document.origin.source_document_id
+        for document in documents
+        if document.origin is not None and document.origin.source_document_id is not None
+    }
+    return frozenset(source_ids - generated_ids)

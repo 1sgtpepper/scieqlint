@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from scieqlint.facts.generated import GeneratedFormulaFact
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedPlaceholderKind
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact, InlineTextRole
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import MarkdownLinkToken
@@ -279,7 +279,7 @@ def _placeholder_fact(
     smap: SourceMap,
     start: int,
     end: int,
-    placeholder_kind: str,
+    placeholder_kind: GeneratedPlaceholderKind,
     *,
     source_math_fact_id: str | None = None,
     complete: bool | None = None,

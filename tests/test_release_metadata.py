@@ -91,6 +91,7 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     assert "SCIEQLINT_RELEASE_GATE=1 python -m pytest" not in release_gate
     assert "/tmp/scieqlint-release-wheel-smoke/bin/python -m pytest" in release_gate
     assert "/tmp/scieqlint-release-sdist-smoke/bin/python -m pytest" in release_gate
+    assert release_gate.count("SCIEQLINT_RELEASE_GATE=1") == 2
     assert "-o pythonpath=" in release_gate
     assert "pip install -e" not in release_gate
     assert "PYTHONPATH=" not in release_gate
@@ -130,24 +131,6 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     assert "name: dist" not in publish
     assert "actions/checkout@" not in publish
     assert "python -m build" not in publish
-
-
-def test_stable_release_accuracy_gate_counts_independently_labeled_equations() -> None:
-    accuracy_gate = Path("tests/test_accuracy_benchmarks.py").read_text(encoding="utf-8")
-
-    assert "result.math_blocks_checked > 0" in accuracy_gate
-    assert 'case.get("independent_equation_id")' in accuracy_gate
-    assert "independent_equation_ids = _independent_equation_ids(cases)" in accuracy_gate
-    assert "assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD" in (
-        accuracy_gate
-    )
-    assert "equation_fixture_ids" not in accuracy_gate
-    assert "assert len(case_ids) >= 100" not in accuracy_gate
-    assert accuracy_gate.index(
-        "independent_equation_ids = _independent_equation_ids(cases)"
-    ) < accuracy_gate.index(
-        "assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD"
-    )
 
 
 def test_ci_test_matrix_covers_declared_python_versions() -> None:

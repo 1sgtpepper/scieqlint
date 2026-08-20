@@ -50,10 +50,13 @@ CLI guard before writing a file output.
 accessibility ID to accessible text. An ID has the form
 `<document-path>::inline-math::<delimiter-kind>::<trimmed-body>`; repeated identical
 source tokens append a deterministic occurrence suffix such as `::1`. These identities
-do not depend on the token's byte offset, so edits before a formula that do not add an
-earlier identical token do not invalidate the mapping. SciEqLint applies it at the
-orchestration boundary; it does not infer alternative text from surrounding prose. An
-unknown accessibility ID is rejected. The
+percent-encode the path and body segments, so delimiter-like source text cannot collide
+with the occurrence suffix. They do not depend on the token's byte offset, so edits
+before a formula that do not add an earlier identical token do not invalidate the
+mapping. Only explicit inline-math containers receive IDs; inferred plain-text
+candidates cannot accept caller metadata. SciEqLint applies metadata at the orchestration
+boundary and does not infer alternative text from surrounding prose. An unknown
+accessibility ID is rejected. The
 `[project].visibility` configuration table uses each document's project-relative path as
 its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents are
 visible, and a configured path that is not present in the analyzed project is rejected.
@@ -98,7 +101,11 @@ An absent explicit source mapping means that source-to-generated identity is unk
 so the loaded-document API does not manufacture a provenance relationship. The
 path-based API records the generated document and any configured profile metadata
 when `generated-myst` is selected, but it still leaves source-document identity and
-preserved-anchor comparison to an explicit `SourceOrigin`.
+preserved-anchor comparison to an explicit `SourceOrigin`. When that identity matches
+another supplied document, the matched source is comparison-only: its anchors are used
+only for preservation comparison (and narrowed by `preserved_anchor_inventory` when
+provided), it is not linted as generated output, and it cannot resolve references from
+the generated document.
 
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered

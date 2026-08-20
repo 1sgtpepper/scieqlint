@@ -149,6 +149,22 @@ def test_cross_document_resolution_reports_missing_member_and_fragment() -> None
     assert [ref.target_fragment for ref in unresolved] == ["shared", "missing"]
 
 
+def test_fragment_only_link_cannot_resolve_against_wrong_document_twin() -> None:
+    source = doc(
+        "index.md",
+        "[local](#shared)\n\n(shared)=\n```{figure}\nlocal.png\n```\n",
+    )
+    twin = doc("other.md", "(shared)=\n```{figure}\nother.png\n```\n")
+
+    snapshot = MySTFrontend().lower((source, twin))
+    [ref] = snapshot.generic_refs
+
+    assert ref.normalized_target_path == PurePosixPath("index.md")
+    assert [fact.target_type for fact in snapshot.reference_display_text] == ["figure"]
+    assert QueryHost(snapshot).references.unresolved_generic_refs() == ()
+    assert QueryHost(snapshot).references.ambiguous_generic_refs() == ()
+
+
 def test_configured_project_root_resolves_public_root_relative_links() -> None:
     source = doc("book/index.md", "See [energy](/chapters/energy.md#eq-energy).\n")
     target = doc("book/chapters/energy.md", "(eq-energy)=\n$$\nE=mc^2\n$$\n")

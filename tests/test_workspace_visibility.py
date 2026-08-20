@@ -197,3 +197,22 @@ def test_path_api_reads_project_visibility_from_normal_config(tmp_path, monkeypa
     result = check_paths(("source.md", "target.md"), config_path=config_path)
 
     assert [item.code for item in result.diagnostics if item.code == "REF008"] == ["REF008"]
+
+
+def test_visibility_keys_remain_project_relative_under_configured_root(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    project = tmp_path / "book"
+    project.mkdir()
+    (project / "source.md").write_text("{eq}`eq-one`\n", encoding="utf-8")
+    (project / "target.md").write_text("$$\nx = 1\n$$ {#eq-one}\n", encoding="utf-8")
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[project]\nroot = "book"\n\n[project.visibility]\n"target.md" = "hidden"\n',
+        encoding="utf-8",
+    )
+
+    result = check_paths((), config_path=config_path)
+
+    assert [item.code for item in result.diagnostics if item.code == "REF008"] == ["REF008"]
