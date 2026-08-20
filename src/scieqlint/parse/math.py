@@ -277,11 +277,11 @@ def _has_missing_required_argument(body: str) -> bool:
     for match in _REQUIRED_ARITY_COMMAND_RE.finditer(body):
         if _is_escaped(body, match.start()):
             continue
-        cursor = _skip_tex_space(body, match.end())
+        cursor = _skip_tex_ignored(body, match.end())
         first_end = _tex_argument_end(body, cursor)
         if first_end is None:
             return True
-        second_end = _tex_argument_end(body, _skip_tex_space(body, first_end))
+        second_end = _tex_argument_end(body, _skip_tex_ignored(body, first_end))
         if second_end is None:
             return True
     return False
@@ -307,6 +307,8 @@ def _tex_argument_end(text: str, start: int) -> int | None:
     cursor = start + 1
     while cursor < len(text):
         character = text[cursor]
+        if character == "%" and not _is_escaped(text, cursor):
+            return None
         if character == "\\":
             cursor += 2
             continue
@@ -320,10 +322,12 @@ def _tex_argument_end(text: str, start: int) -> int | None:
     return None
 
 
-def _skip_tex_space(text: str, start: int) -> int:
+def _skip_tex_ignored(text: str, start: int) -> int:
+    """Skip TeX whitespace and stop at a comment that consumes the inline body."""
+
     while start < len(text) and text[start].isspace():
         start += 1
-    return start
+    return len(text) if start < len(text) and text[start] == "%" else start
 
 
 def _unknown(

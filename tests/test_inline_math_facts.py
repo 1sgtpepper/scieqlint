@@ -124,6 +124,25 @@ def test_math_host_rejects_required_arity_command_with_one_control_sequence_argu
 @pytest.mark.parametrize(
     "body",
     [
+        "\\frac{1}% the second argument is absent",
+        "\\frac% both arguments are absent",
+    ],
+    ids=["missing-second-after-comment", "missing-first-after-comment"],
+)
+def test_math_host_does_not_treat_tex_comments_as_required_arguments(body: str) -> None:
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        (body, "unsupported")
+    ]
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", body)
+    ]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
         r"\frac{1}{2}",
         r"\dfrac{x}{y}",
         r"\tfrac{a}{b}",
