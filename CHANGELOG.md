@@ -53,6 +53,10 @@ Release notes must use these sections:
 - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
+- Project visibility is now configured through `[project].visibility` and is applied
+  before legacy and profile reference observations, including labeled code-cell targets.
+- Code-cell language validation now accepts valid uncommon identifiers by default and
+  uses an optional `[project].code_cell_languages` catalog when a project needs a closed set.
 
 ### Fixed
 

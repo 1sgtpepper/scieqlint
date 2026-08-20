@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import PurePosixPath
 
 from scieqlint.app import _profile_snapshot, check_documents
@@ -15,12 +14,6 @@ from scieqlint.config.model import (
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.myst_blocks import (
-    _directive_group_span,
-    _fence_info_span,
-    _option_value_span,
-)
-from scieqlint.frontend.myst_shared import DIRECTIVE_INFO_RE, QUARTO_OPTION_RE
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.policy import PolicyHost
@@ -182,7 +175,7 @@ See {ref}`missing-cell`.
     assert diagnostics[0].message.endswith("missing-cell")
 
 
-def test_language_profile_distinguishes_missing_malformed_and_custom_identifiers() -> None:
+def test_language_profile_uses_project_catalog_after_syntax_validation() -> None:
     document = markdown(
         """```{code-cell}
 pass
@@ -210,12 +203,19 @@ pass
 
     default = StructureEngine().run(query)
     profiled = StructureEngine(profile="code-cell-metadata").run(query)
+    configured = StructureEngine(
+        profile="code-cell-metadata",
+        policy=PolicyHost(
+            profile="code-cell-metadata",
+            code_cell_languages=("python", "c++", "custom.kernel-3"),
+        ),
+    ).run(query)
 
     assert [diagnostic.code for diagnostic in default] == ["DIR010"]
     assert default[0].profile is None
     assert default[0].provenance_ids == ()
     assert default[0].properties == ()
-    assert [diagnostic.code for diagnostic in profiled] == ["DIR010", "DIR013", "DIR013"]
+    assert [diagnostic.code for diagnostic in profiled] == ["DIR010", "DIR013"]
     assert profiled[0].profile == "code-cell-metadata"
     assert profiled[0].properties == (("source_format", "markdown"), ("reason", "missing"))
     assert source_slice(document, profiled[1].span) == "python shell"
@@ -224,22 +224,29 @@ pass
         ("language", "python shell"),
         ("reason", "invalid"),
     )
-    assert source_slice(document, profiled[2].span) == "brainfuck"
-    assert profiled[2].properties == (
+    assert [diagnostic.code for diagnostic in configured] == ["DIR010", "DIR013", "DIR013"]
+    assert source_slice(document, configured[2].span) == "brainfuck"
+    assert configured[2].properties == (
         ("source_format", "markdown"),
         ("language", "brainfuck"),
         ("reason", "unknown"),
     )
 
 
-def test_code_cell_language_policy_has_bounded_and_custom_escape_hatches() -> None:
+def test_code_cell_language_policy_defaults_open_and_honors_project_catalog() -> None:
     policy = PolicyHost(profile="code-cell-metadata")
+    configured = PolicyHost(
+        profile="code-cell-metadata",
+        code_cell_languages=("python", "c++"),
+    )
 
     assert policy.code_cell_metadata_profile() == "code-cell-metadata"
     assert policy.code_cell_language_is_known("python")
     assert policy.code_cell_language_is_known("c++")
     assert policy.code_cell_language_is_known("custom.kernel-3")
-    assert not policy.code_cell_language_is_known("brainfuck")
+    assert policy.code_cell_language_is_known("brainfuck")
+    assert configured.code_cell_language_is_known("python")
+    assert not configured.code_cell_language_is_known("brainfuck")
 
 
 def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> None:
@@ -336,7 +343,7 @@ def test_code_cell_metadata_profile_loads_from_strict_config(tmp_path) -> None:
     assert loaded.profile.name == "code-cell-metadata"
 
 
-def test_code_cell_span_helpers_bound_empty_and_inconsistent_fence_metadata() -> None:
+def test_code_cell_spans_follow_source_metadata_forms() -> None:
     document = markdown(
         """```python
 #| label:
@@ -344,36 +351,24 @@ pass
 ```
 
 ```{code-cell} python
+:label: directive-cell
+pass
+```
+
+```{code-cell}
 pass
 ```
 """
     )
     snapshot = MySTFrontend().lower((document,))
-    plain_fence, directive_fence = snapshot.fences
-    directive_match = DIRECTIVE_INFO_RE.match(directive_fence.info_string)
-    assert directive_match is not None
+    plain_cell, directive_cell, missing_language = snapshot.code_cells
 
-    assert snapshot.code_cells[0].label_span is None
-    assert (
-        _option_value_span(
-            document,
-            replace(plain_fence, body_span=None),
-            QUARTO_OPTION_RE,
-            "label",
-        )
-        is None
-    )
-    assert _fence_info_span(document, plain_fence, None) is None
-    assert (
-        _fence_info_span(document, replace(plain_fence, info_string="missing"), "python")
-        == plain_fence.opener_span
-    )
-    assert (
-        _directive_group_span(
-            document,
-            replace(directive_fence, info_string="missing"),
-            directive_match,
-            "arg",
-        )
-        == directive_fence.opener_span
-    )
+    assert plain_cell.label is None
+    assert plain_cell.label_span is None
+    assert plain_cell.language == "python"
+    assert source_slice(document, plain_cell.language_span) == "python"
+    assert directive_cell.label == "directive-cell"
+    assert source_slice(document, directive_cell.label_span) == "directive-cell"
+    assert source_slice(document, directive_cell.language_span) == "python"
+    assert missing_language.language is None
+    assert missing_language.language_span is None

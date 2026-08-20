@@ -176,8 +176,9 @@ non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
 syntax, missing or unknown code-cell language metadata, and malformed code-cell
-tag lists. The supported language set is intentionally bounded; projects can
-use explicit `custom.*` identifiers for execution environments outside it.
+tag lists. Language identifiers are accepted when syntactically valid unless a project
+declares a closed `[project].code_cell_languages` catalog; in that case an identifier
+outside the catalog is unknown.
 Malformed ATX candidates are syntax issues only and do not enter heading, section,
 slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
 such as `# #` are valid empty headings.
@@ -278,6 +279,7 @@ analysis, notebook execution, and full Jupyter schema validation are deferred.
 - Notebook output facts use logical cell locations and recorded output indexes; SciEqLint does
   not execute notebooks, inspect runtime objects, or re-render outputs.
 
-- Hidden/excluded equation-label checks consume the caller-owned `project_visibility`
-  mapping accepted by `check_documents()` and `graph_documents()`. SciEqLint does not
-  read ignored files or infer table-of-contents visibility from filenames.
+- Hidden/excluded equation-label and labeled code-cell checks consume the
+  `[project].visibility` mapping. Visibility is applied before legacy and profile
+  reference resolution; SciEqLint does not read ignored files or infer table-of-contents
+  visibility from filenames.

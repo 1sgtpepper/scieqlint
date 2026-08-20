@@ -30,7 +30,6 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
-from scieqlint.facts.reference import TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -157,12 +156,19 @@ def check_documents(
     *,
     config: Config,
     accessibility_metadata: Mapping[str, str] | None = None,
-    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents with caller-owned profile metadata."""
+    """Check already-loaded documents with project-owned profile metadata."""
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
+    workspace = WorkspaceHost(project_root=config.project.root)
+    members, _hidden_excluded = workspace.project_facts(
+        documents,
+        dict(config.project.visibility),
+    )
+    visible_document_ids = {
+        member.document_id for member in members if member.visibility == "visible"
+    }
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -201,9 +207,21 @@ def check_documents(
     if config.checks.references.enabled:
         diagnostics.extend(
             check_references(
-                tuple(labels),
-                tuple(references),
-                blocks=tuple(blocks),
+                tuple(
+                    label
+                    for label in labels
+                    if _span_document_id(label.span) in visible_document_ids
+                ),
+                tuple(
+                    reference
+                    for reference in references
+                    if _span_document_id(reference.span) in visible_document_ids
+                ),
+                blocks=tuple(
+                    block
+                    for block in blocks
+                    if _span_document_id(block.span) in visible_document_ids
+                ),
                 strict_missing_labels=config.checks.references.missing_label_strict,
             )
         )
@@ -231,7 +249,6 @@ def check_documents(
                 profile_documents,
                 config,
                 accessibility_metadata=accessibility_metadata,
-                project_visibility=project_visibility,
             )
         )
         if config.checks.references.enabled:
@@ -244,7 +261,13 @@ def check_documents(
             )
         diagnostics.extend(
             diagnostic.to_diagnostic()
-            for diagnostic in StructureEngine(profile=config.profile.name).run(query)
+            for diagnostic in StructureEngine(
+                profile=config.profile.name,
+                policy=PolicyHost(
+                    profile=config.profile.name,
+                    code_cell_languages=config.project.code_cell_languages,
+                ),
+            ).run(query)
         )
         # This compatibility path is the current shared owner for loaded and
         # path-based checks. Keep profile dispatch here until the planned
@@ -294,13 +317,11 @@ def _profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
-    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
         config,
         accessibility_metadata=accessibility_metadata,
-        project_visibility=project_visibility,
     )
     if config.profile.name == "cross-format-references":
         if config.profile.output_profile is None:
@@ -321,7 +342,6 @@ def _generated_profile_snapshot(
     config: Config,
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
-    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
@@ -349,6 +369,21 @@ def _generated_profile_snapshot(
                 *notebook_snapshot.crossref_metadata,
             ),
         )
+    # Full-input membership was validated by check_documents; this snapshot may
+    # intentionally contain only profile-supported document kinds.
+    profile_paths = {
+        workspace.normalize_project_path(document.path) for document in documents
+    }
+    profile_visibility = {
+        path: state
+        for path, state in config.project.visibility
+        if workspace.normalize_project_path(path) in profile_paths
+    }
+    snapshot = replace(snapshot, documents=tuple(documents))
+    snapshot = workspace.apply_visibility(
+        snapshot,
+        profile_visibility,
+    )
     snapshot = replace(
         snapshot,
         reference_display_text=reference_display_text_facts(
@@ -367,10 +402,6 @@ def _generated_profile_snapshot(
         ),
     )
     snapshot = MathHost().classify(snapshot)
-    snapshot = workspace.apply_visibility(
-        snapshot,
-        project_visibility,
-    )
     if config.profile.name != "generated-myst":
         return snapshot
     provenance = tuple(
@@ -467,11 +498,15 @@ def graph_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
-    project_visibility: Mapping[str, TargetVisibility] | None = None,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
-    members, _hidden_excluded = WorkspaceHost().project_facts(documents, project_visibility)
-    excluded_documents = {member.document_id for member in members if member.excluded}
+    members, _hidden_excluded = WorkspaceHost(project_root=config.project.root).project_facts(
+        documents,
+        dict(config.project.visibility),
+    )
+    excluded_documents = {
+        member.document_id for member in members if member.visibility == "excluded"
+    }
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -787,3 +822,7 @@ def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, st
         diagnostic.code,
         diagnostic.message,
     )
+
+
+def _span_document_id(span: SourceSpan) -> str:
+    return span.path.as_posix()

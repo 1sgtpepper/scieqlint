@@ -155,8 +155,8 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "code-cell language metadata is unknown or malformed",
         "v1.1.0",
-        "A code-cell language value is present but is not a supported or explicit "
-        "custom identifier.",
+        "A code-cell language value is malformed or is absent from the optional "
+        "project-authoritative language catalog.",
     ),
     "DIR011": DiagnosticInfo(
         "DIR011",

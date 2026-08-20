@@ -38,17 +38,19 @@ def reference_display_text_facts(
 
     targets: dict[str, list[TargetFact]] = defaultdict(list)
     for anchor in target_anchors:
-        if anchor.placement != "orphaned":
+        if anchor.visibility == "visible" and anchor.placement != "orphaned":
             targets[anchor.normalized_label].append(anchor)
     for label in equation_labels:
         if label.visibility == "visible":
             targets[label.normalized_label].append(label)
     for cell in code_cells:
-        if cell.normalized_label is not None:
+        if cell.visibility == "visible" and cell.normalized_label is not None:
             targets[cell.normalized_label].append(cell)
 
     facts: list[ReferenceDisplayTextFact] = []
     for ref in generic_refs:
+        if ref.visibility != "visible":
+            continue
         matched = tuple(sorted(targets.get(ref.normalized_target, ()), key=_target_key))
         facts.append(
             _display_fact(
@@ -61,6 +63,8 @@ def reference_display_text_facts(
             )
         )
     for ref in equation_refs:
+        if ref.visibility != "visible":
+            continue
         matched = tuple(
             target
             for target in sorted(targets.get(ref.normalized_target, ()), key=_target_key)

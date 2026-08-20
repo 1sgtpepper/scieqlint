@@ -8,6 +8,7 @@ from typing import Literal
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
+ProjectVisibility = Literal["visible", "hidden", "excluded"]
 ValidationProfile = Literal[
     "generated-myst",
     "cross-format-references",
@@ -71,6 +72,8 @@ class ScannerConfig:
 class ProjectConfig:
     root: PurePosixPath = PurePosixPath(".")
     order: tuple[str, ...] = ()
+    visibility: tuple[tuple[str, ProjectVisibility], ...] = ()
+    code_cell_languages: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

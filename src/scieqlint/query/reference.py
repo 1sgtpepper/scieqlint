@@ -52,6 +52,19 @@ class ReferenceQueryView:
     def code_cell_targets(self) -> tuple[CodeCellFact, ...]:
         return tuple(cell for cell in self.snapshot.code_cells if cell.normalized_label is not None)
 
+    def visible_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(
+            cell for cell in self.code_cell_targets() if cell.visibility == "visible"
+        )
+
+    def hidden_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "hidden")
+
+    def excluded_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(
+            cell for cell in self.code_cell_targets() if cell.visibility == "excluded"
+        )
+
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
             label for label in self.snapshot.equation_labels if label.visibility == "visible"
@@ -76,11 +89,22 @@ class ReferenceQueryView:
     def visible_equation_refs(self) -> tuple[EquationRefFact, ...]:
         return tuple(ref for ref in self.snapshot.equation_refs if ref.visibility == "visible")
 
+    def visible_generic_refs(self) -> tuple[GenericRefFact, ...]:
+        return tuple(ref for ref in self.snapshot.generic_refs if ref.visibility == "visible")
+
     def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
-        return self.snapshot.crossref_metadata
+        return tuple(
+            fact
+            for fact in self.snapshot.crossref_metadata
+            if self._document_is_visible(fact.document_id)
+        )
 
     def display_text_facts(self) -> tuple[ReferenceDisplayTextFact, ...]:
-        return self.snapshot.reference_display_text
+        return tuple(
+            fact
+            for fact in self.snapshot.reference_display_text
+            if self._document_is_visible(fact.document_id)
+        )
 
     def unclear_nonheading_display_text(
         self,
@@ -88,7 +112,7 @@ class ReferenceQueryView:
         """Return resolved non-heading references with missing or generic labels."""
 
         unclear: list[UnclearReferenceDisplayText] = []
-        for fact in sorted(self.snapshot.reference_display_text, key=_display_source_key):
+        for fact in sorted(self.display_text_facts(), key=_display_source_key):
             if fact.target_type in {None, "heading"} or fact.display_intent == "typed-number":
                 continue
             reason = _unclear_display_reason(fact)
@@ -102,7 +126,7 @@ class ReferenceQueryView:
         """Return targets with distinct metadata signatures across output boundaries."""
 
         by_target: dict[str, list[CrossrefMetadataFact]] = defaultdict(list)
-        for fact in self.snapshot.crossref_metadata:
+        for fact in self.metadata_facts():
             if _is_target_definition(fact):
                 by_target[fact.normalized_target].append(fact)
         conflicts: list[tuple[str, tuple[CrossrefMetadataFact, ...]]] = []
@@ -116,12 +140,12 @@ class ReferenceQueryView:
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         index: dict[str, list[TargetFact]] = defaultdict(list)
         for anchor in self.snapshot.target_anchors:
-            if anchor.placement == "orphaned":
+            if anchor.visibility != "visible" or anchor.placement == "orphaned":
                 continue
             index[anchor.normalized_label].append(anchor)
         for label in self.visible_equation_targets():
             index[label.normalized_label].append(label)
-        for cell in self.code_cell_targets():
+        for cell in self.visible_code_cell_targets():
             assert cell.normalized_label is not None
             index[cell.normalized_label].append(cell)
         return {key: tuple(value) for key, value in index.items()}
@@ -187,7 +211,9 @@ class ReferenceQueryView:
 
     def duplicate_generic_targets(self) -> dict[str, tuple[TargetAnchorFact, ...]]:
         index: dict[str, list[TargetAnchorFact]] = defaultdict(list)
-        for anchor in self.snapshot.target_anchors:
+        for anchor in self.generic_targets():
+            if anchor.visibility != "visible":
+                continue
             index[anchor.normalized_label].append(anchor)
         return {key: tuple(value) for key, value in index.items() if len(value) > 1}
 
@@ -212,14 +238,14 @@ class ReferenceQueryView:
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
         targets = self.target_index()
         return tuple(
-            ref for ref in self.snapshot.generic_refs if ref.normalized_target not in targets
+            ref for ref in self.visible_generic_refs() if ref.normalized_target not in targets
         )
 
     def ambiguous_generic_refs(self) -> tuple[GenericRefFact, ...]:
         targets = self.target_index()
         return tuple(
             ref
-            for ref in self.snapshot.generic_refs
+            for ref in self.visible_generic_refs()
             if len(targets.get(ref.normalized_target, ())) > 1
         )
 
@@ -236,7 +262,7 @@ class ReferenceQueryView:
             normalized_members[normalized.as_posix()].append(member.document_id)
 
         mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
-        for ref in self.snapshot.generic_refs:
+        for ref in self.visible_generic_refs():
             if ref.resolved_raw_target_path is None or ref.normalized_target_path is None:
                 continue
             raw_matches = tuple(raw_members.get(ref.resolved_raw_target_path, ()))
@@ -250,6 +276,14 @@ class ReferenceQueryView:
     def orphaned_targets(self) -> tuple[TargetAnchorFact, ...]:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
+        )
+
+    def _document_is_visible(self, document_id: str) -> bool:
+        if not self.snapshot.project_members:
+            return True
+        return any(
+            member.document_id == document_id and member.visibility == "visible"
+            for member in self.snapshot.project_members
         )
 
 

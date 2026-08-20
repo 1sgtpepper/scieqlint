@@ -101,12 +101,10 @@ not render final prose or enforce a universal writing style.
 target. It points to the duplicate cell label; references to the shared target
 remain subject to `REF005` ambiguity diagnostics.
 
-`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata
-that is missing from the supported language set or is not syntactically one
-identifier. The built-in set covers common executable languages such as
-`python`, `julia`, `r`, `bash`, `c++`, `rust`, `javascript`, and `sql`.
-Explicit identifiers beginning with `custom` (for example,
-`custom.kernel-3`) remain valid. SciEqLint does not execute cells or validate
+`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata that is
+not syntactically one identifier, or a syntactically valid identifier absent from the
+optional project-authoritative `[project].code_cell_languages` catalog. With no catalog,
+valid uncommon kernel names are accepted. SciEqLint does not execute cells or validate
 language-specific syntax.
 
 ## Generated-output engine

@@ -187,8 +187,8 @@ class StructureEngine:
                     message=(f"{language_info.message}: {cell.language}"),
                     span=cell.language_span or cell.span,
                     hint=(
-                        "Use a supported language identifier such as python, julia, or c++, "
-                        "or an explicit custom.* identifier."
+                        "Use a syntactically valid language identifier; when the project "
+                        "declares [project].code_cell_languages, include it in that catalog."
                     ),
                     rule="directive.code_cell_language",
                     profile_gated=True,

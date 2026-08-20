@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from scieqlint.diag.catalog import CATALOG
@@ -24,34 +23,6 @@ _REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     "typst": frozenset({"eq", "numref"}),
 }
 _CODE_CELL_METADATA_PROFILE = "code-cell-metadata"
-_KNOWN_CODE_CELL_LANGUAGES = frozenset(
-    {
-        "bash",
-        "c",
-        "c++",
-        "cpp",
-        "fortran",
-        "go",
-        "java",
-        "javascript",
-        "julia",
-        "kotlin",
-        "lua",
-        "matlab",
-        "perl",
-        "php",
-        "python",
-        "r",
-        "ruby",
-        "rust",
-        "scala",
-        "sh",
-        "sql",
-        "swift",
-        "typescript",
-    }
-)
-_CUSTOM_CODE_CELL_LANGUAGE_RE = re.compile(r"custom(?:[._+-][A-Za-z0-9_.+-]+)?")
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +31,7 @@ class PolicyHost:
 
     output_profile: str | None = None
     profile: str | None = None
+    code_cell_languages: tuple[str, ...] = ()
 
     def severity(self, code: str) -> Severity:
         """Return the catalog severity selected for one diagnostic code."""
@@ -74,11 +46,13 @@ class PolicyHost:
         return None
 
     def code_cell_language_is_known(self, language: str) -> bool:
-        """Accept supported language names and explicit ``custom`` identifiers."""
+        """Validate a language against the project catalog when one is configured.
 
-        return language in _KNOWN_CODE_CELL_LANGUAGES or bool(
-            _CUSTOM_CODE_CELL_LANGUAGE_RE.fullmatch(language)
-        )
+        An empty catalog means the project has not declared a closed kernel set, so
+        any syntactically valid language identifier remains usable.
+        """
+
+        return not self.code_cell_languages or language in self.code_cell_languages
 
     def cross_format_reference_risks(
         self,
@@ -97,7 +71,7 @@ class PolicyHost:
         return tuple(
             _reference_risk(reference, profile)
             for reference in snapshot.equation_refs
-            if reference.ref_kind not in supported
+            if reference.visibility == "visible" and reference.ref_kind not in supported
         )
 
 

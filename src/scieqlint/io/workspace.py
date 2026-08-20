@@ -5,16 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
-from typing import Literal
 from urllib.parse import urlsplit
 
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
-
-WorkspaceVisibility = Literal["visible", "hidden", "excluded"]
-
 
 _DEFAULT_PROJECT_ROOT = PurePosixPath(".")
 
@@ -45,50 +41,47 @@ class WorkspaceHost:
     def normalize_project_path(self, path: str | PurePosixPath) -> PurePosixPath:
         return normalize_project_path(path, project_root=self.project_root)
 
-    def project_members(
-        self,
-        documents: Sequence[SourceDocument],
-    ) -> tuple[ProjectMemberFact, ...]:
-        """Record caller-provided documents using one canonical path identity."""
-
-        return tuple(
-            ProjectMemberFact(
-                fact_id=f"{document.path.as_posix()}::project-member",
-                document_id=document.path.as_posix(),
-                span=None,
-                path=document.path,
-                project_root=self.project_root,
-                declared=True,
-                discovered=True,
-                explicit_input=True,
-                normalized_path=self.normalize_project_path(document.path),
-            )
-            for document in documents
-        )
-
     def project_facts(
         self,
         documents: Sequence[SourceDocument],
-        visibility: Mapping[str, WorkspaceVisibility] | None = None,
+        visibility: Mapping[str, TargetVisibility] | None = None,
     ) -> tuple[tuple[ProjectMemberFact, ...], tuple[HiddenExcludedFact, ...]]:
-        """Project caller-owned visibility into immutable member facts.
+        """Project configured visibility into immutable member facts.
 
         The workspace does not infer visibility from filenames or target labels.
-        Callers provide a path-keyed membership projection; omitted documents
+        The application passes a path-keyed project projection; omitted documents
         remain visible, matching the existing single-document API contract.
         """
 
-        supplied: dict[str, WorkspaceVisibility] = {}
+        supplied: dict[PurePosixPath, TargetVisibility] = {}
         for path, state in (visibility or {}).items():
-            if state not in {"visible", "hidden", "excluded"}:
+            if not isinstance(state, str) or state not in {"visible", "hidden", "excluded"}:
                 raise ValueError(f"unsupported workspace visibility: {state}")
-            supplied[str(path)] = state
+            normalized_path = self.normalize_project_path(path)
+            previous = supplied.get(normalized_path)
+            if previous is not None and previous != state:
+                raise ValueError(
+                    f"conflicting project visibility entries for {normalized_path.as_posix()}"
+                )
+            supplied[normalized_path] = state
+
+        document_paths = {
+            self.normalize_project_path(document.path) for document in documents
+        }
+        unknown_paths = sorted(
+            path.as_posix() for path in supplied if path not in document_paths
+        )
+        if unknown_paths:
+            raise ValueError(
+                "unknown project visibility member(s): " + ", ".join(unknown_paths)
+            )
+
         members: list[ProjectMemberFact] = []
         hidden_excluded: list[HiddenExcludedFact] = []
         for document in documents:
             path = document.path
             document_id = path.as_posix()
-            state = supplied.get(document_id, "visible")
+            state = supplied.get(self.normalize_project_path(path), "visible")
             member = ProjectMemberFact(
                 fact_id=f"{document_id}::project-member",
                 document_id=document_id,
@@ -98,8 +91,7 @@ class WorkspaceHost:
                 declared=True,
                 discovered=True,
                 explicit_input=True,
-                hidden=state == "hidden",
-                excluded=state == "excluded",
+                visibility=state,
                 normalized_path=self.normalize_project_path(path),
             )
             members.append(member)
@@ -120,12 +112,20 @@ class WorkspaceHost:
     def apply_visibility(
         self,
         snapshot: FactSnapshot,
-        visibility: Mapping[str, WorkspaceVisibility] | None = None,
+        visibility: Mapping[str, TargetVisibility] | None = None,
     ) -> FactSnapshot:
-        """Apply caller-owned workspace state to equation facts and project facts."""
+        """Apply configured project state before reference resolution."""
 
         members, hidden_excluded = self.project_facts(snapshot.documents, visibility)
-        states = {member.document_id: _member_visibility(member) for member in members}
+        states = {member.document_id: member.visibility for member in members}
+        anchors = tuple(
+            replace(anchor, visibility=states.get(anchor.document_id, "visible"))
+            for anchor in snapshot.target_anchors
+        )
+        generic_refs = tuple(
+            replace(ref, visibility=states.get(ref.document_id, "visible"))
+            for ref in snapshot.generic_refs
+        )
         labels = tuple(
             replace(label, visibility=states.get(label.document_id, "visible"))
             for label in snapshot.equation_labels
@@ -134,10 +134,17 @@ class WorkspaceHost:
             replace(ref, visibility=states.get(ref.document_id, "visible"))
             for ref in snapshot.equation_refs
         )
+        code_cells = tuple(
+            replace(cell, visibility=states.get(cell.document_id, "visible"))
+            for cell in snapshot.code_cells
+        )
         return replace(
             snapshot,
+            target_anchors=anchors,
+            generic_refs=generic_refs,
             equation_labels=labels,
             equation_refs=refs,
+            code_cells=code_cells,
             project_members=members,
             hidden_excluded=hidden_excluded,
         )
@@ -231,11 +238,3 @@ def _relative_to_project_root(
     else:
         relative_parts = ("..",) * (len(root_parts) - common) + path_parts[common:]
     return PurePosixPath(*relative_parts) if relative_parts else PurePosixPath(".")
-
-
-def _member_visibility(member: ProjectMemberFact) -> TargetVisibility:
-    if member.excluded:
-        return "excluded"
-    if member.hidden:
-        return "hidden"
-    return "visible"

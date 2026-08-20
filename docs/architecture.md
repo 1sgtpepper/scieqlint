@@ -21,7 +21,7 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
   assign final generated-formula kinds, classify AMS/unsupported math, or apply portability policy.
 - MathHost owns final math classification, parser recovery, macro scope facts, and Typst math
   portability facts. It does not call SymPy.
-- WorkspaceHost owns project-relative identity and caller-supplied membership/visibility projection.
+- WorkspaceHost owns project-relative identity and the configured membership/visibility projection.
 - PolicyHost owns output-profile support policy and diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
 - Generated-output checks consume explicit source-to-generated provenance facts;

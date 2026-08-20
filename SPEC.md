@@ -1869,10 +1869,12 @@ files = ["build/**", "dist/**", ".venv/**"]
 
 This is a future schema sketch, not a complete current configuration file. The
 v1.1.0 loader accepts only the documented fixed schema: `[project]`,
-`[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
+`[project.visibility]`, `[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
 `[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
 `[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
-`[vars]` and `[aliases]` remain dynamic mappings.
+`[project.visibility]`, `[vars]`, and `[aliases]` remain dynamic mappings.
+The current `[project]` table also accepts the optional `code_cell_languages`
+catalog used by the code-cell metadata profile.
 
 v0.1.2 adds:
 

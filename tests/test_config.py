@@ -238,6 +238,42 @@ def test_load_config_accepts_project_order(tmp_path) -> None:
     assert config.project.order == ("symbols.md", "chapters/**/*.md")
 
 
+def test_load_config_accepts_project_visibility_and_code_cell_catalog(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[project]",
+                'code_cell_languages = ["python", "brainfuck"]',
+                "",
+                "[project.visibility]",
+                '"draft.md" = "hidden"',
+                '"generated.md" = "excluded"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.project.code_cell_languages == ("python", "brainfuck")
+    assert config.project.visibility == (
+        ("draft.md", "hidden"),
+        ("generated.md", "excluded"),
+    )
+
+
+def test_load_config_rejects_unknown_project_visibility_state(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[project.visibility]\n"draft.md" = "private"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must be visible, hidden, or excluded"):
+        load_config(config_path)
+
+
 def test_load_config_accepts_baseline_files(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[baseline]\nfiles = ["scieqlint-baseline.json"]\n', encoding="utf-8")

@@ -23,6 +23,7 @@ class TargetAnchorFact(FactBase):
     target_kind: str | None
     attaches_to_fact_id: str | None
     placement: TargetPlacement
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 
@@ -40,6 +41,7 @@ class GenericRefFact(FactBase):
     resolved_raw_target_path: str | None = None
     normalized_target_path: PurePosixPath | None = None
     target_fragment: str | None = None
+    visibility: TargetVisibility = "visible"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -88,6 +88,11 @@ CI instead of being advisory. It is currently the only accepted key under
 [project]
 root = "."
 order = ["symbols.md", "chapters/**/*.md"]
+code_cell_languages = ["python", "julia"]
+
+[project.visibility]
+"draft.md" = "hidden"
+"generated.md" = "excluded"
 ```
 
 `project.root` is resolved relative to the config file when a config path is
@@ -99,6 +104,18 @@ controls the analysis order of discovered files. When no paths are passed and
 `project.order` is non-empty, both commands discover those ordered project entries.
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
+
+`project.code_cell_languages` is an optional authoritative catalog for the
+`code-cell-metadata` profile. An empty list leaves syntactically valid language
+identifiers open; when the list is non-empty, a valid identifier not in the list is
+reported as unknown. The catalog does not execute cells or validate kernel-specific
+syntax.
+
+`project.visibility` applies the rendered-project state before legacy or profile
+reference checks. Omitted documents are visible. Hidden and excluded documents remain
+available as non-visible facts for diagnostics such as `REF008`, but their labels and
+labeled code cells cannot satisfy ordinary reference resolution. Visibility entries
+must match analyzed project members; unknown paths and visibility values are errors.
 
 `report.show_suppressed` controls text and JSON output. By default, suppressed
 diagnostics are hidden from text output, JSON diagnostics, and JSON summary
@@ -202,8 +219,9 @@ silently running a different rule set.
   `\left`/`\right` sizing. It does not invoke Typst or translate equations.
 - `code-cell-metadata` includes notebook-derived cells, treats labeled code
   cells as reference targets, and reports missing, unknown, or malformed
-  language metadata without executing cell contents. Explicit `custom.*`
-  identifiers are accepted for project-specific execution environments.
+  language metadata without executing cell contents. Language names are checked for
+  identifier syntax first and then against the optional authoritative
+  `project.code_cell_languages` catalog.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset. The packaged `generated-myst` preset
@@ -274,12 +292,14 @@ the path workflow does not infer source-document identity.
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[profile]`, `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[project.visibility]`, `[baseline]`,
+`[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.
-`[vars]` and `[aliases]` are dynamic mappings; their entries are validated as
-dimension names and aliases rather than as fixed option names.
+`[project.visibility]`, `[vars]`, and `[aliases]` are dynamic mappings; visibility
+entries are validated as project paths and allowed states, while variables and aliases
+are validated as dimension names and aliases rather than as fixed option names.
 
 The severity overrides and resource limits shown in `SPEC.md` are future
 specification surface, not accepted settings in the current loader. Use
