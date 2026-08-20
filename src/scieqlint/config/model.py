@@ -69,10 +69,7 @@ class ProfileConfig:
             raise ValueError("profile.output_profile is required for cross-format-references")
         if self.name != "cross-format-references" and self.output_profile is not None:
             raise ValueError("profile.output_profile is only valid for cross-format-references")
-        if self.severity is not None and (
-            not isinstance(self.severity, str)
-            or self.severity not in {"warning", "error", "disabled"}
-        ):
+        if self.severity is not None and self.severity not in ("warning", "error", "disabled"):
             raise ValueError("profile.severity must be one of: disabled, error, warning")
         if self.severity is not None and self.name not in _PORTABILITY_PROFILES:
             raise ValueError("profile.severity is only valid for portability validation profiles")

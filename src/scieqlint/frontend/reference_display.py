@@ -139,10 +139,9 @@ def _resolved_target_type(
     if isinstance(target, TargetAnchorFact):
         assert target.target_kind is not None
         return target.target_kind, "resolved"
-    if isinstance(target, CodeCellFact):
-        explicit = _explicit_code_cell_target_type(target)
-        if explicit is not None:
-            return explicit, "resolved"
+    explicit = _explicit_code_cell_target_type(target)
+    if explicit is not None:
+        return explicit, "resolved"
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
         if lowered.startswith(prefix):

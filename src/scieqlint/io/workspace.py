@@ -55,7 +55,7 @@ class WorkspaceHost:
 
         supplied: dict[PurePosixPath, TargetVisibility] = {}
         for path, state in (visibility or {}).items():
-            if not isinstance(state, str) or state not in {"visible", "hidden", "excluded"}:
+            if state not in ("visible", "hidden", "excluded"):
                 raise ValueError(f"unsupported workspace visibility: {state}")
             # Configuration keys are already project-relative; the workspace root
             # applies only when normalizing discovered document paths.

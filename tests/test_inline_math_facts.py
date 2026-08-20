@@ -86,7 +86,6 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
     ]
 
 
-@pytest.mark.public_regression
 @pytest.mark.parametrize(
     "command",
     [r"\frac", r"\dfrac", r"\tfrac", r"\binom"],
@@ -107,7 +106,6 @@ def test_math_host_rejects_bare_required_arity_commands(command: str) -> None:
     ]
 
 
-@pytest.mark.public_regression
 def test_math_host_rejects_required_arity_command_with_one_control_sequence_argument() -> None:
     body = r"\frac\alpha"
     snapshot = MathHost().classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))

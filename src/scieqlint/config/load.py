@@ -264,7 +264,7 @@ def _project_visibility(value: object) -> tuple[tuple[str, ProjectVisibility], .
     if not isinstance(value, dict):
         raise ValueError("[project].visibility must be a table")
     entries: list[tuple[str, ProjectVisibility]] = []
-    for raw_path, raw_state in sorted(value.items()):
+    for raw_path, raw_state in cast(dict[object, object], value).items():
         if not isinstance(raw_path, str) or not raw_path.strip():
             raise ValueError("[project].visibility keys must be non-empty strings")
         if not isinstance(raw_state, str) or raw_state not in {"visible", "hidden", "excluded"}:
@@ -272,7 +272,7 @@ def _project_visibility(value: object) -> tuple[tuple[str, ProjectVisibility], .
                 f"[project].visibility.{raw_path} must be visible, hidden, or excluded"
             )
         entries.append((raw_path, cast(ProjectVisibility, raw_state)))
-    return tuple(entries)
+    return tuple(sorted(entries))
 
 
 def _posix_path(data: dict[str, Any], key: str, default: PurePosixPath) -> PurePosixPath:

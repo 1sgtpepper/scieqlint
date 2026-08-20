@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import cast
+from typing import cast, overload
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.reference import (
@@ -169,6 +169,22 @@ def _markdown_cell_references(
         ),
         tuple(_with_notebook_cell(fact, document, cell_index) for fact in snapshot.equation_refs),
     )
+
+
+@overload
+def _with_notebook_cell(
+    fact: GenericRefFact,
+    document: SourceDocument,
+    cell_index: int,
+) -> GenericRefFact: ...
+
+
+@overload
+def _with_notebook_cell(
+    fact: EquationRefFact,
+    document: SourceDocument,
+    cell_index: int,
+) -> EquationRefFact: ...
 
 
 def _with_notebook_cell(

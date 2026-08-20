@@ -30,7 +30,7 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
-from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact, TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -466,7 +466,7 @@ def _generated_profile_snapshot(
     # Full-input membership was validated by check_documents; this snapshot may
     # intentionally contain only profile-supported document kinds.
     profile_paths = {workspace.normalize_project_path(document.path) for document in documents}
-    profile_visibility = {
+    profile_visibility: dict[str, TargetVisibility] = {
         path: state
         for path, state in config.project.visibility
         if normalize_project_path(path) in profile_paths

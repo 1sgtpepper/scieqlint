@@ -59,7 +59,7 @@ class MacroDeclarationKey:
     start: int
 
 
-def _scan_scoped_inline_macros(
+def scan_scoped_inline_macros(
     sources: tuple[InlineMacroSource, ...],
 ) -> tuple[
     tuple[tuple[InlineMacroSource, MacroDeclarationSyntax, int], ...],

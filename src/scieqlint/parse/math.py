@@ -26,7 +26,7 @@ from scieqlint.source.maps import SourceMap
 from .macros import (
     InlineMacroSource,
     MacroDeclarationKey,
-    _scan_scoped_inline_macros,
+    scan_scoped_inline_macros,
 )
 
 _UNSUPPORTED_ENVIRONMENT_RE = re.compile(r"(?<!\\)\\(?:begin|end)\{(?P<environment>[A-Za-z]+\*?)\}")
@@ -503,7 +503,7 @@ def _inline_math_macro_facts(
             )
         )
 
-    scoped_declarations, scoped_uses = _scan_scoped_inline_macros(tuple(sources))
+    scoped_declarations, scoped_uses = scan_scoped_inline_macros(tuple(sources))
     declarations: list[MathMacroDeclarationFact] = []
     declaration_ids: dict[MacroDeclarationKey, str] = {}
     for source, syntax, declaration_order in scoped_declarations:

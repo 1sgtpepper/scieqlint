@@ -309,7 +309,9 @@ def test_generated_profile_path_ingress_preserves_configured_provenance(tmp_path
     assert projection.provenance_ids == (f"{input_path.as_posix()}::generated-provenance",)
     assert dict(projection.properties) == {
         "conversion_stage": "xml-to-markdown",
+        "formula_artifact_kind": "placeholder",
         "generated_document": input_path.as_posix(),
+        "placeholder_kind": "formula-not-decoded",
         "source_kind": "jats-xml",
     }
 
