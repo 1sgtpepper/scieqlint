@@ -26,12 +26,12 @@ def doc(text: str, path: str = "paper.md") -> SourceDocument:
 def profile_config(
     name: str | None = "reference-display",
     *,
-    project: ProjectConfig = ProjectConfig(),
+    project: ProjectConfig | None = None,
 ) -> Config:
     return Config(
         profile=ProfileConfig(name=name),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
-        project=project,
+        project=ProjectConfig() if project is None else project,
     )
 
 
@@ -185,13 +185,7 @@ def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() ->
 
 
 def test_source_code_cell_label_uses_reachable_prefix_inference() -> None:
-    source = doc(
-        "```{code-cell} python\n"
-        ":label: fig-raw\n"
-        "value = 1\n"
-        "```\n\n"
-        "See [](#fig-raw).\n"
-    )
+    source = doc("```{code-cell} python\n:label: fig-raw\nvalue = 1\n```\n\nSee [](#fig-raw).\n")
 
     snapshot = MySTFrontend().lower((source,))
 

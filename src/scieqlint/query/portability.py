@@ -74,11 +74,7 @@ class PortabilityQueryView:
             if not crossref_options:
                 continue
             output = next(
-                (
-                    candidate
-                    for candidate in cell_outputs
-                    if _output_crossref_options(candidate)
-                ),
+                (candidate for candidate in cell_outputs if _output_crossref_options(candidate)),
                 None,
             )
             conflicts.append(
@@ -113,8 +109,8 @@ def _crossref_options(
     outputs: tuple[NotebookOutputFact, ...],
 ) -> tuple[str, ...]:
     options = {key for key in _CROSSREF_OPTIONS if key in cell.option_dict()}
-    has_crossref_label = (
-        cell.label is not None and cell.label.lower().startswith(_CROSSREF_PREFIXES)
+    has_crossref_label = cell.label is not None and cell.label.lower().startswith(
+        _CROSSREF_PREFIXES
     )
     for output in outputs:
         output_options = _output_crossref_options(output)

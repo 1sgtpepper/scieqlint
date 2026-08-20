@@ -288,7 +288,7 @@ def test_generated_profile_path_ingress_preserves_configured_provenance(tmp_path
         encoding="utf-8",
     )
     input_path = tmp_path / "generated.md"
-    input_path.write_text("![equation](equation.svg)\n", encoding="utf-8")
+    input_path.write_text("<!-- formula-not-decoded -->\n", encoding="utf-8")
 
     result = check_paths((input_path,), config_path=config_path, absolute_paths=True)
     diagnostics = tuple(

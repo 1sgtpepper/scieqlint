@@ -57,9 +57,7 @@ def test_myst_fact_spans_select_their_source_tokens(
         "inline_math": ["x + y" for name, _text in token_cases if name == "inline_math"],
     }
 
-    assert [_span_text(document, fact.span) for fact in snapshot.headings] == expected[
-        "heading"
-    ]
+    assert [_span_text(document, fact.span) for fact in snapshot.headings] == expected["heading"]
     assert [_span_text(document, fact.span) for fact in snapshot.target_anchors] == expected[
         "anchor"
     ]

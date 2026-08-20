@@ -5,8 +5,8 @@ from typing import Literal
 
 import pytest
 
-from scieqlint.app import _profile_snapshot
 from scieqlint.api import check_documents, check_paths, graph_documents
+from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
@@ -148,9 +148,7 @@ def test_nonvisible_code_cell_target_is_not_resolvable_from_visible_reference(
 
     result = check_documents((source, target), config=config)
 
-    assert [item.code for item in result.diagnostics if item.code.startswith("REF")] == [
-        "REF004"
-    ]
+    assert [item.code for item in result.diagnostics if item.code.startswith("REF")] == ["REF004"]
 
 
 def test_hidden_target_does_not_supply_reference_display_metadata() -> None:

@@ -173,9 +173,7 @@ def test_suspicious_formula_classifier_flags_spaced_commands() -> None:
 
 
 def test_suspicious_formula_classifier_flags_the_direct_spaced_formula() -> None:
-    snapshot = MathHost().classify(
-        MySTFrontend().lower((doc("$A t t e n t ( Q , K , V )$"),))
-    )
+    snapshot = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( Q , K , V )$"),)))
 
     assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
         ("spaced-token", "A t t e n t")

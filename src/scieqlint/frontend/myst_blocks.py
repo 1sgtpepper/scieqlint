@@ -171,7 +171,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
     if fence.language not in {"python", "r", "julia"}:
         return None
     options = quarto_options(document, fence)
-    label = dict(options).get("label")
+    label = dict(options).get("label") or None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -184,7 +184,11 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         options=options,
         label=label,
         normalized_label=normalize_label(label) if label else None,
-        label_span=_option_value_span(document, fence, QUARTO_OPTION_RE, "label"),
+        label_span=(
+            _option_value_span(document, fence, QUARTO_OPTION_RE, "label")
+            if label is not None
+            else None
+        ),
         language_span=_fence_info_span(document, fence, fence.language),
     )
 
@@ -223,7 +227,7 @@ def _directive_code_cell_fact(
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
     label_key = "label" if option_map.get("label") else "name"
-    label = option_map.get(label_key)
+    label = option_map.get(label_key) or None
     language_span = (
         _directive_group_span(document, fence, directive_match, "arg")
         if is_myst_code_cell

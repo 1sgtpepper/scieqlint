@@ -5,7 +5,6 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.myst_math import _merge_occupied
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
@@ -228,4 +227,6 @@ def test_empty_delimited_math_is_ignored_but_nonempty_math_is_preserved() -> Non
 
 
 def test_inline_math_range_merge_discards_empty_ranges_and_merges_overlaps() -> None:
+    from scieqlint.frontend.myst_math import _merge_occupied
+
     assert _merge_occupied(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)

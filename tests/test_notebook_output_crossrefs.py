@@ -137,8 +137,7 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
         output.span and output.span.cell_line is None for output in snapshot.notebook_outputs
     )
     assert all(
-        output.raw is not None
-        and document.text[output.span.start : output.span.end] == output.raw
+        output.raw is not None and document.text[output.span.start : output.span.end] == output.raw
         for output in snapshot.notebook_outputs
         if output.span is not None
     )

@@ -68,11 +68,7 @@ def cross_format_config() -> Config:
 def figure_markdown(path: str, caption: str, *, language: str = "python") -> SourceDocument:
     return doc(
         path,
-        f"```{{code-cell}} {language}\n"
-        ":label: fig-shared\n"
-        f":fig-cap: {caption}\n"
-        "plot()\n"
-        "```\n",
+        f"```{{code-cell}} {language}\n:label: fig-shared\n:fig-cap: {caption}\nplot()\n```\n",
     )
 
 

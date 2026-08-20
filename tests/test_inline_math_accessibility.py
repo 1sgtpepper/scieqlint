@@ -84,9 +84,7 @@ def test_public_api_projects_stable_source_owned_accessibility_metadata() -> Non
     result = public_check_documents(
         (doc("A prefix edited before the formula.\nUse $x$ here.\n"),),
         config=accessibility_config(),
-        accessibility_metadata={
-            "accessible-math.md::inline-math::dollar::x": "the variable x"
-        },
+        accessibility_metadata={"accessible-math.md::inline-math::dollar::x": "the variable x"},
     )
 
     assert not any(item.code == "PORT002" for item in result.diagnostics)

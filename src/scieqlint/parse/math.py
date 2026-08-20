@@ -545,9 +545,7 @@ def _inline_math_macro_facts(
                 source_math_fact_id=fact.fact_id,
                 macro_name=syntax.name,
                 active_declaration_fact_id=(
-                    declaration_ids[active_declaration]
-                    if active_declaration is not None
-                    else None
+                    declaration_ids[active_declaration] if active_declaration is not None else None
                 ),
             )
         )

@@ -115,9 +115,7 @@ def _scan_scoped_inline_macros(
                 declaration_index += 1
                 continue
             if use.name in declared_names.get(source.document_id, set()):
-                uses.append(
-                    (source, use, active.get((source.document_id, use.name)))
-                )
+                uses.append((source, use, active.get((source.document_id, use.name))))
             use_index += 1
     return tuple(declarations), tuple(uses)
 

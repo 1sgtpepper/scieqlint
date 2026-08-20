@@ -55,17 +55,13 @@ class ReferenceQueryView:
         return tuple(cell for cell in self.snapshot.code_cells if cell.normalized_label is not None)
 
     def visible_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(
-            cell for cell in self.code_cell_targets() if cell.visibility == "visible"
-        )
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "visible")
 
     def hidden_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
         return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "hidden")
 
     def excluded_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(
-            cell for cell in self.code_cell_targets() if cell.visibility == "excluded"
-        )
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "excluded")
 
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(

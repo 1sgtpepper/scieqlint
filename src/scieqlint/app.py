@@ -465,9 +465,7 @@ def _generated_profile_snapshot(
         )
     # Full-input membership was validated by check_documents; this snapshot may
     # intentionally contain only profile-supported document kinds.
-    profile_paths = {
-        workspace.normalize_project_path(document.path) for document in documents
-    }
+    profile_paths = {workspace.normalize_project_path(document.path) for document in documents}
     profile_visibility = {
         path: state
         for path, state in config.project.visibility
@@ -545,9 +543,7 @@ def _apply_accessibility_metadata(
 ) -> tuple[InlineMathFact, ...]:
     if metadata is None:
         return tuple(inline_math)
-    known_ids = {
-        fact.accessibility_id for fact in inline_math if fact.accessibility_id is not None
-    }
+    known_ids = {fact.accessibility_id for fact in inline_math if fact.accessibility_id is not None}
     unknown_ids = sorted(set(metadata) - known_ids)
     if unknown_ids:
         raise ValueError(
@@ -581,9 +577,7 @@ def _source_label_facts(
     if config.profile.name != "cross-format-references":
         return ()
     source_ids = {
-        document.path.as_posix()
-        for document in documents
-        if document.kind is DocumentKind.LATEX
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
     }
     if not source_ids:
         return ()
@@ -630,9 +624,7 @@ def _source_reference_facts(
     if config.profile.name != "cross-format-references":
         return ()
     source_ids = {
-        document.path.as_posix()
-        for document in documents
-        if document.kind is DocumentKind.LATEX
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
     }
     if not source_ids:
         return ()

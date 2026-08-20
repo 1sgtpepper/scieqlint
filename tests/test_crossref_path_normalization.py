@@ -69,7 +69,7 @@ def test_frontend_preserves_raw_and_normalized_cross_document_target() -> None:
 
 def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
     source = doc("chapters/index.md", "See [energy](./energy.md#eq-energy).\n")
-    target = doc("chapters/energy.md", "(eq-energy)=\n$$\nE=mc^2\n$$\n")
+    target = doc("chapters/energy.md", "(eq-energy)=\n# Energy\n")
 
     result = check_documents((source, target), config=Config())
     diagnostics = tuple(result.diagnostics)

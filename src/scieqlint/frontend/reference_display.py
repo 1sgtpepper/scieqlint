@@ -176,21 +176,17 @@ def _matched_targets(
     member_ids = {
         member.document_id
         for member in project_members
-        if (member.normalized_path or member.path) == identity[0]
-        and member.visibility == "visible"
+        if (member.normalized_path or member.path) == identity[0] and member.visibility == "visible"
     }
     if not member_ids:
         return ()
     return tuple(
         sorted(
-            (
-                target
-                for target in targets.get(identity[1], ())
-                if target.document_id in member_ids
-            ),
+            (target for target in targets.get(identity[1], ()) if target.document_id in member_ids),
             key=_target_key,
         )
     )
+
 
 def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:
     span = fact.label_span or fact.span

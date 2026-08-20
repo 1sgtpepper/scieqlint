@@ -210,11 +210,7 @@ def _with_notebook_cell_label(
     cell_index: int,
 ) -> EquationLabelFact:
     prefix = f"{document.path.as_posix()}::notebook-cell::{cell_index}::"
-    source_block_id = (
-        None
-        if fact.source_block_id is None
-        else f"{prefix}{fact.source_block_id}"
-    )
+    source_block_id = None if fact.source_block_id is None else f"{prefix}{fact.source_block_id}"
     return replace(
         fact,
         fact_id=f"{prefix}{fact.fact_id}",
@@ -240,6 +236,7 @@ def _code_cell_facts(
     option_map = dict(options)
     language = option_map.get("language") or default_language
     engine = option_map.get("engine") or language
+    label = option_map.get("label") or None
     cell_id = f"{document.path.as_posix()}::notebook-cell::{cell_index}"
     fact = CodeCellFact(
         fact_id=cell_id,
@@ -251,11 +248,9 @@ def _code_cell_facts(
         language=language,
         engine=engine,
         options=options,
-        label=option_map.get("label"),
-        normalized_label=(
-            normalize_label(option_map["label"]) if option_map.get("label") else None
-        ),
-        label_span=cell_span if option_map.get("label") else None,
+        label=label,
+        normalized_label=normalize_label(label) if label is not None else None,
+        label_span=cell_span if label is not None else None,
         language_span=cell_span if language else None,
         source_format="notebook",
         tags=_tags(metadata.get("tags")),
@@ -302,9 +297,7 @@ def _crossref_facts(
     if kind is None:
         return ()
     options = cell.option_dict()
-    cell_metadata = {
-        key: value for key, value in options.items() if key in _CROSSREF_DISPLAY_KEYS
-    }
+    cell_metadata = {key: value for key, value in options.items() if key in _CROSSREF_DISPLAY_KEYS}
     boundaries = tuple((output.fact_id, output) for output in outputs) or (
         (f"{cell.fact_id}::unrendered-output", None),
     )

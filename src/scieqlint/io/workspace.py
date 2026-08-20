@@ -67,16 +67,10 @@ class WorkspaceHost:
                 )
             supplied[normalized_path] = state
 
-        document_paths = {
-            self.normalize_project_path(document.path) for document in documents
-        }
-        unknown_paths = sorted(
-            path.as_posix() for path in supplied if path not in document_paths
-        )
+        document_paths = {self.normalize_project_path(document.path) for document in documents}
+        unknown_paths = sorted(path.as_posix() for path in supplied if path not in document_paths)
         if unknown_paths:
-            raise ValueError(
-                "unknown project visibility member(s): " + ", ".join(unknown_paths)
-            )
+            raise ValueError("unknown project visibility member(s): " + ", ".join(unknown_paths))
 
         members: list[ProjectMemberFact] = []
         hidden_excluded: list[HiddenExcludedFact] = []

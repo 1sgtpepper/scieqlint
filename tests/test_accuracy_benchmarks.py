@@ -385,14 +385,10 @@ def _validate_case(case: dict[str, object], index: int) -> None:
     independent_equation_id = case.get("independent_equation_id")
     if independent_equation_id is None:
         if not synthetic:
-            raise ValueError(
-                f"{context} non-synthetic cases require independent_equation_id"
-            )
+            raise ValueError(f"{context} non-synthetic case requires independent_equation_id")
     else:
         if synthetic:
-            raise ValueError(
-                f"{context} synthetic cases cannot claim independent_equation_id"
-            )
+            raise ValueError(f"{context} synthetic cases cannot claim independent_equation_id")
         independent_id = _require_string(
             independent_equation_id,
             f"{context} independent_equation_id",

@@ -140,9 +140,7 @@ class PortabilityEngine:
         if output is not None:
             output_detail = f" at output {output.output_index}"
             output_properties = (("output_index", str(output.output_index)),)
-        provenance_ids = (
-            (cell.fact_id, output.fact_id) if output is not None else (cell.fact_id,)
-        )
+        provenance_ids = (cell.fact_id, output.fact_id) if output is not None else (cell.fact_id,)
         return DiagnosticIR(
             code="PORT004",
             severity_default=severity,

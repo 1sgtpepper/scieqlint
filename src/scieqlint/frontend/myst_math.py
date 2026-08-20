@@ -257,9 +257,7 @@ def _with_accessibility_ids(
         occurrence = occurrences.get(identity_key, 0)
         occurrences[identity_key] = occurrence + 1
         encoded_body = quote(fact.body, safe="")
-        accessibility_id = (
-            f"{encoded_path}::inline-math::{fact.delimiter_kind}::{encoded_body}"
-        )
+        accessibility_id = f"{encoded_path}::inline-math::{fact.delimiter_kind}::{encoded_body}"
         if occurrence:
             accessibility_id += f"::{occurrence}"
         yield replace(fact, accessibility_id=accessibility_id)

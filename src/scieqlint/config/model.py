@@ -75,9 +75,7 @@ class ProfileConfig:
         ):
             raise ValueError("profile.severity must be one of: disabled, error, warning")
         if self.severity is not None and self.name not in _PORTABILITY_PROFILES:
-            raise ValueError(
-                "profile.severity is only valid for portability validation profiles"
-            )
+            raise ValueError("profile.severity is only valid for portability validation profiles")
 
 
 @dataclass(frozen=True, slots=True)

@@ -192,7 +192,7 @@ def test_policy_host_owns_profile_severity_and_disabled_behavior(
 ) -> None:
     result = check_documents(
         (doc(_SOURCE),),
-        config("commonmark", severity=severity),
+        config=config("commonmark", severity=severity),
     )
     diagnostics = [item for item in result.diagnostics if item.code == "PORT001"]
 
