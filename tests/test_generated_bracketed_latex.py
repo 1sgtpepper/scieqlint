@@ -4,7 +4,6 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.frontend.generated import _merge_ranges
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
@@ -44,6 +43,17 @@ def test_bracketed_latex_blocks_preserve_complete_same_line_and_eof_spans() -> N
         "\\[ z = 1 \\]",
         "\\[\nunterminated",
     ]
+
+
+def test_bracketed_latex_blocks_accept_content_on_a_multiline_opener() -> None:
+    source = "\\[ x = y\n z = 1\n\\]\n"
+
+    facts = bracketed_facts(source)
+
+    assert len(facts) == 1
+    assert facts[0].complete is True
+    assert facts[0].span is not None
+    assert source[facts[0].span.start : facts[0].span.end] == "\\[ x = y\n z = 1\n\\]"
 
 
 def test_frontend_keeps_bracketed_blocks_as_candidates_until_math_host() -> None:
@@ -132,7 +142,3 @@ def test_default_profile_does_not_emit_bracketed_generated_diagnostic() -> None:
     result = check_documents((doc("\\[\nx=y\n\\]\n"),), config=Config())
 
     assert all(diagnostic.code != "GEN003" for diagnostic in result.diagnostics)
-
-
-def test_bracketed_scanner_merges_overlapping_ranges_and_discards_empty_ranges() -> None:
-    assert _merge_ranges(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)

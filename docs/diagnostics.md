@@ -123,6 +123,9 @@ provenance through `DiagnosticIR`; `SchemaHost` owns the public property names.
 If a diagnostic has more than one provenance fact, `provenance_ids` retains every
 fact ID and the serialized metadata uses deterministic `provenance_1_*`,
 `provenance_2_*`, and later keys instead of discarding all but the first fact.
+`GEN004` treats formula images as placeholders only when the alt text or filename
+contains an explicit placeholder marker; a standalone rendered equation image
+with ordinary alt text remains content.
 
 | Code | Default | Meaning |
 |---|---|---|

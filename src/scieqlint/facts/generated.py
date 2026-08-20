@@ -47,3 +47,25 @@ class GeneratedFormulaFact(FactBase):
     source_math_fact_id: str | None = None
     placeholder_kind: str | None = None
     complete: bool | None = None
+
+    def __post_init__(self) -> None:
+        if (self.kind == "candidate") != (self.candidate_kind is not None):
+            raise ValueError(
+                "GeneratedFormulaFact candidate_kind must be set exactly for candidate facts"
+            )
+        expects_placeholder_kind = (
+            self.kind == "candidate" and self.candidate_kind == "placeholder"
+        ) or self.kind in {"placeholder", "empty-display", "image-placeholder"}
+        if expects_placeholder_kind != (self.placeholder_kind is not None):
+            raise ValueError(
+                "GeneratedFormulaFact placeholder_kind does not match its artifact state"
+            )
+        expects_complete = (
+            self.kind == "candidate"
+            and (
+                self.candidate_kind == "bracketed-block"
+                or self.placeholder_kind == "empty-display-math"
+            )
+        ) or self.kind in {"bracketed-block", "empty-display"}
+        if expects_complete != (self.complete is not None):
+            raise ValueError("GeneratedFormulaFact complete does not match its artifact state")

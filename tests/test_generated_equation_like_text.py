@@ -4,14 +4,10 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.diag.model import SourceSpan
-from scieqlint.facts.math import InlineMathFact
-from scieqlint.frontend.generated import _text_item_content, scan_equation_like_text_items
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
 from scieqlint.schema import SchemaHost
-from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -173,29 +169,15 @@ def test_equation_text_facts_are_deterministic_after_newline_normalization() -> 
     assert equation_text_facts("x = y\n") == equation_text_facts("x = y\r\n")
 
 
-def test_equation_text_classifier_bounds_synthetic_spans_and_role_shapes() -> None:
-    document = doc("x = y\n")
-    span = SourceSpan(
-        path=document.path,
-        start=0,
-        end=5,
-        line=0,
-        col=1,
-        end_line=1,
-        end_col=5,
-    )
-    fact = InlineMathFact(
-        fact_id="generated.md::inline-math-leak::0",
-        document_id="generated.md",
-        span=span,
-        raw="x = y",
-        body="x = y",
-        delimiter_kind="plain-text",
-        context="paragraph",
-    )
+def test_equation_text_classifier_uses_source_roles_and_one_based_spans() -> None:
+    source = "- x = y\n\n> a = b+c\n"
 
-    assert (
-        scan_equation_like_text_items(document, SourceMap.for_document(document), (fact,), ()) == ()
-    )
-    assert _text_item_content("x = y", "list-item") is None
-    assert _text_item_content("x = y", "blockquote") is None
+    facts = equation_text_facts(source)
+
+    assert [(fact.text, fact.span.line, fact.span.col) for fact in facts if fact.span] == [
+        ("x = y", 1, 3),
+        ("a = b+c", 3, 3),
+    ]
+    assert [source[fact.span.start : fact.span.end] for fact in facts if fact.span] == [
+        fact.text for fact in facts
+    ]

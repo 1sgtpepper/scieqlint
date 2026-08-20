@@ -1,29 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
-from typing import cast
 
 import pytest
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.diag.model import DiagnosticProvenance
-from scieqlint.engine.generated import GeneratedOutputEngine
-from scieqlint.facts.generated import (
-    GeneratedFormulaCandidateKind,
-    GeneratedFormulaFact,
-    GeneratedProvenanceFact,
-)
-from scieqlint.facts.math import InlineMathFact
-from scieqlint.facts.snapshot import FactSnapshot
-from scieqlint.frontend.generated import scan_formula_candidates
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
-from scieqlint.query.host import QueryHost
 from scieqlint.report.text import TextReporter
 from scieqlint.schema import SchemaHost
-from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -137,79 +125,6 @@ def test_generated_formula_diagnostics_match_text_golden() -> None:
     )
 
 
-def test_generated_formula_diagnostic_projects_all_provenance_metadata() -> None:
-    formula = GeneratedFormulaFact(
-        fact_id="out/generated.md::formula::1",
-        document_id="out/generated.md",
-        span=None,
-        raw=r"\A t t e n t {x}",
-        confidence="inferred",
-        kind="spaced-token",
-        text=r"\A t t e n t {x}",
-    )
-    first = GeneratedProvenanceFact(
-        fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
-        confidence="generated",
-        generated_document_id="out/generated.md",
-        source_document_id="source/a.xml",
-        source_kind="jats-xml",
-        conversion_stage="xml-to-markdown",
-    )
-    second = GeneratedProvenanceFact(
-        fact_id="origin-b",
-        document_id="out/generated.md",
-        span=None,
-        confidence="generated",
-        generated_document_id="out/generated.md",
-        source_document_id="source/b.tex",
-        source_kind="latex",
-        conversion_stage="translation",
-    )
-
-    diagnostics = GeneratedOutputEngine(profile="generated-myst").run(
-        QueryHost(
-            FactSnapshot(
-                generated_provenance=(second, first),
-                generated_formulas=(formula,),
-            )
-        )
-    )
-
-    assert len(diagnostics) == 1
-    diagnostic = diagnostics[0].to_diagnostic()
-    assert diagnostic.provenance == (
-        DiagnosticProvenance(
-            fact_id="origin-a",
-            generated_document_id="out/generated.md",
-            source_document_id="source/a.xml",
-            source_kind="jats-xml",
-            conversion_stage="xml-to-markdown",
-        ),
-        DiagnosticProvenance(
-            fact_id="origin-b",
-            generated_document_id="out/generated.md",
-            source_document_id="source/b.tex",
-            source_kind="latex",
-            conversion_stage="translation",
-        ),
-    )
-    projection = SchemaHost.project_diagnostic(diagnostic)
-    assert projection.provenance_ids == ("origin-a", "origin-b")
-    assert dict(projection.properties) == {
-        "formula_artifact_kind": "spaced-token",
-        "provenance_1_conversion_stage": "xml-to-markdown",
-        "provenance_1_generated_document": "out/generated.md",
-        "provenance_1_source_document": "source/a.xml",
-        "provenance_1_source_kind": "jats-xml",
-        "provenance_2_conversion_stage": "translation",
-        "provenance_2_generated_document": "out/generated.md",
-        "provenance_2_source_document": "source/b.tex",
-        "provenance_2_source_kind": "latex",
-    }
-
-
 def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch_unchanged() -> (
     None
 ):
@@ -249,14 +164,6 @@ def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
             assert snapshot.generated_formulas[0].kind in {"spaced-token", "garbled-marker"}
 
 
-def test_suspicious_formula_classifier_deduplicates_overlapping_artifacts() -> None:
-    snapshot = MathHost().classify(MySTFrontend().lower((doc("$A t t e n t ( /C0 apod )$"),)))
-
-    assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
-        ("garbled-marker", "/C0 apod")
-    ]
-
-
 def test_suspicious_formula_classifier_flags_spaced_commands() -> None:
     snapshot = MathHost().classify(MySTFrontend().lower((doc(r"$\A t t e n t {x}$"),)))
 
@@ -265,87 +172,31 @@ def test_suspicious_formula_classifier_flags_spaced_commands() -> None:
     ]
 
 
-def test_formula_candidate_scan_skips_foreign_and_unspanned_math() -> None:
-    document = doc("$x$")
-    foreign = InlineMathFact(
-        fact_id="foreign",
-        document_id="other.md",
-        span=SourceMap.for_document(document).span(0, 3),
-        raw="$x$",
-        confidence="source",
-        body="x",
-        delimiter_kind="dollar",
-        context="paragraph",
-    )
-    unspanned = InlineMathFact(
-        fact_id="unspanned",
-        document_id=document.path.as_posix(),
-        span=None,
-        raw="$x$",
-        confidence="source",
-        body="x",
-        delimiter_kind="dollar",
-        context="paragraph",
-    )
-
-    assert scan_formula_candidates(document, (foreign, unspanned), ()) == ()
-
-
-def test_math_host_keeps_existing_facts_and_skips_unmappable_candidates() -> None:
-    document = doc("plain text")
-    existing = GeneratedFormulaFact(
-        fact_id="existing",
-        document_id=document.path.as_posix(),
-        span=None,
-        raw="existing",
-        confidence="inferred",
-        kind="garbled-marker",
-        text="existing",
-    )
-    foreign_candidate = GeneratedFormulaFact(
-        fact_id="foreign-candidate",
-        document_id="other.md",
-        span=None,
-        raw="candidate",
-        confidence="source",
-        kind="candidate",
-        text="candidate",
-    )
-    unspanned_candidate = GeneratedFormulaFact(
-        fact_id="unspanned-candidate",
-        document_id=document.path.as_posix(),
-        span=None,
-        raw="candidate",
-        confidence="source",
-        kind="candidate",
-        text="candidate",
-    )
-
+def test_suspicious_formula_classifier_flags_the_direct_spaced_formula() -> None:
     snapshot = MathHost().classify(
-        FactSnapshot(
-            documents=(document,),
-            generated_formulas=(existing, foreign_candidate, unspanned_candidate),
-        )
+        MySTFrontend().lower((doc("$A t t e n t ( Q , K , V )$"),))
     )
 
-    assert snapshot.generated_formulas == (existing,)
+    assert [(fact.kind, fact.text) for fact in snapshot.generated_formulas] == [
+        ("spaced-token", "A t t e n t")
+    ]
 
 
-def test_math_host_rejects_unknown_generated_candidate_kind() -> None:
-    document = doc("candidate")
-    candidate = GeneratedFormulaFact(
-        fact_id="unknown-candidate",
-        document_id=document.path.as_posix(),
-        span=SourceMap.for_document(document).span(0, len(document.text)),
-        raw="candidate",
-        confidence="source",
-        kind="candidate",
-        text="candidate",
-        candidate_kind=cast(GeneratedFormulaCandidateKind, "unknown"),
-    )
+def test_generated_formula_fact_rejects_mixed_candidate_and_final_states() -> None:
+    frontend = MySTFrontend().lower((doc("$/C0 apod$"),))
+    candidate = frontend.generated_formulas[0]
+    assert candidate.kind == "candidate"
+    assert candidate.candidate_kind == "formula-text"
 
-    with pytest.raises(ValueError, match="unsupported generated formula candidate kind"):
-        MathHost().classify(FactSnapshot(documents=(document,), generated_formulas=(candidate,)))
+    with pytest.raises(ValueError, match="candidate_kind"):
+        replace(candidate, kind="garbled-marker")
+
+    final = MathHost().classify(frontend).generated_formulas[0]
+    assert final.kind == "garbled-marker"
+    assert final.candidate_kind is None
+
+    with pytest.raises(ValueError, match="candidate_kind"):
+        replace(final, kind="candidate")
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:

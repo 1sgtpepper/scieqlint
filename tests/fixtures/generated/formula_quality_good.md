@@ -9,3 +9,5 @@ Status = complete
 Text \[ x = y \] remains ordinary prose because the delimiters are not a standalone block.
 
 ![plot of an equation](assets/equation-of-state.svg)
+
+![equation](equation.svg)

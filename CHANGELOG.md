@@ -55,6 +55,9 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Generated formula checks now recognize direct spaced formula artifacts and
+  multiline bracketed displays with content on the opener, while leaving
+  ordinary rendered equation images out of placeholder diagnostics.
 - Stable publication now downloads the exact immutable distribution artifact
   approved by smoke, carrying its artifact ID through the release jobs without
   rebuilding or accepting a separately downloaded artifact.

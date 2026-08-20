@@ -20,11 +20,13 @@ _FORMULA_MARKER_LINE_RE = re.compile(
     r"(?:formula-not-decoded|\[formula-not-decoded\]|<!--\s*formula-not-decoded\s*-->)"
 )
 _FORMULA_IMAGE_ALT_RE = re.compile(
-    r"(?:formula|equation|math)(?:[ _-]*(?:image|placeholder|not[ _-]*decoded))?",
+    r"(?:formula|equation|math)[ _-]+"
+    r"(?:placeholder|not[ _-]*decoded|image[ _-]*(?:placeholder|not[ _-]*decoded))",
     re.IGNORECASE,
 )
 _FORMULA_IMAGE_NAME_RE = re.compile(
-    r"(?:formula|equation|math)(?:[_-]*(?:\d+|placeholder|not[_-]*decoded))?"
+    r"(?:formula|equation|math)[_-](?:placeholder|not[_-]*decoded)"
+    r"(?:[_-][A-Za-z0-9]+)*"
     r"\.(?:avif|gif|jpe?g|png|svg|webp)",
     re.IGNORECASE,
 )
@@ -96,7 +98,7 @@ def scan_bracketed_latex_blocks(
                 facts.append(
                     _bracketed_block_fact(document, smap, content_start, close_offset, True)
                 )
-            elif stripped == r"\[":
+            elif stripped.startswith(r"\["):
                 opener = content_start
             continue
 
@@ -249,8 +251,9 @@ def scan_formula_placeholders(
         alt = token.image_alt.strip()
         destination = token.destination.strip()
         filename = destination.rsplit("/", 1)[-1]
-        if _FORMULA_IMAGE_ALT_RE.fullmatch(alt) is None and not (
-            not alt and _FORMULA_IMAGE_NAME_RE.fullmatch(filename) is not None
+        if (
+            _FORMULA_IMAGE_ALT_RE.fullmatch(alt) is None
+            and _FORMULA_IMAGE_NAME_RE.fullmatch(filename) is None
         ):
             continue
         facts.append(

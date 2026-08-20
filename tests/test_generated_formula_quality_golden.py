@@ -22,12 +22,28 @@ def test_generated_formula_quality_fixture_matches_text_and_json_goldens() -> No
     rendered_json = JsonReporter().render(result)
 
     _validate_json_result(rendered_json)
-    assert [diagnostic.code for diagnostic in result.diagnostics] == [
-        "GEN002",
-        "GEN004",
-        "GEN003",
-        "GEN005",
-        "GEN004",
+    assert [
+        (
+            diagnostic.code,
+            diagnostic.span.line if diagnostic.span is not None else None,
+            diagnostic.detail,
+        )
+        for diagnostic in result.diagnostics
+    ] == [
+        ("GEN002", 3, "spaced-token artifact: 'A t t e n t'"),
+        ("GEN002", 5, "garbled-marker artifact: '/C0 apod'"),
+        ("GEN004", 7, "formula-not-decoded marker remains in generated output"),
+        (
+            "GEN003",
+            9,
+            r"standalone \[...\] display delimiters are not portable generated Markdown",
+        ),
+        (
+            "GEN005",
+            13,
+            "equation-like text was emitted outside a math container: 'F(x) = x + 1'",
+        ),
+        ("GEN004", 15, "standalone formula image remains in generated output"),
     ]
     assert TextReporter().render(result) == Path(
         "tests/golden/text/generated_formula_quality.txt"

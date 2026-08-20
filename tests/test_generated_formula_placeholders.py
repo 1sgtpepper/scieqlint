@@ -7,14 +7,11 @@ import pytest
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.facts.math import InlineMathFact
-from scieqlint.frontend.generated import scan_formula_placeholders
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.schema import SchemaHost
-from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -31,43 +28,6 @@ def placeholder_facts(text: str):
         fact
         for fact in MathHost().classify(MySTFrontend().lower((doc(text),))).generated_formulas
         if fact.placeholder_kind is not None
-    )
-
-
-def test_placeholder_scan_skips_foreign_and_unspanned_math_facts() -> None:
-    document = doc("$x$")
-    smap = SourceMap.for_document(document)
-    foreign = InlineMathFact(
-        fact_id="foreign",
-        document_id="other.md",
-        span=smap.span(0, 3),
-        raw="$x$",
-        body="formula-not-decoded",
-        delimiter_kind="dollar",
-        context="paragraph",
-    )
-    unspanned = InlineMathFact(
-        fact_id="unspanned",
-        document_id=document.path.as_posix(),
-        span=None,
-        raw="$x$",
-        body="formula-not-decoded",
-        delimiter_kind="dollar",
-        context="paragraph",
-    )
-
-    assert (
-        scan_formula_placeholders(
-            document,
-            smap,
-            (foreign, unspanned),
-            (),
-            (),
-            (),
-            (),
-            (),
-        )
-        == ()
     )
 
 
@@ -151,24 +111,6 @@ $$   $$
     assert source[facts[0].span.start : facts[0].span.end] == "$$   $$"
 
 
-def test_empty_display_ranges_are_deduplicated() -> None:
-    document = doc("$$$$")
-    facts = scan_formula_placeholders(
-        document,
-        SourceMap.for_document(document),
-        (),
-        (),
-        ((0, 2, 2, 4), (0, 2, 2, 4)),
-        (),
-        (),
-        (),
-    )
-
-    assert [
-        (fact.kind, fact.candidate_kind, fact.placeholder_kind, fact.text) for fact in facts
-    ] == [("candidate", "placeholder", "empty-display-math", "$$$$")]
-
-
 @pytest.mark.parametrize(
     "source",
     [
@@ -186,19 +128,23 @@ def test_formula_marker_respects_raw_html_ownership() -> None:
     assert placeholder_facts("<div>\nformula-not-decoded\n</div>\n") == ()
 
 
-def test_formula_image_placeholder_at_end_of_file_is_standalone() -> None:
-    facts = placeholder_facts("![equation](equation.svg)")
+def test_formula_image_placeholder_requires_explicit_placeholder_evidence() -> None:
+    facts = placeholder_facts("![equation placeholder](equation.svg)")
 
     assert [(fact.kind, fact.placeholder_kind, fact.text) for fact in facts] == [
-        ("image-placeholder", "formula-image", "![equation](equation.svg)")
+        ("image-placeholder", "formula-image", "![equation placeholder](equation.svg)")
     ]
+
+
+def test_rendered_equation_image_is_not_a_formula_placeholder() -> None:
+    assert placeholder_facts("![equation](equation.svg)") == ()
 
 
 def test_formula_image_placeholders_use_complete_markdown_link_boundaries() -> None:
     source = (
-        "![formula](assets/equation-(draft-(v2)).svg)\n"
-        r"![equation](assets/equation\).svg)" + "\n"
-        '![formula](assets/equation.svg "title\ncontinued")\n'
+        "![formula placeholder](assets/equation-(draft-(v2)).svg)\n"
+        r"![equation placeholder](assets/equation\).svg)" + "\n"
+        '![formula placeholder](assets/equation.svg "title\ncontinued")\n'
     )
 
     facts = placeholder_facts(source)
@@ -209,14 +155,14 @@ def test_formula_image_placeholders_use_complete_markdown_link_boundaries() -> N
         "formula-image",
     ]
     assert [source[fact.span.start : fact.span.end] for fact in facts if fact.span] == [
-        "![formula](assets/equation-(draft-(v2)).svg)",
-        r"![equation](assets/equation\).svg)",
-        '![formula](assets/equation.svg "title\ncontinued")',
+        "![formula placeholder](assets/equation-(draft-(v2)).svg)",
+        r"![equation placeholder](assets/equation\).svg)",
+        '![formula placeholder](assets/equation.svg "title\ncontinued")',
     ]
 
 
 def test_generated_profile_json_preserves_span_and_placeholder_kind() -> None:
-    source = "Before.\n\n![equation](equation.svg)\n"
+    source = "Before.\n\n![equation placeholder](equation.svg)\n"
     result = check_documents(
         (
             doc(
