@@ -93,7 +93,7 @@ def test_public_analysis_path_does_not_fetch_hostile_external_targets_and_runs_g
             (
                 "# Generated",
                 "",
-                "![equation](https://example.invalid/formula.svg)",
+                "![formula placeholder](https://example.invalid/formula.svg)",
                 "",
                 "See [external equation](https://example.invalid/paper#eq-energy).",
                 "",

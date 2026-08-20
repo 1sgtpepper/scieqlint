@@ -290,6 +290,16 @@ def _has_missing_required_argument(body: str) -> bool:
 def _tex_argument_end(text: str, start: int) -> int | None:
     if start >= len(text):
         return None
+    if text[start] == "\\":
+        control_start = start + 1
+        if control_start >= len(text):
+            return None
+        if not text[control_start].isalpha():
+            return control_start + 1
+        cursor = control_start + 1
+        while cursor < len(text) and text[cursor].isalpha():
+            cursor += 1
+        return cursor
     if text[start] != "{":
         return start + 1
 

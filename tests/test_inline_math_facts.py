@@ -108,10 +108,29 @@ def test_math_host_rejects_bare_required_arity_commands(command: str) -> None:
     ]
 
 
+@pytest.mark.public_regression
+def test_math_host_rejects_required_arity_command_with_one_control_sequence_argument() -> None:
+    body = r"\frac\alpha"
+    snapshot = MathHost().classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        (body, "unsupported")
+    ]
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", body)
+    ]
+
+
 @pytest.mark.parametrize(
     "body",
-    [r"\frac{1}{2}", r"\dfrac{x}{y}", r"\tfrac{a}{b}", r"\binom{n}{k}"],
-    ids=["frac", "dfrac", "tfrac", "binom"],
+    [
+        r"\frac{1}{2}",
+        r"\dfrac{x}{y}",
+        r"\tfrac{a}{b}",
+        r"\binom{n}{k}",
+        r"\frac\alpha\beta",
+    ],
+    ids=["frac", "dfrac", "tfrac", "binom", "control-sequences"],
 )
 def test_math_host_preserves_required_arity_commands_with_arguments(body: str) -> None:
     snapshot = MathHost().classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
