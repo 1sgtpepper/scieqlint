@@ -206,7 +206,9 @@ silently running a different rule set.
   identifiers are accepted for project-specific execution environments.
 
 The profile table does not enable scanner or parser defaults by itself; those
-defaults come from the packaged preset, which does not select this profile.
+defaults come from the packaged preset. The packaged `generated-myst` preset
+selects that profile as part of its documented workflow. Other profiles remain
+explicit project configuration.
 
 For example, to check reference syntax against plain CommonMark:
 
@@ -216,19 +218,16 @@ name = "cross-format-references"
 output_profile = "commonmark"
 ```
 
-Profile selection is explicit project configuration: the packaged
-`generated-myst` preset does not select that profile yet, because the
-project-mode owner for packaged profile activation is a later slice of issue
-[#90](https://github.com/1sgtpepper/scieqlint/issues/90).
-
 The profile consumes caller-owned source mappings when the already-loaded-document
 API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,
 conversion_stage=..., preserved_anchor_inventory=...)` to each generated
 `SourceDocument`; the checker does not infer that mapping from filenames or
 document order. Per-document origin values take precedence over profile metadata,
 which allows one batch to carry heterogeneous source and conversion identities.
-Without an origin, generated-output provenance checks remain quiet for that
-document.
+For path-based checks using the `generated-myst` profile, normal source loading
+records the generated document and configured `source_kind`/
+`conversion_stage` as metadata-only provenance. It leaves `source_document_id`
+unknown, so anchor comparison still requires an explicit loaded-document origin.
 
 ## Presets
 
@@ -239,7 +238,8 @@ Available presets:
 
 - `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
   math, algebra, reference, and strict parser checks used by generated-document
-  workflows. It does not select the validation profile.
+  workflows and selects the `generated-myst` validation profile. The profile
+  also enables generated-output checks.
   Dimension checks stay in `auto` mode and run only when the project adds
   `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
@@ -259,17 +259,17 @@ from scieqlint.config.load import load_config
 config = load_config("scieqlint.toml", preset="mechanics")
 ```
 
-For a generated MyST/Markdown CI gate, materialize the preset, append the
-profile table, and run GitHub annotations with that config:
+For a generated MyST/Markdown CI gate, materialize the preset and run GitHub
+annotations with that config:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-Append the `[profile]` section shown above to the materialized file. The preset
-and profile are independent: the preset supplies scanner/parser defaults and
-the profile enables generated-output diagnostics.
+The materialized file already contains the `[profile]` selection. Add optional
+source metadata to that existing table when the conversion pipeline supplies it;
+the path workflow does not infer source-document identity.
 
 ## Config schema
 

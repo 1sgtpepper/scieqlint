@@ -116,12 +116,13 @@ and a preserved source anchor is missing from the generated document. `GEN002`
 is emitted for suspicious generated math and does not require provenance;
 caller-supplied provenance enriches it when available. Source kind and
 conversion stage are retained per generated document when supplied on its
-`SourceOrigin`; an explicit profile value is only a fallback for an origin
-field that the caller left unspecified. Missing origin metadata is never
-inferred. If a diagnostic has more than one provenance fact, `provenance_ids`
-retains every fact ID and the serialized metadata uses deterministic
-`provenance_1_*`, `provenance_2_*`, and later keys instead of discarding all but
-the first fact.
+`SourceOrigin`; path-based `generated-myst` checks also retain configured
+generated-document metadata without inventing a source-document mapping.
+Missing source identity is never inferred. The engine carries semantic
+provenance through `DiagnosticIR`; `SchemaHost` owns the public property names.
+If a diagnostic has more than one provenance fact, `provenance_ids` retains every
+fact ID and the serialized metadata uses deterministic `provenance_1_*`,
+`provenance_2_*`, and later keys instead of discarding all but the first fact.
 
 | Code | Default | Meaning |
 |---|---|---|

@@ -145,10 +145,10 @@ def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None
     assert default_result.diagnostics == ()
 
 
-def test_documented_generated_workflow_combines_preset_defaults_and_profile(tmp_path) -> None:
+def test_documented_generated_workflow_uses_preset_defaults_and_profile(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.generated-myst.toml"
     config_path.write_text(
-        read_preset_text("generated-myst") + '\n[profile]\nname = "generated-myst"\n',
+        read_preset_text("generated-myst"),
         encoding="utf-8",
     )
     config = load_config(config_path)
@@ -166,6 +166,7 @@ def test_documented_generated_workflow_combines_preset_defaults_and_profile(tmp_
 
     result = check_documents((source, generated), config=config)
 
+    assert config.profile.name == "generated-myst"
     assert config.scanner.inline_math is True
     assert config.parser.strict_unknowns is True
     assert {diagnostic.code for diagnostic in result.diagnostics} == {"GEN001", "PARSE021"}

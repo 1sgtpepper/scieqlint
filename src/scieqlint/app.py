@@ -39,7 +39,7 @@ from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
@@ -103,6 +103,14 @@ def _run_check_paths(
     diagnostics: list[Diagnostic] = []
     consumed_inputs = list(config_inputs)
     input_identities_complete = _consumed_inputs_complete(consumed_inputs)
+    path_origin = (
+        SourceOrigin(
+            source_kind=config.profile.source_kind,
+            conversion_stage=config.profile.conversion_stage,
+        )
+        if config.profile.name == "generated-myst"
+        else None
+    )
 
     for path in discovered:
         consumed_count = len(consumed_inputs)
@@ -111,6 +119,7 @@ def _run_check_paths(
                 path,
                 absolute_paths=absolute_paths,
                 consumed_inputs=consumed_inputs,
+                origin=path_origin,
             )
         except (OSError, UnicodeError) as exc:
             if len(consumed_inputs) == consumed_count:
@@ -535,6 +544,7 @@ def _load_source(
     *,
     absolute_paths: bool,
     consumed_inputs: list[ConsumedInput],
+    origin: SourceOrigin | None = None,
 ) -> SourceDocument:
     kind = _document_kind(path)
     if kind is DocumentKind.UNKNOWN:
@@ -546,6 +556,7 @@ def _load_source(
         _display_path(path, absolute_paths=absolute_paths),
         text,
         kind,
+        origin=origin,
     )
 
 

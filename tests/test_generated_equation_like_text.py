@@ -10,6 +10,7 @@ from scieqlint.frontend.generated import _text_item_content, scan_equation_like_
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
+from scieqlint.schema import SchemaHost
 from scieqlint.source.maps import SourceMap
 
 
@@ -151,8 +152,9 @@ def test_generated_profile_emits_stable_equation_text_diagnostic_and_provenance(
     )
     assert diagnostic.span is not None
     assert (diagnostic.span.line, diagnostic.span.col) == (3, 1)
-    assert diagnostic.provenance_ids == ("generated.md::generated-provenance",)
-    assert dict(diagnostic.properties) == {
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    assert projection.provenance_ids == ("generated.md::generated-provenance",)
+    assert dict(projection.properties) == {
         "formula_artifact_kind": "equation-like-text",
         "generated_document": "generated.md",
         "source_document": "source/formulas.pdf",

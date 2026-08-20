@@ -25,7 +25,10 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - PolicyHost owns output-profile support policy and diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
 - Generated-output checks consume explicit source-to-generated provenance facts;
-  the generated profile records the generated document plus caller-supplied source kind and conversion stage, and never infers missing origin metadata.
+  configured path ingress records the generated document plus profile metadata,
+  while loaded-document source mappings remain caller-supplied and are never
+  inferred. DiagnosticIR carries semantic provenance and SchemaHost owns public
+  projection names.
 - Graph export models are built from scanner label/reference outputs and do not rescan documents.
 - Reporters render diagnostics. They do not read files or run checks.
 - CLI owns command-line plumbing only.

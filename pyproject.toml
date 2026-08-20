@@ -177,6 +177,7 @@ forbidden_modules = [
   "scieqlint.cli",
   "scieqlint.app",
   "scieqlint.api",
+  "scieqlint.schema",
 ]
 allow_indirect_imports = true
 

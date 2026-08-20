@@ -8,6 +8,7 @@ from scieqlint.frontend.generated import _merge_ranges
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
+from scieqlint.schema import SchemaHost
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -116,13 +117,14 @@ def test_generated_profile_emits_complete_and_eof_diagnostics_in_source_order() 
         "standalone \\[...\\] display delimiters are not portable generated Markdown",
         "standalone \\[ display opener is not closed before end of file",
     ]
-    assert [dict(diagnostic.properties)["complete"] for diagnostic in diagnostics] == [
+    projections = tuple(SchemaHost.project_diagnostic(diagnostic) for diagnostic in diagnostics)
+    assert [dict(projection.properties)["complete"] for projection in projections] == [
         "true",
         "false",
     ]
     assert all(
-        diagnostic.provenance_ids == ("generated.md::generated-provenance",)
-        for diagnostic in diagnostics
+        projection.provenance_ids == ("generated.md::generated-provenance",)
+        for projection in projections
     )
 
 

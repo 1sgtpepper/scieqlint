@@ -13,6 +13,7 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
 from scieqlint.report.json import JsonReporter
+from scieqlint.schema import SchemaHost
 from scieqlint.source.maps import SourceMap
 
 
@@ -239,7 +240,8 @@ def test_generated_profile_json_preserves_span_and_placeholder_kind() -> None:
     diagnostic = diagnostics[0]
     assert diagnostic.span is not None
     assert (diagnostic.span.line, diagnostic.span.col) == (3, 1)
-    assert dict(diagnostic.properties) == {
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    assert dict(projection.properties) == {
         "formula_artifact_kind": "image-placeholder",
         "placeholder_kind": "formula-image",
         "generated_document": "generated.md",

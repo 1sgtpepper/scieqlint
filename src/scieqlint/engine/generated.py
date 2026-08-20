@@ -5,10 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from scieqlint.diag.ir import DiagnosticIR
-from scieqlint.diag.model import Severity
-from scieqlint.facts.generated import GeneratedFormulaFact
+from scieqlint.diag.model import DiagnosticProvenance, Severity
+from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.query.host import QueryHost
-from scieqlint.schema import SchemaHost
 
 
 class GeneratedOutputEngine:
@@ -36,8 +35,7 @@ class GeneratedOutputEngine:
                     rule="generated.preserved_anchor",
                     false_positive_risk="low",
                     profile=self.profile,
-                    provenance_ids=(provenance.fact_id,),
-                    properties=SchemaHost.generated_provenance_properties(provenance),
+                    provenance=(_diagnostic_provenance(provenance),),
                 )
             )
         diagnostics.extend(
@@ -63,7 +61,7 @@ class GeneratedOutputEngine:
         query: QueryHost,
         fact: GeneratedFormulaFact,
     ) -> DiagnosticIR:
-        provenance_ids, properties = _fact_metadata(
+        provenance, properties = _fact_metadata(
             query,
             fact,
             (("formula_artifact_kind", fact.kind),),
@@ -79,8 +77,8 @@ class GeneratedOutputEngine:
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,
-            provenance_ids=provenance_ids,
             properties=properties,
+            provenance=provenance,
         )
 
     def _bracketed_latex_diagnostic(
@@ -89,7 +87,7 @@ class GeneratedOutputEngine:
         fact: GeneratedFormulaFact,
     ) -> DiagnosticIR:
         complete = fact.complete is True
-        provenance_ids, properties = _fact_metadata(
+        provenance, properties = _fact_metadata(
             query,
             fact,
             (
@@ -113,8 +111,8 @@ class GeneratedOutputEngine:
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,
-            provenance_ids=provenance_ids,
             properties=properties,
+            provenance=provenance,
         )
 
     def _formula_placeholder_diagnostic(
@@ -123,7 +121,7 @@ class GeneratedOutputEngine:
         fact: GeneratedFormulaFact,
     ) -> DiagnosticIR:
         assert fact.placeholder_kind is not None
-        provenance_ids, properties = _fact_metadata(
+        provenance, properties = _fact_metadata(
             query,
             fact,
             (
@@ -147,8 +145,8 @@ class GeneratedOutputEngine:
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,
-            provenance_ids=provenance_ids,
             properties=properties,
+            provenance=provenance,
         )
 
     def _equation_like_text_diagnostic(
@@ -156,7 +154,7 @@ class GeneratedOutputEngine:
         query: QueryHost,
         fact: GeneratedFormulaFact,
     ) -> DiagnosticIR:
-        provenance_ids, properties = _fact_metadata(
+        provenance, properties = _fact_metadata(
             query,
             fact,
             (("formula_artifact_kind", fact.kind),),
@@ -172,8 +170,8 @@ class GeneratedOutputEngine:
             profile_gated=True,
             false_positive_risk="medium",
             profile=self.profile,
-            provenance_ids=provenance_ids,
             properties=properties,
+            provenance=provenance,
         )
 
 
@@ -181,22 +179,21 @@ def _fact_metadata(
     query: QueryHost,
     fact: GeneratedFormulaFact,
     properties: Iterable[tuple[str, str]],
-) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+) -> tuple[tuple[DiagnosticProvenance, ...], tuple[tuple[str, str], ...]]:
     provenance = tuple(
         sorted(
             query.generated.provenance_for_document(fact.document_id),
             key=lambda item: item.fact_id,
         )
     )
-    projected = list(properties)
-    if len(provenance) == 1:
-        projected.extend(SchemaHost.generated_provenance_properties(provenance[0]))
-    else:
-        for index, item in enumerate(provenance, start=1):
-            projected.extend(
-                SchemaHost.generated_provenance_properties(
-                    item,
-                    prefix=f"provenance_{index}_",
-                )
-            )
-    return tuple(item.fact_id for item in provenance), tuple(projected)
+    return tuple(_diagnostic_provenance(item) for item in provenance), tuple(properties)
+
+
+def _diagnostic_provenance(provenance: GeneratedProvenanceFact) -> DiagnosticProvenance:
+    return DiagnosticProvenance(
+        fact_id=provenance.fact_id,
+        generated_document_id=provenance.generated_document_id,
+        source_document_id=provenance.source_document_id,
+        source_kind=provenance.source_kind,
+        conversion_stage=provenance.conversion_stage,
+    )

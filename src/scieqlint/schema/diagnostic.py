@@ -54,11 +54,26 @@ class SchemaHost:
     ) -> DiagnosticProjection:
         if version not in cls._SUPPORTED_PROJECTION_VERSIONS:
             raise ValueError(f"unsupported diagnostic projection version: {version}")
+        provenance_ids = (
+            *diagnostic.provenance_ids,
+            *(item.fact_id for item in diagnostic.provenance),
+        )
+        properties = list(diagnostic.properties)
+        if len(diagnostic.provenance) == 1:
+            properties.extend(cls.generated_provenance_properties(diagnostic.provenance[0]))
+        else:
+            for index, item in enumerate(diagnostic.provenance, start=1):
+                properties.extend(
+                    cls.generated_provenance_properties(
+                        item,
+                        prefix=f"provenance_{index}_",
+                    )
+                )
         return DiagnosticProjection(
             version=version,
             profile=diagnostic.profile,
-            provenance_ids=diagnostic.provenance_ids,
-            properties=diagnostic.properties,
+            provenance_ids=provenance_ids,
+            properties=tuple(properties),
         )
 
     @staticmethod

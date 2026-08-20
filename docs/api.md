@@ -88,8 +88,11 @@ result = check_documents(
 )
 ```
 
-An absent origin means that source-to-generated identity is unknown, so the generated
-profile does not manufacture a provenance relationship.
+An absent explicit source mapping means that source-to-generated identity is unknown,
+so the loaded-document API does not manufacture a provenance relationship. The
+path-based API records the generated document and any configured profile metadata
+when `generated-myst` is selected, but it still leaves source-document identity and
+preserved-anchor comparison to an explicit `SourceOrigin`.
 
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
@@ -108,10 +111,12 @@ returns `1` only when an unsuppressed error diagnostic exists.
 `Diagnostic` exposes stable diagnostic data used by reporters and JSON output:
 `code`, `severity`, `message`, `span`, `equation`, `detail`, `hint`, `rule`,
 `suppressed`, and `suppression_reason`.
+Semantic generated provenance remains available on the in-process diagnostic;
+reporters and JSON output use the versioned `SchemaHost` projection for public
+property names and provenance IDs.
 
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
 the user config file, so user config values override preset values. The
-`generated-myst` preset supplies scanner and parser defaults; selecting the
-generated-output profile remains an explicit `[profile]` setting in the project
-config.
+`generated-myst` preset supplies scanner and parser defaults and selects the
+generated-output profile. User config values still override the preset.

@@ -12,7 +12,7 @@ from typing import NoReturn
 import pytest
 
 from scieqlint.api import check_documents, check_paths
-from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 
@@ -81,11 +81,13 @@ def _document(path: str, text: str, kind: DocumentKind) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, kind)
 
 
-def test_public_analysis_path_does_not_fetch_hostile_external_targets(
+def test_public_analysis_path_does_not_fetch_hostile_external_targets_and_runs_generated_check(
     tmp_path,
     no_network: None,
 ) -> None:
     input_path = tmp_path / "generated.md"
+    config_path = tmp_path / "generated-myst.toml"
+    config_path.write_text('[profile]\nname = "generated-myst"\n', encoding="utf-8")
     input_path.write_text(
         "\n".join(
             (
@@ -95,6 +97,8 @@ def test_public_analysis_path_does_not_fetch_hostile_external_targets(
                 "",
                 "See [external equation](https://example.invalid/paper#eq-energy).",
                 "",
+                "<!-- formula-not-decoded -->",
+                "",
                 "Inline source: $E = mc^2$.",
             )
         ),
@@ -103,28 +107,46 @@ def test_public_analysis_path_does_not_fetch_hostile_external_targets(
 
     result = check_paths(
         (input_path,),
+        config_path=config_path,
         inline_math=True,
         absolute_paths=True,
     )
 
     assert result.files_checked == 1
+    generated_diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN004"
+    )
+    assert [
+        (diagnostic.detail, diagnostic.span.line, diagnostic.span.col)
+        for diagnostic in generated_diagnostics
+        if diagnostic.span is not None
+    ] == [
+        ("standalone formula image remains in generated output", 3, 1),
+        ("formula-not-decoded marker remains in generated output", 7, 1),
+    ]
     assert all(
         diagnostic.span is None or diagnostic.span.path == PurePosixPath(input_path.as_posix())
         for diagnostic in result.diagnostics
     )
 
 
-def test_public_analysis_path_accepts_valid_input_without_document_side_effects(
+def test_public_analysis_path_checks_code_cell_metadata_without_document_side_effects(
+    tmp_path,
     no_network: None,
     no_document_side_effects: None,
 ) -> None:
-    document = _document(
-        "safe.md",
+    input_path = tmp_path / "safe.md"
+    config_path = tmp_path / "code-cell-metadata.toml"
+    config_path.write_text(
+        '[profile]\nname = "code-cell-metadata"\n',
+        encoding="utf-8",
+    )
+    input_path.write_text(
         "\n".join(
             (
                 "# Safe",
                 "",
-                "```{code-cell} python",
+                "```{code-cell}",
                 "import user_project",
                 "print('not run')",
                 "```",
@@ -132,16 +154,26 @@ def test_public_analysis_path_accepts_valid_input_without_document_side_effects(
                 "Inline math: $x = y$.",
             )
         ),
-        DocumentKind.MARKDOWN,
+        encoding="utf-8",
     )
 
-    result = check_documents(
-        (document,),
-        config=Config(scanner=ScannerConfig(inline_math=True)),
+    result = check_paths(
+        (input_path,),
+        config_path=config_path,
+        inline_math=True,
+        absolute_paths=True,
     )
 
     assert result.files_checked == 1
     assert result.math_blocks_checked == 1
+    diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "DIR010"
+    )
+    assert len(diagnostics) == 1
+    assert diagnostics[0].profile == "code-cell-metadata"
+    assert diagnostics[0].message == "code-cell directive missing language"
+    assert diagnostics[0].span is not None
+    assert (diagnostics[0].span.line, diagnostics[0].span.col) == (3, 1)
 
 
 def test_public_analysis_path_remains_offline_for_malformed_notebook_boundary(

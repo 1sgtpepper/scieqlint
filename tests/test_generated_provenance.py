@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
-from scieqlint.api import check_documents
+from scieqlint.api import check_documents, check_paths
 from scieqlint.app import _generated_profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.diag.model import DiagnosticProvenance
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
@@ -136,8 +137,17 @@ def test_generated_diagnostic_ir_references_provenance_and_schema_metadata() -> 
         "conversion_stage": "translation",
     }
     assert diagnostic.profile == projection.profile
-    assert diagnostic.provenance_ids == projection.provenance_ids
-    assert diagnostic.properties == projection.properties
+    assert diagnostic.provenance_ids == ()
+    assert diagnostic.properties == ()
+    assert diagnostic.provenance == (
+        DiagnosticProvenance(
+            fact_id="out/paper.md::generated-provenance",
+            generated_document_id="out/paper.md",
+            source_document_id="source/paper.md",
+            source_kind="latex",
+            conversion_stage="translation",
+        ),
+    )
 
 
 def test_generated_query_ignores_provenance_without_a_source_document() -> None:
@@ -195,7 +205,7 @@ def test_generated_profile_keeps_heterogeneous_origins_through_public_path() -> 
     assert {
         (
             diagnostic.detail,
-            frozenset(diagnostic.properties),
+            frozenset(SchemaHost.project_diagnostic(diagnostic).properties),
         )
         for diagnostic in result.diagnostics
     } == {
@@ -221,6 +231,46 @@ def test_generated_profile_keeps_heterogeneous_origins_through_public_path() -> 
                 }.items()
             ),
         ),
+    }
+
+
+def test_generated_profile_path_ingress_preserves_configured_provenance(tmp_path) -> None:
+    config_path = tmp_path / "generated-myst.toml"
+    config_path.write_text(
+        "\n".join(
+            (
+                "[profile]",
+                'name = "generated-myst"',
+                'source_kind = "jats-xml"',
+                'conversion_stage = "xml-to-markdown"',
+            )
+        ),
+        encoding="utf-8",
+    )
+    input_path = tmp_path / "generated.md"
+    input_path.write_text("![equation](equation.svg)\n", encoding="utf-8")
+
+    result = check_paths((input_path,), config_path=config_path, absolute_paths=True)
+    diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN004"
+    )
+
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.provenance == (
+        DiagnosticProvenance(
+            fact_id=f"{input_path.as_posix()}::generated-provenance",
+            generated_document_id=input_path.as_posix(),
+            source_kind="jats-xml",
+            conversion_stage="xml-to-markdown",
+        ),
+    )
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    assert projection.provenance_ids == (f"{input_path.as_posix()}::generated-provenance",)
+    assert dict(projection.properties) == {
+        "conversion_stage": "xml-to-markdown",
+        "generated_document": input_path.as_posix(),
+        "source_kind": "jats-xml",
     }
 
 

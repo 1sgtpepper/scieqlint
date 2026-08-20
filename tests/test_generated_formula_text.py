@@ -7,6 +7,7 @@ import pytest
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.diag.model import DiagnosticProvenance
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import (
     GeneratedFormulaCandidateKind,
@@ -21,6 +22,7 @@ from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.text import TextReporter
+from scieqlint.schema import SchemaHost
 from scieqlint.source.maps import SourceMap
 
 
@@ -91,11 +93,12 @@ def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_pro
         "garbled-marker artifact: '/C0 apod'",
     ]
     assert all(diagnostic.profile == "generated-myst" for diagnostic in diagnostics)
+    projections = tuple(SchemaHost.project_diagnostic(diagnostic) for diagnostic in diagnostics)
     assert all(
-        diagnostic.provenance_ids == ("generated.md::generated-provenance",)
-        for diagnostic in diagnostics
+        projection.provenance_ids == ("generated.md::generated-provenance",)
+        for projection in projections
     )
-    assert [dict(diagnostic.properties) for diagnostic in diagnostics] == [
+    assert [dict(projection.properties) for projection in projections] == [
         {
             "formula_artifact_kind": "spaced-token",
             "generated_document": "generated.md",
@@ -175,8 +178,26 @@ def test_generated_formula_diagnostic_projects_all_provenance_metadata() -> None
     )
 
     assert len(diagnostics) == 1
-    assert diagnostics[0].provenance_ids == ("origin-a", "origin-b")
-    assert dict(diagnostics[0].properties) == {
+    diagnostic = diagnostics[0].to_diagnostic()
+    assert diagnostic.provenance == (
+        DiagnosticProvenance(
+            fact_id="origin-a",
+            generated_document_id="out/generated.md",
+            source_document_id="source/a.xml",
+            source_kind="jats-xml",
+            conversion_stage="xml-to-markdown",
+        ),
+        DiagnosticProvenance(
+            fact_id="origin-b",
+            generated_document_id="out/generated.md",
+            source_document_id="source/b.tex",
+            source_kind="latex",
+            conversion_stage="translation",
+        ),
+    )
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    assert projection.provenance_ids == ("origin-a", "origin-b")
+    assert dict(projection.properties) == {
         "formula_artifact_kind": "spaced-token",
         "provenance_1_conversion_stage": "xml-to-markdown",
         "provenance_1_generated_document": "out/generated.md",

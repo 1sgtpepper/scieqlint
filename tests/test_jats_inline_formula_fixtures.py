@@ -6,6 +6,7 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.schema import SchemaHost
 
 
 def _fixture() -> tuple[str, SourceDocument]:
@@ -87,7 +88,8 @@ def test_jats_conversion_origin_is_explicit_profile_metadata_not_inferred_from_p
     assert [(diagnostic.code, diagnostic.profile) for diagnostic in generated.diagnostics] == [
         ("GEN004", "generated-myst")
     ]
-    assert dict(generated.diagnostics[0].properties) == {
+    projection = SchemaHost.project_diagnostic(generated.diagnostics[0])
+    assert dict(projection.properties) == {
         "conversion_stage": "xml-to-markdown",
         "formula_artifact_kind": "placeholder",
         "generated_document": "article.jats.md",

@@ -228,6 +228,7 @@ def test_import_linter_contracts_encode_release_boundary_map():
         "scieqlint.cli",
         "scieqlint.app",
         "scieqlint.api",
+        "scieqlint.schema",
     }
     assert engine_contract["allow_indirect_imports"] is True
 

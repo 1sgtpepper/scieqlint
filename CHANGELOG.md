@@ -42,9 +42,13 @@ Release notes must use these sections:
 ### Changed
 
 - Generated diagnostic metadata now crosses a versioned SchemaHost projection
-  seam, so text, JSON, SARIF, and GitHub reporters share one provenance and
-  profile projection instead of reconstructing it independently. The complete
-  AnalysisResult registry and serializer migration remain tracked by #190/#191.
+  seam, so engines carry semantic provenance and text, JSON, SARIF, and GitHub
+  reporters share one public provenance and profile projection instead of
+  reconstructing it independently. The complete AnalysisResult registry and
+  serializer migration remain tracked by #190/#191.
+- The packaged `generated-myst` preset now activates generated-output checks
+  alongside the existing scientific checks; path-based checks retain configured
+  generated-document metadata without inferring source-document identity.
 - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.

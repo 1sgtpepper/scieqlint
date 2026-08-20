@@ -54,17 +54,17 @@ scieqlint graph . --output scieqlint-graph.json
 
 ## Generated MyST docs
 
-For generated Markdown/MyST output, materialize the generated-document preset,
-append the validation profile, and run the normal checker with that config:
+For generated Markdown/MyST output, materialize the generated-document preset and
+run the normal checker with that config:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-Append `[profile]` with `name = "generated-myst"` to the materialized file. The
-preset supplies scanner/parser defaults; the explicit profile enables
-generated-output diagnostics.
+The materialized file already selects `generated-myst` and retains the algebra,
+reference, and parser checks from the preset. Path-based checks carry configured
+generated-document provenance but do not infer source-document identity.
 
 ## Demo
 

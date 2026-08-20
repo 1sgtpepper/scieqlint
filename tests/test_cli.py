@@ -2091,6 +2091,7 @@ def test_init_writes_generated_myst_preset_config(tmp_path) -> None:
     assert "wrote" in result.output
     assert config.read_text(encoding="utf-8") == read_preset_text("generated-myst")
     loaded = load_config(config)
+    assert loaded.profile.name == "generated-myst"
     assert loaded.scanner.inline_math is True
     assert loaded.parser.strict_unknowns is True
 

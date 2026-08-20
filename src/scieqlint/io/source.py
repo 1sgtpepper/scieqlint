@@ -17,9 +17,9 @@ class DocumentKind(Enum):
 
 @dataclass(frozen=True, slots=True)
 class SourceOrigin:
-    """Caller-supplied identity for the source of generated document content."""
+    """Caller-supplied provenance for generated document content."""
 
-    source_document_id: str
+    source_document_id: str | None = None
     source_sha: str | None = None
     tool: str | None = None
     tool_version: str | None = None

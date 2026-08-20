@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from scieqlint.diag.model import Diagnostic, Severity
+from scieqlint.diag.model import Diagnostic, DiagnosticProvenance, Severity
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.schema import DIAGNOSTIC_PROJECTION_VERSION, SchemaHost
 
@@ -49,4 +49,28 @@ def test_schema_host_owns_generated_provenance_property_names() -> None:
         ("origin_source_document", "source/paper.tex"),
         ("origin_source_kind", "latex"),
         ("origin_conversion_stage", "translation"),
+    )
+
+
+def test_schema_host_projects_semantic_diagnostic_provenance() -> None:
+    diagnostic = Diagnostic(
+        "GEN004",
+        Severity.WARNING,
+        "formula placeholder",
+        None,
+        provenance=(
+            DiagnosticProvenance(
+                fact_id="out/generated.md::generated-provenance",
+                generated_document_id="out/generated.md",
+                source_kind="latex",
+            ),
+        ),
+    )
+
+    projection = SchemaHost.project_diagnostic(diagnostic)
+
+    assert projection.provenance_ids == ("out/generated.md::generated-provenance",)
+    assert projection.properties == (
+        ("generated_document", "out/generated.md"),
+        ("source_kind", "latex"),
     )

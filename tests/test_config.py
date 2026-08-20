@@ -137,18 +137,20 @@ def test_load_config_user_config_overrides_preset_values(tmp_path) -> None:
     )
 
 
-def test_generated_myst_preset_keeps_profile_selection_explicit(tmp_path, monkeypatch) -> None:
+def test_generated_myst_preset_activates_generated_checks_with_scientific_defaults(
+    tmp_path, monkeypatch
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     config = load_config(preset="generated-myst")
 
-    assert config.profile.name is None
+    assert config.profile.name == "generated-myst"
     assert config.scanner.markdown is True
     assert config.scanner.inline_math is True
     assert config.scanner.math_fences is True
-    assert config.parser.strict_unknowns is True
     assert config.checks.algebra.enabled is True
     assert config.checks.references.enabled is True
+    assert config.parser.strict_unknowns is True
     assert config.checks.dimension.mode == "auto"
 
 
