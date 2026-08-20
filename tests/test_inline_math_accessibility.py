@@ -10,7 +10,6 @@ from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.engine.portability import PortabilityEngine
-from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -74,20 +73,28 @@ def test_accessible_inline_math_fact_is_not_reported_missing() -> None:
     assert QueryHost(snapshot).portability.inline_math_missing_alt() == ()
 
 
-def test_public_api_projects_caller_owned_accessibility_metadata() -> None:
-    document = doc("Use $x$ here.\n")
-    [inline] = MySTFrontend().lower((document,)).inline_math
-
+def test_public_api_projects_stable_source_owned_accessibility_metadata() -> None:
     result = public_check_documents(
-        (document,),
+        (doc("A prefix edited before the formula.\nUse $x$ here.\n"),),
         config=accessibility_config(),
-        accessibility_metadata={inline.fact_id: "the variable x"},
+        accessibility_metadata={
+            "accessible-math.md::inline-math::dollar::x": "the variable x"
+        },
     )
 
     assert not any(item.code == "PORT002" for item in result.diagnostics)
 
 
-def test_public_api_rejects_accessibility_metadata_for_unknown_fact_ids() -> None:
+def test_accessibility_ids_distinguish_repeated_source_tokens() -> None:
+    snapshot = _profile_snapshot((doc("Use $x$, then $x$.\n"),), accessibility_config())
+
+    assert [fact.accessibility_id for fact in snapshot.inline_math[:2]] == [
+        "accessible-math.md::inline-math::dollar::x",
+        "accessible-math.md::inline-math::dollar::x::1",
+    ]
+
+
+def test_public_api_rejects_accessibility_metadata_for_unknown_ids() -> None:
     with pytest.raises(ValueError, match="unknown inline math fact"):
         public_check_documents(
             (doc("Use $x$ here.\n"),),
@@ -150,6 +157,9 @@ def test_accessibility_json_and_sarif_outputs_do_not_rescan_source() -> None:
     assert json_diagnostic["profile"] == "math-accessibility"
     assert json_diagnostic["properties"]["delimiter_kind"] == "dollar"
     assert json_diagnostic["properties"]["surrounding_text_role"] == "paragraph"
+    assert json_diagnostic["properties"]["subject_fact_id"] == (
+        "accessible-math.md::inline-math::dollar::x"
+    )
 
     sarif_payload = json.loads(SarifReporter().render(result))
     [sarif_result] = [
@@ -187,18 +197,3 @@ def test_inline_math_at_eof_keeps_exact_accessibility_span() -> None:
 def test_portability_engine_rejects_unknown_profile() -> None:
     with pytest.raises(ValueError, match="unsupported portability profile: future"):
         PortabilityEngine(profile="future").run(QueryHost(FactSnapshot()))
-
-
-def test_portability_engine_rejects_unowned_risk_kinds() -> None:
-    unknown = OutputPortabilityFact(
-        fact_id="unknown-risk",
-        document_id="accessible-math.md",
-        span=None,
-        subject_fact_id="subject",
-        output_profile="unknown",
-        risk_kind="future-risk",
-    )
-    snapshot = FactSnapshot(portability=(unknown,))
-
-    with pytest.raises(ValueError, match="unsupported portability risk kind: future-risk"):
-        PortabilityEngine(profile="cross-format-references").run(QueryHost(snapshot))

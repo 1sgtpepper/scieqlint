@@ -30,6 +30,7 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -43,7 +44,13 @@ from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    MathBlock,
+    ReferenceSource,
+    SymbolDirective,
+)
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookInput, NotebookScanner
@@ -241,18 +248,30 @@ def check_documents(
         for document in documents
         if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
         or (
+            document.kind is DocumentKind.LATEX
+            and config.profile.name
+            in {"cross-format-references", "math-accessibility", "typst-portability"}
+        )
+        or (
             document.kind is DocumentKind.NOTEBOOK
             and config.profile.name
             in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
         )
     )
     if profile_documents:
+        policy = PolicyHost(
+            config.profile,
+            code_cell_languages=config.project.code_cell_languages,
+        )
         query = QueryHost(
             _profile_snapshot(
                 profile_documents,
                 config,
                 accessibility_metadata=accessibility_metadata,
                 parsed_notebooks=parsed_notebooks,
+                source_references=tuple(references),
+                source_labels=tuple(labels),
+                policy=policy,
             )
         )
         if config.checks.references.enabled:
@@ -267,10 +286,7 @@ def check_documents(
             diagnostic.to_diagnostic()
             for diagnostic in StructureEngine(
                 profile=config.profile.name,
-                policy=PolicyHost(
-                    profile=config.profile.name,
-                    code_cell_languages=config.project.code_cell_languages,
-                ),
+                policy=policy,
             ).run(query)
         )
         # This compatibility path is the current shared owner for loaded and
@@ -289,7 +305,10 @@ def check_documents(
         }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
-                for diagnostic in PortabilityEngine(profile=config.profile.name).run(query)
+                for diagnostic in PortabilityEngine(
+                    profile=config.profile.name,
+                    policy=policy,
+                ).run(query)
             )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
@@ -322,21 +341,23 @@ def _profile_snapshot(
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
     parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    source_references: Sequence[EquationReference] | None = None,
+    source_labels: Sequence[EquationLabel] | None = None,
+    policy: PolicyHost | None = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
         config,
         accessibility_metadata=accessibility_metadata,
         parsed_notebooks=parsed_notebooks,
+        source_references=source_references,
+        source_labels=source_labels,
     )
+    active_policy = policy or PolicyHost(config.profile)
     if config.profile.name == "cross-format-references":
-        if config.profile.output_profile is None:
-            raise ValueError("cross-format-references requires profile.output_profile")
         return replace(
             snapshot,
-            portability=PolicyHost(config.profile.output_profile).cross_format_reference_risks(
-                snapshot,
-            ),
+            portability=active_policy.cross_format_reference_risks(snapshot),
         )
     if config.profile.name == "typst-portability":
         return replace(snapshot, portability=MathHost().typst_portability(snapshot))
@@ -349,6 +370,8 @@ def _generated_profile_snapshot(
     *,
     accessibility_metadata: Mapping[str, str] | None = None,
     parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    source_references: Sequence[EquationReference] | None = None,
+    source_labels: Sequence[EquationLabel] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
@@ -359,7 +382,21 @@ def _generated_profile_snapshot(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     workspace = WorkspaceHost(project_root=config.project.root)
-    snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
+    frontend = MySTFrontend(workspace=workspace)
+    snapshot = frontend.lower(markdown_documents)
+    latex_math_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.LATEX
+        and config.profile.name in {"math-accessibility", "typst-portability"}
+    )
+    if latex_math_documents:
+        latex_math = frontend.lower(latex_math_documents)
+        snapshot = replace(
+            snapshot,
+            inline_math=(*snapshot.inline_math, *latex_math.inline_math),
+            display_math=(*snapshot.display_math, *latex_math.display_math),
+        )
     if (
         config.profile.name
         in {"cross-format-references", "notebook-crossrefs", "code-cell-metadata"}
@@ -381,6 +418,14 @@ def _generated_profile_snapshot(
                 *snapshot.crossref_metadata,
                 *notebook_snapshot.crossref_metadata,
             ),
+        )
+    source_label_facts = _source_label_facts(documents, source_labels, config)
+    source_reference_facts = _source_reference_facts(documents, source_references, config)
+    if source_label_facts or source_reference_facts:
+        snapshot = replace(
+            snapshot,
+            equation_labels=(*snapshot.equation_labels, *source_label_facts),
+            equation_refs=(*snapshot.equation_refs, *source_reference_facts),
         )
     # Full-input membership was validated by check_documents; this snapshot may
     # intentionally contain only profile-supported document kinds.
@@ -454,7 +499,9 @@ def _apply_accessibility_metadata(
 ) -> tuple[InlineMathFact, ...]:
     if metadata is None:
         return tuple(inline_math)
-    known_ids = {fact.fact_id for fact in inline_math}
+    known_ids = {
+        fact.accessibility_id for fact in inline_math if fact.accessibility_id is not None
+    }
     unknown_ids = sorted(set(metadata) - known_ids)
     if unknown_ids:
         raise ValueError(
@@ -464,10 +511,117 @@ def _apply_accessibility_metadata(
     return tuple(
         replace(
             fact,
-            alt=(metadata[fact.fact_id].strip() or None) if fact.fact_id in metadata else fact.alt,
+            alt=(metadata[fact.accessibility_id].strip() or None)
+            if fact.accessibility_id is not None and fact.accessibility_id in metadata
+            else fact.alt,
         )
         for fact in inline_math
     )
+
+
+_SOURCE_REFERENCE_KINDS = {
+    ReferenceSource.MYST_EQ_ROLE: "eq",
+    ReferenceSource.MYST_NUMREF_ROLE: "numref",
+    ReferenceSource.LATEX_REF: "tex-ref",
+    ReferenceSource.LATEX_EQREF: "tex-eqref",
+}
+
+
+def _source_label_facts(
+    documents: Sequence[SourceDocument],
+    source_labels: Sequence[EquationLabel] | None,
+    config: Config,
+) -> tuple[EquationLabelFact, ...]:
+    if config.profile.name != "cross-format-references":
+        return ()
+    source_ids = {
+        document.path.as_posix()
+        for document in documents
+        if document.kind is DocumentKind.LATEX
+    }
+    if not source_ids:
+        return ()
+    labels = source_labels
+    if labels is None:
+        labels = tuple(
+            label
+            for document in documents
+            if document.kind is DocumentKind.LATEX
+            for label in LatexScanner().scan(document, config).labels
+        )
+    facts: list[EquationLabelFact] = []
+    for label in labels:
+        if label.span.path.as_posix() not in source_ids:
+            continue
+        span = label.span
+        cell = span.cell if span.cell is not None else -1
+        normalized_label = label.label.strip()
+        if normalized_label.startswith("#"):
+            normalized_label = normalized_label[1:]
+        facts.append(
+            EquationLabelFact(
+                fact_id=f"{span.path.as_posix()}::source-label::{cell}:{span.start}",
+                document_id=span.path.as_posix(),
+                span=span,
+                raw=label.label,
+                label=label.label,
+                normalized_label=normalized_label,
+                label_syntax_kind=label.source.value,
+                source_block_id=label.block_id,
+                label_span=span,
+            )
+        )
+    return tuple(facts)
+
+
+def _source_reference_facts(
+    documents: Sequence[SourceDocument],
+    source_references: Sequence[EquationReference] | None,
+    config: Config,
+) -> tuple[EquationRefFact, ...]:
+    """Carry scanner-owned raw-LaTeX equation references into the snapshot."""
+
+    if config.profile.name != "cross-format-references":
+        return ()
+    source_ids = {
+        document.path.as_posix()
+        for document in documents
+        if document.kind is DocumentKind.LATEX
+    }
+    if not source_ids:
+        return ()
+    references = source_references
+    if references is None:
+        references = tuple(
+            reference
+            for document in documents
+            if document.kind is DocumentKind.LATEX
+            for reference in LatexScanner().scan(document, config).references
+        )
+    facts: list[EquationRefFact] = []
+    for reference in references:
+        if reference.span.path.as_posix() not in source_ids:
+            continue
+        ref_kind = _SOURCE_REFERENCE_KINDS.get(reference.source)
+        target = reference.target.strip()
+        if ref_kind is None or not target:
+            continue
+        span = reference.span
+        cell = span.cell if span.cell is not None else -1
+        fact_id = f"{span.path.as_posix()}::source-reference::{cell}:{span.start}"
+        facts.append(
+            EquationRefFact(
+                fact_id=fact_id,
+                document_id=span.path.as_posix(),
+                span=span,
+                raw=reference.raw,
+                ref_kind=ref_kind,
+                target=target,
+                normalized_target=target[1:] if target.startswith("#") else target,
+                role_span=span,
+            )
+        )
+    return tuple(facts)
 
 
 def graph_paths(

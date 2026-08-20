@@ -53,6 +53,7 @@ UnknownReason = Literal[
 class InlineMathFact(FactBase):
     body: str
     delimiter_kind: InlineDelimiter
+    accessibility_id: str | None = None
     alt: str | None = None
     surrounding_text_role: InlineTextRole = "paragraph"
     parse_status: InlineParseStatus = "candidate"

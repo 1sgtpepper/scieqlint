@@ -206,7 +206,7 @@ pass
     configured = StructureEngine(
         profile="code-cell-metadata",
         policy=PolicyHost(
-            profile="code-cell-metadata",
+            ProfileConfig(name="code-cell-metadata"),
             code_cell_languages=("python", "c++", "custom.kernel-3"),
         ),
     ).run(query)
@@ -234,9 +234,9 @@ pass
 
 
 def test_code_cell_language_policy_defaults_open_and_honors_project_catalog() -> None:
-    policy = PolicyHost(profile="code-cell-metadata")
+    policy = PolicyHost(ProfileConfig(name="code-cell-metadata"))
     configured = PolicyHost(
-        profile="code-cell-metadata",
+        ProfileConfig(name="code-cell-metadata"),
         code_cell_languages=("python", "c++"),
     )
 

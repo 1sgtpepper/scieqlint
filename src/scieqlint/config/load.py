@@ -18,6 +18,7 @@ from scieqlint.config.model import (
     OutputProfile,
     ParserConfig,
     ProfileConfig,
+    ProfileSeverity,
     ProjectConfig,
     ProjectVisibility,
     ReferencesConfig,
@@ -86,6 +87,7 @@ def _load_config_with_inputs(
         source_kind=_optional_nonempty_str(profile_data, "source_kind"),
         conversion_stage=_optional_nonempty_str(profile_data, "conversion_stage"),
         output_profile=_output_profile(profile_data, "output_profile"),
+        severity=_profile_severity(profile_data, "severity"),
     )
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
@@ -199,6 +201,7 @@ _PROFILE_NAMES = frozenset(
     }
 )
 _OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})
+_PROFILE_SEVERITIES = frozenset({"warning", "error", "disabled"})
 
 
 def _profile_name(data: dict[str, Any], key: str) -> ValidationProfile | None:
@@ -219,6 +222,16 @@ def _output_profile(data: dict[str, Any], key: str) -> OutputProfile | None:
         choices = ", ".join(sorted(_OUTPUT_PROFILES))
         raise ValueError(f"{key} must be one of: {choices}")
     return cast(OutputProfile, value)
+
+
+def _profile_severity(data: dict[str, Any], key: str) -> ProfileSeverity | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or value not in _PROFILE_SEVERITIES:
+        choices = ", ".join(sorted(_PROFILE_SEVERITIES))
+        raise ValueError(f"{key} must be one of: {choices}")
+    return cast(ProfileSeverity, value)
 
 
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:

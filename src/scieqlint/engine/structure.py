@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from scieqlint.config.model import ProfileConfig
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Severity
@@ -30,7 +31,11 @@ class StructureEngine:
 
     def __init__(self, *, profile: str | None = None, policy: PolicyHost | None = None) -> None:
         self.profile = profile
-        self.policy = policy or PolicyHost(profile=profile)
+        self.policy = policy or PolicyHost(
+            ProfileConfig(name="code-cell-metadata")
+            if profile == "code-cell-metadata"
+            else ProfileConfig()
+        )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -146,11 +151,14 @@ class StructureEngine:
         out: list[DiagnosticIR] = []
         metadata_profile = self.policy.code_cell_metadata_profile()
         missing_info = CATALOG["DIR010"]
+        missing_severity = self.policy.severity(missing_info.code)
+        if missing_severity is None:
+            return ()
         for cell in query.structure.missing_code_cell_languages():
             out.append(
                 DiagnosticIR(
                     code=missing_info.code,
-                    severity_default=self.policy.severity(missing_info.code),
+                    severity_default=missing_severity,
                     message=missing_info.message,
                     span=cell.span,
                     hint="Use a directive argument such as ```{code-cell} python.",
@@ -171,6 +179,9 @@ class StructureEngine:
 
         invalid_ids = {cell.fact_id for cell in query.structure.invalid_code_cell_languages()}
         language_info = CATALOG["DIR013"]
+        language_severity = self.policy.severity(language_info.code)
+        if language_severity is None:
+            return tuple(out)
         for cell in query.structure.code_cells():
             if cell.language is None:
                 continue
@@ -183,7 +194,7 @@ class StructureEngine:
             out.append(
                 DiagnosticIR(
                     code=language_info.code,
-                    severity_default=self.policy.severity(language_info.code),
+                    severity_default=language_severity,
                     message=(f"{language_info.message}: {cell.language}"),
                     span=cell.language_span or cell.span,
                     hint=(

@@ -19,6 +19,15 @@ ValidationProfile = Literal[
     "code-cell-metadata",
 ]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
+ProfileSeverity = Literal["warning", "error", "disabled"]
+_PORTABILITY_PROFILES = frozenset(
+    {
+        "cross-format-references",
+        "math-accessibility",
+        "notebook-crossrefs",
+        "typst-portability",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +55,7 @@ class ProfileConfig:
     source_kind: str | None = None
     conversion_stage: str | None = None
     output_profile: OutputProfile | None = None
+    severity: ProfileSeverity | None = None
 
     def __post_init__(self) -> None:
         if self.name != "generated-myst" and (
@@ -59,6 +69,15 @@ class ProfileConfig:
             raise ValueError("profile.output_profile is required for cross-format-references")
         if self.name != "cross-format-references" and self.output_profile is not None:
             raise ValueError("profile.output_profile is only valid for cross-format-references")
+        if self.severity is not None and (
+            not isinstance(self.severity, str)
+            or self.severity not in {"warning", "error", "disabled"}
+        ):
+            raise ValueError("profile.severity must be one of: disabled, error, warning")
+        if self.severity is not None and self.name not in _PORTABILITY_PROFILES:
+            raise ValueError(
+                "profile.severity is only valid for portability validation profiles"
+            )
 
 
 @dataclass(frozen=True, slots=True)

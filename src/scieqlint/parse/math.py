@@ -564,9 +564,10 @@ def _typst_math_risks(
         if document is None:
             continue
         segment = document.text[display.span.start : display.span.end]
+        active_segment = _without_tex_comments(segment)
         smap = SourceMap.for_document(document)
-        risks.extend(_typst_command_risks(display, segment, smap))
-        risks.extend(_typst_environment_risks(display, segment, smap))
+        risks.extend(_typst_command_risks(display, active_segment, smap))
+        risks.extend(_typst_environment_risks(display, active_segment, smap))
     return tuple(
         sorted(
             risks,
@@ -609,6 +610,24 @@ def _typst_command_risks(
             )
         )
     return risks
+
+
+def _without_tex_comments(text: str) -> str:
+    """Mask active TeX comments while preserving source offsets for spans."""
+
+    masked = list(text)
+    in_comment = False
+    for offset, character in enumerate(text):
+        if in_comment:
+            if character == "\n":
+                in_comment = False
+            else:
+                masked[offset] = " "
+            continue
+        if character == "%" and not is_escaped(text, offset):
+            masked[offset] = " "
+            in_comment = True
+    return "".join(masked)
 
 
 def _typst_environment_risks(

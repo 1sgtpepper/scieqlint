@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from scieqlint.diag.ir import DiagnosticIR
+from scieqlint.diag.model import Severity
 from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.policy import PolicyHost
@@ -20,11 +21,14 @@ class PortabilityEngine:
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         if self.profile == "math-accessibility":
+            if self.policy.severity("PORT002") is None:
+                return ()
             return tuple(
                 self._inline_accessibility_diagnostic(fact)
                 for fact in query.portability.inline_math_missing_alt()
             )
         if self.profile == "typst-portability":
+            enabled = self.policy.severity("PORT003") is not None
             diagnostics: list[DiagnosticIR] = []
             for fact in query.portability.risks():
                 if fact.risk_kind not in {
@@ -32,9 +36,12 @@ class PortabilityEngine:
                     "typst-fragile-environment",
                 }:
                     raise ValueError(f"unsupported Typst portability risk kind: {fact.risk_kind}")
-                diagnostics.append(self._typst_syntax_diagnostic(fact))
+                if enabled:
+                    diagnostics.append(self._typst_syntax_diagnostic(fact))
             return tuple(diagnostics)
         if self.profile == "notebook-crossrefs":
+            if self.policy.severity("PORT004") is None:
+                return ()
             return tuple(
                 self._notebook_renderings_diagnostic(conflict)
                 for conflict in query.portability.notebook_rendering_conflicts()
@@ -42,11 +49,13 @@ class PortabilityEngine:
         if self.profile != "cross-format-references":
             raise ValueError(f"unsupported portability profile: {self.profile}")
 
+        enabled = self.policy.severity("PORT001") is not None
         diagnostics: list[DiagnosticIR] = []
         for fact in query.portability.risks():
             if fact.risk_kind != "equation-reference-syntax":
                 raise ValueError(f"unsupported portability risk kind: {fact.risk_kind}")
-            diagnostics.append(self._equation_reference_diagnostic(fact))
+            if enabled:
+                diagnostics.append(self._equation_reference_diagnostic(fact))
         return tuple(diagnostics)
 
     def _equation_reference_diagnostic(
@@ -58,7 +67,7 @@ class PortabilityEngine:
         target = metadata["target"]
         return DiagnosticIR(
             code="PORT001",
-            severity_default=self.policy.severity("PORT001"),
+            severity_default=self._severity("PORT001"),
             message="equation reference syntax may not survive configured output profile",
             span=fact.span,
             detail=(
@@ -87,7 +96,7 @@ class PortabilityEngine:
         parse_status = fact.parse_status
         return DiagnosticIR(
             code="PORT002",
-            severity_default=self.policy.severity("PORT002"),
+            severity_default=self._severity("PORT002"),
             message="inline math lacks accessible text metadata",
             span=fact.span,
             detail=(
@@ -107,7 +116,7 @@ class PortabilityEngine:
                 ("delimiter_kind", delimiter_kind),
                 ("surrounding_text_role", text_role),
                 ("parse_status", parse_status),
-                ("subject_fact_id", fact.fact_id),
+                ("subject_fact_id", fact.accessibility_id or fact.fact_id),
             ),
         )
 
@@ -129,7 +138,7 @@ class PortabilityEngine:
         )
         return DiagnosticIR(
             code="PORT004",
-            severity_default=self.policy.severity("PORT004"),
+            severity_default=self._severity("PORT004"),
             message="cell renderings are incompatible with cross-reference options",
             span=location.span,
             detail=(
@@ -185,7 +194,7 @@ class PortabilityEngine:
             raise ValueError(f"unsupported Typst syntax kind: {syntax_kind}")
         return DiagnosticIR(
             code="PORT003",
-            severity_default=self.policy.severity("PORT003"),
+            severity_default=self._severity("PORT003"),
             message="equation syntax may not survive Typst export",
             span=fact.span,
             detail=detail,
@@ -199,3 +208,9 @@ class PortabilityEngine:
             profile=self.profile,
             properties=properties,
         )
+
+    def _severity(self, code: str) -> Severity:
+        severity = self.policy.severity(code)
+        if severity is None:
+            raise RuntimeError(f"disabled portability diagnostic reached projection: {code}")
+        return severity

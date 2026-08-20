@@ -6,18 +6,20 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.app import _profile_snapshot, check_documents
-from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    ChecksConfig,
+    Config,
+    ProfileConfig,
+    ProfileSeverity,
+)
+from scieqlint.diag.model import Severity
 from scieqlint.engine.portability import PortabilityEngine
-from scieqlint.facts.math import DisplayMathFact
-from scieqlint.facts.portability import OutputPortabilityFact
-from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
-from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str) -> SourceDocument:
@@ -28,9 +30,17 @@ def doc(text: str) -> SourceDocument:
     )
 
 
-def typst_config() -> Config:
+def latex_doc(text: str) -> SourceDocument:
+    return SourceDocument.from_text(
+        PurePosixPath("typst-equations.tex"),
+        text,
+        DocumentKind.LATEX,
+    )
+
+
+def typst_config(*, severity: ProfileSeverity | None = None) -> Config:
     return Config(
-        profile=ProfileConfig(name="typst-portability"),
+        profile=ProfileConfig(name="typst-portability", severity=severity),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
 
@@ -88,6 +98,19 @@ def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
     assert all(
         fact.subject_fact_id == snapshot.display_math[0].fact_id for fact in snapshot.portability
     )
+
+
+def test_typst_profile_reaches_raw_latex_source_documents() -> None:
+    source = r"""\begin{equation}
+\left.\begin{matrix}
+x &= y
+\end{matrix}\right.
+\end{equation}
+"""
+
+    result = check_documents((latex_doc(source),), config=typst_config())
+
+    assert [item.code for item in result.diagnostics if item.code == "PORT003"] == ["PORT003"]
 
 
 def test_typst_engine_emits_fact_backed_metadata_in_source_order() -> None:
@@ -167,6 +190,49 @@ $$
         "environment": "array",
         "delimiter_commands": "left",
     }
+
+
+def test_typst_profile_ignores_commented_and_escaped_tokens_but_keeps_active_tokens() -> None:
+    source = r"""$$
+% \dfrac{x}{y}
+\\dfrac{x}{y}
+\argmin_x f(x)
+% \left.\begin{matrix}
+\left.\begin{array}{ll}
+x & y
+\end{array}\right.
+$$
+"""
+    snapshot = _profile_snapshot((doc(source),), typst_config())
+
+    assert [fact.risk_kind for fact in snapshot.portability] == [
+        "typst-unsupported-command",
+        "typst-fragile-environment",
+    ]
+    assert dict(snapshot.portability[0].metadata)["command"] == "argmin"
+    assert dict(snapshot.portability[1].metadata)["environment"] == "array"
+
+
+@pytest.mark.parametrize(
+    ("severity", "expected"),
+    [
+        ("warning", Severity.WARNING),
+        ("error", Severity.ERROR),
+        ("disabled", None),
+    ],
+)
+def test_typst_profile_uses_configured_policy_severity(
+    severity: ProfileSeverity,
+    expected: Severity | None,
+) -> None:
+    result = check_documents((doc(_SOURCE),), config=typst_config(severity=severity))
+    diagnostics = [item for item in result.diagnostics if item.code == "PORT003"]
+
+    if expected is None:
+        assert diagnostics == []
+    else:
+        assert diagnostics
+        assert all(item.severity is expected for item in diagnostics)
 
 
 def test_unclosed_raw_environment_preserves_typst_risk_to_eof() -> None:
@@ -259,78 +325,3 @@ def test_frontend_without_profile_keeps_typst_policy_unmaterialized() -> None:
 
     assert snapshot.display_math
     assert snapshot.portability == ()
-
-
-def test_typst_engine_rejects_foreign_risk_kind() -> None:
-    foreign = OutputPortabilityFact(
-        fact_id="foreign-risk",
-        document_id="typst-equations.md",
-        span=None,
-        subject_fact_id="subject",
-        output_profile="typst",
-        risk_kind="future-typst-risk",
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="unsupported Typst portability risk kind: future-typst-risk",
-    ):
-        PortabilityEngine(profile="typst-portability").run(
-            QueryHost(FactSnapshot(portability=(foreign,)))
-        )
-
-
-def test_typst_engine_rejects_unknown_syntax_kind() -> None:
-    unknown = OutputPortabilityFact(
-        fact_id="unknown-syntax",
-        document_id="typst-equations.md",
-        span=None,
-        subject_fact_id="subject",
-        output_profile="typst",
-        risk_kind="typst-unsupported-command",
-        metadata=(("syntax_kind", "future"),),
-    )
-
-    with pytest.raises(ValueError, match="unsupported Typst syntax kind: future"):
-        PortabilityEngine(profile="typst-portability").run(
-            QueryHost(FactSnapshot(portability=(unknown,)))
-        )
-
-
-def test_typst_risk_projection_skips_unspanned_foreign_and_escaped_displays() -> None:
-    document = doc(r"\left. \\begin{aligned}x = y\\end{aligned}")
-    span = SourceMap.for_document(document).span(0, len(document.text))
-    escaped_environment = DisplayMathFact(
-        fact_id="typst-equations.md::display-math::0",
-        document_id=document.path.as_posix(),
-        span=span,
-        raw=document.text,
-        body=document.text,
-        container="dollar-dollar",
-    )
-    unspanned = DisplayMathFact(
-        fact_id="unspanned",
-        document_id=document.path.as_posix(),
-        span=None,
-        raw=None,
-        body="",
-        container="dollar-dollar",
-    )
-    foreign = DisplayMathFact(
-        fact_id="foreign",
-        document_id="other.md",
-        span=span,
-        raw=document.text,
-        body=document.text,
-        container="dollar-dollar",
-    )
-
-    assert (
-        MathHost().typst_portability(
-            FactSnapshot(
-                documents=(document,),
-                display_math=(unspanned, foreign, escaped_environment),
-            )
-        )
-        == ()
-    )

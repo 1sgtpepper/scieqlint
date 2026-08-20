@@ -63,6 +63,10 @@ Release notes must use these sections:
 - Generated formula checks now recognize direct spaced formula artifacts and
   multiline bracketed displays with content on the opener, while leaving
   ordinary rendered equation images out of placeholder diagnostics.
+- Portability profiles now consume cross-format references from Markdown/MyST,
+  raw LaTeX, and notebook Markdown cells through one PolicyHost severity policy;
+  accessibility metadata uses stable source-owned inline-math identities, and
+  Typst portability ignores TeX-commented or escaped tokens.
 - Stable publication now downloads the exact immutable distribution artifact
   approved by smoke, carrying its artifact ID through the release jobs without
   rebuilding or accepting a separately downloaded artifact; both wheel and source

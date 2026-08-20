@@ -669,3 +669,27 @@ def test_load_config_accepts_typst_portability_profile(tmp_path) -> None:
 
     assert config.profile.name == "typst-portability"
     assert config.profile.output_profile is None
+
+
+@pytest.mark.parametrize("severity", ["warning", "error", "disabled"])
+def test_load_config_accepts_portability_profile_severity(tmp_path, severity: str) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        f'[profile]\nname = "typst-portability"\nseverity = "{severity}"\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.profile.severity == severity
+
+
+def test_load_config_rejects_unknown_profile_severity(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "typst-portability"\nseverity = "notice"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="severity must be one of"):
+        load_config(config_path)

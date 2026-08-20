@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from importlib import resources
 from pathlib import PurePosixPath
+from typing import cast
 
 import pytest
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
+from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.model import (
     AlgebraConfig,
@@ -15,7 +17,9 @@ from scieqlint.config.model import (
     Config,
     OutputProfile,
     ProfileConfig,
+    ProfileSeverity,
 )
+from scieqlint.diag.model import Severity
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -34,11 +38,46 @@ def doc(text: str) -> SourceDocument:
     )
 
 
-def config(output_profile: OutputProfile) -> Config:
+def notebook_doc(text: str) -> SourceDocument:
+    return SourceDocument.from_text(
+        PurePosixPath("cross-format.ipynb"),
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": text,
+                    }
+                ],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            },
+            sort_keys=True,
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+
+def latex_doc(text: str) -> SourceDocument:
+    return SourceDocument.from_text(
+        PurePosixPath("cross-format.tex"),
+        text,
+        DocumentKind.LATEX,
+    )
+
+
+def config(
+    output_profile: OutputProfile,
+    *,
+    severity: ProfileSeverity | None = None,
+) -> Config:
     return Config(
         profile=ProfileConfig(
             name="cross-format-references",
             output_profile=output_profile,
+            severity=severity,
         ),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
@@ -81,7 +120,7 @@ def test_reference_portability_matrix_is_conservative_and_explicit() -> None:
     document = doc(_SOURCE)
 
     commonmark = _profile_snapshot((document,), config("commonmark"))
-    notebook = _profile_snapshot((document,), config("notebook"))
+    notebook = _profile_snapshot((notebook_doc(_SOURCE),), config("notebook"))
     myst = _profile_snapshot((document,), config("myst"))
     typst = _profile_snapshot((document,), config("typst"))
 
@@ -95,6 +134,73 @@ def test_reference_portability_matrix_is_conservative_and_explicit() -> None:
     ]
     assert myst.portability == ()
     assert [dict(fact.metadata)["ref_kind"] for fact in typst.portability] == ["tex-eqref"]
+
+
+def test_notebook_source_references_reach_cross_format_policy() -> None:
+    result = public_check_documents((notebook_doc(_SOURCE),), config=config("commonmark"))
+
+    portability = [item for item in result.diagnostics if item.code == "PORT001"]
+    assert len(portability) == 2
+    assert all(item.span is not None and item.span.cell == 0 for item in portability)
+    assert not any(item.code.startswith("REF") for item in result.diagnostics)
+    assert [dict(item.properties)["ref_kind"] for item in portability] == [
+        "eq",
+        "tex-eqref",
+    ]
+
+
+def test_raw_latex_source_references_reach_cross_format_policy() -> None:
+    source = r"""\begin{equation}
+x = 1 \label{eq-one}
+\end{equation}
+See \eqref{eq-one}.
+"""
+
+    result = public_check_documents((latex_doc(source),), config=config("commonmark"))
+
+    portability = [item for item in result.diagnostics if item.code == "PORT001"]
+    assert len(portability) == 1
+    assert portability[0].span is not None
+    assert portability[0].span.path == PurePosixPath("cross-format.tex")
+    assert dict(portability[0].properties)["ref_kind"] == "tex-eqref"
+    assert not any(item.code.startswith("REF") for item in result.diagnostics)
+
+
+def test_cross_format_notebook_errors_remain_deterministic() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("broken.ipynb"),
+        "{",
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = public_check_documents((document,), config=config("commonmark"))
+
+    assert [item.code for item in result.diagnostics] == ["INP001"]
+
+
+@pytest.mark.parametrize(
+    ("severity", "expected"),
+    [
+        ("warning", Severity.WARNING),
+        ("error", Severity.ERROR),
+        ("disabled", None),
+    ],
+)
+def test_policy_host_owns_profile_severity_and_disabled_behavior(
+    severity: ProfileSeverity,
+    expected: Severity | None,
+) -> None:
+    result = check_documents(
+        (doc(_SOURCE),),
+        config("commonmark", severity=severity),
+    )
+    diagnostics = [item for item in result.diagnostics if item.code == "PORT001"]
+
+    if expected is None:
+        assert diagnostics == []
+    else:
+        assert diagnostics
+        assert all(item.severity is expected for item in diagnostics)
 
 
 def test_portability_engine_consumes_facts_without_reading_source_text() -> None:
@@ -215,4 +321,9 @@ def test_policy_rejects_missing_and_unknown_output_profiles() -> None:
         PolicyHost().cross_format_reference_risks(snapshot)
 
     with pytest.raises(ValueError, match="unsupported output profile: pdf"):
-        PolicyHost().cross_format_reference_risks(snapshot, "pdf")
+        PolicyHost(
+            ProfileConfig(
+                name="cross-format-references",
+                output_profile=cast(OutputProfile, "pdf"),
+            )
+        ).cross_format_reference_risks(snapshot)

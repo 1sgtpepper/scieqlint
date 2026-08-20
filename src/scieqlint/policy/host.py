@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from scieqlint.config.model import ProfileConfig
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Severity
 from scieqlint.facts.portability import OutputPortabilityFact
@@ -27,21 +28,30 @@ _CODE_CELL_METADATA_PROFILE = "code-cell-metadata"
 
 @dataclass(frozen=True, slots=True)
 class PolicyHost:
-    """Resolve configured support and severity policy for fact consumers."""
+    """Resolve support and portability severity from one profile config."""
 
-    output_profile: str | None = None
-    profile: str | None = None
+    config: ProfileConfig = field(default_factory=ProfileConfig)
     code_cell_languages: tuple[str, ...] = ()
 
-    def severity(self, code: str) -> Severity:
-        """Return the catalog severity selected for one diagnostic code."""
+    def severity(self, code: str) -> Severity | None:
+        """Return the configured severity, or ``None`` when the profile is disabled."""
 
-        return CATALOG[code].severity
+        catalog_severity = CATALOG[code].severity
+        configured = self.config.severity
+        if not code.startswith("PORT") or configured is None:
+            return catalog_severity
+        if configured == "disabled":
+            return None
+        if configured == "error":
+            return Severity.ERROR
+        if configured == "warning":
+            return Severity.WARNING
+        raise AssertionError(f"unsupported profile severity: {configured}")
 
     def code_cell_metadata_profile(self) -> str | None:
         """Return the active profile name when code-cell policy is enabled."""
 
-        if self.profile == _CODE_CELL_METADATA_PROFILE:
+        if self.config.name == _CODE_CELL_METADATA_PROFILE:
             return _CODE_CELL_METADATA_PROFILE
         return None
 
@@ -57,11 +67,10 @@ class PolicyHost:
     def cross_format_reference_risks(
         self,
         snapshot: FactSnapshot,
-        output_profile: str | None = None,
     ) -> tuple[OutputPortabilityFact, ...]:
         """Project equation-reference facts into output-profile risks."""
 
-        profile = output_profile or self.output_profile
+        profile = self.config.output_profile
         if profile is None:
             raise ValueError("cross-format reference policy requires an output profile")
         try:

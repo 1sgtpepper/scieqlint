@@ -65,14 +65,15 @@ math facts whose `alt` metadata is absent. Inferred equation-like prose is not
 treated as an owned math span, and SciEqLint does not synthesize accessible
 text. JSON and SARIF include the accessibility requirement, delimiter kind,
 surrounding text role, and parse status recorded by `MathHost`. Callers provide
-fact-ID-keyed accessibility metadata through `check_documents()`.
+source-owned accessibility-ID-keyed metadata through `check_documents()`; the
+`subject_fact_id` property uses that same stable source identity.
 
 `PORT003` is opt-in through `typst-portability`. It reports only the focused
 display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
 `aligned`, `array`, or `matrix` environments combined with `\left` or
-`\right`. Diagnostics retain the exact source span and command or environment
-metadata. The profile does not render Typst or claim complete translation
-coverage.
+`\right`. TeX-commented and escaped tokens are ignored. Diagnostics retain the
+exact source span and command or environment metadata. The profile does not
+render Typst or claim complete translation coverage.
 
 `PORT004` is opt-in through `notebook-crossrefs`. It reports executable Markdown
 or notebook code cells that combine `renderings` with a cross-reference label or
@@ -80,6 +81,11 @@ caption option, including those options recorded on a notebook output. Notebook
 diagnostics retain logical cell locations, exact JSON output locations when an
 output supplies the cross-reference metadata, normalized cell options, and the
 originating fact IDs. SciEqLint does not execute or re-render notebook outputs.
+
+All four portability profiles accept `[profile].severity = "warning"`, `"error"`,
+or `"disabled"`. The setting is resolved by `PolicyHost`; it changes the emitted
+diagnostic severity or suppresses that profile's diagnostics without changing the
+underlying source facts.
 
 ## REF008
 
@@ -215,7 +221,8 @@ REF011 ambiguous equation reference: shared
 
 ## Severity controls
 
-The current loader does not implement `[severity]` overrides. Current
+The current loader does not implement global `[severity]` overrides. Profile-local
+portability severity is configured through `[profile].severity`. Other
 severity-affecting controls are exposed through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when

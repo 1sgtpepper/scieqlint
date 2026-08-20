@@ -20,7 +20,9 @@ _TABLES: dict[str, frozenset[str]] = {
             "report",
         }
     ),
-    "profile": frozenset({"name", "source_kind", "conversion_stage", "output_profile"}),
+    "profile": frozenset(
+        {"name", "source_kind", "conversion_stage", "output_profile", "severity"}
+    ),
     "project": frozenset({"root", "order", "visibility", "code_cell_languages"}),
     "baseline": frozenset({"files"}),
     "scanner": frozenset({"markdown", "inline_math", "math_fences"}),

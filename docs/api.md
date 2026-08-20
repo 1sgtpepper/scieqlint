@@ -46,9 +46,14 @@ do not read baseline files from disk. Path-based APIs preserve their analysis re
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
 
-`accessibility_metadata` is a caller-owned mapping from the stable inline-math fact ID
-to accessible text. SciEqLint applies it at the orchestration boundary; it does not
-infer alternative text from surrounding prose. An unknown fact ID is rejected. The
+`accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
+accessibility ID to accessible text. An ID has the form
+`<document-path>::inline-math::<delimiter-kind>::<trimmed-body>`; repeated identical
+source tokens append a deterministic occurrence suffix such as `::1`. These identities
+do not depend on the token's byte offset, so edits before a formula that do not add an
+earlier identical token do not invalidate the mapping. SciEqLint applies it at the
+orchestration boundary; it does not infer alternative text from surrounding prose. An
+unknown accessibility ID is rejected. The
 `[project].visibility` configuration table uses each document's project-relative path as
 its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents are
 visible, and a configured path that is not present in the analyzed project is rejected.

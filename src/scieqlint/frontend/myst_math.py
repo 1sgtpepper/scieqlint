@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
+from dataclasses import replace
 
 from scieqlint.facts.math import (
     DisplayMathFact,
@@ -232,10 +233,31 @@ def scan_inline_math(
             _merge_occupied((*lexical_opaque, *math_ranges)),
         )
     )
-    yield from sorted(
+    ordered = sorted(
         facts,
         key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
     )
+    yield from _with_accessibility_ids(document, ordered)
+
+
+def _with_accessibility_ids(
+    document: SourceDocument,
+    facts: Sequence[InlineMathFact],
+) -> Iterable[InlineMathFact]:
+    """Assign source-owned identities independent of lexical byte offsets."""
+
+    occurrences: dict[tuple[str, str], int] = {}
+    for fact in facts:
+        identity_key = (fact.delimiter_kind, fact.body)
+        occurrence = occurrences.get(identity_key, 0)
+        occurrences[identity_key] = occurrence + 1
+        accessibility_id = (
+            f"{document.path.as_posix()}::inline-math::"
+            f"{fact.delimiter_kind}::{fact.body}"
+        )
+        if occurrence:
+            accessibility_id += f"::{occurrence}"
+        yield replace(fact, accessibility_id=accessibility_id)
 
 
 def _merge_occupied(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:

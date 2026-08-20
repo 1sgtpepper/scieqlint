@@ -202,8 +202,9 @@ silently running a different rule set.
   them but never reconstructs missing origin metadata.
 - `cross-format-references` enables equation-reference portability diagnostics
   and requires `output_profile`. The accepted conservative targets are
-  `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
-  external renderer or claim output parity.
+  `commonmark`, `myst`, `notebook`, and `typst`; it consumes Markdown/MyST, raw
+  LaTeX, and notebook Markdown-cell equation references. The profile does not
+  run an external renderer or claim output parity.
 - `math-accessibility` emits diagnostics for explicit inline-math facts that
   lack accessible text metadata. It does not generate alternative text, infer
   metadata from surrounding prose, or apply the policy by default.
@@ -216,12 +217,18 @@ silently running a different rule set.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX
-  `\left`/`\right` sizing. It does not invoke Typst or translate equations.
+  `\left`/`\right` sizing. TeX-commented and escaped tokens are ignored. It does
+  not invoke Typst or translate equations.
 - `code-cell-metadata` includes notebook-derived cells, treats labeled code
   cells as reference targets, and reports missing, unknown, or malformed
   language metadata without executing cell contents. Language names are checked for
   identifier syntax first and then against the optional authoritative
   `project.code_cell_languages` catalog.
+
+Portability profiles accept an optional `severity` setting with one of
+`warning`, `error`, or `disabled`. It applies to diagnostics owned by that profile;
+when omitted, the diagnostic catalog default is used. `disabled` keeps source facts
+available to the profile snapshot but emits no diagnostics for that profile.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset. The packaged `generated-myst` preset
@@ -234,6 +241,7 @@ For example, to check reference syntax against plain CommonMark:
 [profile]
 name = "cross-format-references"
 output_profile = "commonmark"
+severity = "warning"
 ```
 
 The profile consumes caller-owned source mappings when the already-loaded-document
@@ -301,8 +309,9 @@ keys documented on this page. Unknown tables and keys are configuration errors.
 entries are validated as project paths and allowed states, while variables and aliases
 are validated as dimension names and aliases rather than as fixed option names.
 
-The severity overrides and resource limits shown in `SPEC.md` are future
-specification surface, not accepted settings in the current loader. Use
+The global severity overrides and resource limits shown in `SPEC.md` are future
+specification surface, not accepted settings in the current loader. Profile-local
+portability severity is the current exception. Use
 documented CLI/config toggles such as `--strict-unknowns`,
 `[parser].strict_unknowns`, `[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables` for current behavior.
