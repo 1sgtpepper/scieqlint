@@ -56,6 +56,19 @@ HTML_TYPE7_EXCLUDED_OPEN_TAGS = frozenset({"pre", "script", "style", "textarea"}
 _MYST_ROLE_RE = re.compile(r"\{(?:math|ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
+_TEX_ENVIRONMENT_RE = re.compile(r"\\(?P<kind>begin|end)\{(?P<environment>[^{}\s]+)\}")
+_NON_MATH_TEX_ENVIRONMENTS = frozenset(
+    {
+        "document",
+        "figure",
+        "figure*",
+        "itemize",
+        "table",
+        "table*",
+        "verbatim",
+        "verbatim*",
+    }
+)
 _MAX_LINK_DESTINATION_PAREN_DEPTH = 32
 
 
@@ -71,6 +84,15 @@ class _LexicalRanges:
     display_openers: tuple[int, ...]
     line_starts: tuple[int, ...]
     line_roles: tuple[_MarkdownTextRole, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TexLexicalScan:
+    """Offset-preserving TeX comments, environment tokens, and opacity ranges."""
+
+    active_text: str
+    environment_tokens: tuple[tuple[str, str, int, int], ...]
+    non_math_ranges: tuple[OffsetRange, ...]
 
 
 class _RangeCursor:
@@ -307,6 +329,108 @@ def without_tex_comments(text: str) -> str:
             masked[index] = " "
             in_comment = True
     return "".join(masked)
+
+
+def scan_tex_lexically(
+    text: str,
+    occupied: Sequence[OffsetRange] = (),
+) -> TexLexicalScan:
+    """Apply TeX comments and verbatim delimiters in source order.
+
+    Outside a live verbatim environment, an unescaped percent starts a comment
+    and environment controls require an unescaped backslash. Inside verbatim,
+    only the exact matching closer is active; all other characters remain
+    literal until that closer or end of file. Markdown-owned ranges are skipped
+    before TeX controls are considered.
+    """
+
+    masked = list(text)
+    tokens: list[tuple[str, str, int, int]] = []
+    occupied_cursor = _RangeCursor(occupied)
+    verbatim_environment: str | None = None
+    verbatim_body_start: int | None = None
+    index = 0
+    while index < len(text):
+        if verbatim_environment is not None:
+            match = _TEX_ENVIRONMENT_RE.search(text, index)
+            if match is None:
+                assert verbatim_body_start is not None
+                masked[verbatim_body_start:] = [" "] * (len(text) - verbatim_body_start)
+                break
+            index = match.end()
+            if match.group("kind") == "end" and match.group("environment") == verbatim_environment:
+                assert verbatim_body_start is not None
+                masked[verbatim_body_start : match.start()] = [" "] * (
+                    match.start() - verbatim_body_start
+                )
+                tokens.append(
+                    (
+                        match.group("kind"),
+                        match.group("environment"),
+                        match.start(),
+                        match.end(),
+                    )
+                )
+                verbatim_environment = None
+                verbatim_body_start = None
+            continue
+        occupied_end = occupied_cursor.end_at(index)
+        if occupied_end is not None:
+            index = occupied_end
+            continue
+        if text[index] == "%" and not is_escaped(text, index):
+            comment_end = text.find("\n", index)
+            if comment_end == -1:
+                comment_end = len(text)
+            masked[index:comment_end] = [" "] * (comment_end - index)
+            index = comment_end
+            continue
+        match = _TEX_ENVIRONMENT_RE.match(text, index)
+        if match is None:
+            index += 1
+            continue
+        if not is_escaped(text, index):
+            kind = match.group("kind")
+            environment = match.group("environment")
+            tokens.append((kind, environment, match.start(), match.end()))
+            if kind == "begin" and environment in {"verbatim", "verbatim*"}:
+                verbatim_environment = environment
+                verbatim_body_start = match.end()
+        index = match.end()
+    return TexLexicalScan(
+        "".join(masked),
+        tuple(tokens),
+        _non_math_tex_ranges(tokens, len(text)),
+    )
+
+
+def is_non_math_tex_environment(environment: str | None) -> bool:
+    """Return whether a TeX environment is opaque to equation facts."""
+
+    return environment in _NON_MATH_TEX_ENVIRONMENTS
+
+
+def _non_math_tex_ranges(
+    tokens: Sequence[tuple[str, str, int, int]],
+    text_length: int,
+) -> tuple[OffsetRange, ...]:
+    stack: list[tuple[str, int]] = []
+    ranges: list[OffsetRange] = []
+    for kind, environment, start, end in tokens:
+        if kind == "begin":
+            stack.append((environment, start))
+            continue
+        if not stack or stack[-1][0] != environment:
+            continue
+        opened_environment, start = stack.pop()
+        if is_non_math_tex_environment(opened_environment):
+            ranges.append((start, end))
+    ranges.extend(
+        (start, text_length)
+        for environment, start in stack
+        if is_non_math_tex_environment(environment)
+    )
+    return _merge_ranges(ranges)
 
 
 def range_contains(position: int, ranges: Sequence[OffsetRange]) -> bool:

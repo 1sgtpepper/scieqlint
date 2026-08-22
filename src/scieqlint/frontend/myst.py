@@ -14,6 +14,7 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     code_fence_ranges,
+    dollar_display_opener_positions,
     inline_code_ranges,
     markdown_reference_snapshot,
 )
@@ -41,9 +42,14 @@ from .myst_headings import (
     scan_headings,
     sections_for_headings,
 )
-from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math
+from .myst_math import (
+    math_occupied_ranges,
+    scan_display_math,
+    scan_inline_math,
+    scan_raw_latex_math,
+)
 from .myst_refs import scan_refs
-from .myst_shared import dollar_display_ranges, line_ranges
+from .myst_shared import dollar_display_ranges, in_ranges, line_ranges
 
 _directive_option_prefix_lines = directive_option_prefix_lines
 _myst_options = myst_options
@@ -100,20 +106,88 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
     target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
     sections = tuple(sections_for_headings(headings))
+    link_occupied = tuple((token.start, token.end) for token in reference_snapshot.links)
+    dollar_scan_occupied = (*reference_snapshot.link_metadata_ranges, *link_occupied)
     dollar_displays = dollar_display_ranges(
         document.text,
-        reference_snapshot.link_metadata_ranges,
+        dollar_scan_occupied,
     )
+    closed_dollar_starts = {start for start, _body_start, _body_end, _close_end in dollar_displays}
+    unmatched_dollar_occupied = tuple(
+        (start, len(document.text))
+        for start in dollar_display_opener_positions(document.text, dollar_scan_occupied)
+        if start not in closed_dollar_starts
+    )
+    math_ownership_occupied = (
+        *reference_snapshot.non_math_opaque_ranges,
+        *link_occupied,
+        *live_fence_ranges,
+        *inline_code_ranges(document.text),
+    )
+    dollar_occupied = tuple(
+        (start, close_end) for start, _body_start, _body_end, close_end in dollar_displays
+    )
+    inline_math_occupied = tuple(
+        (fact.span.start, fact.span.end)
+        for fact in scan_inline_math(
+            document,
+            smap,
+            math_ownership_occupied,
+            reference_snapshot,
+        )
+        if fact.delimiter_kind != "plain-text" and fact.span is not None
+    )
+    bracketed_candidates = scan_bracketed_latex_blocks(
+        document,
+        smap,
+        (
+            *reference_snapshot.opaque_ranges,
+            *math_ownership_occupied,
+            *dollar_occupied,
+            *inline_math_occupied,
+        ),
+    )
+    bracketed_occupied = tuple(
+        (fact.span.start, fact.span.end) for fact in bracketed_candidates if fact.span is not None
+    )
+    raw_display_math, raw_labels, raw_refs = scan_raw_latex_math(
+        document,
+        smap,
+        (*math_ownership_occupied, *dollar_occupied, *inline_math_occupied),
+        bracketed_occupied=bracketed_occupied,
+    )
+    # An unmatched dollar display owns the remainder of the document, but a raw
+    # environment opened before it retains ownership of its own candidate.
+    raw_display_math = tuple(
+        fact
+        for fact in raw_display_math
+        if fact.span is None or not in_ranges(fact.span.start, unmatched_dollar_occupied)
+    )
+    raw_occupied = math_occupied_ranges(raw_display_math)
     display_math, equation_labels, display_equation_refs = scan_display_math(
         document,
         smap,
         fences,
         dollar_displays,
+        occupied=(
+            *math_ownership_occupied,
+            *raw_occupied,
+        ),
+        fence_occupied=raw_occupied,
     )
-    generic_refs, prose_equation_refs = scan_refs(document, smap, reference_snapshot)
+    # Preserve the established fence-then-dollar fact ordering; raw-LaTeX facts
+    # extend that contract without reordering pre-existing buckets.
+    display_math = (*display_math, *raw_display_math)
+    equation_labels = (*equation_labels, *raw_labels)
+    generic_refs, prose_equation_refs = scan_refs(
+        document,
+        smap,
+        reference_snapshot,
+        raw_occupied=raw_occupied,
+    )
     equation_refs = tuple(
         sorted(
-            (*display_equation_refs, *prose_equation_refs),
+            (*display_equation_refs, *raw_refs, *prose_equation_refs),
             key=lambda fact: (
                 fact.span.start if fact.span is not None else -1,
                 fact.fact_id,
@@ -124,7 +198,11 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         scan_inline_math(
             document,
             smap,
-            (*math_occupied_ranges(display_math), *reference_snapshot.link_metadata_ranges),
+            (
+                *dollar_occupied,
+                *math_occupied_ranges(display_math),
+                *reference_snapshot.link_metadata_ranges,
+            ),
             reference_snapshot,
         )
     )
@@ -140,6 +218,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
             *reference_snapshot.opaque_ranges,
             # Link labels remain prose even when their body resembles TeX.
             *((token.start, token.end) for token in reference_snapshot.links),
+            *dollar_occupied,
             *math_occupied_ranges(display_math),
             *(
                 (fact.span.start, fact.span.end)
@@ -155,7 +234,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         display_math,
         dollar_displays,
         reference_snapshot.links,
-        reference_snapshot.opaque_ranges,
+        (*reference_snapshot.opaque_ranges, *link_occupied),
         (*live_fence_ranges, *inline_code_ranges(document.text)),
     )
     equation_like_text = scan_equation_like_text_items(

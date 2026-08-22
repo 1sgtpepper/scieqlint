@@ -25,8 +25,8 @@ from scieqlint.scan.symbols import parse_symbol_directive
 
 ENV_RE = re.compile(r"\\begin\{(?P<name>equation\*?|align\*?)\}")
 VERBATIM_CONTROL_RE = re.compile(r"\\(?P<kind>begin|end)\{verbatim(?P<star>\*)?\}")
-LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
-REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}]+)\}")
+LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}\r\n]+)\}")
+REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
 SYMBOL_PREFIX = "scieqlint-symbol:"
 
 
@@ -251,12 +251,15 @@ def _labels(
         for match in LABEL_RE.finditer(source_text):
             if _is_escaped(source_text, match.start()):
                 continue
+            label = match.group("label")
+            if not label.strip():
+                continue
             label_start = block.span.start + match.start("label")
             label_end = block.span.start + match.end("label")
             if _in_ranges(match.start() + block.span.start, ignored):
                 continue
             yield EquationLabel(
-                label=_normalize_label(match.group("label")),
+                label=_normalize_label(label),
                 span=_span(document, label_start, label_end),
                 block_id=block.block_id,
                 source=LabelSource.LATEX_LABEL,
@@ -271,6 +274,8 @@ def _references(
         if _in_ranges(match.start(), ignored) or _is_escaped(document.text, match.start()):
             continue
         target = _normalize_label(match.group("target"))
+        if not target:
+            continue
         source = (
             ReferenceSource.LATEX_EQREF
             if match.group("kind") == "eqref"

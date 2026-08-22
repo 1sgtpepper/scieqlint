@@ -51,9 +51,10 @@ caller-supplied provenance enriches it when available. Source kind and
 conversion stage are retained per generated document when supplied on its
 `SourceOrigin`; an explicit profile value is only a fallback for an origin
 field that the caller left unspecified. Missing origin metadata is never
-inferred. `GEN004` covers explicit `formula-not-decoded` markers, empty dollar or fenced
-display-math containers, and standalone formula image placeholders. An ordinary
-rendered equation image without placeholder evidence is not a placeholder.
+inferred. `GEN004` covers explicit `formula-not-decoded` markers, empty dollar,
+fenced, or recognized raw display-math containers, and standalone formula image
+placeholders. An ordinary rendered equation image without placeholder evidence
+is not a placeholder.
 If a diagnostic has more than one provenance fact, `provenance_ids`
 retains every fact ID and the serialized metadata uses deterministic
 `provenance_1_*`, `provenance_2_*`, and later keys instead of discarding all but

@@ -69,6 +69,7 @@ $$
         ("eq", "eq:first", None),
     ]
     assert query.references.unresolved_equation_refs() == ()
+    assert query.references.equation_refs() == snapshot.equation_refs
     assert ReferenceEngine().run(query) == ()
     assert all(fact.target_span is not None for fact in snapshot.equation_refs)
     assert [
@@ -564,3 +565,50 @@ def test_custom_environment_names_participate_in_ams_nesting() -> None:
         )
     )
     assert [(fact.container, fact.environment) for fact in valid.display_math] == [("ams", "align")]
+
+
+def test_escaped_ams_markers_and_references_are_not_claimed_as_structure() -> None:
+    source = "$$\n\\\\begin{align}\nx &= \\\\ref{escaped}\n\\\\end{align}\n$$"
+
+    snapshot = lower(doc(source))
+
+    assert snapshot.display_math[0].container == "dollar-dollar"
+    assert snapshot.equation_refs == ()
+    assert snapshot.display_math[0].environment is None
+
+
+def test_tex_references_ignore_empty_targets_but_keep_valid_targets() -> None:
+    source = "$$\nx &= \\ref{ } + \\ref{valid}\n$$"
+
+    snapshot = lower(doc(source))
+
+    assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
+        ("tex-ref", "valid"),
+    ]
+
+
+def test_ambiguous_equation_query_returns_all_matching_refs() -> None:
+    source = """\
+$$
+\\begin{align}
+a &= b \\label{dup}
+\\end{align}
+$$
+
+$$
+\\begin{align}
+c &= d \\label{dup}
+\\end{align}
+$$
+
+$$
+\\begin{align}
+x &= \\eqref{dup}
+\\end{align}
+$$
+"""
+
+    snapshot = lower(doc(source))
+    query = QueryHost(snapshot)
+
+    assert query.references.ambiguous_equation_refs() == snapshot.equation_refs
