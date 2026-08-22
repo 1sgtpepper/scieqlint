@@ -41,6 +41,10 @@ Release notes must use these sections:
   from Markdown, LaTeX, and notebook source documents.
 - The opt-in `math-accessibility` profile now reports `PORT002` for inline math
   facts without configured accessible text.
+- The opt-in `typst-portability` profile now reports source-spanned `PORT003`
+  risks for focused display-syntax checks in Markdown and LaTeX inputs. Duplicate
+  source paths are rejected, and notebook Markdown cells remain outside the profile
+  until cell-local source mapping is preserved.
 
 ### Changed
 
@@ -66,6 +70,8 @@ Release notes must use these sections:
   continuations, completed blocks, opaque HTML, nested source-owned comments, and
   MyST directive options or TeX comments when deciding whether a formula placeholder
   is present.
+- Markdown next-line suppressions now cover accepted raw LaTeX displays as one
+  source-owned math container, including diagnostics reported on later body lines.
 - Reference diagnostics now use one canonical, deterministic path across Markdown,
   LaTeX, and notebook inputs, preserving Markdown-link `REF002` reports without
   duplicate legacy diagnostics and retaining notebook cell identity.

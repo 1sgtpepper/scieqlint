@@ -1,0 +1,32 @@
+tests/fixtures/bad/typst_portability_bad.md:2:8: warning PORT003 equation syntax may not survive Typst export
+  detail: matrix combined with TeX delimiter sizing is fragile in Typst export
+  profile: typst-portability
+  output_profile: typst
+  syntax_kind: environment
+  environment: matrix
+  delimiter_commands: left,right
+  subject_fact_id: tests/fixtures/bad/typst_portability_bad.md::display-math::0
+tests/fixtures/bad/typst_portability_bad.md:3:1: warning PORT003 equation syntax may not survive Typst export
+  detail: aligned combined with TeX delimiter sizing is fragile in Typst export
+  profile: typst-portability
+  output_profile: typst
+  syntax_kind: environment
+  environment: aligned
+  delimiter_commands: left,right
+  subject_fact_id: tests/fixtures/bad/typst_portability_bad.md::display-math::0
+tests/fixtures/bad/typst_portability_bad.md:4:1: warning PORT003 equation syntax may not survive Typst export
+  detail: TeX command \dfrac is outside the focused Typst baseline
+  profile: typst-portability
+  output_profile: typst
+  syntax_kind: command
+  token: \dfrac
+  command: dfrac
+  subject_fact_id: tests/fixtures/bad/typst_portability_bad.md::display-math::0
+tests/fixtures/bad/typst_portability_bad.md:4:16: warning PORT003 equation syntax may not survive Typst export
+  detail: TeX command \argmin is outside the focused Typst baseline
+  profile: typst-portability
+  output_profile: typst
+  syntax_kind: command
+  token: \argmin
+  command: argmin
+  subject_fact_id: tests/fixtures/bad/typst_portability_bad.md::display-math::0

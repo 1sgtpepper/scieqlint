@@ -32,7 +32,7 @@ from scieqlint.facts.generated import (
     GENERATED_PROVENANCE_FACT_SUFFIX,
     GeneratedProvenanceFact,
 )
-from scieqlint.facts.math import InlineMathFact
+from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -49,6 +49,7 @@ from scieqlint.scan.base import (
     EquationReference,
     LabelSource,
     MathBlock,
+    MathContainer,
     ReferenceSource,
     SymbolDirective,
 )
@@ -161,7 +162,12 @@ def check_documents(
     normalized_accessibility_metadata = _normalize_accessibility_metadata(accessibility_metadata)
     if normalized_accessibility_metadata and config.profile.name != "math-accessibility":
         raise ValueError('accessibility_metadata requires profile.name = "math-accessibility"')
-    if config.profile.name in {"generated-myst", "cross-format-references"}:
+    if config.profile.name in {
+        "generated-myst",
+        "cross-format-references",
+        "typst-portability",
+    }:
+        # Profile facts and diagnostics use the lexical path as their source identity.
         seen_paths: set[PurePosixPath] = set()
         duplicate_paths: set[PurePosixPath] = set()
         for document in documents:
@@ -175,6 +181,7 @@ def check_documents(
                 for path in sorted(duplicate_paths, key=lambda path: path.as_posix())
             )
             raise ValueError(f"duplicate document path(s): {paths}")
+
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -206,7 +213,8 @@ def check_documents(
         for document in documents
         if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
         or (
-            document.kind is DocumentKind.LATEX and config.profile.name == "cross-format-references"
+            document.kind is DocumentKind.LATEX
+            and config.profile.name in {"cross-format-references", "typst-portability"}
         )
         or (
             document.kind is DocumentKind.NOTEBOOK
@@ -373,6 +381,7 @@ def check_documents(
         elif config.profile.name in {
             "cross-format-references",
             "math-accessibility",
+            "typst-portability",
         }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
@@ -381,7 +390,14 @@ def check_documents(
                     policy=policy,
                 ).run(query)
             )
-    diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
+    diagnostics = list(
+        apply_suppressions(
+            diagnostics,
+            documents=documents,
+            blocks=blocks,
+            raw_display_spans=raw_opaque_spans,
+        )
+    )
     if config.profile.name == "generated-myst":
         diagnostics = [
             _project_generated_diagnostic(
@@ -557,6 +573,8 @@ def _profile_snapshot(
                 policy or PolicyHost(config.profile.output_profile)
             ).cross_format_reference_risks(snapshot),
         )
+    if config.profile.name == "typst-portability":
+        return replace(snapshot, portability=MathHost().typst_portability(snapshot))
     return snapshot
 
 
@@ -578,6 +596,19 @@ def _generated_profile_snapshot(
     snapshot = (
         MySTFrontend().lower(markdown_documents) if frontend_snapshot is None else frontend_snapshot
     )
+    latex_math_documents = tuple(
+        document
+        for document in documents
+        if document.kind is DocumentKind.LATEX and config.profile.name == "typst-portability"
+    )
+    if latex_math_documents:
+        snapshot = replace(
+            snapshot,
+            display_math=(
+                *snapshot.display_math,
+                *_latex_display_facts(latex_math_documents, config),
+            ),
+        )
     source_label_facts = _source_label_facts(documents, source_labels, config)
     source_reference_facts = _source_reference_facts(documents, source_references, config)
     snapshot = replace(
@@ -619,6 +650,35 @@ def _legacy_equation_reference_fact(reference: EquationReference) -> EquationRef
         role_span=reference.span,
         target_span=reference.span,
     )
+
+
+def _latex_display_facts(
+    documents: Sequence[SourceDocument],
+    config: Config,
+) -> tuple[DisplayMathFact, ...]:
+    """Adapt complete LatexScanner blocks for source-owned Typst analysis."""
+
+    scanner = LatexScanner()
+    facts: list[DisplayMathFact] = []
+    for document in documents:
+        scan = scanner.scan(document, config)
+        for block in scan.blocks:
+            environment = {
+                MathContainer.LATEX_EQUATION: "equation",
+                MathContainer.LATEX_ALIGN: "align",
+            }.get(block.container)
+            facts.append(
+                DisplayMathFact(
+                    fact_id=f"{document.path.as_posix()}::latex-display::{block.span.start}",
+                    document_id=document.path.as_posix(),
+                    span=block.span,
+                    raw=document.text[block.span.start : block.span.end],
+                    body=block.text,
+                    container="latex-display",
+                    environment=environment,
+                )
+            )
+    return tuple(facts)
 
 
 def _project_generated_diagnostic(

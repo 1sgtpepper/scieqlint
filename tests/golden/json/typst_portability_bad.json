@@ -1,0 +1,110 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT003",
+      "col": 8,
+      "detail": "matrix combined with TeX delimiter sizing is fragile in Typst export",
+      "end_col": 21,
+      "end_line": 2,
+      "equation": null,
+      "hint": "Rewrite the focused TeX form before Typst export or verify the generated Typst with the publishing toolchain.",
+      "line": 2,
+      "message": "equation syntax may not survive Typst export",
+      "path": "tests/fixtures/bad/typst_portability_bad.md",
+      "profile": "typst-portability",
+      "properties": {
+        "delimiter_commands": "left,right",
+        "environment": "matrix",
+        "output_profile": "typst",
+        "subject_fact_id": "tests/fixtures/bad/typst_portability_bad.md::display-math::0",
+        "syntax_kind": "environment"
+      },
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT003",
+      "col": 1,
+      "detail": "aligned combined with TeX delimiter sizing is fragile in Typst export",
+      "end_col": 15,
+      "end_line": 3,
+      "equation": null,
+      "hint": "Rewrite the focused TeX form before Typst export or verify the generated Typst with the publishing toolchain.",
+      "line": 3,
+      "message": "equation syntax may not survive Typst export",
+      "path": "tests/fixtures/bad/typst_portability_bad.md",
+      "profile": "typst-portability",
+      "properties": {
+        "delimiter_commands": "left,right",
+        "environment": "aligned",
+        "output_profile": "typst",
+        "subject_fact_id": "tests/fixtures/bad/typst_portability_bad.md::display-math::0",
+        "syntax_kind": "environment"
+      },
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT003",
+      "col": 1,
+      "detail": "TeX command \\dfrac is outside the focused Typst baseline",
+      "end_col": 6,
+      "end_line": 4,
+      "equation": null,
+      "hint": "Rewrite the focused TeX form before Typst export or verify the generated Typst with the publishing toolchain.",
+      "line": 4,
+      "message": "equation syntax may not survive Typst export",
+      "path": "tests/fixtures/bad/typst_portability_bad.md",
+      "profile": "typst-portability",
+      "properties": {
+        "command": "dfrac",
+        "output_profile": "typst",
+        "subject_fact_id": "tests/fixtures/bad/typst_portability_bad.md::display-math::0",
+        "syntax_kind": "command",
+        "token": "\\dfrac"
+      },
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT003",
+      "col": 16,
+      "detail": "TeX command \\argmin is outside the focused Typst baseline",
+      "end_col": 22,
+      "end_line": 4,
+      "equation": null,
+      "hint": "Rewrite the focused TeX form before Typst export or verify the generated Typst with the publishing toolchain.",
+      "line": 4,
+      "message": "equation syntax may not survive Typst export",
+      "path": "tests/fixtures/bad/typst_portability_bad.md",
+      "profile": "typst-portability",
+      "properties": {
+        "command": "argmin",
+        "output_profile": "typst",
+        "subject_fact_id": "tests/fixtures/bad/typst_portability_bad.md::display-math::0",
+        "syntax_kind": "command",
+        "token": "\\argmin"
+      },
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 1,
+    "warnings": 4
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

@@ -4,7 +4,7 @@ from pathlib import Path, PurePosixPath
 
 from scieqlint.api import check_documents
 from scieqlint.config.load import load_config
-from scieqlint.config.model import Config
+from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
 from scieqlint.diag.model import Severity
 from scieqlint.io.source import DocumentKind, SourceDocument
 
@@ -39,6 +39,30 @@ def test_release_fixture_covers_generated_myst_preset(tmp_path, monkeypatch) -> 
         "PARSE021",
         "REF001",
     }
+
+
+def test_release_fixtures_cover_typst_portability() -> None:
+    typst_config = Config(
+        profile=ProfileConfig(name="typst-portability"),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+    )
+
+    bad = _check_fixture(
+        Path("tests/fixtures/bad/typst_portability_bad.md"),
+        config=typst_config,
+    )
+    good = _check_fixture(
+        Path("tests/fixtures/good/typst_portability_good.md"),
+        config=typst_config,
+    )
+
+    assert [diagnostic.code for diagnostic in bad.diagnostics] == [
+        "PORT003",
+        "PORT003",
+        "PORT003",
+        "PORT003",
+    ]
+    assert good.diagnostics == ()
 
 
 def test_release_fixture_covers_alias_dimension_normalization(tmp_path) -> None:
