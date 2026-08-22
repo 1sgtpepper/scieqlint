@@ -1,0 +1,42 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN004",
+      "col": 1,
+      "detail": "standalone formula image remains in generated output",
+      "end_col": 60,
+      "end_line": 3,
+      "equation": null,
+      "hint": "Restore source math before publishing; SciEqLint does not guess the formula.",
+      "line": 3,
+      "message": "generated output contains a formula placeholder",
+      "path": "generated.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "xml-to-markdown",
+        "formula_artifact_kind": "image-placeholder",
+        "generated_document": "generated.md",
+        "placeholder_kind": "formula-image",
+        "source_document": "source/formulas.xml",
+        "source_kind": "jats-xml"
+      },
+      "provenance_ids": [
+        "generated.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 1
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

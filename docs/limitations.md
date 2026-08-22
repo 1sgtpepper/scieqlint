@@ -46,7 +46,9 @@ prose; display `$$` starts after zero to three leading ASCII spaces at the start
 of a line and closes only at the end of a source line (optionally followed by one
 complete label suffix); single-dollar inline math may be adjacent to ordinary
 text but stays on one source line. Empty bodies and unmatched delimiters are not
-facts.
+core math facts. The generated-MyST profile additionally emits explicit GEN004
+placeholder facts for complete empty fenced, directive, and dollar-display
+containers; unmatched containers remain unclassified.
 
 ## Core grammar subset
 
@@ -244,6 +246,17 @@ openers, valid links, and bracketed text inside supported `$$` or MyST math stay
 quiet; escaped closers do not complete a block. The diagnostic properties retain
 the delimiter kind as `escaped` or `literal`. The default profile does not emit
 `GEN003`.
+
+`GEN004` flags explicit `formula-not-decoded` marker lines, complete empty dollar
+displays, complete empty fenced or `{math}` directive containers, and standalone
+formula image placeholders. Leading MyST option lines and TeX comment-only bodies
+do not count as formula content in an otherwise empty `{math}` directive. The
+standalone detector follows Markdown block ownership: Setext-heading text,
+paragraph continuations, code, and opaque HTML content remain quiet, while an
+owning HTML comment marker or a marker after a completed heading, fence, display,
+or HTML block may start a new paragraph without a blank line. Unclosed empty
+containers and unsupported image syntaxes remain unclassified; the detector does
+not infer an intended formula.
 
 ## Suppression comments
 
