@@ -140,6 +140,15 @@ resolution, including fragment-only links. Malformed URL destinations, external 
 empty decoded fragments, and paths that escape the configured project root are ignored
 safely, and symlinks are never resolved.
 
+The built-in MyST frontend emits complete, source-neutral cross-reference metadata
+facts with target-definition member paths and source/output-boundary provenance.
+`REF007` is fact-backed and compares complete facts from distinct boundaries when
+they describe the same target identity with incompatible metadata. The current
+standalone built-in inputs do not produce that cross-boundary case; notebook and
+engine-output producer integration is deferred to #372/#356. Explicit display titles
+remain attached to reference-use facts, while pathless reference roles remain
+label-only uses and do not supply a target-definition path.
+
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
 AMS classification. Incomplete fences and mismatched environment pairs retain

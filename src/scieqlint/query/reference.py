@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 from scieqlint.facts.reference import (
+    CrossrefMetadataFact,
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
     NormalizedReferenceTarget,
     TargetAnchorFact,
+    crossref_target_identity,
     generic_reference_identity,
     normalized_reference_target,
 )
@@ -43,6 +45,32 @@ class ReferenceQueryView:
 
     def equation_refs(self) -> tuple[EquationRefFact, ...]:
         return self.snapshot.equation_refs
+
+    def metadata_facts(self) -> tuple[CrossrefMetadataFact, ...]:
+        return self.snapshot.crossref_metadata
+
+    def conflicting_metadata(
+        self,
+    ) -> tuple[tuple[NormalizedReferenceTarget, tuple[CrossrefMetadataFact, ...]], ...]:
+        """Return targets with distinct metadata signatures across output boundaries."""
+
+        by_target: dict[NormalizedReferenceTarget, list[CrossrefMetadataFact]] = defaultdict(list)
+        for fact in self.snapshot.crossref_metadata:
+            if fact.metadata_kind != "target-definition":
+                continue
+            identity = crossref_target_identity(fact)
+            if identity is None:
+                continue
+            by_target[identity].append(fact)
+        conflicts: list[tuple[NormalizedReferenceTarget, tuple[CrossrefMetadataFact, ...]]] = []
+        for target, facts in sorted(
+            by_target.items(), key=lambda item: (item[0][0].as_posix(), item[0][1])
+        ):
+            boundaries = {fact.output_boundary for fact in facts}
+            signatures = {_producer_signature(fact) for fact in facts}
+            if len(boundaries) > 1 and len(signatures) > 1:
+                conflicts.append((target, tuple(sorted(facts, key=_metadata_source_key))))
+        return tuple(conflicts)
 
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         """Return the label-only namespace used by pathless reference roles."""
@@ -219,3 +247,25 @@ class ReferenceQueryView:
         return tuple(
             anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
         )
+
+
+def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str, str]:
+    """Return a content-independent source order for conflict baselines."""
+
+    span = fact.target_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.output_boundary,
+        fact.fact_id,
+    )
+
+
+def _producer_signature(
+    fact: CrossrefMetadataFact,
+) -> tuple[str | None, tuple[tuple[str, str], ...]]:
+    return (
+        fact.resolved_target_kind,
+        tuple(sorted(fact.target_metadata)),
+    )

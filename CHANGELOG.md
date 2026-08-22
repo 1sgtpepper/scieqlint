@@ -47,12 +47,19 @@ Release notes must use these sections:
   until cell-local source mapping is preserved.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
+- Model source-neutral cross-reference metadata as fact, query, and engine contracts
+  across document and engine-output boundaries. `REF007` remains fact-backed in this
+  slice; built-in standalone inputs do not yet supply cross-boundary output facts.
+  Notebook/output producer integration is deferred to #372/#356.
 
 ### Changed
 
 - The generated-document workflow now uses the packaged `generated-myst` preset
   on the CLI path. Provenance-backed checks remain an explicit `[profile]` policy
   for already-loaded documents with caller-supplied `SourceOrigin` metadata.
+- Reference targets now use normalized member-path-plus-label identity for path-bearing and
+  fragment-only links, while genuinely pathless roles retain an explicit label-only namespace.
+- Cross-reference metadata no longer groups incomplete target definitions by label alone.
 - Generated diagnostic metadata now crosses a post-policy, versioned SchemaHost
   projection seam, so engine and suppression diagnostics reach text, JSON,
   SARIF, and GitHub reporters through one provenance and profile projection

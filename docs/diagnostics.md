@@ -31,6 +31,7 @@ codes before every code is emitted by the current analyzer.
 | `REF005` | warning | Ambiguous generic reference target |
 | `REF011` | warning | Ambiguous equation reference |
 | `REF006` | warning | Local reference path changes resolution after normalization |
+| `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -209,3 +210,18 @@ native Windows separators before normalization. Destinations that are malformed,
 external, have an empty decoded fragment, or escape the configured project root are
 ignored as unsupported links; fragment-only references remain in the source member
 and are not project paths.
+
+## REF007
+
+`REF007` is the fact-backed diagnostic for separate source or engine-output boundaries
+that describe the same complete normalized path-and-fragment identity with conflicting
+kind or target metadata. The current built-in standalone inputs do not yet supply
+cross-boundary output facts, so this rule is not reachable from ordinary
+`check_paths()`/`check_documents()` calls in this slice; notebook/output producer
+integration is deferred to #372/#356. When the source format has no path identity, the
+normalized label remains the target key for a reference use. Target-definition metadata
+must carry a member path; incomplete definitions are not grouped by label. Source format
+is retained as provenance and does not conflict by itself. A reference role or local
+display title belongs to the reference use and does not participate in this comparison.
+The diagnostic properties preserve both boundary identities; reporters do not inspect
+source documents to reconstruct them.

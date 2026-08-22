@@ -6,6 +6,7 @@ from collections import defaultdict
 from pathlib import PurePosixPath
 
 from scieqlint.diag.model import SourceSpan
+from scieqlint.facts.reference import member_target_identity
 from scieqlint.graph.model import Graph, GraphEdge, GraphNode, GraphSpan
 from scieqlint.io.workspace import normalize_project_path
 from scieqlint.scan.base import EquationLabel, EquationReference
@@ -118,7 +119,7 @@ def _reference_identity(
         reference.span.path,
         project_root=project_root,
     )
-    return path, reference.target_fragment
+    return member_target_identity(path, reference.target_fragment)
 
 
 def _reference_target(
