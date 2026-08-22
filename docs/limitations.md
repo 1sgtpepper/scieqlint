@@ -114,8 +114,9 @@ treated as document-structure targets, so Markdown links such as `[](#label)` an
 `[#label](#label)` do not emit equation-reference diagnostics when that target
 exists. Missing-space forms such as `#Bad` are not headings, and orphaned
 `(label)=` lines are not treated as valid targets. MyST `{ref}` roles to missing or
-ambiguous generic targets use
-generic-reference diagnostics instead of equation-reference diagnostics. This
+ambiguous generic targets use generic-reference diagnostics instead of equation-reference
+diagnostics. Local Markdown links use the same member identity when their target is
+ambiguous. This
 also catches generated output that drops a heading anchor while preserving a
 later `{ref}` to that anchor.
 
@@ -127,6 +128,14 @@ reference role is outside the conservative syntax baseline for the configured
 reference facts from Markdown/MyST, LaTeX, and notebook source documents but does
 not invoke an external renderer or guarantee output parity. Named profiles require
 unique supplied document paths so fact and diagnostic identities remain stable.
+
+Local reference destinations are normalized lexically without filesystem access.
+POSIX separators and native Windows drive, root-relative, or backslash spellings are
+supported; Windows-style drive and UNC components are compared case-insensitively.
+Valid UTF-8 percent-encoded path and fragment components are decoded before
+resolution, including fragment-only links. Malformed URL destinations, external URLs,
+empty decoded fragments, and paths that escape the configured project root are ignored
+safely, and symlinks are never resolved.
 
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -169,6 +169,92 @@ def test_absolute_paths_keep_lexical_symlink_spelling(tmp_path, monkeypatch) -> 
     diagnostic = result.diagnostics[0]
     assert diagnostic.span is not None
     assert diagnostic.span.path == PurePosixPath(link.absolute().as_posix())
+
+
+def test_absolute_paths_only_change_presentation_for_configured_root(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    book = tmp_path / "book"
+    chapters = book / "chapters"
+    chapters.mkdir(parents=True)
+    (book / "index.md").write_text(
+        "See [energy](/chapters/energy.md#eq-energy).\nSee [active](#missing-active).\n",
+        encoding="utf-8",
+    )
+    (chapters / "energy.md").write_text("(eq-energy)=\n# Energy\n", encoding="utf-8")
+    config = tmp_path / "scieqlint.toml"
+    config.write_text('[project]\nroot = "book"\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    paths = (Path("book/index.md"), Path("book/chapters/energy.md"))
+
+    relative = check_paths(paths, config_path=config)
+    absolute = check_paths(paths, config_path=config, absolute_paths=True)
+
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in relative.diagnostics] == [
+        ("REF002", "equation reference target not found: missing-active")
+    ]
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in absolute.diagnostics] == [
+        ("REF002", "equation reference target not found: missing-active")
+    ]
+    relative_span = relative.diagnostics[0].span
+    absolute_span = absolute.diagnostics[0].span
+    assert relative_span is not None
+    assert absolute_span is not None
+    assert relative_span.path == PurePosixPath("book/index.md")
+    assert absolute_span.path == PurePosixPath((book / "index.md").as_posix())
+
+
+@pytest.mark.public_regression
+def test_paths_resolve_configured_root_when_cwd_differs(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    book = project / "book"
+    chapters = book / "chapters"
+    chapters.mkdir(parents=True)
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    index = book / "index.md"
+    index.write_text(
+        "See [energy](/chapters/energy.md#eq-energy).\nSee [active](#missing-active).\n",
+        encoding="utf-8",
+    )
+    energy = chapters / "energy.md"
+    energy_text = "$$\nE = mc^2\n$$ {#eq-energy}\n"
+    energy.write_text(energy_text, encoding="utf-8")
+    config = project / "scieqlint.toml"
+    config.write_text('[project]\nroot = "book"\n', encoding="utf-8")
+    monkeypatch.chdir(runner)
+    paths = (index.absolute(), energy.absolute())
+
+    relative = check_paths(paths, config_path=config.absolute())
+    absolute = check_paths(paths, config_path=config.absolute(), absolute_paths=True)
+    graph = graph_paths(paths, config_path=config.absolute())
+
+    assert [diagnostic.code for diagnostic in relative.diagnostics] == ["REF002"]
+    assert [diagnostic.code for diagnostic in absolute.diagnostics] == ["REF002"]
+    relative_span = relative.diagnostics[0].span
+    absolute_span = absolute.diagnostics[0].span
+    assert relative_span is not None
+    assert absolute_span is not None
+    assert relative_span.path == PurePosixPath("../project/book/index.md")
+    assert absolute_span.path == PurePosixPath(index.as_posix())
+
+    energy_node = next(
+        node for node in graph.nodes if node.kind == "equation" and node.label == "eq-energy"
+    )
+    assert (
+        energy_node.id == f"eq:../project/book/chapters/energy.md:{energy_text.index('eq-energy')}"
+    )
+    assert any(
+        edge.raw.startswith("[energy]") and edge.target == energy_node.id for edge in graph.edges
+    )
+    assert any(
+        edge.raw.startswith("[active]") and edge.target == "label:missing-active"
+        for edge in graph.edges
+    )
 
 
 def test_read_error_uses_display_path_and_safe_os_error_detail(tmp_path, monkeypatch) -> None:

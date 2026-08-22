@@ -11,6 +11,7 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.scan.base import (
     EquationLabel,
     EquationReference,
@@ -24,8 +25,8 @@ _MAX_JSON_INTEGER_DIGITS = 4096
 
 
 class NotebookScanner:
-    def __init__(self) -> None:
-        self._markdown = MarkdownScanner()
+    def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
+        self._markdown = MarkdownScanner(workspace=workspace)
 
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         try:

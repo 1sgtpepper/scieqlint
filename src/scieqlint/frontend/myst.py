@@ -12,6 +12,7 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.markdown import (
     code_fence_ranges,
     dollar_display_opener_positions,
@@ -60,10 +61,14 @@ _is_immediate_attachment = is_immediate_attachment
 class MySTFrontend:
     """Lower source documents into a ``FactSnapshot`` without diagnostics."""
 
+    def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
+        self.workspace = workspace or WorkspaceHost()
+
     def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
-        parts = tuple(_lower_document(document) for document in documents)
+        parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         return FactSnapshot(
             documents=tuple(documents),
+            project_members=self.workspace.project_members(documents),
             headings=_flatten(parts, "headings"),
             sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),
@@ -87,7 +92,7 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
     return tuple(items)
 
 
-def _lower_document(document: SourceDocument) -> FactSnapshot:
+def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> FactSnapshot:
     smap = SourceMap.for_document(document)
     lines = line_ranges(document.text)
     reference_snapshot = markdown_reference_snapshot(document.text)
@@ -184,6 +189,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         smap,
         reference_snapshot,
         raw_occupied=raw_occupied,
+        workspace=workspace,
     )
     equation_refs = tuple(
         sorted(

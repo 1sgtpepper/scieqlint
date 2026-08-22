@@ -45,6 +45,8 @@ Release notes must use these sections:
   risks for focused display-syntax checks in Markdown and LaTeX inputs. Duplicate
   source paths are rejected, and notebook Markdown cells remain outside the profile
   until cell-local source mapping is preserved.
+- Warn when local cross-document references resolve differently after lexical
+  project-path normalization.
 
 ### Changed
 
@@ -60,6 +62,8 @@ Release notes must use these sections:
   serializer migration remain tracked by #190/#191.
 - Programmatic provenance identifiers, source kinds, and conversion stages are
   normalized at construction and reject blank values consistently with TOML input.
+- Unresolved graph targets retain the schema 0.3 `label:<fragment>` identity while
+  path-bearing references still use normalized member identity when a target resolves.
 - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
@@ -99,8 +103,17 @@ Release notes must use these sections:
   with deterministic `ValueError` results.
 - Cross-format profile inputs now reject duplicate document paths before fact lowering so
   reference identities and diagnostics remain deterministic.
+- Ambiguous generic-reference diagnostics now retain supported local Markdown-link
+  references.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
+- Malformed local URL destinations are now ignored safely, and project-reference
+  normalization handles native Windows separators, valid UTF-8 percent encoding,
+  and project-root escapes without crashing or leaving the project root.
+- Fragment-only links now decode valid UTF-8 percent escapes, while empty decoded
+  fragments are ignored without producing empty reference identities.
+- `check_paths(absolute_paths=True)` now changes diagnostic presentation only, so
+  configured project-root reference resolution is stable across path display modes.
 - Stable-tag publication now fails closed unless source, wheel, and tag versions
   agree, at least 100 documented equation fixtures execute successfully, and the
   100-document/500-equation/500-reference workload stays under three seconds.

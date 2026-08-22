@@ -24,6 +24,10 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
   only `SourceOrigin.source_document_id` establishes the source mapping. The generated
   profile may supply source-kind and conversion-stage annotations when an origin omits
   them, but it never infers a source document or producer relationship.
+- WorkspaceHost owns project-relative identity and applies the caller-supplied configured
+  membership projection. It rejects raw document paths that collide after
+  normalization. Orchestration injects the host into stateful scanners and frontends;
+  compatibility, query, and graph paths use its pure lexical normalizer.
 - Graph export models are built from scanner label/reference outputs and do not rescan documents.
 - Reporters render diagnostics. They do not read files or run checks.
 - CLI owns command-line plumbing only.
