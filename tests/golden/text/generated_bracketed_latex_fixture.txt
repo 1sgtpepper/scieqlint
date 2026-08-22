@@ -1,0 +1,9 @@
+tests/fixtures/generated/bracketed_latex.md:2:1: warning GEN003 nonstandard bracketed LaTeX display block
+  detail: standalone [...] display delimiters are not portable generated Markdown
+  profile: generated-myst
+  provenance: tests/fixtures/generated/bracketed_latex.md::generated-provenance
+  formula_artifact_kind: bracketed-block
+  complete: true
+  delimiter_kind: literal
+  generated_document: tests/fixtures/generated/bracketed_latex.md
+  source_document: source/formulas.pdf

@@ -12,7 +12,10 @@ GeneratedFormulaKind = Literal[
     "candidate",
     "spaced-token",
     "garbled-marker",
+    "bracketed-block",
 ]
+GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block"]
+GeneratedBracketDelimiter = Literal["escaped", "literal"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -33,4 +36,20 @@ class GeneratedFormulaFact(FactBase):
 
     kind: GeneratedFormulaKind
     text: str
+    candidate_kind: GeneratedFormulaCandidateKind | None = None
     source_math_fact_id: str | None = None
+    complete: bool | None = None
+    # Bracketed candidates and final facts retain the delimiter seen by the
+    # scanner; formula-text and inferred artifact facts do not have one.
+    delimiter_kind: GeneratedBracketDelimiter | None = None
+
+    def __post_init__(self) -> None:
+        if (self.kind == "candidate") != (self.candidate_kind is not None):
+            raise ValueError("candidate formula facts must set candidate_kind")
+        expects_complete = self.kind == "bracketed-block" or (
+            self.kind == "candidate" and self.candidate_kind == "bracketed-block"
+        )
+        if expects_complete != (self.complete is not None):
+            raise ValueError("bracketed formula facts must retain completeness metadata")
+        if expects_complete != (self.delimiter_kind is not None):
+            raise ValueError("bracketed formula facts must retain delimiter kind")

@@ -244,12 +244,30 @@ def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormu
         source_map = source_maps.get(candidate.document_id)
         assert source_map is not None
         assert candidate.span is not None
-        facts.extend(_suspicious_formula_facts(candidate, source_map))
+        facts.extend(_classify_generated_candidate(candidate, source_map))
     return tuple(
         sorted(
             facts,
             key=lambda fact: (fact.span.start if fact.span is not None else -1, fact.fact_id),
         )
+    )
+
+
+def _classify_generated_candidate(
+    candidate: GeneratedFormulaFact,
+    source_map: SourceMap,
+) -> tuple[GeneratedFormulaFact, ...]:
+    if candidate.candidate_kind == "formula-text":
+        return _suspicious_formula_facts(candidate, source_map)
+    assert candidate.candidate_kind == "bracketed-block"
+    assert candidate.delimiter_kind is not None
+    return (
+        replace(
+            candidate,
+            kind="bracketed-block",
+            candidate_kind=None,
+            delimiter_kind=candidate.delimiter_kind,
+        ),
     )
 
 
@@ -284,6 +302,7 @@ def _suspicious_formula_facts(
                     confidence="inferred",
                     kind=kind,
                     text=artifact,
+                    candidate_kind=None,
                     source_math_fact_id=candidate.source_math_fact_id,
                 )
             )

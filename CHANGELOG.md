@@ -22,6 +22,10 @@ Release notes must use these sections:
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the `generated-myst` profile is
   selected, including through the packaged preset.
+- Generated-document validation now reports `GEN003` for standalone bracketed
+  LaTeX display blocks (`\[...\]` and the literal `[...]` artifact), including
+  complete and incomplete forms at source or Markdown-container boundaries;
+  diagnostic metadata preserves whether the delimiter was escaped or literal.
 
 ### Changed
 
