@@ -1659,6 +1659,7 @@ References are core v0.1.0. Graph and symbols come later.
 | `REF001` | v0.1.0 | error | Duplicate equation label |
 | `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
+| `REF006` | v1.1.0 | warning | Local reference resolves only after project-path normalization |
 | `REF011` | Unreleased | warning | Ambiguous equation reference |
 
 Rules:
@@ -1721,6 +1722,7 @@ Diagnostic codes are stable API once introduced.
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
+| `REF006` | warning | Local reference resolves only after project-path normalization |
 | `REF011` | warning | Ambiguous equation reference |
 
 Later codes are added only when their release starts.

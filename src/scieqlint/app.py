@@ -37,10 +37,11 @@ from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
-from scieqlint.graph.model import Graph
+from scieqlint.graph.model import Graph, GraphNode
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
@@ -111,6 +112,8 @@ def _run_check_paths(
         strict_unknowns=strict_unknowns,
     )
     project_root, discovered = _discover_project_files(paths, config)
+    analysis_config = _analysis_config(config, project_root)
+    presentation_paths: dict[PurePosixPath, PurePosixPath] = {}
     documents: list[SourceDocument] = []
     diagnostics: list[Diagnostic] = []
     consumed_inputs = list(config_inputs)
@@ -119,9 +122,14 @@ def _run_check_paths(
     for path in discovered:
         consumed_count = len(consumed_inputs)
         try:
-            document = _load_source(
+            analysis_path = _analysis_source_path(path, config=config)
+            presentation_paths[analysis_path] = _display_path(
                 path,
                 absolute_paths=absolute_paths,
+            )
+            document = _load_source(
+                path,
+                document_path=analysis_path,
                 consumed_inputs=consumed_inputs,
             )
         except (OSError, UnicodeError) as exc:
@@ -131,14 +139,14 @@ def _run_check_paths(
             continue
         documents.append(document)
 
-    result = check_documents(documents, config=config)
+    result = check_documents(documents, config=analysis_config)
     diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
     baselines = _load_baselines(config, project_root, consumed_inputs)
     input_identities_complete = input_identities_complete and _consumed_inputs_complete(
         consumed_inputs
     )
     diagnostics_result = apply_baseline(
-        diagnostics_result,
+        _present_diagnostic_paths(diagnostics_result, presentation_paths),
         baselines,
     )
     return _AnalysisRun(
@@ -185,6 +193,8 @@ def check_documents(
             )
             raise ValueError(f"duplicate document path(s): {paths}")
 
+    workspace = WorkspaceHost(project_root=config.project.root)
+    project_members = workspace.project_members(documents)
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -193,16 +203,16 @@ def check_documents(
     if config.scanner.markdown:
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
-        frontend_snapshot = MySTFrontend().lower(markdown_documents)
+        frontend_snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
         raw_opaque_spans = tuple(
             fact.span
             for fact in frontend_snapshot.display_math
             if fact.source_syntax == "raw-latex" and fact.span is not None
         )
 
-    scanner = MarkdownScanner()
+    scanner = MarkdownScanner(workspace=workspace)
     latex_scanner = LatexScanner()
-    notebook_scanner = NotebookScanner()
+    notebook_scanner = NotebookScanner(workspace=workspace)
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -274,6 +284,7 @@ def check_documents(
                     tuple(references),
                     blocks=tuple(blocks),
                     strict_missing_labels=config.checks.references.missing_label_strict,
+                    project_root=config.project.root,
                 )
             )
     if config.checks.symbols.enabled:
@@ -330,6 +341,10 @@ def check_documents(
             frontend_snapshot=frontend_snapshot,
             accessibility_metadata=normalized_accessibility_metadata,
         )
+        # Profile facts may intentionally omit source kinds that the selected
+        # profile does not inspect. Keep membership complete so path-bearing
+        # references can still resolve to an included LaTeX or notebook target.
+        snapshot = replace(snapshot, project_members=project_members)
         query = QueryHost(snapshot)
         diagnostics = _without_profile_owned_legacy_reference_diagnostics(
             diagnostics,
@@ -431,7 +446,11 @@ def _without_profile_owned_legacy_reference_diagnostics(
     profile_owned_spans.update(
         span
         for fact in query.references.generic_refs()
-        if not (fact.fact_id in unresolved_generic_ids and fact.role_kind == "markdown-link")
+        if not (
+            fact.fact_id in unresolved_generic_ids
+            and fact.role_kind == "markdown-link"
+            and fact.raw_target_path is None
+        )
         if (span := fact.target_span or fact.span) is not None
     )
     owned_spans = tuple(profile_owned_spans)
@@ -576,11 +595,14 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
+    workspace = WorkspaceHost(project_root=config.project.root)
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     snapshot = (
-        MySTFrontend().lower(markdown_documents) if frontend_snapshot is None else frontend_snapshot
+        MySTFrontend(workspace=workspace).lower(markdown_documents)
+        if frontend_snapshot is None
+        else frontend_snapshot
     )
     latex_math_documents = tuple(
         document
@@ -597,6 +619,7 @@ def _generated_profile_snapshot(
         )
     source_label_facts = _source_label_facts(documents, source_labels, config)
     source_reference_facts = _source_reference_facts(documents, source_references, config)
+
     snapshot = replace(
         snapshot,
         documents=tuple(documents),
@@ -607,6 +630,7 @@ def _generated_profile_snapshot(
             accessibility_metadata,
         ),
     )
+    snapshot = replace(snapshot, project_members=workspace.project_members(documents))
     snapshot = MathHost().classify(snapshot)
     provenance = (
         _generated_provenance_facts(markdown_documents, config)
@@ -780,6 +804,8 @@ def _source_reference_facts(
         return ()
     facts: list[EquationRefFact] = []
     for reference in references:
+        if reference.span.path.as_posix() not in source_ids:
+            continue
         ref_kind = _SOURCE_REFERENCE_KINDS.get(reference.source)
         if ref_kind is None:
             continue
@@ -824,9 +850,10 @@ def _apply_accessibility_metadata(
         return tuple(inline_math)
     known_id_counts: dict[str, int] = {}
     for fact in inline_math:
-        if fact.accessibility_id is None:
-            continue
-        known_id_counts[fact.accessibility_id] = known_id_counts.get(fact.accessibility_id, 0) + 1
+        if fact.accessibility_id is not None:
+            known_id_counts[fact.accessibility_id] = (
+                known_id_counts.get(fact.accessibility_id, 0) + 1
+            )
     unknown_ids = sorted(set(metadata) - set(known_id_counts))
     if unknown_ids:
         raise ValueError(
@@ -882,14 +909,18 @@ def _run_graph_paths(
 ) -> _AnalysisRun[Graph]:
     """Load files, build the graph, and retain their consumed identities."""
     config, config_inputs = _load_config_with_inputs(config_path)
-    _, discovered = _discover_project_files(paths, config)
+    project_root, discovered = _discover_project_files(paths, config)
+    analysis_config = _analysis_config(config, project_root)
+    presentation_paths: dict[PurePosixPath, PurePosixPath] = {}
     documents: list[SourceDocument] = []
     consumed_inputs = list(config_inputs)
     for path in discovered:
         try:
+            analysis_path = _analysis_source_path(path, config=config)
+            presentation_paths[analysis_path] = _display_path(path, absolute_paths=False)
             document = _load_source(
                 path,
-                absolute_paths=False,
+                document_path=analysis_path,
                 consumed_inputs=consumed_inputs,
             )
         except (OSError, UnicodeError) as exc:
@@ -898,7 +929,10 @@ def _run_graph_paths(
             raise ValueError(f"{diagnostic.code} {diagnostic.message}{detail}") from exc
         documents.append(document)
     return _AnalysisRun(
-        graph_documents(documents, config=config),
+        _present_graph_paths(
+            graph_documents(documents, config=analysis_config),
+            presentation_paths,
+        ),
         tuple(consumed_inputs),
         _consumed_inputs_complete(consumed_inputs),
     )
@@ -910,16 +944,21 @@ def graph_documents(
     config: Config,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
+    workspace = WorkspaceHost(project_root=config.project.root)
+    workspace.project_members(documents)
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     if config.scanner.markdown:
-        raw_labels, raw_references, raw_opaque_spans = _raw_graph_facts(markdown_documents)
+        raw_labels, raw_references, raw_opaque_spans = _raw_graph_facts(
+            markdown_documents,
+            workspace=workspace,
+        )
     else:
         raw_labels, raw_references, raw_opaque_spans = (), (), ()
-    scanner = MarkdownScanner()
+    scanner = MarkdownScanner(workspace=workspace)
     latex_scanner = LatexScanner()
-    notebook_scanner = NotebookScanner()
+    notebook_scanner = NotebookScanner(workspace=workspace)
     labels: list[EquationLabel] = []
     references: list[EquationReference] = []
     for document in documents:
@@ -935,11 +974,17 @@ def graph_documents(
         references.extend(scan.references)
     labels.extend(raw_labels)
     references.extend(raw_references)
-    return build_graph(tuple(labels), tuple(references))
+    return build_graph(
+        tuple(labels),
+        tuple(references),
+        project_root=config.project.root,
+    )
 
 
 def _raw_graph_facts(
     documents: Sequence[SourceDocument],
+    *,
+    workspace: WorkspaceHost,
 ) -> tuple[
     tuple[EquationLabel, ...],
     tuple[EquationReference, ...],
@@ -947,7 +992,7 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend().lower(documents)
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math
@@ -1044,7 +1089,7 @@ def _discover_project_files(
 def _load_source(
     path: Path,
     *,
-    absolute_paths: bool,
+    document_path: PurePosixPath,
     consumed_inputs: list[ConsumedInput],
 ) -> SourceDocument:
     kind = _document_kind(path)
@@ -1054,7 +1099,7 @@ def _load_source(
         consumed_inputs.append(consumed_input)
         text = stream.read()
     return SourceDocument.from_text(
-        _display_path(path, absolute_paths=absolute_paths),
+        document_path,
         text,
         kind,
     )
@@ -1219,11 +1264,103 @@ def _strict_unknown(diagnostic: Diagnostic) -> Diagnostic:
 def _display_path(path: Path, *, absolute_paths: bool) -> PurePosixPath:
     """Render the caller's lexical path without consulting filesystem targets."""
     if absolute_paths:
-        absolute_path = path if path.is_absolute() else Path.cwd() / path
+        absolute_path = path if path.is_absolute() else Path(os.path.abspath(path))
         return PurePosixPath(absolute_path.as_posix())
     if not path.is_absolute():
         return PurePosixPath(path.as_posix())
     return _lexical_relative_path(path, Path.cwd())
+
+
+def _analysis_config(
+    config: Config,
+    project_root: Path,
+) -> Config:
+    """Keep the configured root in the same lexical coordinate as analysis documents."""
+    analysis_base = _analysis_base(config)
+    analysis_root = _lexical_relative_path(
+        _absolute_lexical_path(project_root),
+        analysis_base,
+    )
+    return replace(
+        config,
+        project=replace(
+            config.project,
+            root=analysis_root,
+        ),
+    )
+
+
+def _analysis_source_path(path: Path, *, config: Config) -> PurePosixPath:
+    """Render one source in the config-relative coordinate used by analysis."""
+    return _lexical_relative_path(_absolute_lexical_path(path), _analysis_base(config))
+
+
+def _analysis_base(config: Config) -> Path:
+    if config.path is None:
+        return Path.cwd()
+    return Path(os.path.abspath(config.path.as_posix())).parent
+
+
+def _absolute_lexical_path(path: Path) -> Path:
+    return path if path.is_absolute() else Path(os.path.abspath(path))
+
+
+def _present_diagnostic_paths(
+    diagnostics: tuple[Diagnostic, ...],
+    presentation_paths: Mapping[PurePosixPath, PurePosixPath],
+) -> tuple[Diagnostic, ...]:
+    """Restore caller-visible source paths after analysis in a stable coordinate."""
+    return tuple(
+        replace(
+            diagnostic,
+            span=(
+                None
+                if diagnostic.span is None
+                else replace(
+                    diagnostic.span,
+                    path=presentation_paths.get(diagnostic.span.path, diagnostic.span.path),
+                )
+            ),
+        )
+        for diagnostic in diagnostics
+    )
+
+
+def _present_graph_paths(
+    graph: Graph,
+    presentation_paths: Mapping[PurePosixPath, PurePosixPath],
+) -> Graph:
+    """Restore caller-visible paths while retaining graph node identity links."""
+    node_ids: dict[str, str] = {}
+    presented_nodes: list[GraphNode] = []
+    for node in graph.nodes:
+        display_path = presentation_paths.get(node.span.path, node.span.path)
+        node_id = _present_graph_id(node.id, node.span.path, display_path)
+        node_ids[node.id] = node_id
+        presented_nodes.append(
+            replace(node, id=node_id, span=replace(node.span, path=display_path))
+        )
+    presented_edges = tuple(
+        replace(
+            edge,
+            source=node_ids.get(edge.source, edge.source),
+            target=node_ids.get(edge.target, edge.target),
+        )
+        for edge in graph.edges
+    )
+    return replace(graph, nodes=tuple(presented_nodes), edges=presented_edges)
+
+
+def _present_graph_id(
+    node_id: str,
+    analysis_path: PurePosixPath,
+    display_path: PurePosixPath,
+) -> str:
+    for prefix in ("eq:", "ref:"):
+        marker = f"{prefix}{analysis_path.as_posix()}:"
+        if node_id.startswith(marker):
+            return f"{prefix}{display_path.as_posix()}:{node_id[len(marker) :]}"
+    return node_id
 
 
 def _lexical_relative_path(path: PurePath, base: PurePath) -> PurePosixPath:

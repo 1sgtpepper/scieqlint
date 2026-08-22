@@ -9,6 +9,7 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
+from scieqlint.io.workspace import WorkspaceHost, decode_project_fragment
 from scieqlint.markdown import (
     MarkdownReferenceSnapshot,
     code_fence_ranges,
@@ -49,6 +50,9 @@ _MathFenceRange = tuple[int, int, int, int | None]
 
 
 class MarkdownScanner:
+    def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
+        self.workspace = workspace or WorkspaceHost()
+
     def scan(self, document: SourceDocument, config: Config) -> ScanResult:
         if not config.scanner.markdown:
             return ScanResult(blocks=())
@@ -84,7 +88,7 @@ class MarkdownScanner:
         if config.scanner.inline_math:
             blocks.extend(_inline_blocks(document, blocks, link_metadata))
 
-        references = tuple(_references(document, reference_snapshot))
+        references = tuple(_references(document, reference_snapshot, workspace=self.workspace))
         symbol_directives, symbol_diagnostics = _symbol_directives(document, symbol_scan_text)
         diagnostics.extend(symbol_diagnostics)
         return ScanResult(
@@ -330,26 +334,51 @@ def _myst_directive_labels(document: SourceDocument, block: MathBlock) -> Iterab
 def _references(
     document: SourceDocument,
     snapshot: MarkdownReferenceSnapshot,
+    *,
+    workspace: WorkspaceHost,
 ) -> Iterable[EquationReference]:
     attached_myst_anchors = snapshot.attached_target_labels
     occupied = snapshot.opaque_ranges
     link_tokens = snapshot.links
     for token in link_tokens:
-        if token.is_image:
+        if token.is_image or token.destination is None:
             continue
-        if token.fragment_target is None:
+        project_target = workspace.project_reference_target(document.path, token.destination)
+        fragment = (
+            None
+            if token.fragment_target is None
+            else decode_project_fragment(token.fragment_target)
+        )
+        normalized_target_path = None
+        if project_target is not None:
+            fragment = project_target.fragment
+            if fragment is None:
+                continue
+            normalized_target_path = project_target.normalized_path
+        if fragment is None:
             continue
-        assert token.fragment_target_start is not None
-        assert token.fragment_target_end is not None
-        target_start = token.fragment_target_start
-        target = _normalize_label(token.fragment_target)
-        if target in attached_myst_anchors:
+        target_start = (
+            token.fragment_target_start
+            if token.fragment_target is not None
+            else token.destination_start
+        )
+        target_end = (
+            token.fragment_target_end
+            if token.fragment_target is not None
+            else token.destination_end
+        )
+        assert target_start is not None
+        assert target_end is not None
+        target = _normalize_label(fragment)
+        if project_target is None and target in attached_myst_anchors:
             continue
         yield EquationReference(
             target=target,
-            span=_span(document, target_start, token.fragment_target_end),
+            span=_span(document, target_start, target_end),
             raw=document.text[token.start : token.end],
             source=ReferenceSource.MARKDOWN_ANCHOR,
+            normalized_target_path=normalized_target_path,
+            target_fragment=target,
         )
     for match in EQ_ROLE_RE.finditer(document.text):
         if range_contains(match.start(), occupied) or is_escaped(document.text, match.start()):

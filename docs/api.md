@@ -45,6 +45,9 @@ syntax are expanded.
 do not read baseline files from disk. Path-based APIs preserve their analysis result
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
+Both document APIs reject repeated raw paths and distinct raw paths that normalize
+to the same canonical project member; canonical member identity is owned by
+`WorkspaceHost`.
 
 `accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
 accessibility ID to accessible text. IDs percent-encode the document path and trimmed
@@ -106,7 +109,9 @@ Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
 relative to the current working directory by default. For `check_paths()`,
 `absolute_paths=True` retains an explicitly absolute input's lexical spelling
-without resolving symlinks; `graph_paths()` always uses the default presentation.
+without resolving symlinks; this presentation choice does not change
+project-relative reference resolution. `graph_paths()` always uses the default
+presentation.
 When an absolute input and the current directory have different native roots,
 default presentation raises `ValueError` rather than leak an absolute path or
 collapse distinct roots. Checks may opt into absolute paths; graph inputs must be

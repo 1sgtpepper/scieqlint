@@ -126,7 +126,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert reference_diagnostics
     assert structure_diagnostics
     assert engine_rule_codes(ReferenceEngine()) == frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF011"}
+        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF011"}
     )
     assert "STR005" in engine_rule_codes(StructureEngine())
     assert analysis_result.summary() == {
@@ -1701,7 +1701,7 @@ def test_query_host_views_expose_snapshot_contracts():
     assert query.references.generic_refs() == (ref, unresolved_ref)
     assert query.references.target_index()["intro"] == (source_anchor, duplicate_anchor)
     assert query.references.duplicate_generic_targets() == {
-        "intro": (source_anchor, duplicate_anchor)
+        (PurePosixPath("chapter.md"), "intro"): (source_anchor, duplicate_anchor)
     }
     assert query.references.unresolved_generic_refs() == (unresolved_ref,)
     assert query.references.ambiguous_generic_refs() == (ref,)

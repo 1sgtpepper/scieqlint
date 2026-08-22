@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from pathlib import PurePosixPath
 
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic
+from scieqlint.io.workspace import normalize_project_path
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, MathContainer
+
+_DEFAULT_PROJECT_ROOT = PurePosixPath(".")
 
 
 def check_references(
@@ -15,10 +19,14 @@ def check_references(
     *,
     blocks: tuple[MathBlock, ...] = (),
     strict_missing_labels: bool = False,
+    project_root: PurePosixPath = _DEFAULT_PROJECT_ROOT,
 ) -> tuple[Diagnostic, ...]:
     diagnostics: list[Diagnostic] = []
+    labels_by_identity: dict[tuple[PurePosixPath, str], list[EquationLabel]] = defaultdict(list)
     labels_by_name: dict[str, list[EquationLabel]] = defaultdict(list)
     for label in labels:
+        label_path = normalize_project_path(label.span.path, project_root=project_root)
+        labels_by_identity[(label_path, label.label)].append(label)
         labels_by_name[label.label].append(label)
 
     for same_name in labels_by_name.values():
@@ -36,9 +44,20 @@ def check_references(
                 )
             )
 
-    label_names = set(labels_by_name)
     for reference in references:
-        if reference.target in label_names:
+        if reference.normalized_target_path is not None:
+            # Path-bearing links are resolved by ReferenceQueryView so the
+            # compatibility checker cannot report a second owner diagnostic.
+            continue
+        reference_path = (
+            normalize_project_path(reference.span.path, project_root=project_root)
+            if reference.target_fragment is not None
+            else None
+        )
+        if reference_path is not None:
+            if (reference_path, reference.target) in labels_by_identity:
+                continue
+        elif reference.target in labels_by_name:
             continue
         info = CATALOG["REF002"]
         diagnostics.append(

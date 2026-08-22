@@ -18,7 +18,6 @@ from scieqlint.facts.math import (
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
-from scieqlint.io.source import DocumentKind
 from scieqlint.markdown import (
     is_escaped,
     is_non_math_tex_environment,
@@ -565,17 +564,12 @@ def _typst_math_risks(
 ) -> tuple[OutputPortabilityFact, ...]:
     """Return focused, source-spanned risks for Typst display-math export."""
 
-    documents = {
-        (document.path.as_posix(), document.kind): document for document in snapshot.documents
-    }
+    documents = {document.path.as_posix(): document for document in snapshot.documents}
     risks: list[OutputPortabilityFact] = []
     for display in snapshot.display_math:
         if display.span is None:
             continue
-        source_kind = (
-            DocumentKind.LATEX if display.container == "latex-display" else DocumentKind.MARKDOWN
-        )
-        document = documents.get((display.document_id, source_kind))
+        document = documents.get(display.document_id)
         if document is None:
             continue
         source = document.text[display.span.start : display.span.end]
