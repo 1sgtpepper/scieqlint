@@ -15,7 +15,7 @@ OffsetRange = tuple[int, int]
 HEADING_RE = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 ROLE_RE = re.compile(r"\{(?P<role>ref|eq|numref)}`(?P<body>[^`\r\n]+)`")
-TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}]+)\}")
+TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}\r\n]+)\}")
 DOLLAR_TAIL_LABEL_RE = re.compile(r"\{#(?P<brace>[^}\s]+)\}|\((?P<paren>[^()\s]+)\)")
 DIRECTIVE_INFO_RE = re.compile(r"^\{(?P<name>[^}\s]+)\}(?P<arg>.*)$")
 ROLE_MARKER_RE = re.compile(r"\{(?P<role>ref|eq|numref)\}")

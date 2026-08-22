@@ -149,7 +149,7 @@ def test_heading_hierarchy_state_is_scoped_per_document():
 
 
 def test_unclosed_math_fence_keeps_existing_scan_diagnostic_without_structure_duplicate():
-    result = check_documents([doc("```math\nx = y\n")], config=Config())
+    result = check_documents([doc("```math\nx = \\eqref{missing}\n")], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
 

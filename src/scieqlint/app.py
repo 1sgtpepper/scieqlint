@@ -12,7 +12,7 @@ from typing import Generic, TypeVar
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
 from scieqlint.check.dimensions import check_dimensions
-from scieqlint.check.references import check_references
+from scieqlint.check.references import check_missing_labels, check_references
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
@@ -31,6 +31,7 @@ from scieqlint.facts.generated import (
     GENERATED_PROVENANCE_FACT_SUFFIX,
     GeneratedProvenanceFact,
 )
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
@@ -166,6 +167,8 @@ def check_documents(
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
+    non_markdown_labels: list[EquationLabel] = []
+    non_markdown_references: list[EquationReference] = []
     references: list[EquationReference] = []
     symbol_directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
@@ -180,6 +183,9 @@ def check_documents(
             raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
+        if document.kind is not DocumentKind.MARKDOWN:
+            non_markdown_labels.extend(scan.labels)
+            non_markdown_references.extend(scan.references)
         references.extend(scan.references)
         symbol_directives.extend(scan.symbol_directives)
         diagnostics.extend(scan.diagnostics)
@@ -195,17 +201,28 @@ def check_documents(
                 )
             diagnostics.extend(check_dimensions(block, config))
 
+    markdown_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    canonical_reference_path = bool(
+        config.scanner.markdown
+        and (markdown_documents or non_markdown_labels or non_markdown_references)
+    )
     if config.parser.strict_unknowns:
         diagnostics = [_strict_unknown(diagnostic) for diagnostic in diagnostics]
     if config.checks.references.enabled:
-        diagnostics.extend(
-            check_references(
-                tuple(labels),
-                tuple(references),
-                blocks=tuple(blocks),
-                strict_missing_labels=config.checks.references.missing_label_strict,
+        if canonical_reference_path:
+            if config.checks.references.missing_label_strict:
+                diagnostics.extend(check_missing_labels(tuple(blocks), tuple(labels)))
+        else:
+            diagnostics.extend(
+                check_references(
+                    tuple(labels),
+                    tuple(references),
+                    blocks=tuple(blocks),
+                    strict_missing_labels=config.checks.references.missing_label_strict,
+                )
             )
-        )
     if config.checks.symbols.enabled:
         diagnostics.extend(
             check_symbols(
@@ -214,9 +231,6 @@ def check_documents(
                 path_order=path_order,
             )
         )
-    markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
-    )
     generated_provenance = _generated_provenance_facts(markdown_documents, config)
     generated_provenance_by_id = {
         provenance.fact_id: provenance for provenance in generated_provenance
@@ -224,7 +238,13 @@ def check_documents(
     generated_provenance_by_document = {
         provenance.generated_document_id: provenance for provenance in generated_provenance
     }
-    if markdown_documents and config.scanner.markdown:
+    if canonical_reference_path:
+        legacy_equation_labels = tuple(
+            _legacy_equation_label_fact(label) for label in non_markdown_labels
+        )
+        legacy_equation_references = tuple(
+            _legacy_equation_reference_fact(reference) for reference in non_markdown_references
+        )
         frontend_snapshot = MySTFrontend().lower(markdown_documents)
         if not config.scanner.inline_math:
             # Inline math is opt-in, and candidate facts are lowered before scanner
@@ -255,6 +275,12 @@ def check_documents(
                 ),
             )
         snapshot = MathHost().classify(frontend_snapshot)
+        if legacy_equation_labels or legacy_equation_references:
+            snapshot = replace(
+                snapshot,
+                equation_labels=(*snapshot.equation_labels, *legacy_equation_labels),
+                equation_refs=(*snapshot.equation_refs, *legacy_equation_references),
+            )
         if generated_provenance:
             snapshot = replace(snapshot, generated_provenance=generated_provenance)
         query = QueryHost(snapshot)
@@ -328,6 +354,50 @@ def _generated_provenance_facts(
         )
         for document in documents
         if document.origin is not None
+    )
+
+
+def _legacy_span_identity(span: SourceSpan) -> str:
+    cell = "" if span.cell is None else f"::cell-{span.cell}"
+    return f"{span.start}:{span.end}{cell}"
+
+
+def _legacy_equation_label_fact(label: EquationLabel) -> EquationLabelFact:
+    path = label.span.path.as_posix()
+    return EquationLabelFact(
+        fact_id=(
+            f"{path}::legacy-equation-label::{label.source.value}::"
+            f"{_legacy_span_identity(label.span)}"
+        ),
+        document_id=path,
+        span=label.span,
+        raw=label.label,
+        confidence="source",
+        label=label.label,
+        normalized_label=label.label,
+        label_syntax_kind=f"legacy-{label.source.value}",
+        source_block_id=label.block_id,
+        label_span=label.span,
+    )
+
+
+def _legacy_equation_reference_fact(reference: EquationReference) -> EquationRefFact:
+    path = reference.span.path.as_posix()
+    target = reference.target
+    return EquationRefFact(
+        fact_id=(
+            f"{path}::legacy-equation-reference::{reference.source.value}::"
+            f"{_legacy_span_identity(reference.span)}"
+        ),
+        document_id=path,
+        span=reference.span,
+        raw=reference.raw,
+        confidence="source",
+        ref_kind=f"legacy-{reference.source.value}",
+        target=target,
+        normalized_target=target,
+        role_span=reference.span,
+        target_span=reference.span,
     )
 
 

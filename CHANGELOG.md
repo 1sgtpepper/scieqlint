@@ -31,6 +31,8 @@ Release notes must use these sections:
 - Generated-document validation now reports `GEN005` only for isolated text
   items that MathHost classifies as text-leaked math, leaving numeric prose such as
   `1 < 2` quiet.
+- Equation reference validation now reports `REF011` when a reference resolves to
+  more than one equation target.
 
 ### Changed
 
@@ -56,6 +58,9 @@ Release notes must use these sections:
   continuations, completed blocks, opaque HTML, nested source-owned comments, and
   MyST directive options or TeX comments when deciding whether a formula placeholder
   is present.
+- Reference diagnostics now use one canonical, deterministic path across Markdown,
+  LaTeX, and notebook inputs, preserving Markdown-link `REF002` reports without
+  duplicate legacy diagnostics and retaining notebook cell identity.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic

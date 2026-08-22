@@ -47,5 +47,6 @@ class EquationRefFact(FactBase):
     ref_kind: str
     target: str
     normalized_target: str
+    source_block_id: str | None = None
     target_span: SourceSpan | None = None
     role_span: SourceSpan | None = None

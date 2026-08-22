@@ -53,24 +53,30 @@ def check_references(
         )
 
     if strict_missing_labels:
-        labeled_blocks = {label.block_id for label in labels if label.block_id is not None}
-        for block in blocks:
-            if block.container is MathContainer.MARKDOWN_INLINE:
-                continue
-            if block.block_id in labeled_blocks:
-                continue
-            info = CATALOG["REF003"]
-            diagnostics.append(
-                Diagnostic(
-                    code=info.code,
-                    severity=info.severity,
-                    message=info.message,
-                    span=block.span,
-                    equation=block.text,
-                    rule="references",
-                )
-            )
+        diagnostics.extend(check_missing_labels(blocks, labels))
 
     return tuple(
         sorted(diagnostics, key=lambda diagnostic: diagnostic.span.start if diagnostic.span else -1)
+    )
+
+
+def check_missing_labels(
+    blocks: tuple[MathBlock, ...],
+    labels: tuple[EquationLabel, ...],
+) -> tuple[Diagnostic, ...]:
+    """Report unlabeled non-inline blocks for strict reference checking."""
+    labeled_blocks = {label.block_id for label in labels if label.block_id is not None}
+    info = CATALOG["REF003"]
+    return tuple(
+        Diagnostic(
+            code=info.code,
+            severity=info.severity,
+            message=info.message,
+            span=block.span,
+            equation=block.text,
+            rule="references",
+        )
+        for block in blocks
+        if block.container is not MathContainer.MARKDOWN_INLINE
+        and block.block_id not in labeled_blocks
     )

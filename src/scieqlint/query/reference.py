@@ -5,7 +5,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from scieqlint.facts.reference import EquationLabelFact, GenericRefFact, TargetAnchorFact
+from scieqlint.facts.reference import (
+    EquationLabelFact,
+    EquationRefFact,
+    GenericRefFact,
+    TargetAnchorFact,
+)
 from scieqlint.facts.snapshot import FactSnapshot
 
 TargetFact = TargetAnchorFact | EquationLabelFact
@@ -30,6 +35,9 @@ class ReferenceQueryView:
     def generic_refs(self) -> tuple[GenericRefFact, ...]:
         return self.snapshot.generic_refs
 
+    def equation_refs(self) -> tuple[EquationRefFact, ...]:
+        return self.snapshot.equation_refs
+
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         index: dict[str, list[TargetFact]] = defaultdict(list)
         for anchor in self.snapshot.target_anchors:
@@ -39,6 +47,29 @@ class ReferenceQueryView:
         for label in self.snapshot.equation_labels:
             index[label.normalized_label].append(label)
         return {key: tuple(value) for key, value in index.items()}
+
+    def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
+        index: dict[str, list[EquationLabelFact]] = defaultdict(list)
+        for label in self.snapshot.equation_labels:
+            index[label.normalized_label].append(label)
+        return {key: tuple(value) for key, value in index.items()}
+
+    def duplicate_equation_targets(self) -> dict[str, tuple[EquationLabelFact, ...]]:
+        return {key: value for key, value in self.equation_target_index().items() if len(value) > 1}
+
+    def unresolved_equation_refs(self) -> tuple[EquationRefFact, ...]:
+        targets = self.equation_target_index()
+        return tuple(
+            ref for ref in self.snapshot.equation_refs if ref.normalized_target not in targets
+        )
+
+    def ambiguous_equation_refs(self) -> tuple[EquationRefFact, ...]:
+        targets = self.equation_target_index()
+        return tuple(
+            ref
+            for ref in self.snapshot.equation_refs
+            if len(targets.get(ref.normalized_target, ())) > 1
+        )
 
     def duplicate_generic_targets(self) -> dict[str, tuple[TargetAnchorFact, ...]]:
         index: dict[str, list[TargetAnchorFact]] = defaultdict(list)

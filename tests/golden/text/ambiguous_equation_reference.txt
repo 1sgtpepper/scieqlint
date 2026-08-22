@@ -1,0 +1,3 @@
+tests/fixtures/bad/ambiguous_equation_reference.md:4:11: error REF001 duplicate equation label: shared
+tests/fixtures/bad/ambiguous_equation_reference.md:6:10: warning REF011 ambiguous equation reference: shared
+  detail: reference text: {eq}`shared`
