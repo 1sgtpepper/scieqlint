@@ -123,6 +123,8 @@ class MarkdownLinkToken:
     fragment_target: str | None = None
     fragment_target_start: int | None = None
     fragment_target_end: int | None = None
+    label_start: int | None = None
+    label_end: int | None = None
     metadata_ranges: tuple[OffsetRange, ...] = ()
 
 
@@ -1604,6 +1606,8 @@ def _make_link_token(
         fragment_target=fragment_target,
         fragment_target_start=fragment_target_start,
         fragment_target_end=fragment_target_end,
+        label_start=token_start + (2 if is_image else 1),
+        label_end=label_end,
         metadata_ranges=metadata_ranges,
     )
 

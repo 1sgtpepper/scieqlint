@@ -74,9 +74,14 @@ class CodeCellFact(FactBase):
     engine: str | None
     options: tuple[tuple[str, str], ...]
     label: str | None = None
+    normalized_label: str | None
     tags: tuple[str, ...] = ()
     output_target_labels: tuple[str, ...] = ()
     visibility: TargetVisibility = "visible"
+
+    def __post_init__(self) -> None:
+        if (self.label is None) != (self.normalized_label is None):
+            raise ValueError("code-cell label and normalized label must both be present or absent")
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)

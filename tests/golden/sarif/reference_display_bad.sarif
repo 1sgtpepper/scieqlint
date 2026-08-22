@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/reference_display_bad.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 14,
+                  "endLine": 6,
+                  "startColumn": 6,
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "non-heading reference has missing or generic display text: fig-cell: target_type='figure'; reference_kind='markdown-link'; display_text='fig-cell'; reason='generic'"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "e06d40249499e6c4a2b4d07b133d224d94cef4fd244b78cf7bda9c33c9213e45"
+          },
+          "properties": {
+            "display_intent": "explicit",
+            "display_text": "fig-cell",
+            "profile": "reference-display",
+            "provenanceIds": [
+              "tests/fixtures/bad/reference_display_bad.md::md-ref::65",
+              "tests/fixtures/bad/reference_display_bad.md::md-ref::65::display-text",
+              "tests/fixtures/bad/reference_display_bad.md::fence::0::cell"
+            ],
+            "reason": "generic",
+            "reference_kind": "markdown-link",
+            "target": "tests/fixtures/bad/reference_display_bad.md#fig-cell",
+            "target_type": "figure"
+          },
+          "ruleId": "REF009"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/reference_display_bad.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 17,
+                  "endLine": 9,
+                  "startColumn": 11,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "non-heading reference has missing or generic display text: fig-cell: target_type='figure'; reference_kind='ref'; display_text='Figure'; reason='generic'"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "aa4c2d65363fb2be41f05b777dd2ca36fd1c6ec69cef8d84bd2990c35e8c231f"
+          },
+          "properties": {
+            "display_intent": "explicit",
+            "display_text": "Figure",
+            "profile": "reference-display",
+            "provenanceIds": [
+              "tests/fixtures/bad/reference_display_bad.md::ref::156",
+              "tests/fixtures/bad/reference_display_bad.md::ref::156::display-text",
+              "tests/fixtures/bad/reference_display_bad.md::fence::0::cell"
+            ],
+            "reason": "generic",
+            "reference_kind": "ref",
+            "target": "tests/fixtures/bad/reference_display_bad.md#fig-cell",
+            "target_type": "figure"
+          },
+          "ruleId": "REF009"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/reference_display_bad.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 23,
+                  "endLine": 10,
+                  "startColumn": 11,
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "missing generic reference target: missing-cell: reference text: {ref}`missing-cell`"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "f5fdafb07b78cd3c46ede5f9cb56ee1ae7c105534618a2008da2565e218fd8fd"
+          },
+          "ruleId": "REF004"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "A supported MyST generic reference points to a missing target."
+              },
+              "id": "REF004",
+              "name": "REF004",
+              "shortDescription": {
+                "text": "missing generic reference target"
+              }
+            },
+            {
+              "help": {
+                "text": "A resolved non-heading target relies on missing or generic display text under the opt-in reference-display profile."
+              },
+              "id": "REF009",
+              "name": "REF009",
+              "shortDescription": {
+                "text": "non-heading reference has missing or generic display text"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}
