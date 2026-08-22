@@ -108,6 +108,19 @@ def test_unreleased_cross_format_reference_accuracy_benchmark_fixtures_are_check
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_v110_typst_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "typst.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
+    assert cases
+
+    for case in cases:
+        result = _check_typst_case(case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 @pytest.mark.skipif(
     os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
     reason="stable-release evidence is enforced by the release workflow",
@@ -130,6 +143,8 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
             result = _check_notebook_case(case)
         elif path.stem == "portability":
             result = _check_portability_case(case)
+        elif path.stem == "typst":
+            result = _check_typst_case(case)
         elif path.name in V010_BENCHMARKS:
             result = _check_case(path, case)
         elif path.name in GENERATED_BENCHMARKS:
@@ -237,6 +252,28 @@ def _check_portability_case(case: dict[str, object]):
             ),
         ),
     )
+
+
+def _check_typst_case(case: dict[str, object]):
+    source_kind = str(case.get("source_kind", "markdown"))
+    if source_kind == "markdown":
+        kind = DocumentKind.MARKDOWN
+        suffix = "md"
+    elif source_kind == "latex":
+        kind = DocumentKind.LATEX
+        suffix = "tex"
+    else:
+        raise AssertionError(f"unknown Typst benchmark source kind: {source_kind}")
+    document = SourceDocument.from_text(
+        PurePosixPath(f"benchmarks/accuracy/{case['id']}.{suffix}"),
+        str(case["input"]),
+        kind,
+    )
+    config = Config(
+        profile=ProfileConfig(name="typst-portability"),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+    )
+    return check_documents([document], config=config)
 
 
 def _dimension_config(tmp_path: Path, case: dict[str, object]) -> Config:

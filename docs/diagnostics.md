@@ -38,6 +38,7 @@ codes before every code is emitted by the current analyzer.
 | `SYM001` | warning | Undefined symbol used before explicit definition |
 | `PORT001` | warning | Equation reference syntax may not survive the configured output profile |
 | `PORT002` | warning | Inline math lacks accessible text metadata |
+| `PORT003` | warning | Equation syntax may not survive Typst export |
 
 `DIM020` also covers dimension expressions that exceed a parser resource budget. The
 diagnostic detail identifies whether the expression exceeded the 512-decimal-digit
@@ -63,6 +64,15 @@ lookup key. Callers provide source-owned accessibility-ID-keyed metadata through
 `check_documents()`; malformed, unknown, or ambiguous IDs are rejected even when no
 selected document produces an accessibility snapshot. The profile currently covers
 Markdown only; notebook Markdown cells and LaTeX documents are excluded.
+
+`PORT003` is opt-in through `typst-portability`. It reports only the focused
+display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
+`aligned`, `array`, or `matrix` environments combined with `\left` or
+`\right` in Markdown and LaTeX documents. Notebook Markdown cells are not
+materialized into this profile because their cell-local source mapping is not
+yet part of the structured frontend contract. Diagnostics retain the exact
+source span and command or environment metadata. The profile does not render
+Typst or claim complete translation coverage.
 
 ## Generated-output engine
 
@@ -173,9 +183,9 @@ REF011 ambiguous equation reference: shared
 ## Severity controls
 
 The current loader does not implement `[severity]` or profile-local severity
-overrides. `PORT001` is warning-level and disabled unless the
-`cross-format-references` profile is selected. Other severity-affecting controls
-are exposed through documented CLI/config switches:
+overrides. Portability diagnostics are warning-level and disabled unless their
+validation profile is selected. Other severity-affecting controls are exposed
+through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when
 dimension checks are active.
