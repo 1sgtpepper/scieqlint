@@ -16,8 +16,14 @@ GeneratedFormulaKind = Literal[
     "placeholder",
     "empty-display",
     "image-placeholder",
+    "equation-like-text",
 ]
-GeneratedFormulaCandidateKind = Literal["formula-text", "bracketed-block", "placeholder"]
+GeneratedFormulaCandidateKind = Literal[
+    "formula-text",
+    "bracketed-block",
+    "placeholder",
+    "equation-like-text",
+]
 GeneratedPlaceholderKind = Literal[
     "formula-not-decoded",
     "empty-display-math",
@@ -57,6 +63,11 @@ class GeneratedFormulaFact(FactBase):
             raise ValueError(
                 "GeneratedFormulaFact candidate_kind must be set exactly for candidate facts"
             )
+        requires_source_math_fact_id = self.kind == "equation-like-text" or (
+            self.kind == "candidate" and self.candidate_kind == "equation-like-text"
+        )
+        if requires_source_math_fact_id and self.source_math_fact_id is None:
+            raise ValueError("GeneratedFormulaFact equation-like-text requires source_math_fact_id")
         expects_placeholder_kind = (
             self.kind == "candidate" and self.candidate_kind == "placeholder"
         ) or self.kind in {"placeholder", "empty-display", "image-placeholder"}

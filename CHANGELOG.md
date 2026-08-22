@@ -28,6 +28,9 @@ Release notes must use these sections:
   diagnostic metadata preserves whether the delimiter was escaped or literal.
 - Generated-document validation now reports `GEN004` for formula-not-decoded
   markers, empty dollar or fenced displays, and explicit formula image placeholders.
+- Generated-document validation now reports `GEN005` only for isolated text
+  items that MathHost classifies as text-leaked math, leaving numeric prose such as
+  `1 < 2` quiet.
 
 ### Changed
 

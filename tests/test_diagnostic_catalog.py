@@ -21,6 +21,7 @@ def test_catalog_has_core_codes() -> None:
         "GEN002",
         "GEN003",
         "GEN004",
+        "GEN005",
         "REF004",
         "REF005",
         "STR001",

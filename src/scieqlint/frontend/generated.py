@@ -680,6 +680,65 @@ def _is_standalone_line(text: str, start: int, end: int) -> bool:
     return text[line_start:line_end].strip(" \t") == text[start:end]
 
 
+def scan_equation_like_text_items(
+    document: SourceDocument,
+    smap: SourceMap,
+    inline_math: Sequence[InlineMathFact],
+    occupied: Sequence[OffsetRange],
+) -> tuple[GeneratedFormulaFact, ...]:
+    """Record whole isolated text items, never equation substrings in prose."""
+
+    line_ownership = _markdown_line_ownership_for_generated(document.text)
+    occupied = _merge_ranges(tuple(item for item in occupied if item[0] != item[1]))
+    facts: list[GeneratedFormulaFact] = []
+    for math_fact in inline_math:
+        if (
+            math_fact.document_id != document.path.as_posix()
+            or math_fact.delimiter_kind != "plain-text"
+            or math_fact.span is None
+            or in_ranges(math_fact.span.start, occupied)
+        ):
+            continue
+        line_index = math_fact.span.line - 1
+        if math_fact.surrounding_text_role == "heading":
+            continue
+        (
+            content_start,
+            content,
+            _container_key,
+            block_start,
+            _block_end,
+            _text_role,
+        ) = line_ownership[line_index]
+        text = content.strip(" \t")
+        start = content_start + len(content) - len(content.lstrip(" \t"))
+        end = start + len(text)
+        if (
+            start != math_fact.span.start
+            or end != math_fact.span.end
+            or text != math_fact.body
+            or not block_start
+            or not _is_isolated_text_item(line_ownership, line_index)
+        ):
+            continue
+        facts.append(
+            GeneratedFormulaFact(
+                fact_id=(
+                    f"{document.path.as_posix()}::generated-formula::equation-like-text::{start}"
+                ),
+                document_id=document.path.as_posix(),
+                span=smap.span(start, end),
+                raw=text,
+                confidence="source",
+                kind="candidate",
+                text=text,
+                candidate_kind="equation-like-text",
+                source_math_fact_id=math_fact.fact_id,
+            )
+        )
+    return tuple(facts)
+
+
 def _is_isolated_text_item(
     line_ownership: Sequence[tuple[int, str, tuple[int, ...], bool, bool, str]],
     index: int,

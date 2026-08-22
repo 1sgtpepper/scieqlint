@@ -62,6 +62,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `action.yml`
 - `benchmarks/accuracy/algebra.yml`
 - `benchmarks/accuracy/dimensions.yml`
+- `benchmarks/accuracy/generated.yml`
 - `benchmarks/accuracy/latex.yml`
 - `benchmarks/accuracy/markdown.yml`
 - `benchmarks/accuracy/notebook.yml`
@@ -234,6 +235,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
 - `tests/fixtures/generated/bracketed_latex.md`
+- `tests/fixtures/generated/equation_like_text.md`
 - `tests/fixtures/generated/inline_math_facts.md`
 - `tests/fixtures/generated/suspicious_formula_text.md`
 - `tests/fixtures/good/.gitkeep`
@@ -248,17 +250,21 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/symbol_directives.tex`
 - `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/golden/github/famous_bad.txt`
+- `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/famous_bad.json`
+- `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/famous_bad.sarif`
+- `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/famous_bad.txt`
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
+- `tests/golden/text/generated_equation_like_text.txt`
 - `tests/golden/text/generated_formula_text.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
@@ -277,6 +283,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
 - `tests/test_generated_bracketed_latex.py`
+- `tests/test_generated_equation_like_text.py`
+- `tests/test_generated_equation_like_text_golden.py`
 - `tests/test_generated_formula_placeholders.py`
 - `tests/test_generated_formula_text.py`
 - `tests/test_generated_output.py`

@@ -1,0 +1,9 @@
+tests/fixtures/generated/equation_like_text.md:5:1: warning GEN005 standalone text block looks like an equation
+  detail: equation-like text was emitted outside a math container: 'F(x) = x + 1'
+  profile: generated-myst
+  provenance: tests/fixtures/generated/equation_like_text.md::generated-provenance
+  formula_artifact_kind: equation-like-text
+  generated_document: tests/fixtures/generated/equation_like_text.md
+  source_document: source/equation_like_text.pdf
+  source_kind: pdf
+  conversion_stage: pdf-to-markdown
