@@ -234,8 +234,12 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
+- `tests/fixtures/generated/assets/equation-of-state.svg`
+- `tests/fixtures/generated/assets/equation-placeholder.svg`
 - `tests/fixtures/generated/bracketed_latex.md`
 - `tests/fixtures/generated/equation_like_text.md`
+- `tests/fixtures/generated/formula_quality_bad.md`
+- `tests/fixtures/generated/formula_quality_good.md`
 - `tests/fixtures/generated/inline_math_facts.md`
 - `tests/fixtures/generated/suspicious_formula_text.md`
 - `tests/fixtures/good/.gitkeep`
@@ -256,6 +260,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
+- `tests/golden/json/generated_formula_quality.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/famous_bad.sarif`
@@ -265,6 +270,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
 - `tests/golden/text/generated_equation_like_text.txt`
+- `tests/golden/text/generated_formula_quality.txt`
 - `tests/golden/text/generated_formula_text.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
@@ -286,6 +292,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_generated_equation_like_text.py`
 - `tests/test_generated_equation_like_text_golden.py`
 - `tests/test_generated_formula_placeholders.py`
+- `tests/test_generated_formula_quality_golden.py`
 - `tests/test_generated_formula_text.py`
 - `tests/test_generated_output.py`
 - `tests/test_generated_provenance.py`
