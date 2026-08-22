@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Literal, get_args
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
+ValidationProfile = Literal["generated-myst"]
+
+_VALIDATION_PROFILE_NAMES = frozenset(get_args(ValidationProfile))
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +28,18 @@ class VarDimension:
 class SymbolAlias:
     canonical: str
     alias: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileConfig:
+    """Named validation policy selected explicitly by project configuration."""
+
+    name: ValidationProfile | None = None
+
+    def __post_init__(self) -> None:
+        if self.name is not None and self.name not in _VALIDATION_PROFILE_NAMES:
+            choices = ", ".join(sorted(_VALIDATION_PROFILE_NAMES))
+            raise ValueError(f"name must be one of: {choices}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,3 +126,4 @@ class Config:
     aliases: tuple[SymbolAlias, ...] = ()
     ignore: IgnoreConfig = field(default_factory=IgnoreConfig)
     report: ReportConfig = field(default_factory=ReportConfig)
+    profile: ProfileConfig = field(default_factory=ProfileConfig)

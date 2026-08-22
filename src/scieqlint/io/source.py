@@ -16,6 +16,17 @@ class DocumentKind(Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class SourceOrigin:
+    """Caller-supplied identity for the source of generated document content."""
+
+    source_document_id: str
+    source_sha: str | None = None
+    tool: str | None = None
+    tool_version: str | None = None
+    preserved_anchor_inventory: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class LineIndex:
     """Map Python string offsets to one-based line/column positions."""
 
@@ -44,9 +55,17 @@ class SourceDocument:
     kind: DocumentKind
     line_index: LineIndex
     display_path: str
+    origin: SourceOrigin | None = None
 
     @classmethod
-    def from_text(cls, path: PurePosixPath, text: str, kind: DocumentKind) -> SourceDocument:
+    def from_text(
+        cls,
+        path: PurePosixPath,
+        text: str,
+        kind: DocumentKind,
+        *,
+        origin: SourceOrigin | None = None,
+    ) -> SourceDocument:
         normalized = text.replace("\r\n", "\n").replace("\r", "\n")
         return cls(
             path=path,
@@ -54,4 +73,5 @@ class SourceDocument:
             kind=kind,
             line_index=LineIndex.from_text(normalized),
             display_path=path.as_posix(),
+            origin=origin,
         )

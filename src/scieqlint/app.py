@@ -24,8 +24,11 @@ from scieqlint.diag.baseline import (
 )
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
+from scieqlint.facts.generated import GeneratedProvenanceFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
@@ -185,14 +188,6 @@ def check_documents(
                 strict_missing_labels=config.checks.references.missing_label_strict,
             )
         )
-        markdown_documents = tuple(
-            document for document in documents if document.kind is DocumentKind.MARKDOWN
-        )
-        if markdown_documents and config.scanner.markdown:
-            query = QueryHost(MySTFrontend().lower(markdown_documents))
-            diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
-            )
     if config.checks.symbols.enabled:
         diagnostics.extend(
             check_symbols(
@@ -205,10 +200,21 @@ def check_documents(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     if markdown_documents and config.scanner.markdown:
-        query = QueryHost(MySTFrontend().lower(markdown_documents))
+        query = QueryHost(_generated_profile_snapshot(markdown_documents, config))
+        if config.checks.references.enabled:
+            diagnostics.extend(
+                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
+            )
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
+        # This compatibility path is the current shared owner for loaded and
+        # path-based checks. Keep profile dispatch here until the planned
+        # project-mode/AnalysisSession owner for issue #90 is available.
+        if config.profile.name == "generated-myst":
+            diagnostics.extend(
+                diagnostic.to_diagnostic() for diagnostic in GeneratedOutputEngine().run(query)
+            )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
     return CheckResult(
         diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
@@ -218,6 +224,35 @@ def check_documents(
         version=__version__,
         show_suppressed=config.report.show_suppressed,
     )
+
+
+def _generated_profile_snapshot(
+    documents: Sequence[SourceDocument],
+    config: Config,
+) -> FactSnapshot:
+    """Build one profile snapshot from caller-owned source-to-generated mappings."""
+
+    snapshot = MySTFrontend().lower(documents)
+    if config.profile.name != "generated-myst":
+        return snapshot
+    provenance = tuple(
+        GeneratedProvenanceFact(
+            fact_id=f"{document.path.as_posix()}::generated-provenance",
+            document_id=document.path.as_posix(),
+            span=None,
+            raw=None,
+            confidence="generated",
+            generated_document_id=document.path.as_posix(),
+            source_document_id=document.origin.source_document_id,
+            source_sha=document.origin.source_sha,
+            tool=document.origin.tool,
+            tool_version=document.origin.tool_version,
+            preserved_anchor_inventory=document.origin.preserved_anchor_inventory,
+        )
+        for document in documents
+        if document.origin is not None
+    )
+    return replace(snapshot, generated_provenance=provenance)
 
 
 def graph_paths(

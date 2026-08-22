@@ -32,12 +32,15 @@ Diagnostic:
 REF002 equation reference target not found: missing
 ```
 
-Generated or MyST-heavy docs can use the packaged profile:
+Generated or MyST-heavy docs can materialize the packaged validation preset:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
 ```
+
+The preset supplies the generated-document scanner/parser policy. Provenance-backed
+comparisons require caller-supplied source identity through the Python API.
 
 ## Read next
 

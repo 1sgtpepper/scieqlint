@@ -16,6 +16,7 @@ from scieqlint.config.model import (
     DimVector,
     IgnoreConfig,
     ParserConfig,
+    ProfileConfig,
     ProjectConfig,
     ReferencesConfig,
     ReportConfig,
@@ -23,6 +24,7 @@ from scieqlint.config.model import (
     SymbolAlias,
     SymbolsConfig,
     UnknownVariablePolicy,
+    ValidationProfile,
     VarDimension,
 )
 from scieqlint.config.presets import read_preset_text
@@ -62,6 +64,7 @@ def _load_config_with_inputs(
     errors = validate_config(data)
     if errors:
         raise ValueError("; ".join(errors))
+    profile_data = _table(data, "profile")
     project_data = _table(data, "project")
     baseline_data = _table(data, "baseline")
     parser_data = _table(data, "parser")
@@ -78,6 +81,7 @@ def _load_config_with_inputs(
     vars_config = _vars_config(vars_data)
     config = Config(
         path=None if config_path is None else PurePosixPath(config_path.as_posix()),
+        profile=ProfileConfig(name=_profile_name(profile_data, "name")),
         project=ProjectConfig(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
@@ -162,6 +166,15 @@ def _table(data: dict[str, Any], key: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"[{key}] must be a table")
     return cast(dict[str, Any], value)
+
+
+def _profile_name(data: dict[str, Any], key: str) -> ValidationProfile | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if value != "generated-myst":
+        raise ValueError(f"{key} must be generated-myst")
+    return value
 
 
 def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
