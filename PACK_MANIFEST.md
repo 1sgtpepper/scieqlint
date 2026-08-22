@@ -182,6 +182,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/__init__.py`
 - `src/scieqlint/parse/ast.py`
 - `src/scieqlint/parse/grammar.lark`
+- `src/scieqlint/parse/math.py`
 - `src/scieqlint/parse/normalize.py`
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
@@ -231,6 +232,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
+- `tests/fixtures/generated/inline_math_facts.md`
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
@@ -272,6 +274,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
+- `tests/test_inline_math_facts.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_math_fences.py`
