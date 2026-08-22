@@ -61,6 +61,8 @@ Release notes must use these sections:
   non-visible targets affect a rendered equation reference.
 - Track cross-reference display text, target type, and rendered-label intent, with an
   opt-in warning for missing or generic labels on resolved non-heading targets.
+- Record document-scoped inline-math macro declarations and use sites as facts-only
+  snapshot data; expansion and public consumption remain deferred.
 
 ### Changed
 

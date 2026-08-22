@@ -78,6 +78,7 @@ class MySTFrontend:
         equation_labels = _flatten(parts, "equation_labels")
         equation_refs = _flatten(parts, "equation_refs")
         code_cells = _flatten(parts, "code_cells")
+        inline_math = _flatten(parts, "inline_math")
         return FactSnapshot(
             documents=tuple(documents),
             project_members=self.workspace.project_facts(documents)[0],
@@ -104,8 +105,9 @@ class MySTFrontend:
                 if _include_reference_display
                 else ()
             ),
-            inline_math=_flatten(parts, "inline_math"),
+            inline_math=inline_math,
             display_math=_flatten(parts, "display_math"),
+            unknown_math=_flatten(parts, "unknown_math"),
             generated_formulas=_flatten(parts, "generated_formulas"),
         )
 
@@ -328,5 +330,6 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
         crossref_metadata=crossref_metadata,
         inline_math=inline_math,
         display_math=display_math,
+        unknown_math=(),
         generated_formulas=generated_formulas,
     )
