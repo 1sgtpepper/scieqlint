@@ -679,6 +679,10 @@ Required baseline:
 Goal: scan notebook Markdown cells without execution and inspect declarative code-cell
 rendering/cross-reference metadata without executing notebook code.
 
+The following is the historical v0.1.4 contract. Current notebook metadata and
+recorded-output behavior is opt-in through the profiles described below; this
+baseline does not define those later profile facts.
+
 Ships:
 
 - `.ipynb` discovery,
@@ -744,6 +748,16 @@ Required baseline:
 - no execution,
 - markdown-cell scanning,
 - cell index in JSON.
+
+Current opt-in notebook profiles lower recorded metadata without execution:
+
+- `notebook-crossrefs` checks code-cell `renderings`, cross-reference options,
+  and output-boundary metadata.
+- `reference-display` resolves Markdown references against visible notebook
+  headings, equations, code-cell labels, and recorded-output labels.
+
+These profiles preserve notebook source spans and visibility semantics and never
+execute or re-render cell contents.
 
 ### 5.7 v0.1.5 — SARIF and thin GitHub Action
 
@@ -2768,7 +2782,7 @@ Package:
 - Duplicate labels and missing refs work across Markdown and LaTeX together.
 - Unterminated math container warns, not crashes.
 
-### v0.1.4 acceptance
+### v0.1.4 acceptance (historical)
 
 - Notebook markdown cells scanned.
 - Default scanning keeps code-cell source ignored; `notebook-crossrefs` reports

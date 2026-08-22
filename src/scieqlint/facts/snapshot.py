@@ -14,6 +14,7 @@ from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
+    ReferenceDisplayTextFact,
     TargetAnchorFact,
 )
 from scieqlint.facts.structure import (
@@ -43,6 +44,7 @@ class FactSnapshot:
     equation_labels: tuple[EquationLabelFact, ...] = ()
     equation_refs: tuple[EquationRefFact, ...] = ()
     crossref_metadata: tuple[CrossrefMetadataFact, ...] = ()
+    reference_display_text: tuple[ReferenceDisplayTextFact, ...] = ()
     inline_math: tuple[InlineMathFact, ...] = ()
     display_math: tuple[DisplayMathFact, ...] = ()
     unknown_math: tuple[UnknownMathFact, ...] = ()
@@ -67,6 +69,7 @@ class FactSnapshot:
             *self.equation_labels,
             *self.equation_refs,
             *self.crossref_metadata,
+            *self.reference_display_text,
             *self.inline_math,
             *self.display_math,
             *self.unknown_math,
@@ -92,6 +95,7 @@ class FactSnapshot:
             equation_labels=self.equation_labels,
             equation_refs=self.equation_refs,
             crossref_metadata=self.crossref_metadata,
+            reference_display_text=self.reference_display_text,
             inline_math=self.inline_math,
             display_math=self.display_math,
             unknown_math=(*self.unknown_math, *unknown_math),

@@ -1,0 +1,90 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "REF009",
+      "col": 6,
+      "detail": "target_type='figure'; reference_kind='markdown-link'; display_text='fig-cell'; reason='generic'",
+      "end_col": 13,
+      "end_line": 6,
+      "equation": null,
+      "hint": "Provide descriptive display text for this non-heading target.",
+      "line": 6,
+      "message": "non-heading reference has missing or generic display text: fig-cell",
+      "path": "tests/fixtures/bad/reference_display_bad.md",
+      "profile": "reference-display",
+      "properties": {
+        "display_intent": "explicit",
+        "display_text": "fig-cell",
+        "reason": "generic",
+        "reference_kind": "markdown-link",
+        "target": "tests/fixtures/bad/reference_display_bad.md#fig-cell",
+        "target_type": "figure"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/reference_display_bad.md::md-ref::65",
+        "tests/fixtures/bad/reference_display_bad.md::md-ref::65::display-text",
+        "tests/fixtures/bad/reference_display_bad.md::fence::0::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "REF009",
+      "col": 11,
+      "detail": "target_type='figure'; reference_kind='ref'; display_text='Figure'; reason='generic'",
+      "end_col": 16,
+      "end_line": 9,
+      "equation": null,
+      "hint": "Provide descriptive display text for this non-heading target.",
+      "line": 9,
+      "message": "non-heading reference has missing or generic display text: fig-cell",
+      "path": "tests/fixtures/bad/reference_display_bad.md",
+      "profile": "reference-display",
+      "properties": {
+        "display_intent": "explicit",
+        "display_text": "Figure",
+        "reason": "generic",
+        "reference_kind": "ref",
+        "target": "tests/fixtures/bad/reference_display_bad.md#fig-cell",
+        "target_type": "figure"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/reference_display_bad.md::ref::156",
+        "tests/fixtures/bad/reference_display_bad.md::ref::156::display-text",
+        "tests/fixtures/bad/reference_display_bad.md::fence::0::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "REF004",
+      "col": 11,
+      "detail": "reference text: {ref}`missing-cell`",
+      "end_col": 22,
+      "end_line": 10,
+      "equation": null,
+      "hint": null,
+      "line": 10,
+      "message": "missing generic reference target: missing-cell",
+      "path": "tests/fixtures/bad/reference_display_bad.md",
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 3
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

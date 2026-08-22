@@ -11,6 +11,7 @@ from scieqlint.facts.structure import CodeCellFact
 from scieqlint.io.source import SourceDocument
 
 from .myst_blocks import quarto_option_prefix
+from .myst_shared import normalize_label
 
 _CELL_OPTION_KEYS = frozenset(
     {
@@ -45,6 +46,7 @@ def code_cell_fact(
     option_map = dict(options)
     language = option_map.get("language") or default_language
     engine = option_map.get("engine") or language
+    label = option_map.get("label") or None
     cell_id = f"{document.path.as_posix()}::notebook-cell::{cell_index}"
     return CodeCellFact(
         fact_id=cell_id,
@@ -56,7 +58,8 @@ def code_cell_fact(
         language=language,
         engine=engine,
         options=options,
-        label=option_map.get("label"),
+        label=label,
+        normalized_label=normalize_label(label) if label is not None else None,
         tags=_tags(metadata.get("tags")),
     )
 

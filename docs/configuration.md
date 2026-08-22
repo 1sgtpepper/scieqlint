@@ -234,6 +234,15 @@ silently running a different rule set.
   `lst-label` are normalized to the same target identity; `label` takes precedence
   when both are present, and the source span remains attached to the selected JSON
   option.
+- `reference-display` admits Markdown and notebook documents and warns when a
+  resolved non-heading target relies on missing or generic display text. Notebook
+  code-cell and recorded-output labels participate in target resolution; typed
+  equation reference forms retain their numbered-display intent. Explicit display text
+  is the trimmed source Markdown/MyST label: inline markup, HTML entities, and
+  backslash escapes are retained rather than rendered or decoded, and source spans
+  point to that label. Profile lowering remains active when `scanner.markdown = false`;
+  that toggle only disables the legacy scanner path. The profile does not render final
+  prose or impose a project-wide style guide.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX

@@ -157,6 +157,7 @@ def markdown_cell_references(
             fact_id=remapped_fact_id(reference.fact_id),
             document_id=document.path.as_posix(),
             span=span(reference.span),
+            title_span=span(reference.title_span),
             role_span=span(reference.role_span),
             target_span=span(reference.target_span),
         )
@@ -184,6 +185,7 @@ def markdown_cell_references(
                 fact_id=remapped_fact_id(reference.fact_id),
                 document_id=document.path.as_posix(),
                 span=role_span if reference.span == reference.role_span else span(reference.span),
+                title_span=span(reference.title_span),
                 target_span=equation_reference_target_spans[reference.fact_id],
                 role_span=role_span,
                 source_block_id=optional_fact_id(reference.source_block_id),

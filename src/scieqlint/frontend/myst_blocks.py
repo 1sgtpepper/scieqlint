@@ -27,6 +27,7 @@ from .myst_shared import (
     OffsetRange,
     extract_role_target_and_title,
     in_ranges,
+    normalize_label,
 )
 
 
@@ -170,7 +171,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
     if fence.language not in {"python", "r", "julia"}:
         return None
     options = quarto_options(document, fence)
-    label = dict(options).get("label")
+    label = dict(options).get("label") or None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -182,6 +183,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         engine=fence.language,
         options=options,
         label=label,
+        normalized_label=normalize_label(label) if label is not None else None,
     )
 
 
@@ -218,6 +220,7 @@ def _directive_code_cell_fact(
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
+    label = option_map.get("label") or option_map.get("name") or None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -228,7 +231,8 @@ def _directive_code_cell_fact(
         language=language,
         engine=language,
         options=options,
-        label=option_map.get("label") or option_map.get("name"),
+        label=label,
+        normalized_label=normalize_label(label) if label is not None else None,
         tags=tags,
     )
 

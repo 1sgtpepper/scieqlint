@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost, decode_project_fragment
@@ -101,6 +102,14 @@ def _markdown_link_ref_fact(
     if project_target is not None:
         fragment = project_target.fragment
     assert fragment is not None
+    assert token.label_start is not None
+    assert token.label_end is not None
+    label_text = document.text[token.label_start : token.label_end].strip()
+    title = label_text or None
+    title_span = None
+    if title is not None:
+        title_offset = document.text.find(title, token.label_start, token.label_end)
+        title_span = smap.span(title_offset, title_offset + len(title))
     if token.fragment_target is not None:
         assert token.fragment_target_start is not None
         assert token.fragment_target_end is not None
@@ -123,6 +132,8 @@ def _markdown_link_ref_fact(
         role_kind="markdown-link",
         target=target,
         normalized_target=normalize_label(target),
+        title=title,
+        title_span=title_span,
         role_span=smap.span(token.start, token.end),
         target_span=smap.span(target_start, target_end),
         raw_target_path=None if project_target is None else project_target.raw_path,
@@ -151,6 +162,7 @@ def _generic_role_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         title=title,
+        title_span=_role_title_span(smap, match, title),
         role_span=smap.span(match.start(), match.end()),
         target_span=smap.span(target_start, target_start + len(target)),
     )
@@ -174,6 +186,21 @@ def _equation_role_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         title=title,
+        title_span=_role_title_span(smap, match, title),
         role_span=smap.span(match.start(), match.end()),
         target_span=smap.span(target_start, target_start + len(target)),
     )
+
+
+def _role_title_span(
+    smap: SourceMap,
+    match: re.Match[str],
+    title: str | None,
+) -> SourceSpan | None:
+    if title is None:
+        return None
+    body = match.group("body")
+    # extract_role_target_and_title derives title from this exact role body.
+    relative_start = body.index(title)
+    start = match.start("body") + relative_start
+    return smap.span(start, start + len(title))

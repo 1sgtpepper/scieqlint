@@ -1,0 +1,22 @@
+tests/fixtures/bad/reference_display_bad.md:6:6: warning REF009 non-heading reference has missing or generic display text: fig-cell
+  detail: target_type='figure'; reference_kind='markdown-link'; display_text='fig-cell'; reason='generic'
+  profile: reference-display
+  provenance: tests/fixtures/bad/reference_display_bad.md::md-ref::65, tests/fixtures/bad/reference_display_bad.md::md-ref::65::display-text, tests/fixtures/bad/reference_display_bad.md::fence::0::cell
+  target: tests/fixtures/bad/reference_display_bad.md#fig-cell
+  target_type: figure
+  reference_kind: markdown-link
+  display_intent: explicit
+  display_text: fig-cell
+  reason: generic
+tests/fixtures/bad/reference_display_bad.md:9:11: warning REF009 non-heading reference has missing or generic display text: fig-cell
+  detail: target_type='figure'; reference_kind='ref'; display_text='Figure'; reason='generic'
+  profile: reference-display
+  provenance: tests/fixtures/bad/reference_display_bad.md::ref::156, tests/fixtures/bad/reference_display_bad.md::ref::156::display-text, tests/fixtures/bad/reference_display_bad.md::fence::0::cell
+  target: tests/fixtures/bad/reference_display_bad.md#fig-cell
+  target_type: figure
+  reference_kind: ref
+  display_intent: explicit
+  display_text: Figure
+  reason: generic
+tests/fixtures/bad/reference_display_bad.md:10:11: warning REF004 missing generic reference target: missing-cell
+  detail: reference text: {ref}`missing-cell`
