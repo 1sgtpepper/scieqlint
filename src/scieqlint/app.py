@@ -227,17 +227,31 @@ def check_documents(
     if markdown_documents and config.scanner.markdown:
         frontend_snapshot = MySTFrontend().lower(markdown_documents)
         if not config.scanner.inline_math:
-            # Inline math is opt-in, and candidate facts are lowered before
-            # scanner options are applied. Retain display facts and candidates
-            # while excluding only the inline-owned surfaces.
-            inline_math_ids = {fact.fact_id for fact in frontend_snapshot.inline_math}
+            # Inline math is opt-in, and candidate facts are lowered before scanner
+            # options are applied. Standalone equation-like candidates are generated
+            # output artifacts rather than inline math; retain their plain-text source
+            # facts so MathHost can classify them while excluding explicit inline
+            # surfaces from the profile snapshot.
+            equation_text_source_ids = {
+                fact.source_math_fact_id
+                for fact in frontend_snapshot.generated_formulas
+                if fact.candidate_kind == "equation-like-text"
+                and fact.source_math_fact_id is not None
+            }
+            disabled_inline_math_ids = {
+                fact.fact_id for fact in frontend_snapshot.inline_math
+            } - equation_text_source_ids
             frontend_snapshot = replace(
                 frontend_snapshot,
-                inline_math=(),
+                inline_math=tuple(
+                    fact
+                    for fact in frontend_snapshot.inline_math
+                    if fact.fact_id not in disabled_inline_math_ids
+                ),
                 generated_formulas=tuple(
                     fact
                     for fact in frontend_snapshot.generated_formulas
-                    if fact.source_math_fact_id not in inline_math_ids
+                    if fact.source_math_fact_id not in disabled_inline_math_ids
                 ),
             )
         snapshot = MathHost().classify(frontend_snapshot)

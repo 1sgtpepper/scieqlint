@@ -766,7 +766,7 @@ def _markdown_line_ownership(
                 quote_paths[depth],
                 context,
                 depth,
-                block_start=block_kind is not None,
+                block_start=block_kind is not None or not paragraph_active,
                 block_end=block_end,
             )
         )
