@@ -1,0 +1,18 @@
+generated.md:1:1: warning GEN003 nonstandard bracketed LaTeX display block
+  detail: standalone \[...\] display delimiters are not portable generated Markdown
+  profile: generated-myst
+  provenance: generated.md::generated-provenance
+  formula_artifact_kind: bracketed-block
+  complete: true
+  delimiter_kind: escaped
+  generated_document: generated.md
+  source_document: source/formulas.tex
+generated.md:5:1: warning GEN003 nonstandard bracketed LaTeX display block
+  detail: standalone \[ display container is incomplete
+  profile: generated-myst
+  provenance: generated.md::generated-provenance
+  formula_artifact_kind: bracketed-block
+  complete: false
+  delimiter_kind: escaped
+  generated_document: generated.md
+  source_document: source/formulas.tex

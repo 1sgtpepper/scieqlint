@@ -10,7 +10,7 @@ import pytest
 
 from scieqlint.api import check_documents
 from scieqlint.config.load import load_config
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 
 BENCHMARK_DIR = Path("benchmarks/accuracy")
@@ -120,7 +120,9 @@ def _check_case(path: Path, case: dict[str, object]):
         text,
         DocumentKind.MARKDOWN,
     )
-    return check_documents([document], config=Config())
+    profile = case.get("profile")
+    config = Config(profile=ProfileConfig(name=str(profile))) if profile is not None else Config()
+    return check_documents([document], config=config)
 
 
 def _check_dimension_case(tmp_path: Path, case: dict[str, object]):
