@@ -253,6 +253,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/symbol_directives.md`
 - `tests/fixtures/good/symbol_directives.tex`
 - `tests/fixtures/good/verbatim_transitions.tex`
+- `tests/fixtures/jats/inline_formula_converted.md`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/graph/graph_refs.json`
@@ -300,6 +301,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
 - `tests/test_inline_math_facts.py`
+- `tests/test_jats_inline_formula_fixtures.py`
 - `tests/test_json_schema.py`
 - `tests/test_latex_scan.py`
 - `tests/test_markdown_math_fences.py`
