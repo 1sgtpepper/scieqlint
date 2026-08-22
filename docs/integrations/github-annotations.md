@@ -26,12 +26,14 @@ GitHub annotations:
 
 Create `scieqlint.generated-myst.toml` once with
 `scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml` and
-commit the file. The preset supplies the generated-document scanner/parser policy.
+commit the file. The preset selects the generated-myst profile and supplies the
+generated-document scanner/parser policy, including source-only `GEN002` checks.
 
-The `generated-myst` preset uses current deterministic checks only:
-Markdown/MyST math containers, inline math, algebra, equation references,
-duplicate labels, and strict unsupported-math diagnostics. It does not judge OCR,
-translation, or prose quality.
+The `generated-myst` preset uses deterministic checks only: Markdown/MyST math
+containers, inline math, suspicious generated formula text, algebra, equation
+references, duplicate labels, and strict unsupported-math diagnostics. It does not
+judge OCR, translation, prose quality, or formula placeholders; those forms remain
+deliberately deferred and outside `GEN002`.
 
 The reporter must escape workflow command payloads correctly and must not change analysis behavior.
 
