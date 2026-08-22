@@ -76,7 +76,7 @@ class NotebookFrontend:
         all_code_cells = tuple(fact for part in parts for fact in part.code_cells)
         return FactSnapshot(
             documents=tuple(document for part in parts for document in part.documents),
-            project_members=self.workspace.project_members(documents),
+            project_members=self.workspace.project_facts(documents)[0],
             inline_math=all_inline_math,
             display_math=all_display_math,
             unknown_math=all_unknown_math,

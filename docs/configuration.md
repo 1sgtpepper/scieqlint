@@ -104,6 +104,10 @@ configuration options. Exceeding either bound skips notebook analysis and emits
 [project]
 root = "."
 order = ["symbols.md", "chapters/**/*.md"]
+
+[project.visibility]
+"draft.md" = "hidden"
+"generated.md" = "excluded"
 ```
 
 `project.root` is resolved relative to the config file when a config path is
@@ -115,6 +119,13 @@ controls the analysis order of discovered files. When no paths are passed and
 `project.order` is non-empty, both commands discover those ordered project entries.
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
+
+`project.visibility` uses project-relative POSIX paths and applies the rendered-project
+state before legacy or profile reference checks. Omitted documents are visible. Hidden
+and excluded documents remain
+available as non-visible facts for diagnostics such as `REF008`, but their labels do
+not satisfy ordinary reference resolution. Visibility entries must match analyzed
+project members; unknown paths and visibility values are errors.
 
 `report.show_suppressed` controls text and JSON output. By default, suppressed
 diagnostics are hidden from text output, JSON diagnostics, and JSON summary
@@ -305,12 +316,13 @@ document API when explicit source provenance is available.
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[profile]`, `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[project.visibility]`, `[baseline]`, `[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.
-`[vars]` and `[aliases]` are dynamic mappings; their entries are validated as
-dimension names and aliases rather than as fixed option names.
+`[project.visibility]`, `[vars]`, and `[aliases]` are dynamic mappings; visibility
+entries are validated as project paths and allowed states, while variables and aliases
+are validated as dimension names and aliases rather than as fixed option names.
 
 The severity overrides and general resource limits shown in `SPEC.md` are future
 configuration surface, not accepted settings in the current loader. The fixed

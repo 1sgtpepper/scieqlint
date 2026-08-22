@@ -59,7 +59,7 @@ class PolicyHost:
         return tuple(
             _reference_risk(reference, profile)
             for reference in snapshot.equation_refs
-            if reference.ref_kind not in supported
+            if reference.visibility == "visible" and reference.ref_kind not in supported
         )
 
 

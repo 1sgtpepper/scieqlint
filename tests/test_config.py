@@ -220,6 +220,53 @@ def test_load_config_accepts_named_profile_metadata(tmp_path) -> None:
     assert config.profile.name == "generated-myst"
 
 
+def test_load_config_accepts_project_visibility(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[project.visibility]",
+                '"draft.md" = "hidden"',
+                '"generated.md" = "excluded"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.project.visibility == (
+        ("draft.md", "hidden"),
+        ("generated.md", "excluded"),
+    )
+
+
+def test_load_config_rejects_unknown_project_visibility_state(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[project.visibility]\n"draft.md" = "private"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must be visible, hidden, or excluded"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    [
+        ("[project]\nvisibility = []\n", "must be a table"),
+        ('[project.visibility]\n"" = "hidden"\n', "keys must be non-empty strings"),
+    ],
+)
+def test_load_config_rejects_malformed_project_visibility(tmp_path, contents, message) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        load_config(config_path)
+
+
 def test_load_config_rejects_empty_profile_metadata(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nsource_kind = "   "\n', encoding="utf-8")
