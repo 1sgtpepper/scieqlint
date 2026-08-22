@@ -37,6 +37,8 @@ Release notes must use these sections:
 - Markdown validation now extracts equation facts from recognized complete raw
   LaTeX environments, including `flalign`; complete unsupported candidates
   preserve parseable facts while remaining unknown math.
+- Cross-format reference profiles now materialize equation labels and references
+  from Markdown, LaTeX, and notebook source documents.
 
 ### Changed
 
@@ -79,6 +81,10 @@ Release notes must use these sections:
   snapshot and are rejected when any part crosses syntax owned by another construct.
 - Nested active `\(` or `\)` delimiters in a `\(...\)` candidate are now
   classified as ambiguous unsupported math instead of a preserved formula.
+- Profile model construction and TOML loading now reject unknown or non-string profile choices
+  with deterministic `ValueError` results.
+- Cross-format profile inputs now reject duplicate document paths before fact lowering so
+  reference identities and diagnostics remain deterministic.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Stable-tag publication now fails closed unless source, wheel, and tag versions

@@ -10,7 +10,13 @@ import pytest
 
 from scieqlint.api import check_documents
 from scieqlint.config.load import load_config
-from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    ChecksConfig,
+    Config,
+    OutputProfile,
+    ProfileConfig,
+)
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
 BENCHMARK_DIR = Path("benchmarks/accuracy")
@@ -89,6 +95,19 @@ def test_unreleased_generated_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_v110_cross_format_reference_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "portability.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
+    assert cases
+
+    for case in cases:
+        result = _check_portability_case(case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 @pytest.mark.skipif(
     os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
     reason="stable-release evidence is enforced by the release workflow",
@@ -109,6 +128,8 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
             result = _check_latex_case(case)
         elif path.stem == "notebook":
             result = _check_notebook_case(case)
+        elif path.stem == "portability":
+            result = _check_portability_case(case)
         elif path.name in V010_BENCHMARKS:
             result = _check_case(path, case)
         elif path.name in GENERATED_BENCHMARKS:
@@ -197,6 +218,25 @@ def _check_notebook_case(case: dict[str, object]):
         DocumentKind.NOTEBOOK,
     )
     return check_documents([document], config=Config())
+
+
+def _check_portability_case(case: dict[str, object]):
+    document = SourceDocument.from_text(
+        PurePosixPath(f"benchmarks/accuracy/{case['id']}.md"),
+        str(case["input"]),
+        DocumentKind.MARKDOWN,
+    )
+    output_profile = cast(OutputProfile, case["output_profile"])
+    return check_documents(
+        [document],
+        config=Config(
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            profile=ProfileConfig(
+                name="cross-format-references",
+                output_profile=output_profile,
+            ),
+        ),
+    )
 
 
 def _dimension_config(tmp_path: Path, case: dict[str, object]) -> Config:

@@ -67,6 +67,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `benchmarks/accuracy/markdown.yml`
 - `benchmarks/accuracy/notebook.yml`
 - `benchmarks/accuracy/parse_unknown.yml`
+- `benchmarks/accuracy/portability.yml`
 - `benchmarks/accuracy/references.yml`
 - `docs/api.md`
 - `docs/architecture.md`
@@ -144,6 +145,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/engine/__init__.py`
 - `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
+- `src/scieqlint/engine/portability.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
 - `src/scieqlint/examples/__init__.py`
@@ -189,6 +191,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/parse/parser.py`
 - `src/scieqlint/parse/print.py`
 - `src/scieqlint/parse/transform.py`
+- `src/scieqlint/policy/__init__.py`
+- `src/scieqlint/policy/host.py`
 - `src/scieqlint/pre_commit.py`
 - `src/scieqlint/presets/__init__.py`
 - `src/scieqlint/presets/generated-myst.toml`
@@ -228,6 +232,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/ambiguous_equation_reference.md`
 - `tests/fixtures/bad/architecture_myst_bad.md`
+- `tests/fixtures/bad/cross_format_references.md`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/generated_myst_profile_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
@@ -256,20 +261,24 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/symbol_directives.tex`
 - `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/fixtures/jats/inline_formula_converted.md`
+- `tests/golden/github/cross_format_references.txt`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
+- `tests/golden/json/cross_format_references.json`
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
 - `tests/golden/json/generated_formula_quality.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
+- `tests/golden/sarif/cross_format_references.sarif`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
+- `tests/golden/text/cross_format_references.txt`
 - `tests/golden/text/famous_bad.txt`
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
@@ -290,6 +299,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_cli.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
+- `tests/test_cross_format_references.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
