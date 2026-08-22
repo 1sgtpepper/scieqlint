@@ -172,6 +172,16 @@ operators may remain ordinary text. Use a supported explicit math container when
 formula must be checked. `GEN005` is a suspicion about generated text, not a claim
 that the text is a valid or mathematically correct equation, and SciEqLint does not
 rewrite it.
+
+The `math-accessibility` profile currently applies only to `DocumentKind.MARKDOWN`
+documents. Notebook Markdown cells and LaTeX documents are not lowered into its
+accessibility fact set, so they do not receive accessibility IDs or `PORT002`
+diagnostics. A non-empty `accessibility_metadata` mapping is accepted only with that
+profile; the mapping is caller-owned and must use non-empty string keys and string
+values. Recognized explicit
+inline-math facts remain subject to the accessibility requirement even when `MathHost`
+classifies their contents as unsupported. Empty, malformed, or unrecognized candidates
+that produce no inline-math fact, and inferred plain-text candidates, remain outside.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text

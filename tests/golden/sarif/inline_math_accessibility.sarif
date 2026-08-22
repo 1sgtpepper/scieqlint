@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/good/inline_math_accessibility.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 17,
+                  "endLine": 1,
+                  "startColumn": 16,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "inline math lacks accessible text metadata: dollar inline math in heading content has no configured accessible text"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "02dc6c8bce7e198bf287417acecb60302c0cb602aa2aea2ff96aebb60aedba88"
+          },
+          "properties": {
+            "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::dollar::x",
+            "accessibility_requirement": "accessible-text",
+            "delimiter_kind": "dollar",
+            "parse_status": "preserved",
+            "profile": "math-accessibility",
+            "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::14",
+            "surrounding_text_role": "heading"
+          },
+          "ruleId": "PORT002"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/good/inline_math_accessibility.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 27,
+                  "endLine": 3,
+                  "startColumn": 22,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "inline math lacks accessible text metadata: myst-role inline math in paragraph content has no configured accessible text"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7b738b1abf1b027ba920123a369dc8398740d11fef05d9b275d0b854249dbe4d"
+          },
+          "properties": {
+            "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::myst-role::y%20%2B%201",
+            "accessibility_requirement": "accessible-text",
+            "delimiter_kind": "myst-role",
+            "parse_status": "preserved",
+            "profile": "math-accessibility",
+            "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::33",
+            "surrounding_text_role": "paragraph"
+          },
+          "ruleId": "PORT002"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/good/inline_math_accessibility.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 51,
+                  "endLine": 3,
+                  "startColumn": 50,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "inline math lacks accessible text metadata: latex-paren inline math in paragraph content has no configured accessible text"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "b470cfa9dad7ee1bd34777ca1f9b7c21f0a3659c24c74234f4f1f68fa8a60226"
+          },
+          "properties": {
+            "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::latex-paren::z",
+            "accessibility_requirement": "accessible-text",
+            "delimiter_kind": "latex-paren",
+            "parse_status": "preserved",
+            "profile": "math-accessibility",
+            "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::66",
+            "surrounding_text_role": "paragraph"
+          },
+          "ruleId": "PORT002"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "An explicit inline-math span has no accessible text in the lowered source facts for the selected accessibility profile."
+              },
+              "id": "PORT002",
+              "name": "PORT002",
+              "shortDescription": {
+                "text": "inline math lacks accessible text metadata"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

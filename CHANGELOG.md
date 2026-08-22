@@ -39,6 +39,8 @@ Release notes must use these sections:
   preserve parseable facts while remaining unknown math.
 - Cross-format reference profiles now materialize equation labels and references
   from Markdown, LaTeX, and notebook source documents.
+- The opt-in `math-accessibility` profile now reports `PORT002` for inline math
+  facts without configured accessible text.
 
 ### Changed
 
@@ -67,6 +69,12 @@ Release notes must use these sections:
 - Reference diagnostics now use one canonical, deterministic path across Markdown,
   LaTeX, and notebook inputs, preserving Markdown-link `REF002` reports without
   duplicate legacy diagnostics and retaining notebook cell identity.
+- Accessibility metadata now rejects identifiers that resolve to multiple inline-math
+  facts, and `PORT002` remains marked `Unreleased` until its release line is established.
+- Accessibility metadata now rejects malformed key/value mappings at the loaded-document
+  API boundary, and `PORT002` carries the stable source-owned accessibility ID used by
+  those mappings. The `math-accessibility` profile is explicitly limited to Markdown;
+  notebook Markdown cells and LaTeX documents remain out of scope.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic
