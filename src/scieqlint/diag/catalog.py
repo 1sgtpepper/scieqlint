@@ -258,6 +258,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Generated Markdown contains a standalone bracketed LaTeX display block outside "
         "a supported math container.",
     ),
+    "GEN004": DiagnosticInfo(
+        "GEN004",
+        Severity.WARNING,
+        "generated output contains a formula placeholder",
+        "v1.1.0",
+        "Generated Markdown contains a formula-not-decoded marker, empty display math, "
+        "or a standalone formula image placeholder.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

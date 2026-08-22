@@ -251,6 +251,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/famous_bad.json`
+- `tests/golden/json/generated_formula_placeholders.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/famous_bad.sarif`
@@ -276,6 +277,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
 - `tests/test_generated_bracketed_latex.py`
+- `tests/test_generated_formula_placeholders.py`
 - `tests/test_generated_formula_text.py`
 - `tests/test_generated_output.py`
 - `tests/test_generated_provenance.py`

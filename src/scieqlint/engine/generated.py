@@ -15,7 +15,7 @@ class GeneratedOutputEngine:
         self.profile = profile
 
     name = "generated-output"
-    rule_codes = frozenset({"GEN001", "GEN002", "GEN003"})
+    rule_codes = frozenset({"GEN001", "GEN002", "GEN003", "GEN004"})
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -45,6 +45,10 @@ class GeneratedOutputEngine:
         diagnostics.extend(
             self._bracketed_latex_diagnostic(query, fact)
             for fact in query.generated.bracketed_latex_blocks()
+        )
+        diagnostics.extend(
+            self._formula_placeholder_diagnostic(query, fact)
+            for fact in query.generated.formula_placeholders()
         )
         return tuple(diagnostics)
 
@@ -110,6 +114,40 @@ class GeneratedOutputEngine:
             detail=detail,
             hint="Use a supported $$ block or a MyST math directive.",
             rule="generated.bracketed_latex_block",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            provenance_ids=provenance_ids,
+            properties=properties,
+        )
+
+    def _formula_placeholder_diagnostic(
+        self,
+        query: QueryHost,
+        fact: GeneratedFormulaFact,
+    ) -> DiagnosticIR:
+        assert fact.placeholder_kind is not None
+        provenance_ids, properties = _fact_metadata(
+            query,
+            fact,
+            (
+                ("formula_artifact_kind", fact.kind),
+                ("placeholder_kind", fact.placeholder_kind),
+            ),
+        )
+        details = {
+            "formula-not-decoded": "formula-not-decoded marker remains in generated output",
+            "empty-display-math": "display math container has no formula content",
+            "formula-image": "standalone formula image remains in generated output",
+        }
+        return DiagnosticIR(
+            code="GEN004",
+            severity_default=Severity.WARNING,
+            message="generated output contains a formula placeholder",
+            span=fact.span,
+            detail=details[fact.placeholder_kind],
+            hint="Restore source math before publishing; SciEqLint does not guess the formula.",
+            rule="generated.formula_placeholder",
             profile_gated=True,
             false_positive_risk="low",
             profile=self.profile,

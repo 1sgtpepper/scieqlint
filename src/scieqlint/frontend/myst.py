@@ -12,10 +12,18 @@ from typing import Any
 
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import code_fence_ranges, markdown_reference_snapshot
+from scieqlint.markdown import (
+    code_fence_ranges,
+    inline_code_ranges,
+    markdown_reference_snapshot,
+)
 from scieqlint.source.maps import SourceMap
 
-from .generated import scan_bracketed_latex_blocks, scan_formula_candidates
+from .generated import (
+    scan_bracketed_latex_blocks,
+    scan_formula_candidates,
+    scan_formula_placeholders,
+)
 from .myst_blocks import (
     directive_and_code_cell_facts,
     directive_option_prefix_lines,
@@ -34,7 +42,7 @@ from .myst_headings import (
 )
 from .myst_math import math_occupied_ranges, scan_display_math, scan_inline_math
 from .myst_refs import scan_refs
-from .myst_shared import line_ranges
+from .myst_shared import dollar_display_ranges, line_ranges
 
 _directive_option_prefix_lines = directive_option_prefix_lines
 _myst_options = myst_options
@@ -91,11 +99,15 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
     anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
     target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
     sections = tuple(sections_for_headings(headings))
+    dollar_displays = dollar_display_ranges(
+        document.text,
+        reference_snapshot.link_metadata_ranges,
+    )
     display_math, equation_labels = scan_display_math(
         document,
         smap,
         fences,
-        reference_snapshot.link_metadata_ranges,
+        dollar_displays,
     )
     generic_refs, equation_refs = scan_refs(document, smap, reference_snapshot)
     inline_math = tuple(
@@ -126,6 +138,25 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
             ),
         ),
     )
+    placeholders = scan_formula_placeholders(
+        document,
+        smap,
+        inline_math,
+        display_math,
+        dollar_displays,
+        reference_snapshot.links,
+        reference_snapshot.opaque_ranges,
+        (*live_fence_ranges, *inline_code_ranges(document.text)),
+    )
+    generated_formulas = tuple(
+        sorted(
+            (*generated_formulas, *bracketed_blocks, *placeholders),
+            key=lambda fact: (
+                fact.span.start if fact.span is not None else -1,
+                fact.fact_id,
+            ),
+        )
+    )
     return FactSnapshot(
         documents=(document,),
         headings=headings,
@@ -140,5 +171,5 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         equation_refs=equation_refs,
         inline_math=inline_math,
         display_math=display_math,
-        generated_formulas=(*generated_formulas, *bracketed_blocks),
+        generated_formulas=generated_formulas,
     )
