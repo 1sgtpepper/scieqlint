@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -14,6 +15,7 @@ from scieqlint.config.model import (
     ChecksConfig,
     Config,
     ProfileConfig,
+    ProjectConfig,
     ReferencesConfig,
     ValidationProfile,
 )
@@ -412,6 +414,193 @@ def test_portability_keeps_unprefixed_crossref_labels_as_issues() -> None:
     assert query.portability.quarto_crossref_label_issues() == (cell,)
     assert query.portability.renderings_with_crossref_options() == (cell,)
     assert len(query.portability.notebook_rendering_conflicts()) == 1
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_portability_ignores_nonvisible_quarto_crossref_cells(visibility: str) -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "plot",
+                    "fig-cap": "Plot",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    [cell] = snapshot.code_cells
+    nonvisible_snapshot = replace(
+        snapshot,
+        code_cells=(replace(cell, visibility=visibility),),
+    )
+
+    query = QueryHost(nonvisible_snapshot).portability
+
+    assert query.quarto_crossref_label_issues() == ()
+    assert query.renderings_with_crossref_options() == ()
+    assert query.notebook_rendering_conflicts() == ()
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_public_visibility_suppresses_nonvisible_notebook_portability_cells(
+    visibility: str,
+) -> None:
+    visible_payload = notebook_payload(
+        code_cell(
+            metadata={
+                "label": "plot",
+                "fig-cap": "Visible figure",
+                "renderings": ["light", "dark"],
+            }
+        ),
+        code_cell(
+            metadata={"renderings": ["light", "dark"]},
+            outputs=(display_output(output_metadata={"fig-cap": "Visible output"}),),
+        ),
+    )
+    hidden_payload = notebook_payload(
+        code_cell(
+            metadata={
+                "label": "plot",
+                "fig-cap": "Hidden figure",
+                "renderings": ["light", "dark"],
+            }
+        ),
+        code_cell(
+            metadata={"renderings": ["light", "dark"]},
+            outputs=(display_output(output_metadata={"fig-cap": "Hidden output"}),),
+        ),
+    )
+    visible = notebook(visible_payload, "visible.ipynb")
+    hidden = notebook(hidden_payload, "hidden.ipynb")
+    result = public_check_documents(
+        (visible, hidden),
+        config=Config(
+            profile=ProfileConfig(name="notebook-crossrefs"),
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            project=ProjectConfig(visibility=(("hidden.ipynb", visibility),)),
+        ),
+    )
+    assert result.files_checked == 2
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+
+    def source_range(document: SourceDocument, value: object) -> tuple[int, int]:
+        raw = json.dumps(value, sort_keys=True)
+        start = document.text.index(raw)
+        return start, start + len(raw)
+
+    cell_start, cell_end = source_range(visible, visible_payload["cells"][0])
+    output_start, output_end = source_range(
+        visible,
+        visible_payload["cells"][1]["outputs"][0],
+    )
+
+    def diagnostic_signature(item) -> tuple[object, ...]:
+        span = item.span
+        assert span is not None
+        return (
+            item.code,
+            item.severity.value,
+            item.message,
+            span.path,
+            span.start,
+            span.end,
+            span.line,
+            span.col,
+            span.end_line,
+            span.end_col,
+            span.cell,
+            span.cell_line,
+            visible.text[span.start : span.end],
+            item.equation,
+            item.detail,
+            item.hint,
+            item.rule,
+            item.suppressed,
+            item.suppression_reason,
+            item.profile,
+            item.provenance_ids,
+            item.properties,
+        )
+
+    assert [diagnostic_signature(item) for item in result.diagnostics] == [
+        (
+            "PORT004",
+            "warning",
+            "cell renderings are incompatible with cross-reference options",
+            PurePosixPath("visible.ipynb"),
+            cell_start,
+            cell_end,
+            1,
+            cell_start + 1,
+            1,
+            cell_end,
+            0,
+            1,
+            visible.text[cell_start:cell_end],
+            None,
+            "cell 'plot' combines renderings='[\"light\",\"dark\"]' with ['fig-cap']",
+            (
+                "Keep renderings on a cell without cross-reference options, or move "
+                "the labeled figure/table structure outside the rendered cell."
+            ),
+            "portability.notebook_renderings_crossref",
+            False,
+            None,
+            "notebook-crossrefs",
+            ("visible.ipynb::notebook-cell::0",),
+            (
+                ("label", "plot"),
+                ("renderings", '["light","dark"]'),
+                ("crossref_options", "fig-cap"),
+                ("source_format", "notebook"),
+                ("subject_fact_id", "visible.ipynb::notebook-cell::0"),
+            ),
+        ),
+        (
+            "PORT004",
+            "warning",
+            "cell renderings are incompatible with cross-reference options",
+            PurePosixPath("visible.ipynb"),
+            output_start,
+            output_end,
+            1,
+            output_start + 1,
+            1,
+            output_end,
+            1,
+            None,
+            visible.text[output_start:output_end],
+            None,
+            (
+                "cell '<caption-only cell>' at output 0 combines "
+                "renderings='[\"light\",\"dark\"]' with ['fig-cap']"
+            ),
+            (
+                "Keep renderings on a cell without cross-reference options, or move "
+                "the labeled figure/table structure outside the rendered cell."
+            ),
+            "portability.notebook_renderings_crossref",
+            False,
+            None,
+            "notebook-crossrefs",
+            (
+                "visible.ipynb::notebook-cell::1",
+                "visible.ipynb::notebook-cell::1::output::0",
+            ),
+            (
+                ("label", "<caption-only cell>"),
+                ("renderings", '["light","dark"]'),
+                ("crossref_options", "fig-cap"),
+                ("source_format", "notebook"),
+                ("subject_fact_id", "visible.ipynb::notebook-cell::1"),
+                ("output_index", "0"),
+            ),
+        ),
+    ]
 
 
 def test_portability_normalizes_output_crossref_markers_once() -> None:

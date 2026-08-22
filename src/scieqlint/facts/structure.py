@@ -7,6 +7,7 @@ from typing import Literal
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.base import FactBase
+from scieqlint.facts.reference import TargetVisibility
 
 FenceKind = Literal["generic", "math", "directive", "code-cell", "div"]
 StructureSyntaxKind = Literal[
@@ -75,6 +76,7 @@ class CodeCellFact(FactBase):
     label: str | None = None
     tags: tuple[str, ...] = ()
     output_target_labels: tuple[str, ...] = ()
+    visibility: TargetVisibility = "visible"
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)

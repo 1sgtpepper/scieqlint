@@ -278,6 +278,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/typst_portability_good.md`
 - `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/fixtures/jats/inline_formula_converted.md`
+- `tests/fixtures/project/hidden_equation_references/hidden.md`
+- `tests/fixtures/project/hidden_equation_references/source.md`
 - `tests/golden/github/cross_format_references.txt`
 - `tests/golden/github/crossref_metadata.txt`
 - `tests/golden/github/famous_bad.txt`
@@ -347,6 +349,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
+- `tests/test_hidden_equation_references.py`
 - `tests/test_inline_math_accessibility.py`
 - `tests/test_inline_math_facts.py`
 - `tests/test_jats_inline_formula_fixtures.py`
@@ -381,5 +384,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_stabilization.py`
 - `tests/test_symbols.py`
 - `tests/test_typst_portability.py`
+- `tests/test_workspace_visibility.py`
 - `tools/architecture/terminology_drift.py`
 - `tools/public_regression_replay.py`

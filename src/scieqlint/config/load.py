@@ -19,6 +19,7 @@ from scieqlint.config.model import (
     ParserConfig,
     ProfileConfig,
     ProjectConfig,
+    ProjectVisibility,
     ReferencesConfig,
     ReportConfig,
     ScannerConfig,
@@ -92,6 +93,7 @@ def _load_config_with_inputs(
         project=ProjectConfig(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
+            visibility=_project_visibility(project_data.get("visibility", {})),
         ),
         baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
         scanner=ScannerConfig(
@@ -225,6 +227,21 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
     return tuple(items)
+
+
+def _project_visibility(value: object) -> tuple[tuple[str, ProjectVisibility], ...]:
+    if not isinstance(value, dict):
+        raise ValueError("[project].visibility must be a table")
+    entries: list[tuple[str, ProjectVisibility]] = []
+    for raw_path, raw_state in cast(dict[object, object], value).items():
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError("[project].visibility keys must be non-empty strings")
+        if not isinstance(raw_state, str) or raw_state not in {"visible", "hidden", "excluded"}:
+            raise ValueError(
+                f"[project].visibility.{raw_path} must be visible, hidden, or excluded"
+            )
+        entries.append((raw_path, cast(ProjectVisibility, raw_state)))
+    return tuple(sorted(entries))
 
 
 def _posix_path(data: dict[str, Any], key: str, default: PurePosixPath) -> PurePosixPath:

@@ -13,6 +13,7 @@ TargetPlacement = Literal["before_heading", "before_block", "standalone", "orpha
 NormalizedReferenceTarget = tuple[PurePosixPath, str]
 ReferenceIdentity = NormalizedReferenceTarget | str
 CrossrefMetadataKind = Literal["reference-use", "target-definition"]
+TargetVisibility = Literal["visible", "hidden", "excluded"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,6 +23,7 @@ class TargetAnchorFact(FactBase):
     target_kind: str | None
     attaches_to_fact_id: str | None
     placement: TargetPlacement
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 
@@ -38,6 +40,7 @@ class GenericRefFact(FactBase):
     resolved_raw_target_path: str | None = None
     normalized_target_path: PurePosixPath | None = None
     target_fragment: str | None = None
+    visibility: TargetVisibility = "visible"
 
 
 def member_target_identity(
@@ -116,6 +119,7 @@ class EquationLabelFact(FactBase):
     label_syntax_kind: str
     source_block_id: str | None
     namespace: str = "equation"
+    visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
 
@@ -126,5 +130,6 @@ class EquationRefFact(FactBase):
     normalized_target: str
     title: str | None = None
     source_block_id: str | None = None
+    visibility: TargetVisibility = "visible"
     target_span: SourceSpan | None = None
     role_span: SourceSpan | None = None

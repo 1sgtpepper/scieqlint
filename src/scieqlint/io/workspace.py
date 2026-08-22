@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from urllib.parse import unquote_to_bytes, urlsplit
 
-from scieqlint.facts.project import ProjectMemberFact
+from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
+from scieqlint.facts.reference import TargetVisibility
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
 
 _DEFAULT_PROJECT_ROOT = PurePosixPath(".")
@@ -25,7 +27,7 @@ class ProjectReferenceTarget:
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceHost:
-    """Own project identity and membership facts for frontend callers."""
+    """Own project identity, membership, and render visibility projection."""
 
     project_root: PurePosixPath = PurePosixPath(".")
 
@@ -39,15 +41,24 @@ class WorkspaceHost:
     def normalize_project_path(self, path: str | PurePosixPath) -> PurePosixPath:
         return normalize_project_path(path, project_root=self.project_root)
 
-    def project_members(
+    def project_facts(
         self,
         documents: Sequence[SourceDocument],
-    ) -> tuple[ProjectMemberFact, ...]:
-        """Record caller-provided documents using one canonical path identity."""
+        visibility: (
+            Mapping[str, TargetVisibility] | Sequence[tuple[str, TargetVisibility]] | None
+        ) = None,
+    ) -> tuple[tuple[ProjectMemberFact, ...], tuple[HiddenExcludedFact, ...]]:
+        """Project configured visibility into immutable member facts.
+
+        The workspace does not infer visibility from filenames or target labels.
+        The application provides project-relative path keys; omitted documents
+        remain visible, matching the existing single-document API contract.
+        """
 
         seen_document_paths: set[PurePosixPath] = set()
         duplicate_document_paths: set[PurePosixPath] = set()
         raw_paths_by_normalized: dict[PurePosixPath, set[PurePosixPath]] = {}
+        visibility_paths_by_normalized: dict[PurePosixPath, set[PurePosixPath]] = {}
         for document in documents:
             if document.path in seen_document_paths:
                 duplicate_document_paths.add(document.path)
@@ -55,6 +66,10 @@ class WorkspaceHost:
                 seen_document_paths.add(document.path)
             raw_paths_by_normalized.setdefault(
                 self.normalize_project_path(document.path),
+                set(),
+            ).add(document.path)
+            visibility_paths_by_normalized.setdefault(
+                self._visibility_path(document.path),
                 set(),
             ).add(document.path)
         if duplicate_document_paths:
@@ -81,20 +96,161 @@ class WorkspaceHost:
             )
             raise ValueError(f"duplicate normalized document path(s): {details}")
 
-        return tuple(
-            ProjectMemberFact(
-                fact_id=f"{document.path.as_posix()}::project-member",
-                document_id=document.path.as_posix(),
+        supplied: dict[PurePosixPath, TargetVisibility] = {}
+        visibility_entries = tuple(
+            visibility.items() if isinstance(visibility, Mapping) else visibility or ()
+        )
+        duplicate_visibility_paths = tuple(
+            sorted(
+                (
+                    normalized_path,
+                    raw_paths,
+                )
+                for normalized_path, raw_paths in visibility_paths_by_normalized.items()
+                if len(raw_paths) > 1
+            )
+        )
+        if visibility_entries and duplicate_visibility_paths:
+            details = "; ".join(
+                f"{normalized_path.as_posix()} "
+                f"({', '.join(sorted(path.as_posix() for path in raw_paths))})"
+                for normalized_path, raw_paths in duplicate_visibility_paths
+            )
+            raise ValueError(f"duplicate project visibility document path(s): {details}")
+        for path, state in visibility_entries:
+            if state not in {"visible", "hidden", "excluded"}:
+                raise ValueError(f"unsupported workspace visibility: {state}")
+            normalized_path = self._visibility_path(path)
+            previous = supplied.get(normalized_path)
+            if previous is not None and previous != state:
+                raise ValueError(
+                    f"conflicting project visibility entries for {normalized_path.as_posix()}"
+                )
+            supplied[normalized_path] = state
+
+        document_paths = {self._visibility_path(document.path) for document in documents}
+        unknown_paths = sorted(path.as_posix() for path in supplied if path not in document_paths)
+        if unknown_paths:
+            raise ValueError("unknown project visibility member(s): " + ", ".join(unknown_paths))
+
+        members: list[ProjectMemberFact] = []
+        hidden_excluded: list[HiddenExcludedFact] = []
+        for document in documents:
+            path = document.path
+            document_id = path.as_posix()
+            state = supplied.get(self._visibility_path(path), "visible")
+            member = ProjectMemberFact(
+                fact_id=f"{document_id}::project-member",
+                document_id=document_id,
                 span=None,
-                path=document.path,
+                path=path,
                 project_root=self.project_root,
                 declared=True,
                 discovered=True,
                 explicit_input=True,
-                normalized_path=self.normalize_project_path(document.path),
+                visibility=state,
+                normalized_path=self.normalize_project_path(path),
             )
-            for document in documents
+            members.append(member)
+            if state != "visible":
+                hidden_excluded.append(
+                    HiddenExcludedFact(
+                        fact_id=f"{document_id}::workspace::{state}",
+                        document_id=document_id,
+                        span=None,
+                        raw=None,
+                        path=path,
+                        reason=state,
+                        references_may_target=True,
+                    )
+                )
+        return tuple(members), tuple(hidden_excluded)
+
+    def project_visibility(
+        self,
+        documents: Sequence[SourceDocument],
+        visibility: (
+            Mapping[str, TargetVisibility] | Sequence[tuple[str, TargetVisibility]] | None
+        ) = None,
+    ) -> tuple[tuple[str, TargetVisibility], ...]:
+        """Keep visibility entries whose project members are in ``documents``.
+
+        Profile snapshots may contain only a subset of the documents checked by the
+        application. Filtering is owned here so configured project-relative keys and
+        caller-provided root spellings use the same identity as ``project_facts``.
+        """
+
+        visibility_entries = (
+            visibility.items() if isinstance(visibility, Mapping) else visibility or ()
         )
+        document_paths = {self._visibility_path(document.path) for document in documents}
+        return tuple(
+            (path, state)
+            for path, state in visibility_entries
+            if self._visibility_path(path) in document_paths
+        )
+
+    def apply_visibility(
+        self,
+        snapshot: FactSnapshot,
+        visibility: (
+            Mapping[str, TargetVisibility] | Sequence[tuple[str, TargetVisibility]] | None
+        ) = None,
+    ) -> FactSnapshot:
+        """Apply configured project state before reference resolution."""
+
+        members, hidden_excluded = self.project_facts(snapshot.documents, visibility)
+        states = {member.document_id: member.visibility for member in members}
+        anchors = tuple(
+            replace(anchor, visibility=states.get(anchor.document_id, "visible"))
+            for anchor in snapshot.target_anchors
+        )
+        generic_refs = tuple(
+            replace(ref, visibility=states.get(ref.document_id, "visible"))
+            for ref in snapshot.generic_refs
+        )
+        labels = tuple(
+            replace(label, visibility=states.get(label.document_id, "visible"))
+            for label in snapshot.equation_labels
+        )
+        refs = tuple(
+            replace(ref, visibility=states.get(ref.document_id, "visible"))
+            for ref in snapshot.equation_refs
+        )
+        code_cells = tuple(
+            replace(cell, visibility=states.get(cell.document_id, "visible"))
+            for cell in snapshot.code_cells
+        )
+        return replace(
+            snapshot,
+            target_anchors=anchors,
+            generic_refs=generic_refs,
+            equation_labels=labels,
+            equation_refs=refs,
+            code_cells=code_cells,
+            project_members=members,
+            hidden_excluded=hidden_excluded,
+        )
+
+    def _visibility_path(self, path: str | PurePath) -> PurePosixPath:
+        """Normalize project-relative visibility keys and document path spellings."""
+
+        raw_path = _normalize_project_path(_path_as_posix(path))
+        normalized_root = _normalize_project_path(_path_as_posix(self.project_root))
+        if normalized_root == PurePosixPath("."):
+            return raw_path
+        windows_style = _is_windows_style_path(path) or _is_windows_style_path(self.project_root)
+        raw_prefix = raw_path.parts[: len(normalized_root.parts)]
+        root_parts = normalized_root.parts
+        has_root_prefix = (
+            tuple(part.casefold() for part in raw_prefix)
+            == tuple(part.casefold() for part in root_parts)
+            if windows_style
+            else raw_prefix == root_parts
+        )
+        if not has_root_prefix:
+            raw_path = PurePosixPath(*normalized_root.parts, *raw_path.parts)
+        return self.normalize_project_path(raw_path)
 
 
 def project_reference_target(

@@ -57,6 +57,8 @@ class PortabilityQueryView:
     def quarto_crossref_label_issues(self) -> tuple[CodeCellFact, ...]:
         bad: list[CodeCellFact] = []
         for cell in self.snapshot.code_cells:
+            if cell.visibility != "visible":
+                continue
             labels = tuple(
                 label
                 for label in (cell.label, cell.option_dict().get("lst-label"))
@@ -74,6 +76,8 @@ class PortabilityQueryView:
         outputs = _outputs_by_cell(self.snapshot)
         out: list[CodeCellFact] = []
         for cell in self.snapshot.code_cells:
+            if cell.visibility != "visible":
+                continue
             options = cell.option_dict()
             if "renderings" in options and _crossref_options(cell, outputs.get(cell.fact_id, ())):
                 out.append(cell)
@@ -83,6 +87,8 @@ class PortabilityQueryView:
         outputs = _outputs_by_cell(self.snapshot)
         conflicts: list[NotebookRenderingConflict] = []
         for cell in self.snapshot.code_cells:
+            if cell.visibility != "visible":
+                continue
             options = cell.option_dict()
             renderings = options.get("renderings")
             if renderings is None:

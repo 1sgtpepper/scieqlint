@@ -69,7 +69,7 @@ class MySTFrontend:
         parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         return FactSnapshot(
             documents=tuple(documents),
-            project_members=self.workspace.project_members(documents),
+            project_members=self.workspace.project_facts(documents)[0],
             headings=_flatten(parts, "headings"),
             sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),

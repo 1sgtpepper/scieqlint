@@ -7,7 +7,13 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents, graph_documents
-from scieqlint.config.model import ChecksConfig, Config, ReferencesConfig, ScannerConfig
+from scieqlint.config.model import (
+    ChecksConfig,
+    Config,
+    ProjectConfig,
+    ReferencesConfig,
+    ScannerConfig,
+)
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -68,6 +74,55 @@ def test_public_strict_reference_check_requires_a_raw_equation_label() -> None:
     assert [(diagnostic.code, diagnostic.equation) for diagnostic in result.diagnostics] == [
         ("REF003", "x = 1")
     ]
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_public_strict_reference_check_ignores_nonvisible_raw_candidates(
+    visibility: str,
+) -> None:
+    target = SourceDocument.from_text(
+        PurePosixPath("target.md"),
+        "\\begin{equation}\nx = 1\n\\end{equation}\n",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(
+        project=ProjectConfig(visibility=(("target.md", visibility),)),
+        checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)),
+    )
+
+    result = check_documents((target,), config=config)
+
+    ref003_codes = [
+        diagnostic.code for diagnostic in result.diagnostics if diagnostic.code == "REF003"
+    ]
+    assert ref003_codes == []
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_visible_reference_preserves_nonvisible_raw_target_impact(visibility: str) -> None:
+    source = SourceDocument.from_text(
+        PurePosixPath("source.md"),
+        "{eq}`eq-hidden`\n",
+        DocumentKind.MARKDOWN,
+    )
+    target = SourceDocument.from_text(
+        PurePosixPath("target.md"),
+        "\\begin{equation}\nx = 1 \\label{eq-hidden}\n\\end{equation}\n",
+        DocumentKind.MARKDOWN,
+    )
+    config = Config(project=ProjectConfig(visibility=(("target.md", visibility),)))
+
+    result = check_documents((source, target), config=config)
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF008"]
+
+
+def test_public_missing_raw_equation_target_still_reports_ref002() -> None:
+    source = "\\begin{equation}\nx = 1\n\\end{equation}\n\n{eq}`eq-missing`\n"
+
+    result = check_documents((doc(source),), config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
 
 
 @pytest.mark.parametrize(
