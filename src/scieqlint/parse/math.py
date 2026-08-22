@@ -7,6 +7,7 @@ from dataclasses import replace
 
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
 from scieqlint.facts.math import (
+    DisplayMathFact,
     InlineMathFact,
     InlineParseStatus,
     UnknownMathFact,
@@ -34,6 +35,8 @@ _SPACED_COMMAND_RE = re.compile(
     rf")"
 )
 _GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?![A-Za-z0-9_])")
+_AMS_ENVIRONMENTS = frozenset({"align", "align*", "aligned", "alignedat", "split"})
+_TEX_ENVIRONMENT_RE = re.compile(r"\\(?P<kind>begin|end)\{(?P<environment>[^{}\s]+)\}")
 
 
 class MathHost:
@@ -48,15 +51,60 @@ class MathHost:
             inline_math.append(replace(fact, parse_status=status))
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
+        display_math: list[DisplayMathFact] = []
+        for fact in snapshot.display_math:
+            display, unknown = _classify_display(fact)
+            display_math.append(display)
+            if unknown is not None and fact.fact_id not in existing_unknown_ids:
+                unknown_math.append(unknown)
         classified = replace(
             snapshot,
             inline_math=tuple(inline_math),
+            display_math=tuple(display_math),
             unknown_math=(*snapshot.unknown_math, *unknown_math),
         )
         return replace(
             classified,
             generated_formulas=_classify_generated_formulas(classified),
         )
+
+
+def _classify_display(
+    fact: DisplayMathFact,
+) -> tuple[DisplayMathFact, UnknownMathFact | None]:
+    """Resolve AMS semantics after the frontend has preserved display identity."""
+
+    if not fact.complete:
+        return fact, None
+    environment = _complete_ams_environment(fact.body)
+    if environment is None:
+        return fact, None
+    return replace(fact, container="ams", environment=environment), None
+
+
+def _complete_ams_environment(body: str) -> str | None:
+    masked_body = without_tex_comments(body)
+    stack: list[str] = []
+    selected: str | None = None
+    selected_closed = False
+    for match in _TEX_ENVIRONMENT_RE.finditer(masked_body):
+        if is_escaped(masked_body, match.start()):
+            continue
+        kind = match.group("kind")
+        environment = match.group("environment")
+        if kind == "begin":
+            stack.append(environment)
+            if selected is None and environment in _AMS_ENVIRONMENTS:
+                selected = environment
+            continue
+        if not stack or stack[-1] != environment:
+            return None
+        stack.pop()
+        if selected == environment:
+            selected_closed = True
+    if selected is None or not selected_closed or stack:
+        return None
+    return selected
 
 
 def _classify_inline(
@@ -164,7 +212,7 @@ def _skip_tex_space(body: str, start: int) -> int:
 
 
 def _unknown(
-    fact: InlineMathFact,
+    fact: InlineMathFact | DisplayMathFact,
     reason: UnknownReason,
     excerpt: str,
 ) -> UnknownMathFact:

@@ -103,6 +103,16 @@ later `{ref}` to that anchor.
 
 Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
+Markdown/MyST displays recognize only complete, properly nested
+`align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
+AMS classification. Incomplete fences and mismatched environment pairs retain
+their enclosing display identity and do not create AMS semantic claims. A closed
+dollar display is still a complete lexical container: even when its nested AMS
+pair is incomplete or mismatched, its TeX label and reference tokens retain
+lexical facts and source spans. Rendered equation numbers and arbitrary TeX environment parsing
+remain unsupported. Labels and references inside an aligned display retain the
+enclosing display as their `source_block_id`; per-row identity and rendered
+equation-number ownership are not modeled.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
 Non-empty `$...$`, `{math}` roles, and `\(...\)` spans become inline facts; the

@@ -241,6 +241,20 @@ def test_missing_reference_is_warning() -> None:
     assert diagnostics[0].message == "equation reference target not found: missing"
 
 
+def test_strict_reference_check_reports_unlabeled_display_blocks() -> None:
+    scan = _scan("$$\nE = m c^2\n$$\n")
+
+    diagnostics = check_references(
+        scan.labels,
+        scan.references,
+        blocks=scan.blocks,
+        strict_missing_labels=True,
+    )
+
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF003"]
+    assert diagnostics[0].equation == "E = m c^2"
+
+
 @pytest.mark.public_regression
 def test_issue_226_code_contexts_are_inert_across_reference_and_math_paths() -> None:
     document = SourceDocument.from_text(
@@ -827,6 +841,23 @@ def test_cross_format_reference_is_quiet() -> None:
     assert result.diagnostics == ()
 
 
+def test_markdown_reference_to_latex_label_is_quiet() -> None:
+    latex = SourceDocument.from_text(
+        PurePosixPath("paper.tex"),
+        r"\begin{equation}x = 1 \label{energy}\end{equation}" + "\n",
+        DocumentKind.LATEX,
+    )
+    markdown = SourceDocument.from_text(
+        PurePosixPath("notes.md"),
+        "See {eq}`energy`.\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    result = check_documents([markdown, latex], config=Config())
+
+    assert result.diagnostics == ()
+
+
 def test_markdown_links_to_myst_heading_anchors_are_not_equation_refs() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("lecture.md"),
@@ -904,7 +935,10 @@ def test_only_parsed_markdown_and_myst_references_create_facts() -> None:
         ("eq", "active-label")
     ]
     assert snapshot.structure_syntax_issues == ()
-    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+    assert [
+        (diagnostic.code, diagnostic.detail)
+        for diagnostic in ReferenceEngine().run(QueryHost(snapshot))
+    ] == [("REF002", "reference text: {eq}`active-label`")]
 
     scan = MarkdownScanner().scan(document, Config())
     assert [(ref.source.value, ref.target) for ref in scan.references] == [

@@ -18,6 +18,7 @@ from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
+AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_reference.md")
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
 
@@ -28,6 +29,41 @@ def test_text_golden_output_matches_famous_bad_fixture() -> None:
     assert TextReporter().render(result) == Path("tests/golden/text/famous_bad.txt").read_text(
         encoding="utf-8"
     )
+
+
+def test_text_golden_output_matches_ambiguous_equation_reference_fixture() -> None:
+    result = check_paths([AMBIGUOUS_REFERENCE_FIXTURE])
+
+    assert TextReporter().render(result) == Path(
+        "tests/golden/text/ambiguous_equation_reference.txt"
+    ).read_text(encoding="utf-8")
+
+
+def test_reference_fixture_reporters_preserve_ordered_diagnostic_contract() -> None:
+    result = check_paths([AMBIGUOUS_REFERENCE_FIXTURE])
+
+    json_result = json.loads(JsonReporter().render(result))
+    assert [diagnostic["code"] for diagnostic in json_result["diagnostics"]] == [
+        "REF001",
+        "REF011",
+    ]
+    assert GitHubReporter().render(result).splitlines() == [
+        (
+            "::error title=REF001 duplicate equation label%3A shared,"
+            "file=tests/fixtures/bad/ambiguous_equation_reference.md,line=4,col=11,"
+            "endLine=4,endColumn=16::duplicate equation label: shared"
+        ),
+        (
+            "::warning title=REF011 ambiguous equation reference%3A shared,"
+            "file=tests/fixtures/bad/ambiguous_equation_reference.md,line=6,col=10,"
+            "endLine=6,endColumn=15::reference text: {eq}`shared`"
+        ),
+    ]
+    sarif_result = json.loads(SarifReporter().render(result))
+    assert [item["ruleId"] for item in sarif_result["runs"][0]["results"]] == [
+        "REF001",
+        "REF011",
+    ]
 
 
 def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
