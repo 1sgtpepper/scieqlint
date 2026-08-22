@@ -10,6 +10,7 @@ from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFac
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import (
+    CrossrefMetadataFact,
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
@@ -39,6 +40,7 @@ class FactSnapshot:
     generic_refs: tuple[GenericRefFact, ...] = ()
     equation_labels: tuple[EquationLabelFact, ...] = ()
     equation_refs: tuple[EquationRefFact, ...] = ()
+    crossref_metadata: tuple[CrossrefMetadataFact, ...] = ()
     inline_math: tuple[InlineMathFact, ...] = ()
     display_math: tuple[DisplayMathFact, ...] = ()
     unknown_math: tuple[UnknownMathFact, ...] = ()
@@ -61,6 +63,7 @@ class FactSnapshot:
             *self.generic_refs,
             *self.equation_labels,
             *self.equation_refs,
+            *self.crossref_metadata,
             *self.inline_math,
             *self.display_math,
             *self.unknown_math,
@@ -84,6 +87,7 @@ class FactSnapshot:
             generic_refs=self.generic_refs,
             equation_labels=self.equation_labels,
             equation_refs=self.equation_refs,
+            crossref_metadata=self.crossref_metadata,
             inline_math=self.inline_math,
             display_math=self.display_math,
             unknown_math=(*self.unknown_math, *unknown_math),

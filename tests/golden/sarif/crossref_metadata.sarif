@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "z-rendered.ipynb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "conflicting cross-reference metadata: energy.md#energy: 'rendered.ipynb#output-0' reports kind='figure', format='notebook', metadata={'placement': 'before_block'}; canonical boundary 'source.md' reports kind='heading', format='markdown', metadata={'placement': 'before_heading'}"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "fa89bf717144d663f7721c1392fa36336686b034f8736e61840aafda5eba9830"
+          },
+          "properties": {
+            "canonical_boundary": "source.md",
+            "canonical_resolved_target_kind": "heading",
+            "canonical_source_format": "markdown",
+            "output_boundary": "rendered.ipynb#output-0",
+            "provenanceIds": [
+              "source-metadata",
+              "output-metadata"
+            ],
+            "resolved_target_kind": "figure",
+            "source_format": "notebook",
+            "target": "energy.md#energy"
+          },
+          "ruleId": "REF007"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "Two source or engine-output boundaries describe the same logical target with different reference kind or display metadata."
+              },
+              "id": "REF007",
+              "name": "REF007",
+              "shortDescription": {
+                "text": "conflicting cross-reference metadata"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

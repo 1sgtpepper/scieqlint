@@ -20,6 +20,9 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - Scanners extract math text, labels, references, and source spans. They do not parse expressions.
 - Parser returns AST or unknown diagnostics. It does not call SymPy.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
+- Cross-reference metadata is preserved in `FactSnapshot`, compared by the reference
+  query view, and diagnosed by the reference engine. Built-in standalone inputs do not
+  yet supply cross-boundary output facts in this slice.
 - Generated-output checks consume explicit source-to-generated provenance facts;
   only `SourceOrigin.source_document_id` establishes the source mapping. The generated
   profile may supply source-kind and conversion-stage annotations when an origin omits

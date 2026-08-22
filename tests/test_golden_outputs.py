@@ -15,9 +15,13 @@ from scieqlint.config.model import (
     ProfileConfig,
     ReportConfig,
 )
-from scieqlint.diag.model import CheckResult
+from scieqlint.diag.model import CheckResult, SourceSpan
+from scieqlint.engine.reference import ReferenceEngine
+from scieqlint.facts.reference import CrossrefMetadataFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.graph.json import render_graph_json
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
@@ -141,6 +145,39 @@ def test_cross_format_portability_output_matches_reporter_goldens() -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_text_golden_output_matches_crossref_metadata_engine_path() -> None:
+    assert TextReporter().render(_crossref_metadata_result()) == Path(
+        "tests/golden/text/crossref_metadata.txt"
+    ).read_text(encoding="utf-8")
+
+
+def test_json_golden_output_matches_crossref_metadata_schema() -> None:
+    rendered = JsonReporter().render(_crossref_metadata_result())
+    schema = _schema("scieqlint-result-0.2.schema.json")
+    diagnostic_schema = _schema("scieqlint-diagnostic-0.2.schema.json")
+    registry = Registry().with_resources(
+        [
+            (schema["$id"], Resource.from_contents(schema)),
+            (diagnostic_schema["$id"], Resource.from_contents(diagnostic_schema)),
+        ]
+    )
+
+    Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
+    assert rendered == Path("tests/golden/json/crossref_metadata.json").read_text(encoding="utf-8")
+
+
+def test_github_golden_output_matches_crossref_metadata_engine_path() -> None:
+    assert GitHubReporter().render(_crossref_metadata_result()) == Path(
+        "tests/golden/github/crossref_metadata.txt"
+    ).read_text(encoding="utf-8")
+
+
+def test_sarif_golden_output_matches_crossref_metadata_engine_path() -> None:
+    assert SarifReporter().render(_crossref_metadata_result()) == Path(
+        "tests/golden/sarif/crossref_metadata.sarif"
+    ).read_text(encoding="utf-8")
+
+
 def test_graph_golden_output_matches_schema_and_fixture() -> None:
     rendered = render_graph_json(graph_paths([GRAPH_FIXTURE]))
     schema = _schema("scieqlint-graph-0.3.schema.json")
@@ -203,4 +240,71 @@ def _cross_format_result() -> CheckResult:
                 output_profile="commonmark",
             ),
         ),
+    )
+
+
+def _crossref_metadata_result() -> CheckResult:
+    def fact(
+        fact_id: str,
+        *,
+        document_id: str,
+        boundary: str,
+        source_format: str,
+        kind: str,
+        placement: str,
+    ) -> CrossrefMetadataFact:
+        fact_span = SourceSpan(
+            path=PurePosixPath(document_id),
+            start=0,
+            end=1,
+            line=1,
+            col=1,
+            end_line=1,
+            end_col=1,
+        )
+        return CrossrefMetadataFact(
+            fact_id=fact_id,
+            document_id=document_id,
+            span=fact_span,
+            raw=None,
+            source_fact_id=f"{fact_id}::source",
+            logical_target="energy",
+            normalized_target="energy",
+            source_format=source_format,
+            output_boundary=boundary,
+            normalized_target_path=PurePosixPath("energy.md"),
+            resolved_target_kind=kind,
+            target_metadata=(("placement", placement),),
+            metadata_kind="target-definition",
+            target_span=fact_span,
+        )
+
+    metadata = (
+        fact(
+            "source-metadata",
+            document_id="a-source.md",
+            boundary="source.md",
+            source_format="markdown",
+            kind="heading",
+            placement="before_heading",
+        ),
+        fact(
+            "output-metadata",
+            document_id="z-rendered.ipynb",
+            boundary="rendered.ipynb#output-0",
+            source_format="notebook",
+            kind="figure",
+            placement="before_block",
+        ),
+    )
+    diagnostics = tuple(
+        diagnostic.to_diagnostic()
+        for diagnostic in ReferenceEngine().run(QueryHost(FactSnapshot(crossref_metadata=metadata)))
+    )
+    return CheckResult(
+        diagnostics=diagnostics,
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="1.1.0",
     )
