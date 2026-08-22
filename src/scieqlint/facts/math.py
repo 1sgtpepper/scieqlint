@@ -33,6 +33,12 @@ DisplayContainer = Literal[
     "quarto-equation",
     "raw-latex",
 ]
+MathMacroDeclarationKind = Literal[
+    "newcommand",
+    "renewcommand",
+    "providecommand",
+    "def",
+]
 UnknownReason = Literal[
     "unsupported_syntax",
     "unsupported_function",
@@ -74,3 +80,20 @@ class UnknownMathFact(FactBase):
     reason: UnknownReason
     excerpt: str
     classifier: str = "MathHost"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MathMacroDeclarationFact(FactBase):
+    source_math_fact_id: str
+    macro_name: str
+    declaration_kind: MathMacroDeclarationKind
+    parameter_count: int
+    replacement: str
+    declaration_order: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MathMacroUseFact(FactBase):
+    source_math_fact_id: str
+    macro_name: str
+    active_declaration_fact_id: str | None
