@@ -254,6 +254,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/aligned_equation_references.md`
 - `tests/fixtures/good/architecture_myst_good.md`
 - `tests/fixtures/good/graph_refs.md`
+- `tests/fixtures/good/inline_math_accessibility.md`
 - `tests/fixtures/good/markdown_lexical_precedence.md`
 - `tests/fixtures/good/myst_good.md`
 - `tests/fixtures/good/references_good.md`
@@ -271,11 +272,13 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
 - `tests/golden/json/generated_formula_quality.json`
+- `tests/golden/json/inline_math_accessibility.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/sarif/cross_format_references.sarif`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
+- `tests/golden/sarif/inline_math_accessibility.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
 - `tests/golden/text/cross_format_references.txt`
@@ -314,6 +317,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
+- `tests/test_inline_math_accessibility.py`
 - `tests/test_inline_math_facts.py`
 - `tests/test_jats_inline_formula_fixtures.py`
 - `tests/test_json_schema.py`

@@ -65,9 +65,11 @@ show_suppressed = false
 ```
 
 `scanner.inline_math` is opt-in for both path-based checks and the public
-`check_documents` API. When it is false, explicit inline-math facts are not classified
-or passed to query engines. Standalone equation-like text remains available to
-`GEN005` under `generated-myst`; display and structural Markdown analysis remains active.
+`check_documents` API. When it is false, ordinary profiles do not classify explicit
+inline-math facts or pass them to query engines. Standalone equation-like text remains
+available to `GEN005` under `generated-myst`. The `math-accessibility` profile retains
+explicit inline facts while Markdown scanning is enabled so it can report `PORT002`.
+Display and structural Markdown analysis remains active.
 
 `ignore.files` accepts POSIX-style glob patterns. Discovered files are matched
 against both their path relative to `project.root`, when possible, and their
@@ -195,6 +197,11 @@ silently running a different rule set.
   and requires `output_profile`. The accepted conservative targets are
   `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
   external renderer or claim output parity.
+- `math-accessibility` emits diagnostics for explicit inline-math facts that
+  lack accessible text metadata. It does not generate alternative text, infer
+  metadata from surrounding prose, or apply the policy by default. The profile
+  currently lowers Markdown documents only; notebook Markdown cells and LaTeX
+  documents are outside its scope.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset.

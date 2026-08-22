@@ -681,3 +681,16 @@ def test_load_config_rejects_output_profile_for_unrelated_profile(tmp_path) -> N
 
     with pytest.raises(ValueError, match="output_profile is only valid"):
         load_config(config_path)
+
+
+def test_load_config_accepts_math_accessibility_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "math-accessibility"\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.profile.name == "math-accessibility"
+    assert config.profile.output_profile is None

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePath, PurePosixPath
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, cast
 
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
@@ -32,6 +32,7 @@ from scieqlint.facts.generated import (
     GENERATED_PROVENANCE_FACT_SUFFIX,
     GeneratedProvenanceFact,
 )
+from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -157,8 +158,12 @@ def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> CheckResult:
-    """Check already-loaded documents."""
+    """Check already-loaded documents with caller-owned accessibility metadata."""
+    normalized_accessibility_metadata = _normalize_accessibility_metadata(accessibility_metadata)
+    if normalized_accessibility_metadata and config.profile.name != "math-accessibility":
+        raise ValueError('accessibility_metadata requires profile.name = "math-accessibility"')
     if config.profile.name in {"generated-myst", "cross-format-references"}:
         seen_paths: set[PurePosixPath] = set()
         duplicate_paths: set[PurePosixPath] = set()
@@ -173,7 +178,6 @@ def check_documents(
                 for path in sorted(duplicate_paths, key=lambda path: path.as_posix())
             )
             raise ValueError(f"duplicate document path(s): {paths}")
-
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -200,6 +204,21 @@ def check_documents(
     references: list[EquationReference] = []
     symbol_directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
+    profile_documents = tuple(
+        document
+        for document in documents
+        if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
+        or (
+            document.kind is DocumentKind.LATEX and config.profile.name == "cross-format-references"
+        )
+        or (
+            document.kind is DocumentKind.NOTEBOOK
+            and config.profile.name == "cross-format-references"
+        )
+    )
+    if not profile_documents and normalized_accessibility_metadata is not None:
+        _apply_accessibility_metadata((), normalized_accessibility_metadata)
+
     for document in documents:
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
@@ -264,19 +283,7 @@ def check_documents(
     generated_provenance_by_document = {
         provenance.generated_document_id: provenance for provenance in generated_provenance
     }
-    profile_documents = tuple(
-        document
-        for document in documents
-        if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
-        or (
-            document.kind is DocumentKind.LATEX and config.profile.name == "cross-format-references"
-        )
-        or (
-            document.kind is DocumentKind.NOTEBOOK
-            and config.profile.name == "cross-format-references"
-        )
-    )
-    if not config.scanner.inline_math:
+    if not config.scanner.inline_math and config.profile.name != "math-accessibility":
         # Inline math is opt-in, and candidate facts are lowered before scanner
         # options are applied. Standalone equation-like candidates are generated
         # output artifacts rather than inline math; retain their plain-text source
@@ -313,6 +320,7 @@ def check_documents(
             policy=policy,
             generated_provenance=generated_provenance,
             frontend_snapshot=frontend_snapshot,
+            accessibility_metadata=normalized_accessibility_metadata,
         )
         query = QueryHost(snapshot)
         diagnostics = _without_profile_owned_legacy_reference_diagnostics(
@@ -336,7 +344,10 @@ def check_documents(
                 diagnostic.to_diagnostic()
                 for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
             )
-        elif config.profile.name == "cross-format-references":
+        elif config.profile.name in {
+            "cross-format-references",
+            "math-accessibility",
+        }:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
                 for diagnostic in PortabilityEngine(
@@ -514,6 +525,7 @@ def _profile_snapshot(
     policy: PolicyHost | None = None,
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
@@ -522,6 +534,7 @@ def _profile_snapshot(
         source_labels=source_labels,
         generated_provenance=generated_provenance,
         frontend_snapshot=frontend_snapshot,
+        accessibility_metadata=accessibility_metadata,
     )
     if config.profile.name == "cross-format-references":
         return replace(
@@ -541,6 +554,7 @@ def _generated_profile_snapshot(
     source_labels: Sequence[EquationLabel] | None = None,
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
+    accessibility_metadata: Mapping[str, str] | None = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
@@ -557,6 +571,10 @@ def _generated_profile_snapshot(
         documents=tuple(documents),
         equation_labels=(*snapshot.equation_labels, *source_label_facts),
         equation_refs=(*snapshot.equation_refs, *source_reference_facts),
+        inline_math=_apply_accessibility_metadata(
+            snapshot.inline_math,
+            accessibility_metadata,
+        ),
     )
     snapshot = MathHost().classify(snapshot)
     provenance = (
@@ -736,6 +754,56 @@ def _source_role_fact_id(span: SourceSpan, role: str) -> str:
             f"start={encode(str(span.start))}",
         )
     )
+
+
+def _apply_accessibility_metadata(
+    inline_math: Sequence[InlineMathFact],
+    metadata: Mapping[str, str] | None,
+) -> tuple[InlineMathFact, ...]:
+    if metadata is None:
+        return tuple(inline_math)
+    known_id_counts: dict[str, int] = {}
+    for fact in inline_math:
+        if fact.accessibility_id is None:
+            continue
+        known_id_counts[fact.accessibility_id] = known_id_counts.get(fact.accessibility_id, 0) + 1
+    unknown_ids = sorted(set(metadata) - set(known_id_counts))
+    if unknown_ids:
+        raise ValueError(
+            "accessibility metadata references unknown inline math fact(s): "
+            + ", ".join(unknown_ids)
+        )
+    ambiguous_ids = sorted(
+        accessibility_id for accessibility_id in metadata if known_id_counts[accessibility_id] > 1
+    )
+    if ambiguous_ids:
+        raise ValueError(
+            "accessibility metadata references ambiguous inline math fact(s): "
+            + ", ".join(ambiguous_ids)
+        )
+    return tuple(
+        replace(
+            fact,
+            alt=(metadata[fact.accessibility_id].strip() or None)
+            if fact.accessibility_id is not None and fact.accessibility_id in metadata
+            else fact.alt,
+        )
+        for fact in inline_math
+    )
+
+
+def _normalize_accessibility_metadata(metadata: object) -> dict[str, str] | None:
+    """Validate caller metadata before it enters the fact/query pipeline."""
+    if metadata is None:
+        return None
+    if not isinstance(metadata, Mapping):
+        raise ValueError("accessibility_metadata must be a mapping")
+    candidate = cast(Mapping[object, object], metadata)
+    if any(not isinstance(key, str) or not key.strip() for key in candidate):
+        raise ValueError("accessibility_metadata keys must be non-empty strings")
+    if any(not isinstance(value, str) for value in candidate.values()):
+        raise ValueError("accessibility_metadata values must be strings")
+    return dict(cast(Mapping[str, str], candidate))
 
 
 def graph_paths(

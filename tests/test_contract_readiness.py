@@ -31,7 +31,8 @@ def test_v100_public_api_contract_matches_docs() -> None:
         "strict_unknowns: 'bool' = False, absolute_paths: 'bool' = False) -> 'CheckResult'"
     )
     assert str(inspect.signature(api.check_documents)) == (
-        "(documents: 'Sequence[SourceDocument]', *, config: 'Config') -> 'CheckResult'"
+        "(documents: 'Sequence[SourceDocument]', *, config: 'Config', "
+        "accessibility_metadata: 'Mapping[str, str] | None' = None) -> 'CheckResult'"
     )
     assert str(inspect.signature(api.graph_paths)) == (
         "(paths: 'Sequence[Path | str]', *, config_path: 'Path | str | None' = None) -> 'Graph'"

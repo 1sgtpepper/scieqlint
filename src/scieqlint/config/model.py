@@ -8,7 +8,11 @@ from typing import Literal, get_args
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
-ValidationProfile = Literal["generated-myst", "cross-format-references"]
+ValidationProfile = Literal[
+    "generated-myst",
+    "cross-format-references",
+    "math-accessibility",
+]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 
 _VALIDATION_PROFILE_NAMES = frozenset(get_args(ValidationProfile))
