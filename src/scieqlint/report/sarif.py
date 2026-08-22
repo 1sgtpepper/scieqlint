@@ -9,6 +9,7 @@ from urllib.parse import quote
 from scieqlint import __version__
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
+from scieqlint.schema import SchemaHost
 
 JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
@@ -85,7 +86,20 @@ def _result(diagnostic: Diagnostic) -> JsonValue:
     }
     if diagnostic.span is not None:
         result["locations"] = [_location(diagnostic.span)]
+    properties = _metadata_properties(diagnostic)
+    if properties:
+        result["properties"] = properties
     return result
+
+
+def _metadata_properties(diagnostic: Diagnostic) -> dict[str, JsonValue]:
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    properties: dict[str, JsonValue] = dict(projection.properties)
+    if projection.profile is not None:
+        properties["profile"] = projection.profile
+    if projection.provenance_ids:
+        properties["provenanceIds"] = list(projection.provenance_ids)
+    return properties
 
 
 def _message(diagnostic: Diagnostic) -> str:

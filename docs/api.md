@@ -68,6 +68,8 @@ generated = SourceDocument.from_text(
     DocumentKind.MARKDOWN,
     origin=SourceOrigin(
         source_document_id="source/lecture.md",
+        source_kind="markdown",
+        conversion_stage="translation",
         preserved_anchor_inventory=("energy",),
     ),
 )
@@ -77,8 +79,13 @@ result = check_documents(
 )
 ```
 
+Programmatic provenance identifiers, source kinds, and conversion stages are
+trimmed when constructed; blank values raise `ValueError` before analysis.
+
 An absent origin means that source-to-generated identity is unknown, so the generated
-profile does not manufacture a provenance relationship.
+profile does not manufacture a provenance relationship. The `generated-myst` profile
+requires each supplied `SourceDocument.path` to be unique; duplicate paths raise
+`ValueError`. Other profiles retain the ordinary document-lowering behavior.
 
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
@@ -96,7 +103,21 @@ returns `1` only when an unsuppressed error diagnostic exists.
 
 `Diagnostic` exposes stable diagnostic data used by reporters and JSON output:
 `code`, `severity`, `message`, `span`, `equation`, `detail`, `hint`, `rule`,
-`suppressed`, and `suppression_reason`.
+`suppressed`, `suppression_reason`, `profile`, `provenance_ids`, and `properties`.
+`profile` is optional and identifies the validation profile that produced the
+diagnostic. `provenance_ids` contains caller-supplied provenance fact IDs and is
+empty when no provenance is available; `properties` contains string-valued rule
+metadata and is empty when no properties are present. For generated origins, one
+origin uses unprefixed property names, while multiple origins use
+`provenance_1_*`, `provenance_2_*`, and later names; missing origin fields are omitted.
+Property names are unique after projection: later rule values replace earlier values,
+and SchemaHost-owned profile and provenance values take precedence over colliding rule
+properties.
+These optional fields are omitted from JSON output when unset or empty.
+JSON output without projection metadata retains schema version `0.1`. If any
+emitted diagnostic contains `profile`, `provenance_ids`, or `properties`, the
+result identifies itself as `0.2` and validates against the packaged 0.2 result
+and diagnostic schemas. The 0.1 schemas remain unchanged.
 
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before

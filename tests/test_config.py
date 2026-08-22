@@ -44,6 +44,24 @@ def test_profile_config_rejects_unknown_name() -> None:
         ProfileConfig(name="unknown")
 
 
+def test_profile_config_normalizes_programmatic_provenance_metadata() -> None:
+    profile = ProfileConfig(
+        name="generated-myst",
+        source_kind="  jats-xml  ",
+        conversion_stage="  translation  ",
+    )
+
+    assert profile.source_kind == "jats-xml"
+    assert profile.conversion_stage == "translation"
+
+
+def test_profile_config_rejects_blank_programmatic_provenance_metadata() -> None:
+    with pytest.raises(ValueError, match="source_kind must be a non-empty string"):
+        ProfileConfig(name="generated-myst", source_kind="   ")
+    with pytest.raises(ValueError, match="conversion_stage must be a non-empty string"):
+        ProfileConfig(name="generated-myst", conversion_stage="\t")
+
+
 def test_load_config_rejects_missing_explicit_file(tmp_path) -> None:
     with pytest.raises(FileNotFoundError, match="config not found"):
         load_config(tmp_path / "missing.toml")
@@ -178,6 +196,22 @@ def test_load_config_accepts_named_profile_metadata(tmp_path) -> None:
     config = load_config(config_path)
 
     assert config.profile.name == "generated-myst"
+
+
+def test_load_config_rejects_empty_profile_metadata(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nsource_kind = "   "\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source_kind must be a non-empty string"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_profile_metadata_without_generated_profile(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nsource_kind = "jats-xml"\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match='require profile.name = "generated-myst"'):
+        load_config(config_path)
 
 
 def test_load_config_rejects_unknown_profile_name(tmp_path) -> None:

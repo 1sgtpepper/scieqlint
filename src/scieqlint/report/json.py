@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from scieqlint.diag.model import CheckResult, Severity
+from scieqlint.schema import SchemaHost
 
 JsonValue = str | int | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
@@ -13,6 +14,7 @@ class JsonReporter:
     def render(self, result: CheckResult) -> str:
         counts = {Severity.ERROR: 0, Severity.WARNING: 0, Severity.INFO: 0}
         diagnostics_json: list[JsonValue] = []
+        schema_version = "0.1"
         for diagnostic in result.diagnostics:
             if diagnostic.suppressed and not result.show_suppressed:
                 continue
@@ -39,9 +41,18 @@ class JsonReporter:
                 diagnostic_json["suppression_reason"] = (
                     diagnostic.suppression_reason or "suppressed"
                 )
+            projection = SchemaHost.project_diagnostic(diagnostic)
+            if projection.profile is not None or projection.provenance_ids or projection.properties:
+                schema_version = "0.2"
+            if projection.profile is not None:
+                diagnostic_json["profile"] = projection.profile
+            if projection.provenance_ids:
+                diagnostic_json["provenance_ids"] = list(projection.provenance_ids)
+            if projection.properties:
+                diagnostic_json["properties"] = dict(projection.properties)
             diagnostics_json.append(diagnostic_json)
         payload: dict[str, JsonValue] = {
-            "schema_version": "0.1",
+            "schema_version": schema_version,
             "tool": "scieqlint",
             "version": result.version,
             "summary": {

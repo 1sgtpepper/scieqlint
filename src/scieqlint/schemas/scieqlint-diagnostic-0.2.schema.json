@@ -1,0 +1,149 @@
+{
+  "$id": "https://scieqlint.dev/schemas/scieqlint-diagnostic-0.2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "suppressed": {
+            "const": true
+          }
+        },
+        "required": [
+          "suppressed"
+        ]
+      },
+      "then": {
+        "required": [
+          "suppression_reason"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "cell": {
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "cell_line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "code": {
+      "pattern": "^[A-Z]+[0-9]{3}$",
+      "type": "string"
+    },
+    "col": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "detail": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "end_col": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "end_line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "equation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "line": {
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "profile": {
+      "type": "string"
+    },
+    "properties": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "provenance_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "severity": {
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ]
+    },
+    "suppressed": {
+      "type": "boolean"
+    },
+    "suppression_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "severity",
+    "message",
+    "path",
+    "line",
+    "col",
+    "end_line",
+    "end_col",
+    "cell",
+    "cell_line",
+    "equation",
+    "detail",
+    "hint",
+    "suppressed"
+  ],
+  "title": "SciEqLint Diagnostic 0.2",
+  "type": "object"
+}

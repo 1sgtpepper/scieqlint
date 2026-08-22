@@ -24,6 +24,20 @@ class SourceOrigin:
     tool: str | None = None
     tool_version: str | None = None
     preserved_anchor_inventory: tuple[str, ...] = ()
+    source_kind: str | None = None
+    conversion_stage: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.source_document_id.strip():
+            raise ValueError("source_document_id must be a non-empty string")
+        object.__setattr__(self, "source_document_id", self.source_document_id.strip())
+        for field_name in ("source_kind", "conversion_stage"):
+            value = getattr(self, field_name)
+            if value is None:
+                continue
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field_name} must be a non-empty string")
+            object.__setattr__(self, field_name, value.strip())
 
 
 @dataclass(frozen=True, slots=True)

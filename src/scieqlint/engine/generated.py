@@ -8,6 +8,9 @@ from scieqlint.query.host import QueryHost
 
 
 class GeneratedOutputEngine:
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
     name = "generated-output"
     rule_codes = frozenset({"GEN001"})
 
@@ -28,6 +31,8 @@ class GeneratedOutputEngine:
                     hint="Keep the MyST target anchor in the generated output before building.",
                     rule="generated.preserved_anchor",
                     false_positive_risk="low",
+                    profile=self.profile,
+                    provenance_ids=(provenance.fact_id,),
                 )
             )
         return tuple(diagnostics)
