@@ -62,7 +62,8 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-The preset supplies generated-document scanner/parser defaults. Provenance-backed
+The preset selects the generated-document profile and supplies its scanner/parser
+defaults, including source-only suspicious-formula checks. Provenance-backed
 comparisons are available to Python callers that attach an explicit `SourceOrigin`.
 
 ## Demo
