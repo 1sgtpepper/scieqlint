@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
@@ -15,6 +16,7 @@ from scieqlint.source.maps import SourceMap
 
 from .myst_shared import (
     ROLE_RE,
+    OffsetRange,
     extract_role_target_and_title,
     in_ranges,
     normalize_label,
@@ -25,19 +27,25 @@ def scan_refs(
     document: SourceDocument,
     smap: SourceMap,
     snapshot: MarkdownReferenceSnapshot,
+    *,
+    raw_occupied: Sequence[OffsetRange] = (),
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
     occupied = snapshot.opaque_ranges
     link_tokens = snapshot.links
     for token in link_tokens:
-        if token.is_image:
+        if token.is_image or token.destination is None or in_ranges(token.start, raw_occupied):
             continue
         if token.fragment_target is None:
             continue
         generic.append(_markdown_link_ref_fact(document, smap, token))
     for match in ROLE_RE.finditer(document.text):
-        if in_ranges(match.start(), occupied) or is_escaped(document.text, match.start()):
+        if (
+            in_ranges(match.start(), occupied)
+            or in_ranges(match.start(), raw_occupied)
+            or is_escaped(document.text, match.start())
+        ):
             continue
         role = match.group("role")
         body = match.group("body")

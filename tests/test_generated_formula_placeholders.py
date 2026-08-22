@@ -388,7 +388,6 @@ def test_public_api_reports_empty_myst_math_directive_and_keeps_content_active()
 )
 def test_setext_heading_text_is_not_a_formula_placeholder(heading_text: str) -> None:
     source = f"{heading_text}\n---\n\nformula-not-decoded\n"
-
     facts = placeholder_facts(source)
 
     assert len(facts) == 1
@@ -539,6 +538,66 @@ def test_public_api_reports_nested_owned_comment_but_not_opaque_html_content() -
             ),
         ),
     )
+
+
+def test_empty_raw_equation_is_a_placeholder_but_unsupported_and_incomplete_forms_are_not() -> None:
+    source = (
+        "\\begin{equation}\n\\end{equation}\n\n"
+        "\\begin{cases}\n\\end{cases}\n\n"
+        "\\begin{figure}\n\\end{figure}\n\n"
+        "\\begin{equation}\n\n"
+        "The formula-not-decoded marker is discussed in prose.\n"
+    )
+
+    facts = placeholder_facts(source)
+
+    assert len(facts) == 1
+    [fact] = facts
+    assert fact.placeholder_kind == "empty-display-math"
+    assert fact.span is not None
+    assert source[fact.span.start : fact.span.end] == "\\begin{equation}\n\\end{equation}"
+
+
+def test_raw_formula_marker_placeholder_span_is_limited_to_the_marker_token() -> None:
+    source = "\\begin{equation}\n  formula-not-decoded  \n\\end{equation}\n"
+
+    [fact] = placeholder_facts(source)
+
+    assert fact.span is not None
+    assert source[fact.span.start : fact.span.end] == "formula-not-decoded"
+
+
+def test_generated_profile_reports_raw_formula_marker_before_an_active_tex_comment() -> None:
+    source = "\\begin{equation}\nformula-not-decoded % generated marker\n\\end{equation}\n"
+    result = check_documents(
+        (doc(source, origin=SourceOrigin(source_document_id="source/formulas.tex")),),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    diagnostics = [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN004"]
+
+    [diagnostic] = diagnostics
+    assert diagnostic.span is not None
+    assert source[diagnostic.span.start : diagnostic.span.end] == "formula-not-decoded"
+
+
+def test_generated_profile_filters_unaccepted_raw_formula_markers() -> None:
+    source = (
+        "\\begin{equation}\nformula-not-decoded\n\\end{equation}\n\n"
+        "\\begin{cases}\nformula-not-decoded\n\\end{cases}\n\n"
+        "\\begin{equation}\nformula-not-decoded\n"
+    )
+    result = check_documents(
+        (doc(source, origin=SourceOrigin(source_document_id="source/formulas.tex")),),
+        config=Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    diagnostics = [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN004"]
+
+    assert len(diagnostics) == 1
+    diagnostic = diagnostics[0]
+    assert diagnostic.span is not None
+    assert source[diagnostic.span.start : diagnostic.span.end] == "formula-not-decoded"
 
 
 def test_many_standalone_markers_preserve_source_ordered_spans() -> None:

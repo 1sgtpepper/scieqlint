@@ -445,7 +445,7 @@ def scan_formula_placeholders(
         if (
             math_fact.document_id != document.path.as_posix()
             or math_fact.span is None
-            or math_fact.container not in {"fenced-math", "myst-math-directive"}
+            or math_fact.container not in {"fenced-math", "myst-math-directive", "raw-latex"}
             or not math_fact.complete
             or _active_math_body(math_fact.body, math_fact.container).strip()
         ):
@@ -457,6 +457,9 @@ def scan_formula_placeholders(
                 math_fact.span.start,
                 math_fact.span.end,
                 "empty-display-math",
+                source_math_fact_id=(
+                    math_fact.fact_id if math_fact.container == "raw-latex" else None
+                ),
                 complete=True,
             )
         )
