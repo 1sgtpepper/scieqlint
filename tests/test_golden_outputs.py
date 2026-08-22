@@ -8,7 +8,13 @@ from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
 from scieqlint.api import check_documents, check_paths, graph_paths
-from scieqlint.config.model import Config, ReportConfig
+from scieqlint.config.model import (
+    AlgebraConfig,
+    ChecksConfig,
+    Config,
+    ProfileConfig,
+    ReportConfig,
+)
 from scieqlint.diag.model import CheckResult
 from scieqlint.graph.json import render_graph_json
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -21,6 +27,7 @@ FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
 AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_reference.md")
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
+CROSS_FORMAT_FIXTURE = Path("tests/fixtures/bad/cross_format_references.md")
 
 
 def test_text_golden_output_matches_famous_bad_fixture() -> None:
@@ -117,6 +124,23 @@ def test_sarif_golden_output_matches_famous_bad_fixture() -> None:
     )
 
 
+def test_cross_format_portability_output_matches_reporter_goldens() -> None:
+    result = _cross_format_result()
+
+    assert TextReporter().render(result) == Path(
+        "tests/golden/text/cross_format_references.txt"
+    ).read_text(encoding="utf-8")
+    assert JsonReporter().render(result) == Path(
+        "tests/golden/json/cross_format_references.json"
+    ).read_text(encoding="utf-8")
+    assert GitHubReporter().render(result) == Path(
+        "tests/golden/github/cross_format_references.txt"
+    ).read_text(encoding="utf-8")
+    assert SarifReporter().render(result) == Path(
+        "tests/golden/sarif/cross_format_references.sarif"
+    ).read_text(encoding="utf-8")
+
+
 def test_graph_golden_output_matches_schema_and_fixture() -> None:
     rendered = render_graph_json(graph_paths([GRAPH_FIXTURE]))
     schema = _schema("scieqlint-graph-0.3.schema.json")
@@ -161,4 +185,22 @@ def _check_documents_with_report(
     return check_documents(
         documents,
         config=Config(report=ReportConfig(show_suppressed=show_suppressed)),
+    )
+
+
+def _cross_format_result() -> CheckResult:
+    document = SourceDocument.from_text(
+        PurePosixPath(CROSS_FORMAT_FIXTURE.as_posix()),
+        CROSS_FORMAT_FIXTURE.read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+    return check_documents(
+        [document],
+        config=Config(
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            profile=ProfileConfig(
+                name="cross-format-references",
+                output_profile="commonmark",
+            ),
+        ),
     )
