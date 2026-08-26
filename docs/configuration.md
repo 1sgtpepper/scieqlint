@@ -166,6 +166,28 @@ read baseline files.
 
 Invalid config fails before document analysis and reports a deterministic error.
 
+
+## Validation profile
+
+```toml
+[profile]
+name = "generated-myst"
+```
+
+The named profile is policy metadata consumed by the normal fact/query/engine
+pipeline. `generated-myst` enables the provenance-backed generated-output engine in
+addition to the ordinary checks configured below. Unknown profile names are
+rejected rather than silently running a different rule set. The profile table
+does not enable scanner or parser defaults by itself; those defaults come from
+the packaged preset.
+
+The profile consumes caller-owned source mappings when the already-loaded-document
+API is used. Attach `SourceOrigin(source_document_id=..., preserved_anchor_inventory=...)`
+to each generated `SourceDocument`; the checker does not infer that mapping from
+filenames or document order. Without an origin, generated-output provenance checks
+remain quiet for that document. The path-based CLI does not accept provenance
+metadata, so `[profile]` alone does not add provenance diagnostics to a CLI run.
+
 ## Presets
 
 Packaged presets are TOML templates loaded before user config. User config values
@@ -173,10 +195,11 @@ override preset values.
 
 Available presets:
 
-- `generated-myst`: validates generated Markdown/MyST scientific output with
-  Markdown/MyST math fences, inline math, algebra checks, reference checks, and
-  strict parser unknowns enabled. Dimension checks stay in `auto` mode and run
-  only when the project adds `[vars]`.
+- `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
+  math, algebra, reference, and strict parser checks used by generated-document
+  CLI workflows. It does not manufacture source provenance.
+  Dimension checks stay in `auto` mode and run only when the project adds
+  `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
   `m`, `a`, `F`, and `E`.
 
@@ -202,10 +225,14 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
+The preset is the CLI validation profile: it supplies the existing deterministic
+scanner, parser, algebra, and reference policy. Use `[profile]` with the
+already-loaded-document API when explicit source provenance is available.
+
 ## Config schema
 
 The loader validates a fixed schema before document analysis. The currently
-accepted tables are `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
+accepted tables are `[profile]`, `[project]`, `[baseline]`, `[scanner]`, `[parser]`,
 `[checks.algebra]`, `[checks.references]`, `[checks.dimension]`,
 `[checks.symbols]`, `[vars]`, `[aliases]`, `[ignore]`, and `[report]`, with the
 keys documented on this page. Unknown tables and keys are configuration errors.

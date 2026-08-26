@@ -54,13 +54,16 @@ scieqlint graph . --output scieqlint-graph.json
 
 ## Generated MyST docs
 
-For generated Markdown/MyST output, materialize the packaged preset and run the
-normal checker with that config:
+For generated Markdown/MyST output, materialize the generated-document preset and
+run the normal checker with that config:
 
 ```bash
 scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
+
+The preset supplies generated-document scanner/parser defaults. Provenance-backed
+comparisons are available to Python callers that attach an explicit `SourceOrigin`.
 
 ## Demo
 

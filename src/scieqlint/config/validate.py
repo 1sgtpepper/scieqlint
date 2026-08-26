@@ -8,6 +8,7 @@ from typing import Any, cast
 _TABLES: dict[str, frozenset[str]] = {
     "": frozenset(
         {
+            "profile",
             "project",
             "baseline",
             "scanner",
@@ -19,6 +20,7 @@ _TABLES: dict[str, frozenset[str]] = {
             "report",
         }
     ),
+    "profile": frozenset({"name"}),
     "project": frozenset({"root", "order"}),
     "baseline": frozenset({"files"}),
     "scanner": frozenset({"markdown", "inline_math", "math_fences"}),

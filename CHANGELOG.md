@@ -20,7 +20,10 @@ Release notes must use these sections:
 
 ### Changed
 
-- The security policy now documents support for the latest minor in the current
+- The generated-document workflow now uses the packaged `generated-myst` preset
+  on the CLI path. Provenance-backed checks remain an explicit `[profile]` policy
+  for already-loaded documents with caller-supplied `SourceOrigin` metadata.
+ - The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
 

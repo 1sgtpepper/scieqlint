@@ -46,6 +46,40 @@ do not read baseline files from disk. Path-based APIs preserve their analysis re
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
 
+Generated-output validation never infers a source document from a filename, input order,
+or directory layout. A caller that wants the `generated-myst` profile to compare a
+generated document with its source attaches an explicit `SourceOrigin` to that
+`SourceDocument`:
+
+```python
+from pathlib import PurePosixPath
+from scieqlint.api import check_documents
+from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+
+source = SourceDocument.from_text(
+    PurePosixPath("source/lecture.md"),
+    "(energy)=\n## Energy\n",
+    DocumentKind.MARKDOWN,
+)
+generated = SourceDocument.from_text(
+    PurePosixPath("translated/lecture.md"),
+    "## Energy\n",
+    DocumentKind.MARKDOWN,
+    origin=SourceOrigin(
+        source_document_id="source/lecture.md",
+        preserved_anchor_inventory=("energy",),
+    ),
+)
+result = check_documents(
+    (source, generated),
+    config=Config(profile=ProfileConfig(name="generated-myst")),
+)
+```
+
+An absent origin means that source-to-generated identity is unknown, so the generated
+profile does not manufacture a provenance relationship.
+
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
 relative to the current working directory by default. For `check_paths()`,
@@ -66,4 +100,8 @@ returns `1` only when an unsuppressed error diagnostic exists.
 
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
-the user config file, so user config values override preset values.
+the user config file, so user config values override preset values. The
+`generated-myst` preset supplies the path-based generated-document validation
+policy. The separate `[profile]` setting enables provenance-backed checks only
+when already-loaded `SourceDocument` values carry explicit `SourceOrigin`
+metadata.
