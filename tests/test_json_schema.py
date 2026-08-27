@@ -6,12 +6,17 @@ from importlib import resources
 import pytest
 from jsonschema import ValidationError
 from jsonschema.validators import Draft202012Validator
+from referencing import Registry, Resource
+
+from scieqlint.diag.model import CheckResult, Diagnostic, Severity
+from scieqlint.report.json import JsonReporter
 
 
-def test_result_schema_is_valid_json_and_names_required_fields() -> None:
+@pytest.mark.parametrize("version", ["0.1", "0.2"])
+def test_result_schemas_are_valid_json_and_name_required_fields(version: str) -> None:
     schema_text = (
         resources.files("scieqlint.schemas")
-        .joinpath("scieqlint-result-0.1.schema.json")
+        .joinpath(f"scieqlint-result-{version}.schema.json")
         .read_text(encoding="utf-8")
     )
     schema = json.loads(schema_text)
@@ -25,16 +30,79 @@ def test_result_schema_is_valid_json_and_names_required_fields() -> None:
     ]
 
 
-def test_diagnostic_schema_is_valid_json_and_requires_location_fields() -> None:
+@pytest.mark.parametrize("version", ["0.1", "0.2"])
+def test_diagnostic_schemas_are_valid_json_and_require_location_fields(version: str) -> None:
     schema_text = (
         resources.files("scieqlint.schemas")
-        .joinpath("scieqlint-diagnostic-0.1.schema.json")
+        .joinpath(f"scieqlint-diagnostic-{version}.schema.json")
         .read_text(encoding="utf-8")
     )
     schema = json.loads(schema_text)
     for field in ["path", "line", "col", "end_line", "end_col"]:
         assert field in schema["required"]
     assert "suppression_reason" in schema["properties"]
+
+
+def test_provenance_json_uses_0_2_and_is_rejected_by_preserved_0_1_schema() -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="GEN001",
+                severity=Severity.WARNING,
+                message="generated output is missing preserved source anchor",
+                span=None,
+                profile="generated-myst",
+                provenance_ids=("origin",),
+                properties=(("source_document", "source/paper.md"),),
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="1.1.0",
+    )
+    payload = json.loads(JsonReporter().render(result))
+
+    assert payload["schema_version"] == "0.2"
+    _result_validator("0.2").validate(payload)
+    with pytest.raises(ValidationError):
+        _result_validator("0.1").validate(payload)
+    with pytest.raises(ValidationError):
+        Draft202012Validator(_diagnostic_schema()).validate(payload["diagnostics"][0])
+
+
+@pytest.mark.parametrize(
+    ("profile", "provenance_ids", "properties"),
+    [
+        ("generated-myst", (), ()),
+        (None, ("origin",), ()),
+        (None, (), (("source_document", "source/paper.md"),)),
+    ],
+)
+def test_each_projection_metadata_field_selects_json_schema_0_2(
+    profile: str | None,
+    provenance_ids: tuple[str, ...],
+    properties: tuple[tuple[str, str], ...],
+) -> None:
+    result = CheckResult(
+        diagnostics=(
+            Diagnostic(
+                code="GEN001",
+                severity=Severity.WARNING,
+                message="generated output diagnostic",
+                span=None,
+                profile=profile,
+                provenance_ids=provenance_ids,
+                properties=properties,
+            ),
+        ),
+        files_checked=1,
+        math_blocks_checked=0,
+        config_path=None,
+        version="1.1.0",
+    )
+
+    assert json.loads(JsonReporter().render(result))["schema_version"] == "0.2"
 
 
 def test_diagnostic_schema_requires_reason_for_suppressed_diagnostics() -> None:
@@ -64,6 +132,20 @@ def _diagnostic_schema() -> dict[str, object]:
         .joinpath("scieqlint-diagnostic-0.1.schema.json")
         .read_text(encoding="utf-8")
     )
+    return json.loads(schema_text)
+
+
+def _result_validator(version: str) -> Draft202012Validator:
+    result_schema = _schema(f"scieqlint-result-{version}.schema.json")
+    diagnostic_schema = _schema(f"scieqlint-diagnostic-{version}.schema.json")
+    registry = Registry().with_resources(
+        [(diagnostic_schema["$id"], Resource.from_contents(diagnostic_schema))]
+    )
+    return Draft202012Validator(result_schema, registry=registry)
+
+
+def _schema(name: str) -> dict[str, object]:
+    schema_text = resources.files("scieqlint.schemas").joinpath(name).read_text(encoding="utf-8")
     return json.loads(schema_text)
 
 

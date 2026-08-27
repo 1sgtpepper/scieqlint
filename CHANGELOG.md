@@ -23,7 +23,16 @@ Release notes must use these sections:
 - The generated-document workflow now uses the packaged `generated-myst` preset
   on the CLI path. Provenance-backed checks remain an explicit `[profile]` policy
   for already-loaded documents with caller-supplied `SourceOrigin` metadata.
- - The security policy now documents support for the latest minor in the current
+- Generated diagnostic metadata now crosses a post-policy, versioned SchemaHost
+  projection seam, so engine and suppression diagnostics reach text, JSON,
+  SARIF, and GitHub reporters through one provenance and profile projection
+  instead of being reconstructed independently. JSON output
+  retains schema 0.1 when no projection metadata is emitted and uses the new 0.2
+  schemas when metadata is present. The complete AnalysisResult registry and
+  serializer migration remain tracked by #190/#191.
+- Programmatic provenance identifiers, source kinds, and conversion stages are
+  normalized at construction and reject blank values consistently with TOML input.
+- The security policy now documents support for the latest minor in the current
   major release line and provides the private vulnerability-reporting route plus
   a fallback security contact.
 

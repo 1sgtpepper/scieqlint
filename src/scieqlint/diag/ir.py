@@ -25,6 +25,9 @@ class DiagnosticIR:
     profile_gated: bool = False
     false_positive_risk: str | None = None
     related_locations: tuple[RelatedLocation, ...] = ()
+    profile: str | None = None
+    provenance_ids: tuple[str, ...] = ()
+    properties: tuple[tuple[str, str], ...] = ()
 
     def to_diagnostic(self, severity: Severity | None = None) -> Diagnostic:
         return Diagnostic(
@@ -35,4 +38,7 @@ class DiagnosticIR:
             detail=self.detail,
             hint=self.hint,
             rule=self.rule,
+            profile=self.profile,
+            provenance_ids=self.provenance_ids,
+            properties=self.properties,
         )

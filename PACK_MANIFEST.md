@@ -113,8 +113,10 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `mkdocs.yml`
 - `pyproject.toml`
 - `schemas/scieqlint-diagnostic-0.1.schema.json`
+- `schemas/scieqlint-diagnostic-0.2.schema.json`
 - `schemas/scieqlint-graph-0.3.schema.json`
 - `schemas/scieqlint-result-0.1.schema.json`
+- `schemas/scieqlint-result-0.2.schema.json`
 - `scieqlint.toml`
 - `scripts/check_pack.py`
 - `src/scieqlint/__init__.py`
@@ -210,11 +212,14 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/scan/notebook.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
+- `src/scieqlint/schema/diagnostic.py`
 - `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
+- `src/scieqlint/schemas/scieqlint-diagnostic-0.2.schema.json`
 - `src/scieqlint/schemas/scieqlint-graph-0.3.schema.json`
 - `src/scieqlint/schemas/scieqlint-result-0.1.schema.json`
+- `src/scieqlint/schemas/scieqlint-result-0.2.schema.json`
 - `src/scieqlint/source/__init__.py`
 - `src/scieqlint/source/maps.py`
 - `tests/fixtures/bad/.gitkeep`
@@ -263,6 +268,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`
 - `tests/test_generated_output.py`
+- `tests/test_generated_provenance.py`
 - `tests/test_golden_outputs.py`
 - `tests/test_graph.py`
 - `tests/test_graph_source_pipeline.py`
@@ -288,6 +294,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_report_sarif.py`
 - `tests/test_report_text.py`
 - `tests/test_sarif_workflow.py`
+- `tests/test_schema_host.py`
 - `tests/test_security_contracts.py`
 - `tests/test_source.py`
 - `tests/test_source_kind_validation.py`

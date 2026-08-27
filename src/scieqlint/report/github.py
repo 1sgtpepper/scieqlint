@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity
+from scieqlint.schema import SchemaHost
 
 _COMMANDS = {
     Severity.ERROR: "error",
@@ -39,6 +40,9 @@ def _render_diagnostic(diagnostic: Diagnostic) -> str:
         )
     properties_text = ",".join(f"{name}={_escape_property(value)}" for name, value in properties)
     message = diagnostic.detail if diagnostic.detail else diagnostic.message
+    metadata = _metadata_line(diagnostic)
+    if metadata:
+        message = f"{message}\n{metadata}"
     return f"::{command} {properties_text}::{_escape_data(message)}"
 
 
@@ -48,3 +52,13 @@ def _escape_data(value: str) -> str:
 
 def _escape_property(value: str) -> str:
     return _escape_data(value).replace(":", "%3A").replace(",", "%2C")
+
+
+def _metadata_line(diagnostic: Diagnostic) -> str:
+    projection = SchemaHost.project_diagnostic(diagnostic)
+    fields = list(projection.properties)
+    if projection.profile is not None:
+        fields.append(("profile", projection.profile))
+    if projection.provenance_ids:
+        fields.append(("provenance", ",".join(projection.provenance_ids)))
+    return "; ".join(f"{name}={value}" for name, value in fields)

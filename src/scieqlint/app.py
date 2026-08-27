@@ -27,8 +27,10 @@ from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
-from scieqlint.facts.generated import GeneratedProvenanceFact
-from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.facts.generated import (
+    GENERATED_PROVENANCE_FACT_SUFFIX,
+    GeneratedProvenanceFact,
+)
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
@@ -40,6 +42,7 @@ from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, Sym
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookScanner
+from scieqlint.schema import SchemaHost
 
 _ResultT = TypeVar("_ResultT")
 
@@ -141,6 +144,21 @@ def check_documents(
     config: Config,
 ) -> CheckResult:
     """Check already-loaded documents."""
+    if config.profile.name == "generated-myst":
+        seen_paths: set[PurePosixPath] = set()
+        duplicate_paths: set[PurePosixPath] = set()
+        for document in documents:
+            if document.path in seen_paths:
+                duplicate_paths.add(document.path)
+            else:
+                seen_paths.add(document.path)
+        if duplicate_paths:
+            paths = ", ".join(
+                path.as_posix()
+                for path in sorted(duplicate_paths, key=lambda path: path.as_posix())
+            )
+            raise ValueError(f"duplicate document path(s): {paths}")
+
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -150,7 +168,6 @@ def check_documents(
     references: list[EquationReference] = []
     symbol_directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
-
     for document in documents:
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
@@ -199,8 +216,18 @@ def check_documents(
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
+    generated_provenance = _generated_provenance_facts(markdown_documents, config)
+    generated_provenance_by_id = {
+        provenance.fact_id: provenance for provenance in generated_provenance
+    }
+    generated_provenance_by_document = {
+        provenance.generated_document_id: provenance for provenance in generated_provenance
+    }
     if markdown_documents and config.scanner.markdown:
-        query = QueryHost(_generated_profile_snapshot(markdown_documents, config))
+        snapshot = MySTFrontend().lower(markdown_documents)
+        if generated_provenance:
+            snapshot = replace(snapshot, generated_provenance=generated_provenance)
+        query = QueryHost(snapshot)
         if config.checks.references.enabled:
             diagnostics.extend(
                 diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
@@ -213,9 +240,20 @@ def check_documents(
         # project-mode/AnalysisSession owner for issue #90 is available.
         if config.profile.name == "generated-myst":
             diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in GeneratedOutputEngine().run(query)
+                diagnostic.to_diagnostic()
+                for diagnostic in GeneratedOutputEngine(profile=config.profile.name).run(query)
             )
     diagnostics = list(apply_suppressions(diagnostics, documents=documents, blocks=blocks))
+    if config.profile.name == "generated-myst":
+        diagnostics = [
+            _project_generated_diagnostic(
+                diagnostic,
+                profile=config.profile.name,
+                generated_provenance_by_id=generated_provenance_by_id,
+                generated_provenance_by_document=generated_provenance_by_document,
+            )
+            for diagnostic in diagnostics
+        ]
     return CheckResult(
         diagnostics=tuple(sorted(diagnostics, key=_diagnostic_key)),
         files_checked=len(documents),
@@ -226,24 +264,33 @@ def check_documents(
     )
 
 
-def _generated_profile_snapshot(
+def _generated_provenance_facts(
     documents: Sequence[SourceDocument],
     config: Config,
-) -> FactSnapshot:
-    """Build one profile snapshot from caller-owned source-to-generated mappings."""
+) -> tuple[GeneratedProvenanceFact, ...]:
+    """Build caller-owned source-to-generated mappings independently of scanning."""
 
-    snapshot = MySTFrontend().lower(documents)
     if config.profile.name != "generated-myst":
-        return snapshot
-    provenance = tuple(
+        return ()
+    return tuple(
         GeneratedProvenanceFact(
-            fact_id=f"{document.path.as_posix()}::generated-provenance",
+            fact_id=f"{document.path.as_posix()}{GENERATED_PROVENANCE_FACT_SUFFIX}",
             document_id=document.path.as_posix(),
             span=None,
             raw=None,
             confidence="generated",
             generated_document_id=document.path.as_posix(),
             source_document_id=document.origin.source_document_id,
+            source_kind=(
+                document.origin.source_kind
+                if document.origin.source_kind is not None
+                else config.profile.source_kind
+            ),
+            conversion_stage=(
+                document.origin.conversion_stage
+                if document.origin.conversion_stage is not None
+                else config.profile.conversion_stage
+            ),
             source_sha=document.origin.source_sha,
             tool=document.origin.tool,
             tool_version=document.origin.tool_version,
@@ -252,7 +299,38 @@ def _generated_profile_snapshot(
         for document in documents
         if document.origin is not None
     )
-    return replace(snapshot, generated_provenance=provenance)
+
+
+def _project_generated_diagnostic(
+    diagnostic: Diagnostic,
+    *,
+    profile: str,
+    generated_provenance_by_id: dict[str, GeneratedProvenanceFact],
+    generated_provenance_by_document: dict[str, GeneratedProvenanceFact],
+) -> Diagnostic:
+    """Attach only caller-owned generated origins to a public diagnostic."""
+    provenances: list[GeneratedProvenanceFact] = []
+    for fact_id in dict.fromkeys(diagnostic.provenance_ids):
+        provenance = generated_provenance_by_id.get(fact_id)
+        if provenance is not None:
+            provenances.append(provenance)
+    if not provenances and diagnostic.span is not None:
+        provenance = generated_provenance_by_document.get(diagnostic.span.path.as_posix())
+        if provenance is not None:
+            provenances.append(provenance)
+    if not provenances:
+        return diagnostic
+    projection = SchemaHost.project_diagnostic(
+        diagnostic,
+        profile=profile,
+        provenances=tuple(provenances),
+    )
+    return replace(
+        diagnostic,
+        profile=projection.profile,
+        provenance_ids=projection.provenance_ids,
+        properties=projection.properties,
+    )
 
 
 def graph_paths(

@@ -44,8 +44,7 @@ are skipped; analysis continues with later expressions and documents.
 ## Generated-output engine
 
 `GEN001` is emitted by the generated-output engine when callers provide
-source-to-generated provenance facts. The current CLI/config path does not load
-translation provenance.
+source-to-generated provenance facts. The generated profile records caller-supplied source kind and conversion stage and does not infer absent origin metadata.
 
 | Code | Default | Meaning |
 |---|---|---|

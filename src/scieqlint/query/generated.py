@@ -27,6 +27,8 @@ class GeneratedOutputQueryView:
             facts_by_doc.setdefault(anchor.document_id, {})[anchor.normalized_label] = anchor
         dropped: list[tuple[GeneratedProvenanceFact, TargetAnchorFact]] = []
         for prov in self.snapshot.generated_provenance:
+            if prov.source_document_id is None:
+                continue
             source_labels = anchors_by_doc.get(prov.source_document_id, set())
             if prov.preserved_anchor_inventory:
                 source_labels = source_labels & {

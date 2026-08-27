@@ -7,9 +7,13 @@ def test_py_typed_is_packaged() -> None:
     assert resources.files("scieqlint").joinpath("py.typed").is_file()
 
 
-def test_schema_is_packaged() -> None:
-    schema = resources.files("scieqlint.schemas").joinpath("scieqlint-result-0.1.schema.json")
-    assert schema.is_file()
+def test_schemas_are_packaged() -> None:
+    schemas = resources.files("scieqlint.schemas")
+
+    assert schemas.joinpath("scieqlint-diagnostic-0.1.schema.json").is_file()
+    assert schemas.joinpath("scieqlint-diagnostic-0.2.schema.json").is_file()
+    assert schemas.joinpath("scieqlint-result-0.1.schema.json").is_file()
+    assert schemas.joinpath("scieqlint-result-0.2.schema.json").is_file()
 
 
 def test_presets_are_packaged() -> None:

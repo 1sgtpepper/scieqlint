@@ -52,9 +52,17 @@ def test_generated_output_engine_reports_preserved_source_anchor_dropped_before_
         "translated/lecture.md"
     )
     assert diagnostic.rule == "generated.preserved_anchor"
+    assert diagnostic.profile is None
+    assert diagnostic.provenance_ids == ("translation-1",)
+    assert diagnostic.properties == ()
     assert diagnostic.span is not None
     assert diagnostic.span.path == PurePosixPath("source/lecture.md")
     assert (diagnostic.span.line, diagnostic.span.col) == (1, 2)
+
+    profiled = GeneratedOutputEngine(profile="generated-myst").run(QueryHost(snapshot))[0]
+
+    assert profiled.profile == "generated-myst"
+    assert profiled.provenance_ids == ("translation-1",)
 
 
 def test_generated_output_engine_is_quiet_when_generated_output_preserves_anchor():
