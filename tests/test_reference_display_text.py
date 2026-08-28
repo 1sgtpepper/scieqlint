@@ -605,7 +605,7 @@ def test_application_derives_display_facts_only_for_the_opt_in_profile(
         raise AssertionError("default application profiles must not derive display facts")
 
     for owner in (
-        "scieqlint.app.reference_display_text_facts",
+        "scieqlint.app_profile.reference_display_text_facts",
         "scieqlint.frontend.myst.reference_display_text_facts",
         "scieqlint.frontend.notebook.reference_display_text_facts",
     ):
