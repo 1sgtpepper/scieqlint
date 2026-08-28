@@ -32,6 +32,8 @@ AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_refere
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
 CROSS_FORMAT_FIXTURE = Path("tests/fixtures/bad/cross_format_references.md")
+NOTEBOOK_CROSSREF_BAD_FIXTURE = Path("tests/fixtures/bad/notebook_crossrefs_bad.ipynb")
+NOTEBOOK_CROSSREF_GOOD_FIXTURE = Path("tests/fixtures/good/notebook_crossrefs_good.ipynb")
 
 
 def test_text_golden_output_matches_famous_bad_fixture() -> None:
@@ -145,6 +147,46 @@ def test_cross_format_portability_output_matches_reporter_goldens() -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_notebook_crossrefs_reporters_match_goldens_and_json_schema() -> None:
+    result = _notebook_crossrefs_result()
+    rendered_json = JsonReporter().render(result)
+
+    _validate_json_result(rendered_json, version="0.2")
+    assert TextReporter().render(result) == Path(
+        "tests/golden/text/notebook_crossrefs_bad.txt"
+    ).read_text(encoding="utf-8")
+    assert rendered_json == Path("tests/golden/json/notebook_crossrefs_bad.json").read_text(
+        encoding="utf-8"
+    )
+    assert GitHubReporter().render(result) == Path(
+        "tests/golden/github/notebook_crossrefs_bad.txt"
+    ).read_text(encoding="utf-8")
+    assert SarifReporter().render(result) == Path(
+        "tests/golden/sarif/notebook_crossrefs_bad.sarif"
+    ).read_text(encoding="utf-8")
+
+
+def test_notebook_crossrefs_bad_path_fixture_emits_each_conflict(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nname = "notebook-crossrefs"\n', encoding="utf-8")
+
+    result = check_paths(
+        [NOTEBOOK_CROSSREF_BAD_FIXTURE],
+        config_path=config_path,
+    )
+
+    assert [item.code for item in result.diagnostics] == ["PORT004", "PORT004", "PORT004"]
+
+
+def test_notebook_crossrefs_good_path_fixture_is_quiet(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text('[profile]\nname = "notebook-crossrefs"\n', encoding="utf-8")
+
+    result = check_paths([NOTEBOOK_CROSSREF_GOOD_FIXTURE], config_path=config_path)
+
+    assert not any(item.code == "PORT004" for item in result.diagnostics)
+
+
 def test_text_golden_output_matches_crossref_metadata_engine_path() -> None:
     assert TextReporter().render(_crossref_metadata_result()) == Path(
         "tests/golden/text/crossref_metadata.txt"
@@ -202,9 +244,9 @@ def _schema(name: str) -> dict[str, object]:
     )
 
 
-def _validate_json_result(rendered: str) -> None:
-    schema = _schema("scieqlint-result-0.1.schema.json")
-    diagnostic_schema = _schema("scieqlint-diagnostic-0.1.schema.json")
+def _validate_json_result(rendered: str, *, version: str = "0.1") -> None:
+    schema = _schema(f"scieqlint-result-{version}.schema.json")
+    diagnostic_schema = _schema(f"scieqlint-diagnostic-{version}.schema.json")
     registry = Registry().with_resources(
         [
             (schema["$id"], Resource.from_contents(schema)),
@@ -239,6 +281,21 @@ def _cross_format_result() -> CheckResult:
                 name="cross-format-references",
                 output_profile="commonmark",
             ),
+        ),
+    )
+
+
+def _notebook_crossrefs_result() -> CheckResult:
+    document = SourceDocument.from_text(
+        PurePosixPath(NOTEBOOK_CROSSREF_BAD_FIXTURE.as_posix()),
+        NOTEBOOK_CROSSREF_BAD_FIXTURE.read_text(encoding="utf-8"),
+        DocumentKind.NOTEBOOK,
+    )
+    return check_documents(
+        [document],
+        config=Config(
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            profile=ProfileConfig(name="notebook-crossrefs"),
         ),
     )
 

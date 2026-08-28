@@ -1,0 +1,99 @@
+{
+  "diagnostics": [
+    {
+      "cell": 0,
+      "cell_line": null,
+      "code": "PORT004",
+      "col": 17,
+      "detail": "cell 'fig-first' at output 0 combines renderings='[\"light\",\"dark\"]' with ['label', 'fig-cap']",
+      "end_col": 17,
+      "end_line": 22,
+      "equation": null,
+      "hint": "Keep renderings on a cell without cross-reference options, or move the labeled figure/table structure outside the rendered cell.",
+      "line": 13,
+      "message": "cell renderings are incompatible with cross-reference options",
+      "path": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+      "profile": "notebook-crossrefs",
+      "properties": {
+        "crossref_options": "label,fig-cap",
+        "label": "fig-first",
+        "output_index": "0",
+        "renderings": "[\"light\",\"dark\"]",
+        "source_format": "notebook",
+        "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0",
+        "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::0"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": 0,
+      "cell_line": null,
+      "code": "PORT004",
+      "col": 17,
+      "detail": "cell 'lst-second' at output 1 combines renderings='[\"light\",\"dark\"]' with ['lst-label', 'lst-cap']",
+      "end_col": 17,
+      "end_line": 32,
+      "equation": null,
+      "hint": "Keep renderings on a cell without cross-reference options, or move the labeled figure/table structure outside the rendered cell.",
+      "line": 23,
+      "message": "cell renderings are incompatible with cross-reference options",
+      "path": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+      "profile": "notebook-crossrefs",
+      "properties": {
+        "crossref_options": "lst-label,lst-cap",
+        "label": "lst-second",
+        "output_index": "1",
+        "renderings": "[\"light\",\"dark\"]",
+        "source_format": "notebook",
+        "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0",
+        "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::1"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": 1,
+      "cell_line": 1,
+      "code": "PORT004",
+      "col": 9,
+      "detail": "cell 'lst-source' combines renderings='[\"light\",\"dark\"]' with ['lst-label', 'fig-subcap', 'lst-cap', 'tbl-subcap']",
+      "end_col": 9,
+      "end_line": 58,
+      "equation": null,
+      "hint": "Keep renderings on a cell without cross-reference options, or move the labeled figure/table structure outside the rendered cell.",
+      "line": 38,
+      "message": "cell renderings are incompatible with cross-reference options",
+      "path": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+      "profile": "notebook-crossrefs",
+      "properties": {
+        "crossref_options": "lst-label,fig-subcap,lst-cap,tbl-subcap",
+        "label": "lst-source",
+        "renderings": "[\"light\",\"dark\"]",
+        "source_format": "notebook",
+        "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 3
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

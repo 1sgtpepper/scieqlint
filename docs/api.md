@@ -155,6 +155,13 @@ source mapping and leave `segments` empty. Text, JSON, GitHub, and SARIF reporte
 the physical span's raw JSON line and column while retaining notebook cell metadata
 where the format supports it.
 
+The opt-in `notebook-crossrefs` profile inspects only declarative code-cell and
+recorded-output metadata. Quarto `lst-label` is an alias of output `label` for
+target resolution; when both are present, `label` takes precedence. `fig-subcap`
+and `tbl-subcap` are cross-reference display options. Each affected recorded output
+retains its own fact identity and exact JSON label-value span; notebook code is never
+executed or re-rendered.
+
 Notebook parsing applies fixed safety bounds at the already-loaded
 `SourceDocument` boundary: the UTF-8 byte length of normalized `SourceDocument.text`
 must be at most 1048576, and the aggregate normalized source of Markdown cells must

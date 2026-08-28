@@ -82,7 +82,7 @@ The checker runtime does not:
 | v0.1.1 | make PR annotations easy | GitHub reporter, pre-commit metadata, CI docs |
 | v0.1.2 | catch configured dimension mistakes | dimension engine, `[vars]`, dimension diagnostics |
 | v0.1.3 | support LaTeX source files | LaTeX container scanner, LaTeX labels/references |
-| v0.1.4 | support notebook Markdown cells | `.ipynb` markdown-cell scanner, cell spans |
+| v0.1.4 | support notebook Markdown cells and declarative cross-reference checks | `.ipynb` markdown-cell scanner, cell spans, opt-in rendering/cross-reference metadata checks |
 | v0.1.5 | support code scanning | SARIF reporter, thin GitHub Action wrapper |
 | v0.2.0 | fit serious docs workflows | suppressions, presets, aliases, optional scalar functions if time remains |
 | v0.3.0 | make equations navigable | graph JSON export |
@@ -674,9 +674,10 @@ Required baseline:
 - `\[ ... \]`,
 - `\label`, `\ref`, `\eqref`.
 
-### 5.6 v0.1.4 — notebook Markdown-cell MVP
+### 5.6 v0.1.4 — notebook Markdown cells and declarative cross-reference metadata
 
-Goal: scan notebook Markdown cells without execution.
+Goal: scan notebook Markdown cells without execution and inspect declarative code-cell
+rendering/cross-reference metadata without executing notebook code.
 
 Ships:
 
@@ -686,12 +687,16 @@ Ships:
 - notebook cell metadata in diagnostics,
 - exact raw JSON spans for escaped characters, normalized newlines, and
   source-list boundaries,
+- opt-in `notebook-crossrefs` checks for incompatible rendering and cross-reference
+  metadata on code cells and recorded outputs,
 - malformed notebook handling.
 
 Notebook scanner must:
 
 - scan only markdown cells,
-- ignore code cells without diagnostics,
+- keep code-cell source out of the general math/reference scanner; the opt-in
+  `notebook-crossrefs` profile may inspect code-cell metadata and recorded output
+  metadata only,
 - never execute notebooks,
 - preserve zero-based cell index,
 - preserve one-based cell line for mapped spans,
@@ -705,12 +710,20 @@ Diagnostics introduced:
 |---|---:|---|
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
 | `INP003` | warning | Input exceeded fixed safety limit |
+| `PORT004` | warning | Cell renderings conflict with cross-reference options |
 
 Acceptance:
 
 - Notebook markdown cells scanned.
-- Code cells ignored.
+- Default scanning keeps code-cell source ignored; `notebook-crossrefs` reports
+  incompatible declarative metadata without executing code.
 - Notebook references preserve cell metadata.
+- Notebook rendering conflicts preserve output identity and exact output spans, and
+  cover Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases.
+- Recorded-output `label` and Quarto `lst-label` aliases participate in the same
+  target-resolution and duplicate/conflict identity, with the exact JSON value span
+  retained for the selected option; `label` takes precedence when both are present.
+- Valid and incompatible notebook metadata fixtures cover positive and negative cases.
 - Valid string-list cells remain analyzable when a logical span crosses list
   items, and exact raw ranges remain available for escaped values and normalized
   CRLF.
@@ -2064,6 +2077,7 @@ Add later:
 tests/test_dimensions.py        # v0.1.2
 tests/test_latex_scan.py        # v0.1.3
 tests/test_notebook_scan.py     # v0.1.4
+tests/test_notebook_output_crossrefs.py  # v0.1.4
 tests/test_report_github.py     # v0.1.1
 tests/test_report_sarif.py      # v0.1.5
 tests/test_suppressions.py      # v0.2.0
@@ -2757,8 +2771,14 @@ Package:
 ### v0.1.4 acceptance
 
 - Notebook markdown cells scanned.
-- Code cells ignored.
+- Default scanning keeps code-cell source ignored; `notebook-crossrefs` reports
+  incompatible declarative metadata without executing code.
 - Notebook markdown references preserve cell metadata.
+- Notebook rendering conflicts preserve output identity and exact output spans, and
+  cover Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases.
+- Recorded-output `label` and Quarto `lst-label` aliases participate in the same
+  target-resolution and duplicate/conflict identity, with the exact JSON value span
+  retained for the selected option; `label` takes precedence when both are present.
 - Malformed notebook behavior is deterministic.
 
 ### v0.1.5 acceptance

@@ -14,7 +14,10 @@ from scieqlint.io.workspace import WorkspaceHost
 
 from .myst_shared import normalize_label
 
-_CROSSREF_DISPLAY_KEYS = frozenset({"cap", "caption", "fig-cap", "lst-cap", "tbl-cap"})
+_CROSSREF_DISPLAY_KEYS = frozenset(
+    {"cap", "caption", "fig-cap", "fig-subcap", "lst-cap", "tbl-cap", "tbl-subcap"}
+)
+_OUTPUT_LABEL_KEYS = ("label", "lst-label")
 
 
 def notebook_output_facts(
@@ -73,7 +76,8 @@ def crossref_facts(
     facts: list[CrossrefMetadataFact] = []
     for boundary, output in boundaries:
         output_options = {} if output is None else dict(output.metadata)
-        label = output_options.get("label") or cell.label
+        output_label = _output_label(output_options)
+        label = output_label or cell.label
         if label is None:
             continue
         kind = _crossref_target_kind(label)
@@ -91,7 +95,7 @@ def crossref_facts(
         boundary_metadata = tuple(sorted(metadata.items()))
         label_span = (
             cell.span
-            if output is None or not output_options.get("label")
+            if output is None or output_label is None
             else _output_label_span(output, output_label_spans)
         )
         facts.append(
@@ -123,8 +127,8 @@ def output_target_anchors(
 ) -> tuple[TargetAnchorFact, ...]:
     anchors: list[TargetAnchorFact] = []
     for output in outputs:
-        label = dict(output.metadata).get("label")
-        if label is None or not label.strip():
+        label = _output_label(dict(output.metadata))
+        if label is None:
             continue
         assert output.span is not None, "notebook output facts retain source spans"
         anchors.append(
@@ -151,6 +155,14 @@ def _output_label_span(
     label_span = output_label_spans[output.output_index]
     assert label_span is not None, "labeled notebook outputs retain label spans"
     return label_span
+
+
+def _output_label(metadata: Mapping[str, str]) -> str | None:
+    for key in _OUTPUT_LABEL_KEYS:
+        value = metadata.get(key)
+        if value is not None and value.strip():
+            return value
+    return None
 
 
 def _crossref_target_kind(label: str) -> str | None:

@@ -186,6 +186,7 @@ def check_documents(
     if config.profile.name in {
         "generated-myst",
         "cross-format-references",
+        "notebook-crossrefs",
         "typst-portability",
     }:
         # Profile facts and diagnostics use the lexical path as their source identity.
@@ -248,6 +249,7 @@ def check_documents(
                 in {
                     "cross-format-references",
                     "math-accessibility",
+                    "notebook-crossrefs",
                 }
             )
         )
@@ -426,6 +428,7 @@ def check_documents(
         elif config.profile.name in {
             "cross-format-references",
             "math-accessibility",
+            "notebook-crossrefs",
             "typst-portability",
         }:
             diagnostics.extend(
@@ -679,6 +682,7 @@ def _generated_profile_snapshot(
     notebook_full_profile = config.profile.name in {
         "cross-format-references",
         "math-accessibility",
+        "notebook-crossrefs",
     }
     if notebook_documents and (config.checks.references.enabled or notebook_full_profile):
         notebook_snapshot = NotebookFrontend(workspace=workspace).lower(

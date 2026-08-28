@@ -1,0 +1,29 @@
+tests/fixtures/bad/notebook_crossrefs_bad.ipynb:13:17: warning PORT004 cell renderings are incompatible with cross-reference options
+  detail: cell 'fig-first' at output 0 combines renderings='["light","dark"]' with ['label', 'fig-cap']
+  profile: notebook-crossrefs
+  provenance: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0, tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::0
+  label: fig-first
+  renderings: ["light","dark"]
+  crossref_options: label,fig-cap
+  source_format: notebook
+  subject_fact_id: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0
+  output_index: 0
+tests/fixtures/bad/notebook_crossrefs_bad.ipynb:23:17: warning PORT004 cell renderings are incompatible with cross-reference options
+  detail: cell 'lst-second' at output 1 combines renderings='["light","dark"]' with ['lst-label', 'lst-cap']
+  profile: notebook-crossrefs
+  provenance: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0, tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::1
+  label: lst-second
+  renderings: ["light","dark"]
+  crossref_options: lst-label,lst-cap
+  source_format: notebook
+  subject_fact_id: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0
+  output_index: 1
+tests/fixtures/bad/notebook_crossrefs_bad.ipynb:38:9: warning PORT004 cell renderings are incompatible with cross-reference options
+  detail: cell 'lst-source' combines renderings='["light","dark"]' with ['lst-label', 'fig-subcap', 'lst-cap', 'tbl-subcap']
+  profile: notebook-crossrefs
+  provenance: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1
+  label: lst-source
+  renderings: ["light","dark"]
+  crossref_options: lst-label,fig-subcap,lst-cap,tbl-subcap
+  source_format: notebook
+  subject_fact_id: tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1
