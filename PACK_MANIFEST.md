@@ -126,6 +126,9 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`
 - `src/scieqlint/app.py`
+- `src/scieqlint/app_profile.py`
+- `src/scieqlint/app_profile_crossref.py`
+- `src/scieqlint/app_profile_generated.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
 - `src/scieqlint/check/dimensions.py`
