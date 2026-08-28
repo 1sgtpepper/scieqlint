@@ -99,8 +99,9 @@ Unsupported math is reported as unknown or skipped. The checker must not guess.
 
 SciEqLint checks `.md`, `.markdown`, `.tex`, and `.ipynb` documents. It supports
 Markdown/MyST display math, supported LaTeX containers, notebook Markdown cells,
-labels and references, MyST structure diagnostics, simple scalar algebra, text
-output, deterministic JSON output, SARIF, and JSON Schema validation. See
+profile-only notebook cell/output facts, labels and references, MyST structure
+diagnostics, simple scalar algebra, text output, deterministic JSON output, SARIF,
+and JSON Schema validation. See
 `docs/limitations.md` for the exact scanner and grammar coverage.
 
 Current release target: v1.1.0.

@@ -7,6 +7,7 @@ from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import replace
 
+from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
 from scieqlint.facts.math import (
     DisplayMathFact,
@@ -196,18 +197,22 @@ def _raw_equation_facts(
         label = match.group("label")
         if not label.strip():
             continue
-        label_start = fact.span.start + match.start("label")
+        label_start = match.start("label")
+        label_span = _raw_subspan(fact, source_map, label_start, label_start + len(label))
         labels.append(
             EquationLabelFact(
-                fact_id=f"{fact.fact_id}::label::{label_start}",
+                fact_id=(
+                    f"{fact.fact_id}::label::"
+                    f"{label_start if fact.span.segments else label_span.start}"
+                ),
                 document_id=fact.document_id,
-                span=source_map.span(label_start, label_start + len(label)),
+                span=label_span,
                 raw=label,
                 label=label,
                 normalized_label=_normalize_label(label),
                 label_syntax_kind="tex-label",
                 source_block_id=fact.fact_id,
-                label_span=source_map.span(label_start, label_start + len(label)),
+                label_span=label_span,
             )
         )
     for match in _TEX_REFERENCE_RE.finditer(active_raw):
@@ -218,24 +223,75 @@ def _raw_equation_facts(
         if not target:
             continue
         leading = len(raw_target) - len(raw_target.lstrip())
-        target_start = fact.span.start + match.start("target") + leading
-        role_start = fact.span.start + match.start()
-        role_end = fact.span.start + match.end()
+        target_start = match.start("target") + leading
+        role_start = match.start()
+        role_end = match.end()
+        role_span = _raw_subspan(fact, source_map, role_start, role_end)
+        target_span = _raw_subspan(
+            fact,
+            source_map,
+            target_start,
+            target_start + len(target),
+        )
         references.append(
             EquationRefFact(
-                fact_id=f"{fact.fact_id}::ref::{target_start}",
+                fact_id=(
+                    f"{fact.fact_id}::ref::"
+                    f"{target_start if fact.span.segments else target_span.start}"
+                ),
                 document_id=fact.document_id,
-                span=source_map.span(role_start, role_end),
+                span=role_span,
                 raw=match.group(0),
                 ref_kind=f"tex-{match.group('kind')}",
                 target=target,
                 normalized_target=_normalize_label(target),
                 source_block_id=fact.fact_id,
-                role_span=source_map.span(role_start, role_end),
-                target_span=source_map.span(target_start, target_start + len(target)),
+                role_span=role_span,
+                target_span=target_span,
             )
         )
     return tuple(labels), tuple(references)
+
+
+def _raw_subspan(
+    fact: DisplayMathFact,
+    source_map: SourceMap,
+    start: int,
+    end: int,
+) -> SourceSpan:
+    """Map a raw-equation subspan without reconstructing notebook source text."""
+
+    assert fact.span is not None, "raw-LaTeX candidates must retain source spans"
+    raw = fact.raw or ""
+    if start < 0 or end <= start or end > len(raw):
+        raise ValueError("raw equation subspan is outside its source text")
+    if fact.span.segments:
+        if len(fact.span.segments) != len(raw):
+            raise ValueError("raw equation source mapping does not match its source text")
+        segments = fact.span.segments[start:end]
+        first = segments[0]
+        last = segments[-1]
+        return replace(
+            fact.span,
+            start=first.start,
+            end=last.end,
+            line=first.line,
+            col=first.col,
+            end_line=last.end_line,
+            end_col=last.end_col,
+            cell_line=None
+            if fact.span.cell_line is None
+            else fact.span.cell_line + raw.count("\n", 0, start),
+            segments=segments,
+        )
+    mapped = source_map.span(fact.span.start + start, fact.span.start + end)
+    return replace(
+        mapped,
+        cell=fact.span.cell,
+        cell_line=None
+        if fact.span.cell_line is None
+        else fact.span.cell_line + raw.count("\n", 0, start),
+    )
 
 
 def _normalize_label(value: str) -> str:
@@ -527,11 +583,35 @@ def _suspicious_formula_facts(
                     continue
             start = candidate.span.start + local_start
             end = candidate.span.start + local_end
+            artifact_span = source_map.span(start, end)
+            fact_id = f"{candidate.document_id}::generated-formula::{kind}::{start}"
+            if candidate.span.segments:
+                if len(candidate.span.segments) != len(candidate.text):
+                    raise ValueError(
+                        "generated formula source mapping does not match its source text"
+                    )
+                segments = candidate.span.segments[local_start:local_end]
+                first = segments[0]
+                last = segments[-1]
+                artifact_span = replace(
+                    candidate.span,
+                    start=first.start,
+                    end=last.end,
+                    line=first.line,
+                    col=first.col,
+                    end_line=last.end_line,
+                    end_col=last.end_col,
+                    cell_line=None
+                    if candidate.span.cell_line is None
+                    else candidate.span.cell_line + candidate.text.count("\n", 0, local_start),
+                    segments=segments,
+                )
+                fact_id = f"{candidate.fact_id}::{kind}::{local_start}"
             facts.append(
                 GeneratedFormulaFact(
-                    fact_id=f"{candidate.document_id}::generated-formula::{kind}::{start}",
+                    fact_id=fact_id,
                     document_id=candidate.document_id,
-                    span=source_map.span(start, end),
+                    span=artifact_span,
                     raw=artifact,
                     confidence="inferred",
                     kind=kind,

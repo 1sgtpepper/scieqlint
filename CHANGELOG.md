@@ -39,18 +39,21 @@ Release notes must use these sections:
   preserve parseable facts while remaining unknown math.
 - Cross-format reference profiles now materialize equation labels and references
   from Markdown, LaTeX, and notebook source documents.
+- Notebook frontends now lower code-cell and recorded-output metadata into immutable
+  facts with stable cell/output identities and exact JSON source spans; profile
+  lowering never executes notebook code or re-renders outputs.
 - The opt-in `math-accessibility` profile now reports `PORT002` for inline math
   facts without configured accessible text.
 - The opt-in `typst-portability` profile now reports source-spanned `PORT003`
   risks for focused display-syntax checks in Markdown and LaTeX inputs. Duplicate
-  source paths are rejected, and notebook Markdown cells remain outside the profile
-  until cell-local source mapping is preserved.
+  source paths are rejected, and notebook Markdown cells remain intentionally outside
+  this portability profile despite retaining exact frontend source mapping.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
 - Model source-neutral cross-reference metadata as fact, query, and engine contracts
-  across document and engine-output boundaries. `REF007` remains fact-backed in this
-  slice; built-in standalone inputs do not yet supply cross-boundary output facts.
-  Notebook/output producer integration is deferred to #372/#356.
+  across document and output boundaries. Built-in recorded notebook-output metadata
+  now makes `REF007` reachable without execution; arbitrary producer facts are not a
+  public input surface.
 
 ### Changed
 
@@ -90,8 +93,8 @@ Release notes must use these sections:
   facts, and `PORT002` remains marked `Unreleased` until its release line is established.
 - Accessibility metadata now rejects malformed key/value mappings at the loaded-document
   API boundary, and `PORT002` carries the stable source-owned accessibility ID used by
-  those mappings. The `math-accessibility` profile is explicitly limited to Markdown;
-  notebook Markdown cells and LaTeX documents remain out of scope.
+  those mappings. The `math-accessibility` profile covers Markdown documents and
+  notebook Markdown cells; LaTeX documents remain out of scope.
 - Notebook Markdown spans now retain exact raw JSON segments across escaped
   characters, normalized newlines, and source-list boundaries; valid list-form
   cells remain analyzable and oversized or deeply nested notebook input fails

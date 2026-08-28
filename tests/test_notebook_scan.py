@@ -10,6 +10,7 @@ import pytest
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.diag.model import Severity, SourceSpan
+from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.github import GitHubReporter
@@ -220,6 +221,50 @@ def test_notebook_scanner_reports_unmappable_parsed_source_as_input_error() -> N
     assert result.references == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
     assert result.diagnostics[0].detail == "notebook cell 0 source has no character ranges"
+
+
+def test_notebook_frontend_drops_unmappable_markdown_cell_without_partial_facts() -> None:
+    document = _notebook([_markdown_cell("See {eq}`missing`.\n")])
+    parsed = NotebookScanner().parse(document)
+    malformed = replace(parsed, cell_source_ranges=((),))
+    errors: list[tuple[SourceDocument, NotebookSourceLocationError]] = []
+
+    snapshot = NotebookFrontend().lower(
+        (document,),
+        parsed={document.path.as_posix(): malformed},
+        _source_location_errors=errors,
+    )
+    without_error_sink = NotebookFrontend().lower(
+        (document,),
+        parsed={document.path.as_posix(): malformed},
+    )
+
+    assert snapshot.equation_refs == ()
+    assert snapshot.inline_math == ()
+    assert without_error_sink.equation_refs == ()
+    assert without_error_sink.inline_math == ()
+    assert len(errors) == 1
+    error_document, error = errors[0]
+    assert error_document is document
+    assert str(error) == "notebook cell 0 source has no character ranges"
+
+
+def test_notebook_json_parser_keeps_scan_compatibility_export() -> None:
+    from scieqlint.frontend import notebook_json as frontend_json
+    from scieqlint.scan import notebook_json as scan_json
+
+    assert scan_json.__all__ == (
+        "json_array_ranges",
+        "json_decoder",
+        "json_object_members",
+        "json_string_character_ranges",
+        "parse_json_document",
+    )
+    assert all(
+        getattr(scan_json, name) is getattr(frontend_json, name) for name in scan_json.__all__
+    )
+    parsed, _source_range = scan_json.parse_json_document('{"cells": []}')
+    assert parsed == {"cells": []}
 
 
 def test_notebook_source_list_items_remain_valid_when_facts_do_not_cross_boundary() -> None:

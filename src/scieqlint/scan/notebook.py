@@ -8,7 +8,17 @@ from typing import cast
 
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic, SourceSpan
-from scieqlint.io.source import DocumentKind, LineIndex, SourceDocument
+from scieqlint.frontend.notebook_input import (
+    NotebookInput,
+    NotebookSourceLocationError,
+    cell_source as _cell_source,
+    input_diagnostic as _input_diagnostic,
+    map_notebook_span,
+    notebook_cell_document,
+    parse_notebook_input,
+    schema_diagnostic as _schema_diagnostic,
+)
+from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.scan.base import (
     EquationLabel,
@@ -18,25 +28,6 @@ from scieqlint.scan.base import (
     SymbolDirective,
 )
 from scieqlint.scan.markdown import MarkdownScanner
-
-from .notebook_input import (
-    NotebookInput,
-    NotebookSourceLocationError,
-    map_notebook_span,
-    parse_notebook_input,
-)
-from .notebook_input import (
-    cell_source as _cell_source,
-)
-from .notebook_input import (
-    input_diagnostic as _input_diagnostic,
-)
-from .notebook_input import (
-    schema_diagnostic as _schema_diagnostic,
-)
-
-_MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
-
 
 class NotebookScanner:
     def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
@@ -99,7 +90,7 @@ class NotebookScanner:
                 tuple[tuple[tuple[int, int], ...], ...],
                 notebook_input.cell_source_ranges[cell_index],
             )
-            cell_document = _cell_document(document, cell_index, source)
+            cell_document = notebook_cell_document(document, cell_index, source)
             scan = self._markdown.scan(cell_document, config)
             try:
                 mapped_blocks = tuple(
@@ -138,24 +129,6 @@ class NotebookScanner:
             symbol_directives=tuple(symbol_directives),
             diagnostics=tuple(diagnostics),
         )
-
-
-def _cell_document(document: SourceDocument, cell_index: int, source: str) -> SourceDocument:
-    cell_document = SourceDocument.from_text(document.path, source, DocumentKind.MARKDOWN)
-    return replace(
-        cell_document,
-        display_path=f"{document.display_path}#cell-{cell_index}",
-        line_index=LineIndex(
-            (
-                0,
-                *(
-                    index + 1
-                    for index, character in enumerate(cell_document.text)
-                    if character in _MARKDOWN_LINE_BOUNDARIES
-                ),
-            )
-        ),
-    )
 
 
 def _with_cell_block(

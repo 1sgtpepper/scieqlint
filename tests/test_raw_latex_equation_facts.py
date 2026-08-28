@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -8,6 +10,7 @@ from scieqlint.api import check_documents, graph_documents
 from scieqlint.config.model import ChecksConfig, Config, ReferencesConfig, ScannerConfig
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
@@ -1181,6 +1184,63 @@ x = y % \label{commented} \eqref{commented}
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-eqref", "missing")
     ]
+
+
+def test_notebook_source_list_raw_subspans_preserve_exact_segments() -> None:
+    payload = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "\\begin{equation}\nx=1\\label{raw-",
+                    "label}\n\\ref{raw-label}\n\\end{equation}\n",
+                ],
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("raw-segments.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+
+    frontend_snapshot = NotebookFrontend().lower((document,))
+    snapshot = MathHost().classify(frontend_snapshot)
+
+    [label] = snapshot.equation_labels
+    [reference] = snapshot.equation_refs
+    assert label.label == "raw-label"
+    assert reference.target == "raw-label"
+    assert label.span is not None
+    assert reference.target_span is not None
+    assert label.span.segments
+    assert reference.target_span.segments
+
+    def decode(span) -> str:
+        return "".join(
+            json.loads(f'"{document.text[start:end]}"')
+            for segment in span.segments
+            for start, end in segment.ranges
+        )
+
+    assert decode(label.span) == "raw-label"
+    assert decode(reference.target_span) == "raw-label"
+    assert label.span.cell == reference.target_span.cell == 0
+    assert label.span.cell_line == 2
+    assert reference.target_span.cell_line == 3
+
+    [raw_display] = frontend_snapshot.display_math
+    assert raw_display.span is not None
+    malformed = replace(
+        raw_display,
+        span=replace(raw_display.span, segments=raw_display.span.segments[:-1]),
+    )
+    with pytest.raises(ValueError, match="raw equation source mapping does not match"):
+        MathHost().classify(replace(frontend_snapshot, display_math=(malformed,)))
 
 
 def test_raw_equation_facts_are_deterministic_after_newline_normalization() -> None:

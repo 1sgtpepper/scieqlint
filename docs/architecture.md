@@ -21,8 +21,9 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - Parser returns AST or unknown diagnostics. It does not call SymPy.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
 - Cross-reference metadata is preserved in `FactSnapshot`, compared by the reference
-  query view, and diagnosed by the reference engine. Built-in standalone inputs do not
-  yet supply cross-boundary output facts in this slice.
+  query view, and diagnosed by the reference engine. Built-in notebook metadata supplies
+  recorded-output boundaries without executing code; arbitrary producer facts are not a
+  public input surface.
 - Generated-output checks consume explicit source-to-generated provenance facts;
   only `SourceOrigin.source_document_id` establishes the source mapping. The generated
   profile may supply source-kind and conversion-stage annotations when an origin omits

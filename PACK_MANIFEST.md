@@ -172,6 +172,12 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/myst_math.py`
 - `src/scieqlint/frontend/myst_refs.py`
 - `src/scieqlint/frontend/myst_shared.py`
+- `src/scieqlint/frontend/notebook.py`
+- `src/scieqlint/frontend/notebook_cells.py`
+- `src/scieqlint/frontend/notebook_input.py`
+- `src/scieqlint/frontend/notebook_json.py`
+- `src/scieqlint/frontend/notebook_markdown.py`
+- `src/scieqlint/frontend/notebook_outputs.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -263,6 +269,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/inline_math_accessibility.md`
 - `tests/fixtures/good/markdown_lexical_precedence.md`
 - `tests/fixtures/good/myst_good.md`
+- `tests/fixtures/good/notebook_facts.ipynb`
 - `tests/fixtures/good/references_good.md`
 - `tests/fixtures/good/symbol_directives.md`
 - `tests/fixtures/good/symbol_directives.tex`
@@ -344,6 +351,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_markdown_scan.py`
 - `tests/test_myst_scan.py`
 - `tests/test_myst_structure_facts.py`
+- `tests/test_notebook_output_crossrefs.py`
 - `tests/test_notebook_scan.py`
 - `tests/test_pack_manifest.py`
 - `tests/test_package_resources.py`
