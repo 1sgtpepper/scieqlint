@@ -139,6 +139,26 @@ emitted diagnostic contains `profile`, `provenance_ids`, or `properties`, the
 result identifies itself as `0.2` and validates against the packaged 0.2 result
 and diagnostic schemas. The 0.1 schemas remain unchanged.
 
+`SourceSpan` offsets and line/column values refer to the normalized
+`SourceDocument` text. For notebook diagnostics, the physical span is the raw
+JSON document location; `cell` identifies the zero-based notebook cell and
+`cell_line` identifies the one-based line in the decoded Markdown cell. A
+non-empty notebook span also exposes `segments`, one `SourceSegment` per logical
+character covered by the span. Each segment's `ranges` contains the exact raw JSON
+range or ranges for that character, including escaped characters, normalized CRLF,
+and source-list items. A span envelope can therefore include JSON separators when a
+fact crosses source-list items; consumers that need exact source characters should
+use `segments`. Text, JSON, GitHub, and SARIF reporters use the physical span's raw
+JSON line and column while retaining notebook cell metadata where the format
+supports it.
+
+Notebook parsing applies fixed safety bounds at the already-loaded
+`SourceDocument` boundary: the UTF-8 byte length of normalized `SourceDocument.text`
+must be at most 1048576, and the aggregate normalized source of Markdown cells must
+be at most 100000 logical characters. These are not current configuration options;
+exceeding either bound emits `INP003`. Excessive JSON nesting emits `INP001` with a
+deterministic detail rather than escaping the parser boundary.
+
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
 the user config file, so user config values override preset values. The

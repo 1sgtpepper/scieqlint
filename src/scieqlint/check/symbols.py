@@ -76,9 +76,7 @@ def _symbols(block: MathBlock | None) -> tuple[tuple[str, SourceSpan], ...]:
         symbol = match.group(0)
         if symbol in TEX_NON_SYMBOLS:
             continue
-        start = block.span.start + match.start()
-        end = block.span.start + match.end()
-        symbols.append((symbol, _span_from_block(block, start, end)))
+        symbols.append((symbol, _span_from_block(block, match.start(), match.end())))
     return tuple(symbols)
 
 
@@ -97,12 +95,35 @@ def _spaces(value: str) -> str:
 
 
 def _span_from_block(block: MathBlock, start: int, end: int) -> SourceSpan:
-    line_delta, col = _position_from_block(block, start)
-    end_line_delta, end_col = _position_from_block(block, max(start, end - 1))
+    if start < 0 or end < start or end > len(block.source_aligned_text):
+        raise ValueError("block logical range is outside its source")
+    if block.span.segments:
+        segments = block.span.segments[start:end]
+        if len(segments) != end - start or not segments:
+            raise ValueError("block logical range does not match its source segments")
+        first = segments[0]
+        last = segments[-1]
+        line_delta = block.source_aligned_text[:start].count("\n")
+        return SourceSpan(
+            path=block.span.path,
+            start=first.start,
+            end=last.end,
+            line=first.line,
+            col=first.col,
+            end_line=last.end_line,
+            end_col=last.end_col,
+            cell=block.span.cell,
+            cell_line=(None if block.span.cell_line is None else block.span.cell_line + line_delta),
+            segments=segments,
+        )
+    raw_start = block.span.start + start
+    raw_end = block.span.start + end
+    line_delta, col = _position_from_block(block, raw_start)
+    end_line_delta, end_col = _position_from_block(block, max(raw_start, raw_end - 1))
     return SourceSpan(
         path=block.span.path,
-        start=start,
-        end=end,
+        start=raw_start,
+        end=raw_end,
         line=block.span.line + line_delta,
         col=col,
         end_line=block.span.line + end_line_delta,

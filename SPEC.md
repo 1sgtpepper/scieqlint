@@ -684,6 +684,8 @@ Ships:
 - `nbformat` loading,
 - Markdown-cell scanning through existing Markdown scanner,
 - notebook cell metadata in diagnostics,
+- exact raw JSON spans for escaped characters, normalized newlines, and
+  source-list boundaries,
 - malformed notebook handling.
 
 Notebook scanner must:
@@ -692,21 +694,31 @@ Notebook scanner must:
 - ignore code cells without diagnostics,
 - never execute notebooks,
 - preserve zero-based cell index,
-- preserve one-based cell line where possible.
+- preserve one-based cell line for mapped spans,
+- report physical notebook locations against the normalized raw JSON document,
+  while retaining one-based decoded Markdown `cell_line`,
+- retain exact per-logical-character raw ranges for non-empty notebook spans.
 
 Diagnostics introduced:
 
 | Code | Default | Meaning |
 |---|---:|---|
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
+| `INP003` | warning | Input exceeded fixed safety limit |
 
 Acceptance:
 
 - Notebook markdown cells scanned.
 - Code cells ignored.
 - Notebook references preserve cell metadata.
+- Valid string-list cells remain analyzable when a logical span crosses list
+  items, and exact raw ranges remain available for escaped values and normalized
+  CRLF.
 - Malformed JSON, including decoder conversion failures such as oversized
   integers over 4096 decimal digits, emits `INP001` and does not stop other files.
+- Excessive JSON nesting emits deterministic `INP001`; normalized notebook text
+  over 1048576 UTF-8 bytes or aggregate normalized Markdown-cell source over
+  100000 logical characters emits `INP003`.
 - Schema issue emits `INP002` when cells remain readable.
 
 Hard cut list if late:
@@ -1220,10 +1232,21 @@ Requirements:
 - Lines and columns in diagnostics are one-based.
 - `LineIndex.position(offset)` must be O(log n) or better.
 - `LineIndex.slice_span(start, end)` must preserve original line/column boundaries.
+- `SourceDocument.text` is normalized before scanning: CRLF and standalone CR
+  line endings become LF.
 
 ### 8.3 SourceSpan
 
 ```python
+@dataclass(frozen=True, slots=True)
+class SourceSegment:
+    ranges: tuple[tuple[int, int], ...]
+    line: int
+    col: int
+    end_line: int
+    end_col: int
+
+
 @dataclass(frozen=True, slots=True)
 class SourceSpan:
     path: PurePosixPath
@@ -1235,6 +1258,7 @@ class SourceSpan:
     end_col: int
     cell: int | None = None
     cell_line: int | None = None
+    segments: tuple[SourceSegment, ...] = ()
 ```
 
 Rules:
@@ -1243,6 +1267,15 @@ Rules:
 - `line`, `col`, `end_line`, and `end_col` are one-based.
 - `cell` is zero-based notebook cell index.
 - `cell_line` is one-based line inside the notebook markdown cell.
+- For non-empty notebook spans, `segments` contains one `SourceSegment` per
+  logical decoded source character. Each segment's `ranges` contains the exact
+  raw JSON range or ranges for that character, including escapes, normalized
+  CRLF, and source-list items.
+- Notebook `start`/`end` and line/column values identify the physical span in
+  normalized raw JSON. The envelope may include JSON separators between
+  source-list items; consumers reconstructing decoded source must use
+  `segments`.
+- For non-notebook spans, `segments` remains empty.
 - For synthetic spans, use the nearest enclosing source span and set detail text accordingly.
 
 ### 8.4 MathBlock
@@ -1717,7 +1750,7 @@ Diagnostic codes are stable API once introduced.
 | `SCAN001` | warning | Unterminated math container |
 | `SCAN002` | info | Inline math skipped by config |
 | `INP001` | error | File could not be read or decoded |
-| `INP003` | warning | File exceeded configured limit |
+| `INP003` | warning | Input exceeded fixed safety limit |
 | `CFG001` | error | Invalid config file |
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
@@ -2225,7 +2258,17 @@ The checker runtime must not:
 - call SymPy text parsers on document content,
 - execute Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or editor tooling from core analysis.
 
-### Planned source limits
+### Source limits
+
+The current v0.1.4 notebook scanner applies fixed safety bounds at the
+already-loaded `SourceDocument` boundary. It measures the UTF-8 byte length of
+normalized `SourceDocument.text` (maximum 1048576 bytes) and the aggregate
+normalized logical-character length of Markdown-cell sources (maximum 100000
+characters). These bounds are not configuration options; exceeding either emits
+`INP003`. Excessive JSON nesting is rejected with deterministic `INP001`.
+
+The general `[limits]` table below remains future configuration surface; its
+values are not current settings.
 
 Defaults:
 
