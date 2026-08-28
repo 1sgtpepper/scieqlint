@@ -397,9 +397,19 @@ def quarto_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[st
     if fence.body_span is None:
         return ()
     body = document.text[fence.body_span.start : fence.body_span.end]
+    return quarto_option_prefix(body)
+
+
+def quarto_option_prefix(text: str) -> tuple[tuple[str, str], ...]:
+    """Return Quarto options from the source preamble before executable code."""
+
     options: list[tuple[str, str]] = []
-    for line in body.splitlines():
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or (stripped.startswith("#") and not stripped.startswith("#|")):
+            continue
         match = QUARTO_OPTION_RE.match(line)
-        if match is not None:
-            options.append((match.group("key"), match.group("value").strip()))
+        if match is None:
+            break
+        options.append((match.group("key"), match.group("value").strip()))
     return tuple(options)

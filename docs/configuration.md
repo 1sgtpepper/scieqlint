@@ -202,22 +202,24 @@ silently running a different rule set.
   fields; they do not identify the source document or prove a producer
   relationship. SciEqLint never reconstructs missing origin metadata.
 - `cross-format-references` enables equation-reference portability diagnostics
-  and requires `output_profile`. The accepted conservative targets are
+  and requires `output_profile`. For notebooks it lowers recorded cell/output metadata
+  without executing the notebook, and includes Markdown-cell references while
+  `scanner.markdown = true`. The accepted conservative targets are
   `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
   external renderer or claim output parity.
 - `math-accessibility` emits diagnostics for explicit inline-math facts that
-  lack accessible text metadata. It does not generate alternative text, infer
-  metadata from surrounding prose, or apply the policy by default. The profile
-  currently lowers Markdown documents only; notebook Markdown cells and LaTeX
-  documents are outside its scope.
+  lack accessible text metadata, including explicit math in notebook Markdown
+  cells while `scanner.markdown = true`. It also lowers notebook code/output facts
+  without executing code, including when Markdown scanning is disabled. It
+  does not generate alternative text, infer metadata from surrounding prose, or
+  apply the policy by default.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX
   `\left`/`\right` sizing in Markdown and LaTeX documents. Notebook Markdown
-  cells are intentionally outside this profile until their cell-local source
-  mapping is part of the structured frontend contract. Active TeX comments are
-  ignored while source spans remain source-accurate. It does not invoke Typst
-  or translate equations.
+  cells have exact frontend source mapping but are intentionally outside this
+  portability profile. Active TeX comments are ignored while source spans remain
+  source-accurate. It does not invoke Typst or translate equations.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset.

@@ -38,7 +38,7 @@ def doc(text: str) -> SourceDocument:
     )
 
 
-def notebook_doc(text: str) -> SourceDocument:
+def notebook_doc(text: str | list[str]) -> SourceDocument:
     return SourceDocument.from_text(
         PurePosixPath("cross-format.ipynb"),
         json.dumps(
@@ -267,18 +267,23 @@ def test_check_documents_maps_same_notebook_targets_to_exact_source_spans_and_id
     portability = tuple(item for item in result.diagnostics if item.code == "PORT001")
     spans = tuple(item.span for item in portability)
     assert all(span is not None for span in spans)
+    marker = "{eq}`same`"
+    first_start = document.text.index(marker)
+    second_start = document.text.index(marker, first_start + len(marker))
     assert [(span.cell, span.start, span.end) for span in spans if span is not None] == [
-        (0, 69, 73),
-        (1, 136, 140),
+        (0, first_start, first_start + len(marker)),
+        (1, second_start, second_start + len(marker)),
     ]
     assert [document.text[span.start : span.end] for span in spans if span is not None] == [
-        "same",
-        "same",
+        marker,
+        marker,
     ]
     assert [dict(item.properties)["subject_fact_id"] for item in portability] == [
-        "path=10:same.ipynb::cell=1:0::role=16:source-reference::start=2:69",
-        "path=10:same.ipynb::cell=1:1::role=16:source-reference::start=3:136",
+        "same.ipynb::notebook-cell::0::same.ipynb::eq-ref::5",
+        "same.ipynb::notebook-cell::1::same.ipynb::eq-ref::5",
     ]
+    assert len({dict(item.properties)["subject_fact_id"] for item in portability}) == 2
+    assert all(span.segments for span in spans if span is not None)
 
 
 def test_public_loaded_documents_keep_source_role_fact_ids_collision_free() -> None:
@@ -342,6 +347,168 @@ def test_public_loaded_documents_keep_source_role_fact_ids_collision_free() -> N
         owner_occurrences[(document.path, 0)][0]
         != owner_occurrences[(collision_twin.path, None)][0]
     )
+
+
+@pytest.mark.public_regression
+def test_public_cross_format_notebook_role_emits_one_portability_diagnostic() -> None:
+    source = "$$\nx = 1\n$$ {#eq-one}\n\n{eq}`eq-one`\n"
+    document = notebook_doc(source)
+
+    result = check_documents((document,), config=config("commonmark"))
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PORT001"]
+    [diagnostic] = result.diagnostics
+    assert diagnostic.profile == "cross-format-references"
+    assert diagnostic.span is not None
+    assert diagnostic.span.cell == 0
+    assert document.text[diagnostic.span.start : diagnostic.span.end] == "{eq}`eq-one`"
+
+
+@pytest.mark.public_regression
+def test_public_cross_format_notebook_split_generic_ref_keeps_exact_target_span() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("cross-format.ipynb"),
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": ["See {", "ref}`missing`.\n"],
+                    }
+                ],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents((document,), config=config("commonmark"))
+
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]
+    [diagnostic] = result.diagnostics
+    assert diagnostic.detail == "reference text: {ref}`missing`"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == document.path
+    assert diagnostic.span.cell == 0
+    assert diagnostic.span.segments
+    assert document.text[diagnostic.span.start : diagnostic.span.end] == "missing"
+
+
+@pytest.mark.public_regression
+def test_public_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None:
+    source = (
+        r"\begin{equation}"
+        "\n"
+        r"x = 1 \label{eq-raw} \eqref{eq-raw}"
+        "\n"
+        r"\end{equation}"
+    )
+    document = notebook_doc(source)
+    snapshot = _profile_snapshot((document,), config("commonmark"))
+
+    assert len(snapshot.display_math) == 1
+    assert len(snapshot.equation_labels) == 1
+    assert len(snapshot.equation_refs) == 1
+    assert len(snapshot.crossref_metadata) == 2
+    assert len(snapshot.portability) == 1
+
+    [display] = snapshot.display_math
+    [label] = snapshot.equation_labels
+    [reference] = snapshot.equation_refs
+    assert display.container == "ams"
+    assert display.span is not None
+    assert display.span.cell == 0
+    assert display.span.cell_line == 1
+    assert document.text[display.span.start : display.span.end] == json.dumps(source)[1:-1]
+    assert label.label == "eq-raw"
+    assert label.span is not None
+    assert label.span.cell == 0
+    assert label.span.cell_line == 2
+    assert label.label_span is not None
+    assert label.label_span.cell == 0
+    assert label.label_span.cell_line == 2
+    assert document.text[label.label_span.start : label.label_span.end] == "eq-raw"
+    assert reference.ref_kind == "tex-eqref"
+    assert reference.target == "eq-raw"
+    assert reference.span is not None
+    assert reference.span.cell == 0
+    assert reference.span.cell_line == 2
+    assert reference.role_span is not None
+    assert reference.role_span.cell == 0
+    assert reference.role_span.cell_line == 2
+    assert (
+        document.text[reference.role_span.start : reference.role_span.end]
+        == json.dumps(r"\eqref{eq-raw}")[1:-1]
+    )
+    assert reference.target_span is not None
+    assert reference.target_span.cell == 0
+    assert reference.target_span.cell_line == 2
+    assert document.text[reference.target_span.start : reference.target_span.end] == "eq-raw"
+    assert [(fact.metadata_kind, fact.logical_target) for fact in snapshot.crossref_metadata] == [
+        ("target-definition", "eq-raw"),
+        ("reference-use", "eq-raw"),
+    ]
+
+    result = check_documents((document,), config=config("commonmark"))
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PORT001"]
+    [diagnostic] = result.diagnostics
+    assert diagnostic.span is not None
+    assert diagnostic.span.cell == 0
+    assert (
+        document.text[diagnostic.span.start : diagnostic.span.end]
+        == json.dumps(r"\eqref{eq-raw}")[1:-1]
+    )
+
+
+def test_notebook_raw_equation_ids_are_stable_across_json_formatting() -> None:
+    source = [
+        r"\begin{equation}" + "\r",
+        "\n" + r"x = 1 \label{eq-split} ",
+        r"\eqref{eq-split}" + "\n" + r"\end{equation}",
+    ]
+    payload = {
+        "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    documents = tuple(
+        SourceDocument.from_text(
+            PurePosixPath("stable.ipynb"),
+            json.dumps(payload, **options),
+            DocumentKind.NOTEBOOK,
+        )
+        for options in ({}, {"indent": 2})
+    )
+
+    identities: list[tuple[str, str, str]] = []
+    for document in documents:
+        snapshot = _profile_snapshot((document,), config("commonmark"))
+        [display] = snapshot.display_math
+        [label] = snapshot.equation_labels
+        [reference] = snapshot.equation_refs
+        assert display.span is not None
+        assert any(len(segment.ranges) == 2 for segment in display.span.segments)
+        assert label.label_span is not None
+        assert label.label_span.cell == 0
+        assert label.label_span.segments
+        assert [
+            document.text[start:end]
+            for segment in label.label_span.segments
+            for start, end in segment.ranges
+        ] == list("eq-split")
+        assert reference.role_span is not None
+        assert reference.role_span.cell == 0
+        assert reference.role_span.segments
+        identities.append((display.fact_id, label.fact_id, reference.fact_id))
+
+    assert identities[0] == identities[1]
 
 
 def test_reference_portability_matrix_is_conservative_and_explicit() -> None:

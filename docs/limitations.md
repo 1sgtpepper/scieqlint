@@ -10,7 +10,7 @@ implemented in the current release.
 | `.md` | supported |
 | `.markdown` | supported |
 | `.tex` | supported for v0.1.3 LaTeX containers |
-| `.ipynb` | supported for v0.1.4 Markdown cells |
+| `.ipynb` | supported for Markdown cells; profile-only code-cell and output facts retain source spans |
 
 Path-based directory and glob discovery considers only these suffixes. An existing
 explicit file with another suffix, or with no suffix, is rejected before scanning;
@@ -140,11 +140,11 @@ safely, and symlinks are never resolved.
 The built-in MyST frontend emits complete, source-neutral cross-reference metadata
 facts with target-definition member paths and source/output-boundary provenance.
 `REF007` is fact-backed and compares complete facts from distinct boundaries when
-they describe the same target identity with incompatible metadata. The current
-standalone built-in inputs do not produce that cross-boundary case; notebook and
-engine-output producer integration is deferred to #372/#356. Explicit display titles
-remain attached to reference-use facts, while pathless reference roles remain
-label-only uses and do not supply a target-definition path.
+they describe the same target identity with incompatible metadata. Built-in notebook
+output metadata supplies recorded-output boundaries; arbitrary external or engine
+producers are not a public input surface. Explicit display titles remain attached to
+reference-use facts, while pathless reference roles remain label-only uses and do not
+supply a target-definition path.
 
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
@@ -191,15 +191,16 @@ formula must be checked. `GEN005` is a suspicion about generated text, not a cla
 that the text is a valid or mathematically correct equation, and SciEqLint does not
 rewrite it.
 
-The `math-accessibility` profile currently applies only to `DocumentKind.MARKDOWN`
-documents. Notebook Markdown cells and LaTeX documents are not lowered into its
-accessibility fact set, so they do not receive accessibility IDs or `PORT002`
-diagnostics. A non-empty `accessibility_metadata` mapping is accepted only with that
-profile; the mapping is caller-owned and must use non-empty string keys and string
-values. Recognized explicit
-inline-math facts remain subject to the accessibility requirement even when `MathHost`
-classifies their contents as unsupported. Empty, malformed, or unrecognized candidates
-that produce no inline-math fact, and inferred plain-text candidates, remain outside.
+The `math-accessibility` profile applies to Markdown documents and notebook Markdown
+cells while the Markdown scanner is enabled; LaTeX documents remain outside its
+accessibility fact set. Recorded notebook code/output facts remain available to the
+profile when Markdown scanning is disabled, but they do not create accessibility math
+facts. A non-empty `accessibility_metadata` mapping is accepted only with that profile;
+the mapping is caller-owned and must use non-empty string keys and string values.
+Recognized explicit inline-math facts remain subject to the accessibility requirement
+even when `MathHost` classifies their contents as unsupported. Empty, malformed, or
+unrecognized candidates that produce no inline-math fact, and inferred plain-text
+candidates, remain outside.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text
@@ -395,9 +396,8 @@ translation. For `.tex` inputs, complete `\[ ... \]`, `$$ ... $$`, `equation`,
 or unterminated forms remain scanner diagnostics or unlowered source rather than being
 reconstructed by the portability check. The profile reports only the documented
 unsupported commands and fragile environments in lowered display spans. Notebook
-Markdown cells are intentionally excluded: the notebook scanner retains cell-local
-spans, but the structured portability snapshot does not yet preserve the corresponding
-cell source mapping.
+Markdown cells have exact structured-frontend source mapping but are intentionally
+excluded from the current portability profile.
 
 ## Dimensions
 
@@ -421,16 +421,30 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 Notebooks are never executed. v0.1.4 scans Markdown cells, joins valid string
 lists according to the Jupyter format, preserves notebook cell metadata in
-diagnostics, and ignores code cells. Notebook physical offsets and line/column
-values refer to the normalized raw JSON document; `cell_line` remains the
-one-based line in the decoded Markdown cell. Non-empty notebook spans expose one
-`segments` entry per logical character covered by the span, whose `ranges` retain exact raw JSON
-locations for escapes, normalized CRLF, and source-list items. A span envelope may
-include the JSON separator between source-list items, so exact source reconstruction
-uses `segments`. At this normalized `SourceDocument` boundary, notebook parsing
-also applies fixed safety bounds of 1048576 UTF-8 bytes for the normalized document
-and 100000 normalized logical characters across Markdown-cell sources. These bounds
-are not current configuration settings. Exceeding either emits `INP003`. Malformed
-inputs emit deterministic `INP001` or `INP002` diagnostics; JSON integers over 4096
-decimal digits and excessive JSON nesting are rejected with `INP001`. Code-cell
-variable analysis, notebook execution, and full Jupyter schema validation are deferred.
+diagnostics, and keeps code-cell math silent. The
+`cross-format-references` and `math-accessibility` profiles additionally lower
+code-cell metadata and recorded outputs into immutable facts; this metadata pass
+does not evaluate source or re-render outputs.
+
+Code-cell facts retain the cell index, language/engine, supported scalar options,
+labels or tags, raw source, and the exact JSON cell span. Output facts retain the
+cell/output indexes, output type, MIME keys, supported scalar metadata, raw output,
+and exact JSON output span. Typed output labels (`eq-`, `fig-`, `tbl-`, and `lst-`)
+provide target metadata; labels are not inferred from output order.
+
+Markdown-cell math and reference facts retain the notebook path, cell, and
+cell-relative line while remapping logical offsets to the original JSON source.
+Notebook physical offsets and line/column values refer to the normalized raw JSON
+document; `cell_line` remains the one-based line in the decoded Markdown cell.
+Non-empty mapped spans expose one `segments` entry per logical character. Each
+segment retains every exact raw JSON range needed for escapes, normalized CRLF,
+and source-list items. A span envelope may include JSON separators between list
+items, so exact reconstruction uses `segments`.
+
+At the normalized `SourceDocument` boundary, notebook parsing applies fixed safety
+bounds of 1048576 UTF-8 bytes per document and 100000 normalized logical characters
+across Markdown-cell sources. These are not configuration settings. Exceeding either
+emits `INP003`. Malformed inputs emit deterministic `INP001` or `INP002` diagnostics;
+JSON integers over 4096 decimal digits and excessive JSON nesting are rejected with
+`INP001`. Code-cell variable analysis, notebook execution, and full Jupyter schema
+validation are deferred.

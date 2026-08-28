@@ -233,6 +233,23 @@ def test_import_linter_contracts_encode_release_boundary_map():
         "scieqlint.engine",
     }
 
+    frontend_contract = contract_by_suffix("FrontendHost owns notebook input mapping")
+    assert frontend_contract["type"] == "forbidden"
+    assert frontend_contract["source_modules"] == ["scieqlint.frontend"]
+    assert frontend_contract["forbidden_modules"] == ["scieqlint.scan"]
+
+
+def test_frontend_notebook_mapping_does_not_reenter_transitional_scanner():
+    notebook_modules = (
+        REPO_ROOT / "src" / "scieqlint" / "frontend" / "notebook.py",
+        REPO_ROOT / "src" / "scieqlint" / "frontend" / "notebook_markdown.py",
+        REPO_ROOT / "src" / "scieqlint" / "frontend" / "notebook_input.py",
+        REPO_ROOT / "src" / "scieqlint" / "frontend" / "notebook_json.py",
+    )
+    assert all(
+        "scieqlint.scan" not in path.read_text(encoding="utf-8") for path in notebook_modules
+    )
+
 
 def test_import_linter_ci_gate_is_release_blocking():
     workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")

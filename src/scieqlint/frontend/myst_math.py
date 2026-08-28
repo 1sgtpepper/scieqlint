@@ -6,7 +6,6 @@ import re
 from bisect import bisect_left
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
-from urllib.parse import quote
 
 from scieqlint.facts.math import (
     DisplayMathFact,
@@ -33,6 +32,7 @@ from .myst_shared import (
     OffsetRange,
     dollar_inline_ranges,
     in_ranges,
+    inline_math_accessibility_id,
     line_ranges,
     normalize_label,
 )
@@ -273,7 +273,6 @@ def _with_accessibility_ids(
     """Assign source-owned IDs without coupling metadata to byte offsets."""
 
     occurrences: dict[tuple[str, str], int] = {}
-    encoded_path = quote(document.path.as_posix(), safe="")
     for fact in facts:
         if fact.delimiter_kind == "plain-text":
             yield fact
@@ -281,12 +280,15 @@ def _with_accessibility_ids(
         identity = (fact.delimiter_kind, fact.body)
         occurrence = occurrences.get(identity, 0)
         occurrences[identity] = occurrence + 1
-        accessibility_id = (
-            f"{encoded_path}::inline-math::{fact.delimiter_kind}::{quote(fact.body, safe='')}"
+        yield replace(
+            fact,
+            accessibility_id=inline_math_accessibility_id(
+                document.path.as_posix(),
+                fact.delimiter_kind,
+                fact.body,
+                occurrence,
+            ),
         )
-        if occurrence:
-            accessibility_id += f"::{occurrence}"
-        yield replace(fact, accessibility_id=accessibility_id)
 
 
 def _merge_occupied(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:

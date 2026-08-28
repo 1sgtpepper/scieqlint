@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from urllib.parse import quote
 
+from scieqlint.facts.math import InlineDelimiter
 from scieqlint.markdown import dollar_display_ranges as _dollar_display_ranges
 from scieqlint.markdown import dollar_inline_ranges as _dollar_inline_ranges
 from scieqlint.markdown import range_contains
@@ -68,6 +70,26 @@ def normalize_label(value: str) -> str:
     if value.startswith("#"):
         value = value[1:]
     return value
+
+
+def inline_math_accessibility_id(
+    document_path: str,
+    delimiter: InlineDelimiter,
+    body: str,
+    occurrence: int,
+    *,
+    notebook_cell: int | None = None,
+) -> str:
+    """Format the stable identity shared by Markdown and notebook math."""
+
+    encoded_path = quote(document_path, safe="")
+    cell_prefix = "" if notebook_cell is None else f"notebook-cell::{notebook_cell}::"
+    accessibility_id = (
+        f"{encoded_path}::{cell_prefix}inline-math::{delimiter}::{quote(body, safe='')}"
+    )
+    if occurrence:
+        accessibility_id += f"::{occurrence}"
+    return accessibility_id
 
 
 def slug(text: str) -> str:

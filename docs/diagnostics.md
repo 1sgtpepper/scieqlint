@@ -57,25 +57,26 @@ external renderer execution. JSON and SARIF results include `profile`,
 `output_profile`, `ref_kind`, and `target` metadata.
 
 `PORT002` is opt-in through `math-accessibility`. It reports explicit inline
-math facts whose `alt` metadata is absent. Inferred equation-like prose is not
-treated as an owned math span, and SciEqLint does not synthesize accessible
-text. JSON and SARIF include the accessibility requirement, delimiter kind,
-surrounding text role, parse status recorded by `MathHost`, and the stable
-`accessibility_id` used as the `check_documents()` metadata key. The diagnostic also
-retains `subject_fact_id` for fact provenance; that offset-based ID is not a metadata
-lookup key. Callers provide source-owned accessibility-ID-keyed metadata through
-`check_documents()`; malformed, unknown, or ambiguous IDs are rejected even when no
-selected document produces an accessibility snapshot. The profile currently covers
-Markdown only; notebook Markdown cells and LaTeX documents are excluded.
+math facts whose `alt` metadata is absent, including explicit math in notebook
+Markdown cells. Inferred equation-like prose is not treated as an owned math span,
+and SciEqLint does not synthesize accessible text. JSON and SARIF include the
+accessibility requirement, delimiter kind, surrounding text role, parse status
+recorded by `MathHost`, and the stable `accessibility_id` used as the
+`check_documents()` metadata key. The diagnostic also retains `subject_fact_id`
+for fact provenance; that ID is not a metadata lookup key. Callers provide
+source-owned accessibility-ID-keyed metadata through `check_documents()`;
+malformed, unknown, or ambiguous IDs are rejected even when no selected document
+produces an accessibility snapshot. Notebook code and recorded outputs are facts
+only; this profile never executes code or renders an output. LaTeX documents remain
+outside the accessibility profile.
 
 `PORT003` is opt-in through `typst-portability`. It reports only the focused
 display-math forms modeled by `MathHost`: `\dfrac`, `\argmin`, and
 `aligned`, `array`, or `matrix` environments combined with `\left` or
-`\right` in Markdown and LaTeX documents. Notebook Markdown cells are not
-materialized into this profile because their cell-local source mapping is not
-yet part of the structured frontend contract. Diagnostics retain the exact
-source span and command or environment metadata. The profile does not render
-Typst or claim complete translation coverage.
+`\right` in Markdown and LaTeX documents. Notebook Markdown cells have exact
+frontend source mapping but are not admitted by this portability profile.
+Diagnostics retain the exact source span and command or environment metadata.
+The profile does not render Typst or claim complete translation coverage.
 
 ## Generated-output engine
 
@@ -215,13 +216,13 @@ and are not project paths.
 
 `REF007` is the fact-backed diagnostic for separate source or engine-output boundaries
 that describe the same complete normalized path-and-fragment identity with conflicting
-kind or target metadata. The current built-in standalone inputs do not yet supply
-cross-boundary output facts, so this rule is not reachable from ordinary
-`check_paths()`/`check_documents()` calls in this slice; notebook/output producer
-integration is deferred to #372/#356. When the source format has no path identity, the
-normalized label remains the target key for a reference use. Target-definition metadata
-must carry a member path; incomplete definitions are not grouped by label. Source format
-is retained as provenance and does not conflict by itself. A reference role or local
-display title belongs to the reference use and does not participate in this comparison.
-The diagnostic properties preserve both boundary identities; reporters do not inspect
-source documents to reconstruct them.
+kind or target metadata. Built-in notebook code/output metadata supplies distinct
+recorded-output boundaries, so ordinary `check_paths()` and `check_documents()` calls
+can report this conflict without executing a notebook. Arbitrary external or engine
+producer facts are not a public input surface. When the source format has no path
+identity, the normalized label remains the target key for a reference use.
+Target-definition metadata must carry a member path; incomplete definitions are not
+grouped by label. Source format is retained as provenance and does not conflict by
+itself. A reference role or local display title belongs to the reference use and does
+not participate in this comparison. The diagnostic properties preserve both boundary
+identities; reporters do not inspect source documents to reconstruct them.

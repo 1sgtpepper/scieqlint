@@ -51,17 +51,18 @@ to the same canonical project member; canonical member identity is owned by
 
 `accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
 accessibility ID to accessible text. IDs percent-encode the document path and trimmed
-body as `<document-path>::inline-math::<delimiter-kind>::<body>`; repeated identical
-explicit containers append `::1`, `::2`, and so on. These IDs do not depend on byte
-offsets, while inferred plain-text candidates receive no ID. SciEqLint applies metadata
-at the orchestration boundary; it does not infer alternative text from surrounding
-prose. Keys must be non-empty strings and values must be strings; malformed mappings
-raise `ValueError` before analysis. An unknown ID or an ID that resolves to more than
-one fact is also rejected. A non-empty mapping is valid only with the
+body as `<document-path>::inline-math::<delimiter-kind>::<body>`; notebook IDs insert
+`notebook-cell::<index>` before `inline-math`. Repeated identical explicit containers
+append `::1`, `::2`, and so on. These IDs do not depend on byte offsets, while inferred
+plain-text candidates receive no ID. SciEqLint applies metadata at the orchestration
+boundary; it does not infer alternative text from surrounding prose. Keys must be
+non-empty strings and values must be strings; malformed mappings raise `ValueError`
+before analysis. Unknown or non-unique IDs are also rejected. A non-empty mapping is
+valid only with the
 `math-accessibility` profile; an empty mapping remains a no-op for compatibility.
-That profile currently lowers Markdown documents only. Markdown cells in notebooks and
-LaTeX documents are outside this contract and do not produce `PORT002` diagnostics or
-accessibility IDs.
+That profile lowers Markdown documents and notebook Markdown cells. LaTeX documents
+remain outside this contract and do not produce `PORT002` diagnostics or accessibility
+IDs.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a
@@ -114,8 +115,9 @@ project-relative reference resolution. `graph_paths()` always uses the default
 presentation.
 When an absolute input and the current directory have different native roots,
 default presentation raises `ValueError` rather than leak an absolute path or
-collapse distinct roots. Checks may opt into absolute paths; graph inputs must be
-expressed on the current root.
+collapse distinct roots. Checks may opt into absolute paths. Graph inputs may be
+absolute when they share the current native root; graph presentation has no
+absolute-path opt-in for cross-native-root inputs.
 
 `CheckResult` exposes `diagnostics`, `files_checked`, `math_blocks_checked`,
 `config_path`, `version`, `show_suppressed`, and `exit_code()`. `exit_code()`
