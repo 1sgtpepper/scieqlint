@@ -264,6 +264,25 @@ def _spaces_for_match(match: re.Match[str]) -> str:
 
 
 def _equation_span(block: MathBlock, equation: _EquationLine) -> SourceSpan:
+    if block.span.segments and len(block.span.segments) == len(block.text):
+        segments = block.span.segments[equation.start : equation.end]
+        if segments:
+            first = segments[0]
+            last = segments[-1]
+            line_delta = block.text[: equation.start].count("\n")
+            return replace(
+                block.span,
+                start=first.start,
+                end=last.end,
+                line=first.line,
+                col=first.col,
+                end_line=last.end_line,
+                end_col=last.end_col,
+                cell_line=(
+                    None if block.span.cell_line is None else block.span.cell_line + line_delta
+                ),
+                segments=segments,
+            )
     if block.span.end - block.span.start != len(block.text):
         return block.span
 

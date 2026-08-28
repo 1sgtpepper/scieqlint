@@ -220,6 +220,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/scan/latex.py`
 - `src/scieqlint/scan/markdown.py`
 - `src/scieqlint/scan/notebook.py`
+- `src/scieqlint/scan/notebook_input.py`
+- `src/scieqlint/scan/notebook_json.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
 - `src/scieqlint/schema/diagnostic.py`

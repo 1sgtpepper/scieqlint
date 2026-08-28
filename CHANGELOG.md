@@ -92,6 +92,11 @@ Release notes must use these sections:
   API boundary, and `PORT002` carries the stable source-owned accessibility ID used by
   those mappings. The `math-accessibility` profile is explicitly limited to Markdown;
   notebook Markdown cells and LaTeX documents remain out of scope.
+- Notebook Markdown spans now retain exact raw JSON segments across escaped
+  characters, normalized newlines, and source-list boundaries; valid list-form
+  cells remain analyzable and oversized or deeply nested notebook input fails
+  closed deterministically. Fixed notebook safety bounds are measured at the
+  normalized `SourceDocument` boundary.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic

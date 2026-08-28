@@ -181,9 +181,9 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "INP003": DiagnosticInfo(
         "INP003",
         Severity.WARNING,
-        "file exceeded configured limit",
+        "input exceeds fixed safety limit",
         "v0.1.0",
-        "The file was skipped because it exceeded a configured limit.",
+        "The input was skipped because it exceeded a fixed safety limit.",
     ),
     "CFG001": DiagnosticInfo(
         "CFG001",

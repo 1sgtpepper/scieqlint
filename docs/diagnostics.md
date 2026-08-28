@@ -13,6 +13,7 @@ codes before every code is emitted by the current analyzer.
 | `SCAN001` | warning | Unterminated math container |
 | `INP001` | error | File could not be read or decoded |
 | `INP002` | warning | Notebook schema issue; scanned best-effort |
+| `INP003` | warning | Input exceeded fixed safety limit |
 | `SCAN010` | warning | Malformed explicit symbol directive |
 | `STR001` | warning | ATX heading marker must be followed by a space |
 | `STR002` | warning | Fenced block is missing its closing delimiter |
@@ -116,7 +117,6 @@ emit them from normal checks:
 | `PARSE001` | warning | Could not parse supported-looking math |
 | `PARSE022` | info | Unsupported operator; check skipped |
 | `SCAN002` | info | Inline math skipped by config |
-| `INP003` | warning | File exceeded configured limit |
 | `CFG001` | error | Invalid config file |
 | `CFG010` | error | Invalid dimension expression |
 
