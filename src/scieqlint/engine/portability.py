@@ -5,13 +5,15 @@ from __future__ import annotations
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.facts.math import InlineMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
+from scieqlint.facts.structure import CodeCellFact, NotebookOutputFact
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
+from scieqlint.query.portability import NotebookRenderingConflict
 
 
 class PortabilityEngine:
     name = "portability"
-    rule_codes = frozenset({"PORT001", "PORT002", "PORT003"})
+    rule_codes = frozenset({"PORT001", "PORT002", "PORT003", "PORT004"})
 
     def __init__(self, *, profile: str, policy: PolicyHost) -> None:
         self.profile = profile
@@ -33,6 +35,11 @@ class PortabilityEngine:
                     raise ValueError(f"unsupported Typst portability risk kind: {fact.risk_kind}")
                 diagnostics.append(self._typst_syntax_diagnostic(fact))
             return tuple(diagnostics)
+        if self.profile == "notebook-crossrefs":
+            return tuple(
+                self._notebook_renderings_diagnostic(conflict)
+                for conflict in query.portability.notebook_rendering_conflicts()
+            )
         if self.profile != "cross-format-references":
             raise ValueError(f"unsupported portability profile: {self.profile}")
 
@@ -110,6 +117,53 @@ class PortabilityEngine:
             ),
         )
 
+    def _notebook_renderings_diagnostic(
+        self,
+        conflict: NotebookRenderingConflict,
+    ) -> DiagnosticIR:
+        cell = conflict.cell
+        output = conflict.output
+        location = output or cell
+        label = _conflict_label(cell, output) or "<caption-only cell>"
+        output_detail = ""
+        output_properties: tuple[tuple[str, str], ...] = ()
+        if output is not None:
+            output_detail = f" at output {output.output_index}"
+            output_properties = (("output_index", str(output.output_index)),)
+        provenance_ids = (cell.fact_id, output.fact_id) if output is not None else (cell.fact_id,)
+        return DiagnosticIR(
+            code="PORT004",
+            severity_default=self.policy.severity("PORT004"),
+            message="cell renderings are incompatible with cross-reference options",
+            span=location.span,
+            detail=(
+                f"cell {label!r}{output_detail} combines renderings={conflict.renderings!r} "
+                f"with {list(conflict.crossref_options)!r}"
+            ),
+            hint=(
+                "Keep renderings on a cell without cross-reference options, or move "
+                "the labeled figure/table structure outside the rendered cell."
+            ),
+            rule="portability.notebook_renderings_crossref",
+            profile_gated=True,
+            false_positive_risk="low",
+            profile=self.profile,
+            provenance_ids=provenance_ids,
+            properties=(
+                ("label", label),
+                ("renderings", conflict.renderings),
+                ("crossref_options", ",".join(conflict.crossref_options)),
+                (
+                    "source_format",
+                    "notebook"
+                    if cell.span is not None and cell.span.cell is not None
+                    else "markdown",
+                ),
+                ("subject_fact_id", cell.fact_id),
+                *output_properties,
+            ),
+        )
+
     def _typst_syntax_diagnostic(
         self,
         fact: OutputPortabilityFact,
@@ -154,3 +208,19 @@ class PortabilityEngine:
             profile=self.profile,
             properties=properties,
         )
+
+
+def _conflict_label(
+    cell: CodeCellFact,
+    output: NotebookOutputFact | None,
+) -> str | None:
+    if output is not None:
+        for key, value in output.metadata:
+            if key in {"label", "lst-label"} and value.strip():
+                return value
+    if cell.label is not None and cell.label.strip():
+        return cell.label
+    for key, value in cell.options:
+        if key == "lst-label" and value.strip():
+            return value
+    return None

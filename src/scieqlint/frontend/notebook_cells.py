@@ -19,12 +19,15 @@ _CELL_OPTION_KEYS = frozenset(
         "caption",
         "engine",
         "fig-cap",
+        "fig-subcap",
         "label",
         "language",
+        "lst-label",
         "lst-cap",
         "renderings",
         "tags",
         "tbl-cap",
+        "tbl-subcap",
     }
 )
 

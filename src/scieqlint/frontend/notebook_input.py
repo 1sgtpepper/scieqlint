@@ -307,14 +307,17 @@ def _output_label_spans(
             document.text,
             *output_members["metadata"],
         )
-        raw_label = metadata.get("label")
-        if not _option_value_present(raw_label):
+        label_key = next(
+            (key for key in ("label", "lst-label") if _option_value_present(metadata.get(key))),
+            None,
+        )
+        if label_key is None:
             spans.append(None)
             continue
         spans.append(
             _json_value_span(
                 document,
-                metadata_members["label"],
+                metadata_members[label_key],
                 cell=cell_index,
                 cell_line=1,
             )

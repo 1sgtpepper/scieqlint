@@ -54,6 +54,8 @@ Release notes must use these sections:
   across document and output boundaries. Built-in recorded notebook-output metadata
   now makes `REF007` reachable without execution; arbitrary producer facts are not a
   public input surface.
+- Lower notebook code-cell renderings, cross-reference options, and output-boundary
+  facts, with an opt-in warning for incompatible renderings/crossref combinations.
 
 ### Changed
 
@@ -120,6 +122,13 @@ Release notes must use these sections:
   reference identities and diagnostics remain deterministic.
 - Ambiguous generic-reference diagnostics now retain supported local Markdown-link
   references.
+- Notebook lowering scopes nested equation-reference owners by cell, and notebook
+  cross-reference label prefixes are matched case-insensitively.
+- Notebook output targets now retain complete member-path identity and exact JSON
+  output and label locations; unavailable source locations fail closed with `INP001`.
+- Notebook rendering conflicts now preserve one diagnostic per recorded output and
+  recognize Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases; recorded
+  output aliases retain the exact JSON option span used for their target.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Malformed local URL destinations are now ignored safely, and project-reference

@@ -663,6 +663,94 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
     assert equivalent_result.exit_code() == 0
 
 
+@pytest.mark.public_regression
+def test_public_check_documents_reports_listing_alias_output_metadata_conflict() -> None:
+    def document(second_caption: str) -> SourceDocument:
+        payload = {
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [
+                        {
+                            "data": {"text/plain": "first"},
+                            "metadata": {
+                                "lst-cap": "Shared listing",
+                                "lst-label": "lst-shared",
+                            },
+                            "output_type": "display_data",
+                        },
+                        {
+                            "data": {"text/plain": "second"},
+                            "metadata": {
+                                "lst-cap": second_caption,
+                                "lst-label": "lst-shared",
+                            },
+                            "output_type": "display_data",
+                        },
+                    ],
+                    "source": [],
+                }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+        return SourceDocument.from_text(
+            PurePosixPath("reachable.ipynb"),
+            json.dumps(payload, sort_keys=True),
+            DocumentKind.NOTEBOOK,
+        )
+
+    conflicting = document("Different listing")
+    result = check_documents((conflicting,), config=cross_format_config())
+    snapshot = _profile_snapshot((conflicting,), cross_format_config())
+    definitions = tuple(
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
+    )
+    anchors = snapshot.target_anchors
+
+    assert len(definitions) == 2
+    assert len(anchors) == 2
+    assert [fact.logical_target for fact in definitions] == ["lst-shared", "lst-shared"]
+    assert [fact.target_metadata for fact in definitions] == [
+        (("lst-cap", "Shared listing"),),
+        (("lst-cap", "Different listing"),),
+    ]
+    assert [fact.target_span for fact in definitions] == [anchor.label_span for anchor in anchors]
+    assert all(fact.target_span is not None for fact in definitions)
+    assert all(
+        conflicting.text[fact.target_span.start : fact.target_span.end] == "lst-shared"
+        for fact in definitions
+        if fact.target_span is not None
+    )
+
+    conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
+    canonical_boundary = "reachable.ipynb::notebook-cell::0::output::0"
+    diagnostics = tuple(item for item in result.diagnostics if item.code == "REF007")
+    assert len(diagnostics) == 1
+    item = diagnostics[0]
+    assert item.span == definitions[1].target_span
+    assert item.provenance_ids == (
+        f"{canonical_boundary}::crossref-metadata",
+        f"{conflict_boundary}::crossref-metadata",
+    )
+    assert item.properties == (
+        ("target", "reachable.ipynb#lst-shared"),
+        ("output_boundary", conflict_boundary),
+        ("resolved_target_kind", "listing"),
+        ("source_format", "notebook"),
+        ("canonical_boundary", canonical_boundary),
+        ("canonical_resolved_target_kind", "listing"),
+        ("canonical_source_format", "notebook"),
+    )
+
+    equivalent = document("Shared listing")
+    equivalent_result = check_documents((equivalent,), config=cross_format_config())
+    assert not any(item.code == "REF007" for item in equivalent_result.diagnostics)
+
+
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:
     canonical = metadata(
         "m1",

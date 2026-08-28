@@ -356,6 +356,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A focused TeX display-math form is known to be unsupported or fragile "
         "in current Typst publishing paths.",
     ),
+    "PORT004": DiagnosticInfo(
+        "PORT004",
+        Severity.WARNING,
+        "cell renderings are incompatible with cross-reference options",
+        "v1.1.0",
+        "A notebook or executable Markdown cell combines renderings with a label or "
+        "caption option that creates a cross-reference.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,

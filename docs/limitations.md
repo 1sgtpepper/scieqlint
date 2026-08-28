@@ -147,7 +147,10 @@ they describe the same target identity with incompatible metadata. Built-in note
 output metadata supplies recorded-output boundaries; arbitrary external or engine
 producers are not a public input surface. Explicit display titles remain attached to
 reference-use facts, while pathless reference roles remain label-only uses and do not
-supply a target-definition path.
+supply a target-definition path. Recorded notebook output targets retain the output
+index and exact JSON label-value span. Quarto `lst-label` shares the target identity of
+`label`; `label` takes precedence when both are present. `PORT004` reports each affected
+output independently and fails closed with `INP001` when an exact location is unavailable.
 
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
@@ -427,9 +430,9 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 Notebooks are never executed. v0.1.4 scans Markdown cells, joins valid string
 lists according to the Jupyter format, preserves notebook cell metadata in
 diagnostics, and keeps code-cell math silent. The
-`cross-format-references` and `math-accessibility` profiles additionally lower
-code-cell metadata and recorded outputs into immutable facts; this metadata pass
-does not evaluate source or re-render outputs.
+`cross-format-references`, `math-accessibility`, and `notebook-crossrefs` profiles
+additionally lower code-cell metadata and recorded outputs into immutable facts;
+this metadata pass does not evaluate source or re-render outputs.
 
 Code-cell facts retain the cell index, language/engine, supported scalar options,
 labels or tags, raw source, and the exact JSON cell span. Output facts retain the
@@ -451,5 +454,8 @@ bounds of 1048576 UTF-8 bytes per document and 100000 normalized logical charact
 across Markdown-cell sources. These are not configuration settings. Exceeding either
 emits `INP003`. Malformed inputs emit deterministic `INP001` or `INP002` diagnostics;
 JSON integers over 4096 decimal digits and excessive JSON nesting are rejected with
-`INP001`. Code-cell variable analysis, notebook execution, and full Jupyter schema
-validation are deferred.
+`INP001`. The opt-in `notebook-crossrefs` profile recognizes `label`, `lst-label`,
+`fig-cap`, `fig-subcap`, `tbl-cap`, `tbl-subcap`, `lst-cap`, `cap`, and `caption`
+as cross-reference metadata; unrelated presentation options such as `fig-alt` and
+`fig-align` remain quiet. Code-cell variable analysis, notebook execution, and
+full Jupyter schema validation are deferred.

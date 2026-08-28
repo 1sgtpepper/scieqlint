@@ -8,6 +8,7 @@ import pytest
 import scieqlint.frontend.notebook_input as notebook_input_module
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
+from scieqlint.config.load import load_config
 from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
@@ -17,13 +18,16 @@ from scieqlint.config.model import (
     ValidationProfile,
 )
 from scieqlint.diag.model import SourceSpan
+from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.frontend.notebook_input import parse_notebook_input
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
+from scieqlint.report.json import JsonReporter
 
 
 def notebook(data: object, path: str = "theme.ipynb") -> SourceDocument:
@@ -47,6 +51,10 @@ def config(profile: ValidationProfile | None = "math-accessibility") -> Config:
         profile=ProfileConfig(name=profile),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
+
+
+def notebook_crossrefs_config() -> Config:
+    return config("notebook-crossrefs")
 
 
 def notebook_payload(*cells: object) -> dict[str, object]:
@@ -266,6 +274,46 @@ def test_notebook_output_spans_use_literal_boundaries_and_cell_identity() -> Non
     assert document.text[first_span.end : second_span.start] == ",\n        "
 
 
+def test_notebook_profile_warns_once_for_renderings_with_crossref_options() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "fig-theme",
+                    "fig-cap": "Theme comparison",
+                    "renderings": ["light", "dark"],
+                },
+                outputs=(display_output(output_metadata={}),),
+                source='raise RuntimeError("must not execute")',
+            )
+        )
+    )
+
+    result = check_documents((document,), config=notebook_crossrefs_config())
+
+    diagnostics = [item for item in result.diagnostics if item.code == "PORT004"]
+    assert len(diagnostics) == 1
+    [diagnostic] = diagnostics
+    assert diagnostic.profile == "notebook-crossrefs"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath("theme.ipynb")
+    assert diagnostic.span.cell == 0
+    assert diagnostic.span.cell_line == 1
+    assert diagnostic.provenance_ids == ("theme.ipynb::notebook-cell::0",)
+    assert dict(diagnostic.properties) == {
+        "crossref_options": "label,fig-cap",
+        "label": "fig-theme",
+        "renderings": '["light","dark"]',
+        "source_format": "notebook",
+        "subject_fact_id": "theme.ipynb::notebook-cell::0",
+    }
+
+    payload = json.loads(JsonReporter().render(result))
+    projected = [item for item in payload["diagnostics"] if item["code"] == "PORT004"]
+    assert projected[0]["cell"] == 0
+    assert projected[0]["properties"]["renderings"] == '["light","dark"]'
+
+
 def test_notebook_source_cell_options_override_generated_metadata() -> None:
     document = notebook(
         notebook_payload(
@@ -289,10 +337,146 @@ def test_notebook_source_cell_options_override_generated_metadata() -> None:
 
     snapshot = NotebookFrontend().lower((document,))
     [cell] = snapshot.code_cells
+    diagnostics = PortabilityEngine(
+        profile="notebook-crossrefs",
+        policy=PolicyHost(),
+    ).run(QueryHost(snapshot))
+
     assert cell.label == "fig-source"
     assert cell.option_dict()["fig-cap"] == "Source caption"
     assert cell.option_dict()["renderings"] == "[light, dark]"
     assert "unrelated" not in cell.option_dict()
+    assert [item.code for item in diagnostics] == ["PORT004"]
+
+
+@pytest.mark.parametrize("label", ["FIG-plot", "TBL-table", "EQ-energy", "LST-listing"])
+def test_portability_accepts_case_insensitive_crossref_prefixes(label: str) -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": label,
+                    "fig-cap": "Plot",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    [cell] = snapshot.code_cells
+    assert query.portability.quarto_crossref_label_issues() == ()
+    assert query.portability.renderings_with_crossref_options() == (cell,)
+    [conflict] = query.portability.notebook_rendering_conflicts()
+    assert conflict.cell is cell
+
+
+def test_portability_keeps_unprefixed_crossref_labels_as_issues() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "plot",
+                    "fig-cap": "Plot",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    [cell] = snapshot.code_cells
+    assert query.portability.quarto_crossref_label_issues() == (cell,)
+    assert query.portability.renderings_with_crossref_options() == (cell,)
+    assert len(query.portability.notebook_rendering_conflicts()) == 1
+
+
+def test_portability_normalizes_output_crossref_labels_once() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": ["light", "dark"]},
+                outputs=(
+                    display_output(output_metadata={"label": "FIG-output", "fig-cap": "Plot"}),
+                ),
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    assert query.portability.quarto_crossref_label_issues() == ()
+    [conflict] = query.portability.notebook_rendering_conflicts()
+    assert conflict.crossref_options == ("label", "fig-cap")
+    assert conflict.output is snapshot.notebook_outputs[0]
+
+
+def test_renderings_and_crossrefs_are_valid_when_not_combined() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(metadata={"renderings": ["light", "dark"]}),
+            code_cell(metadata={"label": "fig-static", "fig-cap": "Static"}),
+            code_cell(metadata={"label": "theme", "renderings": ["light", "dark"]}),
+        )
+    )
+
+    result = check_documents((document,), config=notebook_crossrefs_config())
+
+    assert [item for item in result.diagnostics if item.code == "PORT004"] == []
+
+
+def test_caption_only_crossref_option_conflicts_with_renderings() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(metadata={"tbl-cap": "Summary", "renderings": ["light", "dark"]})
+        )
+    )
+
+    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
+    diagnostics = PortabilityEngine(
+        profile="notebook-crossrefs",
+        policy=PolicyHost(),
+    ).run(QueryHost(snapshot))
+
+    assert len(conflicts) == 1
+    assert conflicts[0].crossref_options == ("tbl-cap",)
+    assert [item.code for item in diagnostics] == ["PORT004"]
+    assert dict(diagnostics[0].properties)["label"] == "<caption-only cell>"
+
+
+def test_output_metadata_is_a_rendering_conflict_input_with_an_exact_location() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"label": "fig-rendered", "renderings": ["light", "dark"]},
+                outputs=(display_output(output_metadata={"fig-cap": "Rendered figure"}),),
+            )
+        )
+    )
+
+    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
+    diagnostics = PortabilityEngine(
+        profile="notebook-crossrefs",
+        policy=PolicyHost(),
+    ).run(QueryHost(snapshot))
+
+    assert len(conflicts) == 1
+    assert conflicts[0].output is snapshot.notebook_outputs[0]
+    assert conflicts[0].crossref_options == ("label", "fig-cap")
+    assert diagnostics[0].span == snapshot.notebook_outputs[0].span
+    assert diagnostics[0].provenance_ids == (
+        snapshot.code_cells[0].fact_id,
+        snapshot.notebook_outputs[0].fact_id,
+    )
+    assert dict(diagnostics[0].properties)["output_index"] == "0"
+    [metadata] = snapshot.crossref_metadata
+    assert metadata.target_metadata == (("fig-cap", "Rendered figure"),)
+    assert metadata.span == snapshot.notebook_outputs[0].span
+    assert metadata.raw == snapshot.notebook_outputs[0].raw
 
 
 def test_notebook_output_label_produces_target_metadata_without_cell_label() -> None:
@@ -351,6 +535,196 @@ def test_notebook_output_target_prefixes_remain_case_sensitive() -> None:
     assert anchor.label == "FIG-output"
     assert anchor.target_kind is None
     assert snapshot.crossref_metadata == ()
+
+
+@pytest.mark.public_regression
+def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(
+                    display_output(
+                        output_metadata={
+                            "lst-cap": "Output listing",
+                            "lst-label": "lst-output",
+                        }
+                    ),
+                ),
+            ),
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "See {ref}`lst-output`.\n",
+            },
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    assert len(snapshot.notebook_outputs) == 1
+    assert len(snapshot.target_anchors) == 1
+    [output] = snapshot.notebook_outputs
+    [anchor] = snapshot.target_anchors
+    definitions = tuple(
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
+    )
+    assert len(definitions) == 1
+    [metadata] = definitions
+    assert dict(output.metadata) == {"lst-cap": "Output listing", "lst-label": "lst-output"}
+    assert anchor.label == "lst-output"
+    assert anchor.target_kind == "listing"
+    assert anchor.label_span is not None
+    assert document.text[anchor.label_span.start : anchor.label_span.end] == "lst-output"
+    assert metadata.logical_target == "lst-output"
+    assert metadata.target_metadata == (("lst-cap", "Output listing"),)
+    assert metadata.target_span == anchor.label_span
+    assert query.references.target_index()["lst-output"] == (anchor,)
+    assert query.references.unresolved_generic_refs() == ()
+    assert ReferenceEngine().run(query) == ()
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    assert not any(item.code in {"REF002", "REF004"} for item in result.diagnostics)
+
+
+def test_notebook_output_label_precedes_listing_alias() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(
+                    display_output(
+                        output_metadata={
+                            "label": "fig-canonical",
+                            "lst-label": "lst-alias",
+                        }
+                    ),
+                ),
+            ),
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    [anchor] = snapshot.target_anchors
+    [metadata] = snapshot.crossref_metadata
+    assert anchor.label == "fig-canonical"
+    assert anchor.label_span is not None
+    assert document.text[anchor.label_span.start : anchor.label_span.end] == "fig-canonical"
+    assert metadata.logical_target == "fig-canonical"
+    assert metadata.target_span == anchor.label_span
+
+
+@pytest.mark.public_regression
+def test_notebook_output_listing_aliases_participate_in_duplicate_resolution() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(display_output(output_metadata={"lst-label": "lst-output"}),),
+            ),
+            code_cell(
+                metadata={},
+                outputs=(display_output(output_metadata={"lst-label": "lst-output"}),),
+            ),
+            {"cell_type": "markdown", "metadata": {}, "source": "See {ref}`lst-output`.\n"},
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+    identity = (PurePosixPath("theme.ipynb"), "lst-output")
+
+    anchors = query.references.target_identity_index().get(identity, ())
+    assert len(anchors) == 2
+    assert query.references.duplicate_generic_targets()[identity] == anchors
+    [reference] = query.references.ambiguous_generic_refs()
+    assert reference.normalized_target == "lst-output"
+    assert any(item.code == "REF005" for item in ReferenceEngine().run(query))
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("lst-label", "lst-code"),
+        ("fig-subcap", ["left", "right"]),
+        ("tbl-subcap", True),
+    ],
+)
+def test_portability_recognizes_quarto_crossref_option_aliases(
+    option: str,
+    value: object,
+) -> None:
+    document = notebook(
+        notebook_payload(code_cell(metadata={"renderings": ["light", "dark"], option: value}))
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+    [conflict] = QueryHost(snapshot).portability.notebook_rendering_conflicts()
+
+    assert conflict.output is None
+    assert conflict.crossref_options == (option,)
+    assert [
+        item.code
+        for item in check_documents(
+            (document,),
+            config=notebook_crossrefs_config(),
+        ).diagnostics
+    ] == ["PORT004"]
+
+
+def test_portability_ignores_unprefixed_listing_label_alias() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "lst-label": "source",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+
+    result = check_documents((document,), config=notebook_crossrefs_config())
+
+    assert not any(item.code == "PORT004" for item in result.diagnostics)
+
+
+@pytest.mark.parametrize("option", ["fig-alt", "fig-align", "fig-width", "tbl-colwidths"])
+def test_portability_ignores_non_crossref_quarto_options(option: str) -> None:
+    document = notebook(
+        notebook_payload(code_cell(metadata={"renderings": ["light", "dark"], option: "value"}))
+    )
+
+    result = check_documents((document,), config=notebook_crossrefs_config())
+
+    assert not any(item.code == "PORT004" for item in result.diagnostics)
+
+
+def test_output_crossref_aliases_keep_their_output_identity() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": ["light", "dark"]},
+                outputs=(
+                    display_output(
+                        output_metadata={"lst-label": "lst-first", "lst-cap": "First listing"}
+                    ),
+                    display_output(output_metadata={"fig-subcap": ["a", "b"]}),
+                ),
+            )
+        )
+    )
+
+    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
+
+    assert [
+        (conflict.output.output_index, conflict.crossref_options) for conflict in conflicts
+    ] == [
+        (0, ("lst-label", "lst-cap")),
+        (1, ("fig-subcap",)),
+    ]
 
 
 def test_notebook_frontend_ignores_nonmarkdown_and_malformed_markdown_cells() -> None:
@@ -812,6 +1186,48 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
     )
 
 
+def test_markdown_executable_cells_use_the_same_policy_surface() -> None:
+    document = markdown(
+        "```python\n"
+        "#| label: fig-theme\n"
+        "#| fig-cap: Theme comparison\n"
+        "#| renderings: [light, dark]\n"
+        "plot()\n"
+        "```\n"
+    )
+
+    result = check_documents((document,), config=notebook_crossrefs_config())
+
+    [diagnostic] = [item for item in result.diagnostics if item.code == "PORT004"]
+    assert diagnostic.span is not None
+    assert diagnostic.span.cell is None
+    assert dict(diagnostic.properties)["source_format"] == "markdown"
+
+
+def test_notebook_renderings_profile_is_opt_in() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "fig-theme",
+                    "fig-cap": "Theme comparison",
+                    "renderings": ["light", "dark"],
+                },
+                outputs=(display_output(output_metadata={}),),
+                source='raise RuntimeError("must not execute")',
+            ),
+        )
+    )
+
+    default_result = check_documents((document,), config=config(None))
+    profile_result = check_documents((document,), config=notebook_crossrefs_config())
+
+    assert [item.code for item in default_result.diagnostics if item.code == "PORT004"] == []
+    assert [item.code for item in profile_result.diagnostics if item.code == "PORT004"] == [
+        "PORT004"
+    ]
+
+
 @pytest.mark.parametrize(
     ("label", "expected", "raw_value"),
     [
@@ -1055,3 +1471,13 @@ def test_notebook_frontend_rejects_parsed_input_from_another_document() -> None:
             (second,),
             parsed={second.path.as_posix(): parse_notebook_input(first)},
         )
+
+
+def test_notebook_crossrefs_profile_is_accepted_by_config_loader(tmp_path) -> None:
+    path = tmp_path / "scieqlint.toml"
+    path.write_text('[profile]\nname = "notebook-crossrefs"\n', encoding="utf-8")
+
+    loaded = load_config(path)
+
+    assert loaded.profile.name == "notebook-crossrefs"
+    assert loaded.profile.output_profile is None
