@@ -604,15 +604,14 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
     conflicting = document("Different plot")
     result = check_documents((conflicting,), config=cross_format_config())
 
-    cell_start = conflicting.text.index('{"cell_type": "code"')
-    cell_length = json.JSONDecoder().raw_decode(conflicting.text[cell_start:])[1]
-    cell_end = cell_start + cell_length
-    line, col = conflicting.line_index.position(cell_start)
-    end_line, end_col = conflicting.line_index.position(cell_end - 1)
+    target_start = conflicting.text.index('"fig-shared"') + 1
+    target_end = target_start + len("fig-shared")
+    line, col = conflicting.line_index.position(target_start)
+    end_line, end_col = conflicting.line_index.position(target_end - 1)
     expected_span = SourceSpan(
         path=conflicting.path,
-        start=cell_start,
-        end=cell_end,
+        start=target_start,
+        end=target_end,
         line=line,
         col=col,
         end_line=end_line,

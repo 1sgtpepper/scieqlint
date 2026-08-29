@@ -31,6 +31,7 @@ from scieqlint.report.text import TextReporter
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
 AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_reference.md")
 REFERENCE_DISPLAY_FIXTURE = Path("tests/fixtures/bad/reference_display_bad.md")
+CODE_CELL_FIXTURE = Path("tests/fixtures/bad/duplicate_code_cell_label.md")
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
 CROSS_FORMAT_FIXTURE = Path("tests/fixtures/bad/cross_format_references.md")
@@ -81,6 +82,14 @@ def test_reference_fixture_reporters_preserve_ordered_diagnostic_contract() -> N
     ]
 
 
+def test_text_golden_output_matches_duplicate_code_cell_label_fixture() -> None:
+    result = check_paths([CODE_CELL_FIXTURE])
+
+    assert TextReporter().render(result) == Path(
+        "tests/golden/text/duplicate_code_cell_label.txt"
+    ).read_text(encoding="utf-8")
+
+
 def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
     rendered = JsonReporter().render(check_paths([FIXTURE]))
     schema = _schema("scieqlint-result-0.1.schema.json")
@@ -94,6 +103,15 @@ def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
 
     Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
     assert rendered == Path("tests/golden/json/famous_bad.json").read_text(encoding="utf-8")
+
+
+def test_json_golden_output_matches_schema_and_duplicate_code_cell_label_fixture() -> None:
+    rendered = JsonReporter().render(check_paths([CODE_CELL_FIXTURE]))
+    _validate_json_result(rendered, version="0.2")
+
+    assert rendered == Path("tests/golden/json/duplicate_code_cell_label.json").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_json_golden_output_hides_suppressed_diagnostics_by_default() -> None:
@@ -124,12 +142,28 @@ def test_github_golden_output_matches_famous_bad_fixture() -> None:
     )
 
 
+def test_github_golden_output_matches_duplicate_code_cell_label_fixture() -> None:
+    result = check_paths([CODE_CELL_FIXTURE])
+
+    assert GitHubReporter().render(result) == Path(
+        "tests/golden/github/duplicate_code_cell_label.txt"
+    ).read_text(encoding="utf-8")
+
+
 def test_sarif_golden_output_matches_famous_bad_fixture() -> None:
     result = check_paths([FIXTURE])
 
     assert SarifReporter().render(result) == Path("tests/golden/sarif/famous_bad.sarif").read_text(
         encoding="utf-8"
     )
+
+
+def test_sarif_golden_output_matches_duplicate_code_cell_label_fixture() -> None:
+    result = check_paths([CODE_CELL_FIXTURE])
+
+    assert SarifReporter().render(result) == Path(
+        "tests/golden/sarif/duplicate_code_cell_label.sarif"
+    ).read_text(encoding="utf-8")
 
 
 def test_cross_format_portability_output_matches_reporter_goldens() -> None:

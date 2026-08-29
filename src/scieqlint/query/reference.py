@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from scieqlint.facts.reference import (
     CrossrefMetadataFact,
@@ -55,6 +55,18 @@ class ReferenceQueryView:
 
     def equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return self.snapshot.equation_labels
+
+    def code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.snapshot.code_cells if cell.normalized_label is not None)
+
+    def visible_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "visible")
+
+    def hidden_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "hidden")
+
+    def excluded_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "excluded")
 
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
@@ -155,17 +167,16 @@ class ReferenceQueryView:
     def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
         """Return the label-only namespace used by pathless reference roles."""
 
-        index: dict[str, list[TargetFact]] = defaultdict(list)
-        for target in self._target_facts():
-            index[_target_label(target)].append(target)
-        return {key: tuple(value) for key, value in index.items()}
+        label_index, _ = self._target_indexes(self._target_facts())
+        return label_index
 
     def target_identity_index(
         self,
     ) -> dict[NormalizedReferenceTarget, tuple[TargetFact, ...]]:
         """Return targets keyed by normalized member path and label."""
 
-        return self._target_identity_index(self._target_facts())
+        _, identity_index = self._target_indexes(self._target_facts())
+        return identity_index
 
     def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
         return _equation_index(self.visible_equation_targets())
@@ -230,7 +241,7 @@ class ReferenceQueryView:
     def duplicate_generic_targets(
         self,
     ) -> dict[NormalizedReferenceTarget, tuple[TargetAnchorFact, ...]]:
-        index = self._target_identity_index(
+        _, index = self._target_indexes(
             tuple(
                 anchor
                 for anchor in self.snapshot.target_anchors
@@ -239,9 +250,28 @@ class ReferenceQueryView:
         )
         return {key: tuple(value) for key, value in index.items() if len(value) > 1}
 
+    def duplicate_code_cell_targets(
+        self,
+    ) -> dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]]:
+        duplicates: dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]] = {}
+        for key, facts in self.target_identity_index().items():
+            if len(facts) < 2:
+                continue
+            cells = tuple(
+                sorted(
+                    (fact for fact in facts if isinstance(fact, CodeCellFact)),
+                    key=_code_cell_source_key,
+                )
+            )
+            if not cells:
+                continue
+            non_cell_count = len(facts) - len(cells)
+            offending = cells if non_cell_count else cells[1:]
+            duplicates[key] = offending
+        return duplicates
+
     def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
-        targets = self.target_index()
-        identity_targets = self.target_identity_index()
+        targets, identity_targets = self._target_indexes(self._target_facts())
         return tuple(
             ref
             for ref in self.visible_generic_refs()
@@ -250,8 +280,7 @@ class ReferenceQueryView:
         )
 
     def ambiguous_generic_refs(self) -> tuple[GenericRefFact, ...]:
-        targets = self.target_index()
-        identity_targets = self.target_identity_index()
+        targets, identity_targets = self._target_indexes(self._target_facts())
         return tuple(
             ref
             for ref in self.visible_generic_refs()
@@ -281,10 +310,11 @@ class ReferenceQueryView:
 
         mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
         target_facts = self._target_facts()
-        target_index = self._target_identity_index(target_facts)
+        _, target_index = self._target_indexes(target_facts)
         raw_target_index: dict[tuple[str, str], list[tuple[int, TargetFact]]] = defaultdict(list)
         for order, fact in enumerate(target_facts):
-            raw_target_index[(fact.document_id, _target_label(fact))].append((order, fact))
+            normalized_label = cast(str, fact.normalized_label)
+            raw_target_index[(fact.document_id, normalized_label)].append((order, fact))
         normalized_target_cache: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]] = {}
         mismatch_cache: dict[tuple[str, NormalizedReferenceTarget], bool] = {}
         for ref in self.visible_generic_refs():
@@ -339,29 +369,33 @@ class ReferenceQueryView:
                 if anchor.visibility == "visible" and anchor.placement != "orphaned"
             ),
             *self.visible_equation_targets(),
-            *tuple(
-                cell
-                for cell in self.snapshot.code_cells
-                if cell.visibility == "visible" and cell.normalized_label is not None
-            ),
+            *self.visible_code_cell_targets(),
         )
 
-    def _target_identity_index(
+    def _target_indexes(
         self,
         targets: tuple[TargetT, ...],
-    ) -> dict[NormalizedReferenceTarget, tuple[TargetT, ...]]:
+    ) -> tuple[
+        dict[str, tuple[TargetT, ...]],
+        dict[NormalizedReferenceTarget, tuple[TargetT, ...]],
+    ]:
         member_paths = {
             member.document_id: member.normalized_path or member.path
             for member in self.snapshot.project_members
         }
-        index: dict[NormalizedReferenceTarget, list[TargetT]] = defaultdict(list)
+        label_index: dict[str, list[TargetT]] = defaultdict(list)
+        identity_index: dict[NormalizedReferenceTarget, list[TargetT]] = defaultdict(list)
         for target in targets:
-            member_path = member_paths.get(target.document_id)
-            if member_path is None:
-                member_path = normalize_project_path(target.document_id)
-            identity = (member_path, _target_label(target))
-            index[identity].append(target)
-        return {key: tuple(value) for key, value in index.items()}
+            normalized_label = cast(str, target.normalized_label)
+            label_index[normalized_label].append(target)
+            if target.document_id not in member_paths:
+                member_paths[target.document_id] = normalize_project_path(target.document_id)
+            identity = (member_paths[target.document_id], normalized_label)
+            identity_index[identity].append(target)
+        return (
+            {key: tuple(value) for key, value in label_index.items()},
+            {key: tuple(value) for key, value in identity_index.items()},
+        )
 
     def orphaned_targets(self) -> tuple[TargetAnchorFact, ...]:
         return tuple(
@@ -378,13 +412,6 @@ def _equation_index(
     return {key: tuple(value) for key, value in index.items()}
 
 
-def _target_label(fact: TargetFact) -> str:
-    if isinstance(fact, CodeCellFact):
-        assert fact.normalized_label is not None
-        return fact.normalized_label
-    return fact.normalized_label
-
-
 def _equation_label_source_key(
     fact: EquationLabelFact,
 ) -> tuple[str, int, int, str]:
@@ -399,6 +426,16 @@ def _equation_label_source_key(
 
 def _reference_source_key(fact: EquationRefFact) -> tuple[str, int, int, str]:
     span = fact.target_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
+    )
+
+
+def _code_cell_source_key(fact: CodeCellFact) -> tuple[str, int, int, str]:
+    span = fact.label_span or fact.span
     return (
         fact.document_id,
         span.start if span is not None else -1,

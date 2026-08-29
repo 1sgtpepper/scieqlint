@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import cast
@@ -21,6 +22,7 @@ from .notebook_json import (
 )
 
 _MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
+_NOTEBOOK_OPTION_RE = re.compile(r"^[ \t]*#\|[ \t]*(?P<key>[A-Za-z0-9_.-]+):[ \t]*(?P<value>.*)$")
 
 
 def parse_notebook_input(document: SourceDocument) -> NotebookInput:
@@ -35,6 +37,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(size_diagnostic(document),),
             valid=False,
         )
@@ -49,6 +52,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(input_diagnostic(document, exc),),
             valid=False,
         )
@@ -61,6 +65,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(schema_diagnostic(document, "notebook root must be a JSON object"),),
             valid=False,
         )
@@ -76,6 +81,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(schema_diagnostic(document, "notebook cells must be a list"),),
             valid=False,
         )
@@ -86,6 +92,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans,
             output_label_spans,
             cell_source_ranges,
+            cell_option_spans,
         ) = _notebook_locations(document, cells, root_range)
     except _NotebookSourceLimitError as exc:
         return NotebookInput(
@@ -96,6 +103,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(size_diagnostic(document, detail=str(exc)),),
             valid=False,
         )
@@ -108,6 +116,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_spans=(),
             output_label_spans=(),
             cell_source_ranges=(),
+            cell_option_spans=(),
             diagnostics=(input_diagnostic(document, exc),),
             valid=False,
         )
@@ -119,6 +128,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
         output_spans=output_spans,
         output_label_spans=output_label_spans,
         cell_source_ranges=cell_source_ranges,
+        cell_option_spans=cell_option_spans,
         diagnostics=_notebook_schema_diagnostics(document, notebook),
         valid=True,
     )
@@ -143,6 +153,7 @@ class NotebookInput:
     output_spans: tuple[tuple[SourceSpan | None, ...], ...]
     output_label_spans: tuple[tuple[SourceSpan | None, ...], ...]
     cell_source_ranges: tuple[tuple[tuple[tuple[int, int], ...], ...] | None, ...]
+    cell_option_spans: tuple[tuple[tuple[str, SourceSpan], ...] | None, ...]
     diagnostics: tuple[Diagnostic, ...]
     valid: bool
 
@@ -205,6 +216,7 @@ def _notebook_locations(
     tuple[tuple[SourceSpan | None, ...], ...],
     tuple[tuple[SourceSpan | None, ...], ...],
     tuple[tuple[tuple[tuple[int, int], ...], ...] | None, ...],
+    tuple[tuple[tuple[str, SourceSpan], ...] | None, ...],
 ]:
     """Locate notebook objects and exact decoded cell-source ranges in one pass."""
 
@@ -229,6 +241,7 @@ def _notebook_locations(
     output_spans: list[tuple[SourceSpan | None, ...]] = [()] * len(cells)
     output_label_spans: list[tuple[SourceSpan | None, ...]] = [()] * len(cells)
     cell_source_ranges: list[tuple[tuple[tuple[int, int], ...], ...] | None] = [None] * len(cells)
+    cell_option_spans: list[tuple[tuple[str, SourceSpan], ...] | None] = [None] * len(cells)
     decoder = json_decoder()
     root_start, root_end = root_range
     root_members = json_object_members(decoder, document.text, root_start, root_end)
@@ -248,14 +261,24 @@ def _notebook_locations(
             continue
         cell = cast(Mapping[str, object], cell)
         cell_members = json_object_members(decoder, document.text, cell_start, cell_end)
+        source = cell_source(cell.get("source"))
+        source_ranges = (
+            None
+            if source is None
+            else _source_ranges(decoder, document.text, cell_members["source"])
+        )
         if cell.get("cell_type") == "markdown":
-            source = cell_source(cell.get("source"))
-            source_ranges = (
-                None
-                if source is None
-                else _source_ranges(decoder, document.text, cell_members["source"])
-            )
             cell_source_ranges[cell_index] = source_ranges
+        elif cell.get("cell_type") == "code":
+            cell_option_spans[cell_index] = _cell_option_spans(
+                decoder,
+                document,
+                cell_index,
+                cell,
+                cell_members,
+                source,
+                source_ranges,
+            )
         raw_outputs = cell.get("outputs")
         if not isinstance(raw_outputs, list):
             continue
@@ -280,6 +303,134 @@ def _notebook_locations(
         tuple(output_spans),
         tuple(output_label_spans),
         tuple(cell_source_ranges),
+        tuple(cell_option_spans),
+    )
+
+
+def _cell_option_spans(
+    decoder: json.JSONDecoder,
+    document: SourceDocument,
+    cell_index: int,
+    cell: Mapping[str, object],
+    cell_members: Mapping[str, tuple[int, int]],
+    source: str | None,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...] | None,
+) -> tuple[tuple[str, SourceSpan], ...]:
+    """Locate code-cell label options without losing JSON source identity."""
+
+    spans: dict[str, SourceSpan] = {}
+    metadata = cell.get("metadata")
+    if isinstance(metadata, Mapping) and "metadata" in cell_members:
+        metadata = cast(Mapping[str, object], metadata)
+        metadata_members = json_object_members(
+            decoder,
+            document.text,
+            *cell_members["metadata"],
+        )
+        _record_option_spans(document, cell_index, metadata, metadata_members, spans)
+        quarto = metadata.get("quarto")
+        if isinstance(quarto, Mapping) and "quarto" in metadata_members:
+            quarto = cast(Mapping[str, object], quarto)
+            quarto_members = json_object_members(
+                decoder,
+                document.text,
+                *metadata_members["quarto"],
+            )
+            _record_option_spans(document, cell_index, quarto, quarto_members, spans)
+
+    if source is not None and source_ranges:
+        source_document = SourceDocument.from_text(
+            document.path,
+            source,
+            DocumentKind.MARKDOWN,
+        )
+        for key, value, start, end in _source_option_entries(source_document.text):
+            if key != "label":
+                continue
+            if not value:
+                spans.pop(key, None)
+                continue
+            spans[key] = map_notebook_span(
+                document,
+                _cell_local_span(source_document, start, end, cell_index),
+                cell_index=cell_index,
+                source_ranges=source_ranges,
+            )
+    return tuple(sorted(spans.items()))
+
+
+def _record_option_spans(
+    document: SourceDocument,
+    cell_index: int,
+    options: Mapping[str, object],
+    members: Mapping[str, tuple[int, int]],
+    spans: dict[str, SourceSpan],
+) -> None:
+    if "label" not in options or "label" not in members:
+        return
+    raw_value = options["label"]
+    if not _option_value_present(raw_value):
+        spans.pop("label", None)
+        return
+    spans["label"] = _json_value_span(
+        document,
+        members["label"],
+        cell=cell_index,
+        cell_line=1,
+    )
+
+
+def _option_value_present(value: object) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, (int, float)):
+        return True
+    if isinstance(value, list):
+        items = cast(list[object], value)
+        return all(isinstance(item, (str, int, float, bool)) for item in items)
+    return False
+
+
+def _source_option_entries(text: str) -> tuple[tuple[str, str, int, int], ...]:
+    entries: list[tuple[str, str, int, int]] = []
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if not stripped or (stripped.startswith("#") and not stripped.startswith("#|")):
+            offset += len(line)
+            continue
+        match = _NOTEBOOK_OPTION_RE.match(line.rstrip("\r\n"))
+        if match is None:
+            break
+        raw_value = match.group("value")
+        value = raw_value.strip()
+        leading = len(raw_value) - len(raw_value.lstrip())
+        value_start = offset + match.start("value") + leading
+        entries.append((match.group("key"), value, value_start, value_start + len(value)))
+        offset += len(line)
+    return tuple(entries)
+
+
+def _cell_local_span(
+    document: SourceDocument,
+    start: int,
+    end: int,
+    cell_index: int,
+) -> SourceSpan:
+    line, col = document.line_index.position(start)
+    end_line, end_col = document.line_index.position(max(start, end - 1))
+    return SourceSpan(
+        path=document.path,
+        start=start,
+        end=end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+        cell=cell_index,
+        cell_line=line,
     )
 
 
@@ -323,19 +474,6 @@ def _output_label_spans(
             )
         )
     return tuple(spans)
-
-
-def _option_value_present(value: object) -> bool:
-    if isinstance(value, str):
-        return bool(value.strip())
-    if isinstance(value, bool):
-        return True
-    if isinstance(value, (int, float)):
-        return True
-    if isinstance(value, list):
-        items = cast(list[object], value)
-        return all(isinstance(item, (str, int, float, bool)) for item in items)
-    return False
 
 
 def _source_character_length(source: object) -> int | None:

@@ -583,24 +583,24 @@ def test_path_normalization_mismatch_indexes_targets_once_for_all_references(mon
 
     counted_targets = CountingTargets(ReferenceQueryView(snapshot)._target_facts())
     target_identity = (PurePosixPath("chapters/energy.md"), "shared")
-    target_identity_index = ReferenceQueryView._target_identity_index
+    target_indexes = ReferenceQueryView._target_indexes
 
     def target_facts(_view: ReferenceQueryView) -> tuple:
         return counted_targets
 
-    def counting_target_identity_index(
+    def counting_target_indexes(
         view: ReferenceQueryView,
         targets: tuple,
-    ) -> dict:
-        index = target_identity_index(view, targets)
-        index[target_identity] = CountingBucket(index[target_identity])
-        return index
+    ) -> tuple[dict, dict]:
+        label_index, identity_index = target_indexes(view, targets)
+        identity_index[target_identity] = CountingBucket(identity_index[target_identity])
+        return label_index, identity_index
 
     monkeypatch.setattr(ReferenceQueryView, "_target_facts", target_facts)
     monkeypatch.setattr(
         ReferenceQueryView,
-        "_target_identity_index",
-        counting_target_identity_index,
+        "_target_indexes",
+        counting_target_indexes,
     )
 
     references = ReferenceQueryView(snapshot)

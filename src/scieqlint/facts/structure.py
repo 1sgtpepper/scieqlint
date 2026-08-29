@@ -66,6 +66,15 @@ class DirectiveFact(FactBase):
         return dict(self.options)
 
 
+def _canonical_code_cell_label(value: str) -> str:
+    """Normalize the label used by code-cell target identity."""
+
+    value = value.strip()
+    if value.startswith("#"):
+        value = value[1:]
+    return value
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CodeCellFact(FactBase):
     fence_fact_id: str
@@ -75,13 +84,21 @@ class CodeCellFact(FactBase):
     options: tuple[tuple[str, str], ...]
     label: str | None = None
     normalized_label: str | None
+    label_span: SourceSpan | None = None
+    visibility: TargetVisibility = "visible"
     tags: tuple[str, ...] = ()
     output_target_labels: tuple[str, ...] = ()
-    visibility: TargetVisibility = "visible"
 
     def __post_init__(self) -> None:
         if (self.label is None) != (self.normalized_label is None):
             raise ValueError("code-cell label and normalized label must both be present or absent")
+        if self.label is None:
+            return
+        canonical_label = _canonical_code_cell_label(self.label)
+        if not canonical_label or self.normalized_label != canonical_label:
+            raise ValueError(
+                "code-cell normalized label must be a non-empty canonical normalization of label"
+            )
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)
