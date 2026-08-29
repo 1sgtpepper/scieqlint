@@ -168,7 +168,9 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/generated.py`
 - `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/frontend/myst_blocks.py`
+- `src/scieqlint/frontend/myst_display_math.py`
 - `src/scieqlint/frontend/myst_headings.py`
+- `src/scieqlint/frontend/myst_inline_math.py`
 - `src/scieqlint/frontend/myst_math.py`
 - `src/scieqlint/frontend/myst_refs.py`
 - `src/scieqlint/frontend/myst_shared.py`
