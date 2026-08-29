@@ -60,16 +60,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `SPEC.md`
 - `SUPPORT.md`
 - `action.yml`
-- `benchmarks/accuracy/algebra.yml`
-- `benchmarks/accuracy/dimensions.yml`
-- `benchmarks/accuracy/generated.yml`
-- `benchmarks/accuracy/latex.yml`
-- `benchmarks/accuracy/markdown.yml`
-- `benchmarks/accuracy/notebook.yml`
-- `benchmarks/accuracy/parse_unknown.yml`
-- `benchmarks/accuracy/portability.yml`
-- `benchmarks/accuracy/references.yml`
-- `benchmarks/accuracy/typst.yml`
+- `benchmarks/accuracy/corpus-v1.json`
 - `docs/api.md`
 - `docs/architecture.md`
 - `docs/architecture/deterministic-snapshot-kernel-adr.md`

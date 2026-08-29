@@ -84,16 +84,29 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     )
 
 
-def test_stable_release_accuracy_gate_counts_executed_equation_fixtures() -> None:
-    accuracy_gate = Path("tests/test_accuracy_benchmarks.py").read_text(encoding="utf-8")
+def test_stable_release_accuracy_gate_invokes_behavioral_evidence_guard() -> None:
+    accuracy_path = Path("tests/test_accuracy_benchmarks.py")
+    accuracy_tree = ast.parse(accuracy_path.read_text(encoding="utf-8"))
+    gate_nodes = [
+        node
+        for node in accuracy_tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "test_stable_release_requires_100_independently_labeled_equations"
+    ]
+    assert len(gate_nodes) == 1
+    gate = gate_nodes[0]
 
-    assert "result.math_blocks_checked > 0" in accuracy_gate
-    assert 'equation_fixture_ids.append(str(case["id"]))' in accuracy_gate
-    assert "assert len(equation_fixture_ids) >= 100" in accuracy_gate
-    assert "assert len(case_ids) >= 100" not in accuracy_gate
-    assert accuracy_gate.index("equation_fixture_ids.append") < accuracy_gate.index(
-        "assert len(equation_fixture_ids) >= 100"
-    )
+    guard_calls = [
+        node
+        for node in ast.walk(gate)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_require_stable_release_evidence"
+    ]
+    assert len(guard_calls) == 1
+    assert len(guard_calls[0].args) == 1
+    assert isinstance(guard_calls[0].args[0], ast.Name)
+    assert guard_calls[0].args[0].id == "CORPUS_PATH"
 
 
 def test_ci_test_matrix_covers_declared_python_versions() -> None:
