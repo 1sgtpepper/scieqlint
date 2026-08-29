@@ -111,7 +111,9 @@ A release is done only when all of the following are true:
 - golden fixtures lock expected output,
 - the diagnostic catalog and schemas are updated when applicable,
 - issue labels and starter issues reflect the current release scope,
-- a clean wheel install smoke test passes,
+- package CI's source-distribution test-suite and clean wheel CLI smoke gates pass,
+- the stable release workflow's separate clean wheel and source-distribution
+  install/CLI smoke gates pass,
 - release notes explicitly list deferred scope.
 
 A feature without docs and fixtures is not shipped.
@@ -154,7 +156,7 @@ Ships:
 - CLI commands exist: `check`, `init`, `demo`, `explain`.
 - `check` can discover files and return “no checks implemented” without crashing.
 - Config defaults load.
-- Ruff, Pyright, pytest, wheel build, wheel install smoke.
+- Ruff, Pyright, pytest, wheel and source-distribution build/install smoke.
 - `py.typed` included.
 - `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, and `MAINTAINERS.md` exist.
 - GitHub issue templates and PR template exist.
@@ -459,7 +461,8 @@ Required CI gates:
 - import-linter.
 - pytest with coverage.
 - JSON schema validation for golden JSON.
-- wheel build and clean venv smoke.
+- wheel and source-distribution builds, wheel clean-venv smoke, and extracted
+  source-distribution tests.
 - docs smoke until the docs site exists; MkDocs strict build once the docs site exists.
 
 Hard cut list if late:
@@ -1017,7 +1020,8 @@ v1.0.0 ships only when:
 - compatibility matrix is green,
 - accuracy benchmark summary is published,
 - performance budgets are met,
-- at least 100 independently labeled semantic equations execute through the public analysis path.
+- at least 100 independently labeled semantic equations execute through the public
+  analysis path with their expected diagnostics and exit status.
 
 v1.0.0 must not be date-shipped if these conditions are not met.
 
@@ -2169,7 +2173,7 @@ Required on every PR touching code, tests, docs, config, or templates:
 - Pyright.
 - import-linter.
 - pytest with coverage.
-- wheel build and install smoke test.
+- wheel build/install and CLI smoke, plus source-distribution extraction/test-suite smoke.
 - docs build if docs exist.
 - self-check on clean examples.
 
@@ -2218,9 +2222,14 @@ Every release follows this sequence:
 3. Core implementation: scanner/parser/checker/reporter changes in separate PRs.
 4. Golden fixtures: add good/bad examples and exact output expectations.
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
-6. Package smoke: build wheel, install in a clean venv, run CLI smoke.
-7. Release candidate: tag rc or create a pre-release branch.
-8. Final tag: publish only after release checks pass.
+6. Package CI: build wheel and source distribution, run the source-distribution test
+   suite from an extracted tree, and install the wheel in a clean venv for CLI smoke.
+7. Release candidate: use a documented prerelease tag such as `v1.1.0rc1` or a
+   prerelease branch; the stable release workflow does not consume prerelease tags.
+8. Stable tag: push a stable semver tag; the release workflow installs the wheel and
+   source distribution in separate clean venvs, runs CLI smoke for each, verifies source,
+   wheel, source-distribution, and tag versions, and then runs the fail-closed release gates.
+9. Final tag: publish only after release checks pass.
 
 A feature is not shipped until docs and fixtures demonstrate it. This rule applies even to small reporter, config, and scanner changes.
 
@@ -2237,7 +2246,9 @@ Every release must include:
 - JSON/SARIF schema update when needed,
 - accuracy benchmark update when expectations change,
 - golden test update when output changes,
-- wheel install smoke test,
+- stable release workflow's separate wheel and source-distribution install/CLI smoke gates,
+- generated-formula quality corpus and exact text/JSON goldens against both installed
+  release artifacts,
 - package-data verification,
 - release notes with migration notes.
 

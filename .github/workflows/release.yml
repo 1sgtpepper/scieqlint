@@ -4,82 +4,236 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      distribution_id: ${{ steps.release-artifact.outputs.artifact-id }}
+      release_sha: ${{ steps.verify-release-ref.outputs.release_sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify protected main release ref
+        id: verify-release-ref
+        if: github.event_name == 'push'
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          test "$GITHUB_REF_TYPE" = "tag"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag_sha="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}^{commit}")"
+          main_sha="$(git rev-parse refs/remotes/origin/main^{commit})"
+          test "$tag_sha" = "$RELEASE_SHA"
+          test "$main_sha" = "$RELEASE_SHA"
+          printf 'release_sha=%s\n' "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.11"
       - name: Build distribution
+        env:
+          PIP_CONSTRAINT: ${{ github.workspace }}/.github/release-constraints.txt
         run: |
-          python -m pip install --upgrade pip build twine
+          python -m pip install --disable-pip-version-check \
+            --upgrade \
+            "pip==25.2" \
+            "build==1.3.0" \
+            "twine==6.1.0"
+          python -m pip check
           python -m build
           twine check dist/*
+      - name: Verify distribution set
+        run: |
+          shopt -s nullglob
+          entries=(dist/* dist/.[!.]* dist/..?*)
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          test "${#entries[@]}" -eq 2
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+          for entry in "${entries[@]}"; do
+            test -f "$entry"
+          done
+      - name: Record build dependency resolution
+        run: |
+          {
+            echo "### Release build dependencies"
+            echo '```text'
+            LC_ALL=C python -m pip freeze --all | sort
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload release artifacts
+        id: release-artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: dist
           path: dist/*
+          if-no-files-found: error
+          overwrite: "false"
 
   smoke:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      distribution_id: ${{ needs.build.outputs.distribution_id }}
+      release_sha: ${{ needs.build.outputs.release_sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.11"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: dist
+          artifact-ids: ${{ needs.build.outputs.distribution_id }}
           path: dist
+          digest-mismatch: error
+      - name: Extract downloaded source distribution
+        run: |
+          sdist="$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$sdist"
+          extract_root="$(mktemp -d)"
+          tar -xzf "$sdist" -C "$extract_root"
+          source_dir="$(find "$extract_root" -mindepth 1 -maxdepth 1 -type d -name 'scieqlint-*' -print -quit)"
+          test -n "$source_dir"
+          test -f "$source_dir/pyproject.toml"
+          test -f "$source_dir/tests/test_accuracy_benchmarks.py"
+          test -f "$source_dir/tests/test_generated_formula_quality_golden.py"
+          test -f "$source_dir/benchmarks/accuracy/corpus-v1.json"
+          test -f "$source_dir/.github/release-constraints.txt"
+          printf 'SCIEQLINT_RELEASE_SOURCE=%s\n' "$source_dir" >> "$GITHUB_ENV"
+          printf 'SCIEQLINT_RELEASE_CONSTRAINTS=%s\n' "$source_dir/.github/release-constraints.txt" >> "$GITHUB_ENV"
       - name: Clean wheel smoke
         run: |
-          python -m venv /tmp/scieqlint-release-smoke
-          /tmp/scieqlint-release-smoke/bin/python -m pip install dist/*.whl
-          /tmp/scieqlint-release-smoke/bin/scieqlint --help
-          /tmp/scieqlint-release-smoke/bin/scieqlint demo
-          /tmp/scieqlint-release-smoke/bin/python - <<'PY'
+          wheel="$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -type f -name '*.whl' -print -quit)"
+          test -n "$wheel"
+          python -m venv /tmp/scieqlint-release-wheel-smoke
+          PIP_CONSTRAINT="$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            /tmp/scieqlint-release-wheel-smoke/bin/python -m pip install \
+            --constraint "$SCIEQLINT_RELEASE_CONSTRAINTS" "$wheel"
+          /tmp/scieqlint-release-wheel-smoke/bin/python -m pip check
+          /tmp/scieqlint-release-wheel-smoke/bin/scieqlint --help
+          /tmp/scieqlint-release-wheel-smoke/bin/scieqlint demo
+          /tmp/scieqlint-release-wheel-smoke/bin/python - <<'PY'
           from importlib import resources
 
           preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
           assert preset.is_file(), "mechanics preset missing from installed wheel"
           PY
-      - name: Verify source, wheel, and tag versions
+      - name: Clean source distribution smoke
+        run: |
+          sdist="$(find "$GITHUB_WORKSPACE/dist" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$sdist"
+          python -m venv /tmp/scieqlint-release-sdist-smoke
+          PIP_CONSTRAINT="$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            /tmp/scieqlint-release-sdist-smoke/bin/python -m pip install \
+            --constraint "$SCIEQLINT_RELEASE_CONSTRAINTS" "$sdist"
+          /tmp/scieqlint-release-sdist-smoke/bin/python -m pip check
+          /tmp/scieqlint-release-sdist-smoke/bin/scieqlint --help
+          /tmp/scieqlint-release-sdist-smoke/bin/scieqlint demo
+          /tmp/scieqlint-release-sdist-smoke/bin/python - <<'PY'
+          from importlib import resources
+
+          preset = resources.files("scieqlint.presets").joinpath("mechanics.toml")
+          assert preset.is_file(), "mechanics preset missing from installed sdist"
+          PY
+      - name: Verify source, wheel, source distribution, and stable tag versions
         run: |
           source_version="$(python - <<'PY'
+          import os
           import tomllib
           from pathlib import Path
-          print(tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]["version"])
+
+          source_dir = Path(os.environ["SCIEQLINT_RELEASE_SOURCE"])
+          print(
+              tomllib.loads(
+                  (source_dir / "pyproject.toml").read_text(encoding="utf-8")
+              )["project"]["version"]
+          )
           PY
           )"
-          wheel_version="$(/tmp/scieqlint-release-smoke/bin/python - <<'PY'
+          wheel_version="$(/tmp/scieqlint-release-wheel-smoke/bin/python - <<'PY'
+          from importlib.metadata import version
+          print(version("scieqlint"))
+          PY
+          )"
+          sdist_version="$(/tmp/scieqlint-release-sdist-smoke/bin/python - <<'PY'
           from importlib.metadata import version
           print(version("scieqlint"))
           PY
           )"
           test "$wheel_version" = "$source_version"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          test "$sdist_version" = "$source_version"
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             test "${GITHUB_REF_NAME#v}" = "$source_version"
           fi
-      - name: Enforce stable-release accuracy and performance evidence
+      - name: Enforce stable-release behavioral evidence
+        if: github.event_name == 'push'
         run: |
-          /tmp/scieqlint-release-smoke/bin/python -m pip install pytest
-          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-smoke/bin/python -m pytest \
+          cd "$SCIEQLINT_RELEASE_SOURCE"
+          PIP_CONSTRAINT="$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            /tmp/scieqlint-release-wheel-smoke/bin/python -m pip install \
+            --constraint "$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            "pytest==8.4.2" "jsonschema==4.25.1"
+          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-wheel-smoke/bin/python -m pytest \
             -o pythonpath= -q \
             tests/test_accuracy_benchmarks.py \
+            tests/test_generated_formula_quality_golden.py \
             tests/test_stabilization.py
-
+          PIP_CONSTRAINT="$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            /tmp/scieqlint-release-sdist-smoke/bin/python -m pip install \
+            --constraint "$SCIEQLINT_RELEASE_CONSTRAINTS" \
+            "pytest==8.4.2" "jsonschema==4.25.1"
+          SCIEQLINT_RELEASE_GATE=1 /tmp/scieqlint-release-sdist-smoke/bin/python -m pytest \
+            -o pythonpath= -q \
+            tests/test_accuracy_benchmarks.py \
+            tests/test_generated_formula_quality_golden.py \
+            tests/test_stabilization.py
+      - name: Record resolved release dependencies
+        run: |
+          {
+            echo "### Wheel smoke dependencies"
+            echo '```text'
+            LC_ALL=C /tmp/scieqlint-release-wheel-smoke/bin/python -m pip freeze --all | sort
+            echo '```'
+            echo "### Source distribution smoke dependencies"
+            echo '```text'
+            LC_ALL=C /tmp/scieqlint-release-sdist-smoke/bin/python -m pip freeze --all | sort
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Recheck protected main and release tag
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_RELEASE_SHA: ${{ needs.build.outputs.release_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF_TYPE" = "tag"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$EXPECTED_RELEASE_SHA" = "$GITHUB_SHA"
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          tag_ref="refs/tags/${GITHUB_REF_NAME}"
+          tag_refs="$(git -c "http.extraheader=AUTHORIZATION: bearer $GITHUB_TOKEN" \
+            ls-remote --exit-code "$repo_url" "$tag_ref" "${tag_ref}^{}")"
+          tag_sha="$(printf '%s\n' "$tag_refs" | awk -v tag_ref="$tag_ref" '
+            $2 == tag_ref "^{}" { print $1; found = 1; exit }
+            $2 == tag_ref { direct = $1 }
+            END { if (!found && direct != "") print direct }
+          ')"
+          main_sha="$(git -c "http.extraheader=AUTHORIZATION: bearer $GITHUB_TOKEN" \
+            ls-remote --exit-code "$repo_url" refs/heads/main | awk 'NR == 1 { print $1 }')"
+          test "$tag_sha" = "$EXPECTED_RELEASE_SHA"
+          test "$main_sha" = "$EXPECTED_RELEASE_SHA"
   publish:
     needs: smoke
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -88,7 +242,47 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: dist
+          artifact-ids: ${{ needs.smoke.outputs.distribution_id }}
           path: dist
+          digest-mismatch: error
+      - name: Verify final distribution set
+        run: |
+          shopt -s nullglob
+          entries=(dist/* dist/.[!.]* dist/..?*)
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          test "${#entries[@]}" -eq 2
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+          for entry in "${entries[@]}"; do
+            test -f "$entry"
+          done
+      - name: Recheck protected main and release tag
+        env:
+          EXPECTED_RELEASE_SHA: ${{ needs.smoke.outputs.release_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF_TYPE" = "tag"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$EXPECTED_RELEASE_SHA" = "$GITHUB_SHA"
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          tag_ref="refs/tags/${GITHUB_REF_NAME}"
+          tag_refs="$(git -c "http.extraheader=AUTHORIZATION: bearer $GITHUB_TOKEN" \
+            ls-remote --exit-code "$repo_url" "$tag_ref" "${tag_ref}^{}")"
+          tag_sha="$(printf '%s\n' "$tag_refs" | awk -v tag_ref="$tag_ref" '
+            $2 == tag_ref "^{}" { print $1; found = 1; exit }
+            $2 == tag_ref { direct = $1 }
+            END { if (!found && direct != "") print direct }
+          ')"
+          main_sha="$(git -c "http.extraheader=AUTHORIZATION: bearer $GITHUB_TOKEN" \
+            ls-remote --exit-code "$repo_url" refs/heads/main | awk 'NR == 1 { print $1 }')"
+          test "$tag_sha" = "$EXPECTED_RELEASE_SHA"
+          test "$main_sha" = "$EXPECTED_RELEASE_SHA"
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          packages-dir: dist
+          verify-metadata: "true"
+          skip-existing: "false"
+          attestations: "true"
+          print-hash: "true"

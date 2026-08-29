@@ -129,6 +129,7 @@ Release notes must use these sections:
   cells remain analyzable and oversized or deeply nested notebook input fails
   closed deterministically. Fixed notebook safety bounds are measured at the
   normalized `SourceDocument` boundary.
+- `PORT002` remains marked `Unreleased` until its release line is established.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic
@@ -145,8 +146,7 @@ Release notes must use these sections:
   classified as ambiguous unsupported math instead of a preserved formula.
 - Reference validation now reports `REF008` without duplicate `REF002` when an equation
   reference matches only hidden or excluded targets; genuinely missing targets remain
-  `REF002`. The warning retains exact target counts with bounded representative source
-  metadata when many non-visible definitions share one label.
+  `REF002`.
 - Profile model construction and TOML loading now reject unknown or non-string profile choices
   with deterministic `ValueError` results.
 - Cross-format profile inputs now reject duplicate document paths before fact lowering so
@@ -155,21 +155,24 @@ Release notes must use these sections:
   references, and duplicate code-cell diagnostics serialize complete member-path
   identities and exact collision counts with bounded representative provenance.
 - Notebook lowering scopes nested equation-reference owners by cell, and notebook
-  cross-reference labels recognize documented lowercase prefixes after an optional
-  leading `#` marker.
+  cross-reference label prefixes are matched case-insensitively.
 - Notebook output targets now retain complete member-path identity and exact JSON
   output and label locations; unavailable source locations fail closed with `INP001`.
 - Notebook rendering conflicts now preserve one diagnostic per recorded output and
   recognize Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases; recorded
   output aliases retain the exact JSON option span used for their target.
 - Notebook reference-display facts are resolved after notebook-wide target aggregation,
-  and the profile admits notebook documents through the public API. Application analysis
-  derives these facts only for the opt-in profile, and ambiguous matches retain no target IDs.
+  and the profile admits notebook documents through the public API.
 - Reference-display target typing now honors notebook caption metadata for untyped
   recorded-output labels and remains active when Markdown scanning is disabled for
   the explicit profile.
 - Notebook code-cell lowering preserves malformed explicit language metadata with
   exact spans for `DIR013`.
+- Stable release publication now accepts only semver tag pushes, verifies source, wheel,
+  source-distribution, tag, and protected-`main` identity throughout the workflow, builds
+  exactly one wheel and one source distribution with pinned tooling, runs clean install,
+  CLI, generated-formula, accuracy, and performance gates against both members of one
+  immutable artifact, and publishes that artifact without rebuilding.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Malformed local URL destinations are now ignored safely, and project-reference
@@ -179,10 +182,6 @@ Release notes must use these sections:
   fragments are ignored without producing empty reference identities.
 - `check_paths(absolute_paths=True)` now changes diagnostic presentation only, so
   configured project-root reference resolution is stable across path display modes.
-- Stable-tag publication now fails closed unless source, wheel, and tag versions
-  agree, at least 100 independently labeled semantic equations execute through
-  the public analysis path with their expected diagnostics and exit status, and
-  the 100-document/500-equation/500-reference workload stays under three seconds.
 - Markdown math fences now follow the shared CommonMark opener and closer rules,
   including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct
