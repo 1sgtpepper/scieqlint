@@ -41,6 +41,15 @@ To replay against an existing base checkout directly:
 python tools/public_regression_replay.py --base ../scieqlint-base
 ```
 
+## Bounded property checks
+
+The pull-request suite includes at most three deterministic Hypothesis properties for
+semantic invariants that benefit from nearby generated forms. Keep each property bounded,
+set `derandomize=True`, disable the example database, and do not suppress health checks.
+When a property exposes a production defect, first reduce the example to an owner-local
+regression test; the production fix must make that fixed reproducer pass. Scheduled deep
+profiles, fuzzers, and mutation workflows remain separate work.
+
 ## Local loop
 
 ```bash
