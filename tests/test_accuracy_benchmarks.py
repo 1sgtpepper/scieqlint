@@ -16,6 +16,7 @@ from scieqlint.config.model import (
     Config,
     OutputProfile,
     ProfileConfig,
+    ProjectConfig,
     ValidationProfile,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
@@ -248,11 +249,18 @@ def _check_notebook_case(case: dict[str, object]):
         DocumentKind.NOTEBOOK,
     )
     profile = case.get("profile")
-    config = (
-        Config(profile=ProfileConfig(name=cast(ValidationProfile, str(profile))))
-        if profile is not None
-        else Config()
-    )
+    if profile == "code-cell-metadata":
+        languages = cast(list[str], case.get("code_cell_languages", []))
+        config = Config(
+            profile=ProfileConfig(name="code-cell-metadata"),
+            project=ProjectConfig(code_cell_languages=tuple(languages)),
+        )
+    else:
+        config = (
+            Config(profile=ProfileConfig(name=cast(ValidationProfile, str(profile))))
+            if profile is not None
+            else Config()
+        )
     return check_documents([document], config=config)
 
 

@@ -146,9 +146,17 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "DIR010": DiagnosticInfo(
         "DIR010",
         Severity.WARNING,
-        "code-cell directive missing language",
+        "code cell is missing an executable language",
         "v1.1.0",
-        "A MyST code-cell directive has no executable language argument.",
+        "A Markdown/MyST or notebook code cell has no executable language metadata.",
+    ),
+    "DIR013": DiagnosticInfo(
+        "DIR013",
+        Severity.WARNING,
+        "code-cell language metadata is unknown or malformed",
+        "v1.1.0",
+        "A code-cell language value is malformed or is absent from the optional "
+        "project-authoritative language catalog.",
     ),
     "DIR011": DiagnosticInfo(
         "DIR011",

@@ -267,6 +267,29 @@ def test_load_config_rejects_malformed_project_visibility(tmp_path, contents, me
         load_config(config_path)
 
 
+def test_load_config_accepts_project_code_cell_catalog(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[project]\ncode_cell_languages = ["python", "brainfuck"]\n',
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.project.code_cell_languages == ("python", "brainfuck")
+
+
+def test_load_config_rejects_blank_project_code_cell_language(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[project]\ncode_cell_languages = ["python", " "]\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must be a list of non-empty strings"):
+        load_config(config_path)
+
+
 def test_load_config_rejects_empty_profile_metadata(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nsource_kind = "   "\n', encoding="utf-8")

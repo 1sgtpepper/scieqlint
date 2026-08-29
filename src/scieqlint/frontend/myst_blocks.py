@@ -168,7 +168,8 @@ def _make_fence_fact(
 
 
 def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCellFact | None:
-    if fence.language not in {"python", "r", "julia", "bash"}:
+    language = fence.language
+    if language not in {"python", "r", "julia", "bash"}:
         return None
     options = quarto_options(document, fence)
     label = dict(options).get("label") or None
@@ -183,8 +184,8 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         raw=fence.raw,
         fence_fact_id=fence.fact_id,
         directive_fact_id=None,
-        language=fence.language,
-        engine=fence.language,
+        language=language,
+        engine=language,
         options=options,
         label=label,
         normalized_label=normalized_label,
@@ -193,6 +194,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
             if label is not None
             else None
         ),
+        language_span=_fence_info_span(document, fence, language),
     )
 
 
@@ -235,6 +237,11 @@ def _directive_code_cell_fact(
     if not normalized_label:
         label = None
         normalized_label = None
+    language_span = (
+        _directive_group_span(document, fence, directive_match, "arg")
+        if is_myst_code_cell
+        else _directive_group_span(document, fence, directive_match, "name")
+    )
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -254,6 +261,7 @@ def _directive_code_cell_fact(
             if label is not None
             else None
         ),
+        language_span=language_span,
         tags=tags,
     )
 
@@ -443,6 +451,35 @@ def _option_value_span(
                 selected = SourceMap.for_document(document).span(start, start + len(value))
         offset += len(line)
     return selected
+
+
+def _fence_info_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    value: str,
+) -> SourceSpan:
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.index(fence.info_string)
+    value_start = fence.info_string.index(value)
+    start = fence.opener_span.start + info_start + value_start
+    return SourceMap.for_document(document).span(start, start + len(value))
+
+
+def _directive_group_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    match: re.Match[str],
+    group: str,
+) -> SourceSpan | None:
+    raw_value = match.group(group)
+    value = raw_value.strip()
+    if not value:
+        return None
+    opener = document.text[fence.opener_span.start : fence.opener_span.end]
+    info_start = opener.index(fence.info_string)
+    leading = len(raw_value) - len(raw_value.lstrip())
+    start = fence.opener_span.start + info_start + match.start(group) + leading
+    return SourceMap.for_document(document).span(start, start + len(value))
 
 
 def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:

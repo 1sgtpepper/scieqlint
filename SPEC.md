@@ -745,6 +745,10 @@ The unreleased `reference-display` profile resolves Markdown references against
 visible notebook headings, equations, code-cell labels and recorded-output labels.
 It preserves source spans and visibility and never executes or re-renders cells.
 
+The unreleased `code-cell-metadata` profile admits notebook code cells and checks
+their language metadata. Labeled Markdown code cells already participate in ordinary
+reference resolution.
+
 ### 5.7 v0.1.5 — SARIF and thin GitHub Action
 
 Goal: support GitHub code scanning and copy-pasteable CI without changing analysis behavior.
@@ -1928,6 +1932,8 @@ current development loader accepts only the documented fixed schema: `[project]`
 `[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
 `[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
 `[project.visibility]`, `[vars]`, and `[aliases]` remain dynamic mappings.
+The current `[project]` table also accepts the optional `code_cell_languages`
+catalog used by the code-cell metadata profile.
 
 v0.1.2 adds:
 

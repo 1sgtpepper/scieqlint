@@ -287,9 +287,14 @@ engine emits deterministic diagnostics for malformed ATX headings, unclosed
 non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
-syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+syntax, missing executable language metadata, and malformed code-cell tag lists.
+The opt-in `code-cell-metadata` profile also checks malformed or unknown language
+values. Language identifiers are accepted when syntactically valid unless a project
+declares a closed `[project].code_cell_languages` catalog; in that case an identifier
+outside the catalog is unknown.
 Recognized executable Quarto fences and directives use `python`, `r`, `julia`, or
-`bash`; other bare fenced languages remain generic fences.
+`bash`; other bare fenced languages remain generic fences. MyST `{code-cell}`
+directives may use any syntactically valid language identifier.
 Malformed ATX candidates are syntax issues only and do not enter heading, section,
 slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
 such as `# #` are valid empty headings.
@@ -443,8 +448,8 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 Notebooks are never executed. v0.1.4 scans Markdown cells, joins valid string
 lists according to the Jupyter format, preserves notebook cell metadata in
 diagnostics, and keeps code-cell math silent. The
-`cross-format-references`, `math-accessibility`, `notebook-crossrefs`, and
-`reference-display` profiles additionally lower code-cell
+`cross-format-references`, `math-accessibility`, `notebook-crossrefs`,
+`reference-display`, and `code-cell-metadata` profiles additionally lower code-cell
 metadata and recorded outputs into immutable facts; this metadata pass does not evaluate
 source or re-render outputs. Except for `reference-display`, disabling the Markdown
 scanner excludes notebook Markdown facts while retaining those code/output facts.
@@ -481,6 +486,11 @@ The opt-in `reference-display` profile admits notebook documents and resolves
 visible Markdown references after notebook-wide target aggregation.
 Display labels from notebook Markdown cells use the same source contract as Markdown documents:
 the trimmed source Markdown/MyST label is retained without rendering or entity/escape decoding.
+The opt-in `code-cell-metadata` profile additionally admits notebook code cells
+so their labels participate in reference resolution, and validates their language
+metadata with exact JSON value spans. `DIR010` remains active for default
+Markdown/MyST checks; notebook `DIR010` is emitted when the selected profile admits
+notebook-derived code-cell facts. It does not execute or re-render cell contents.
 
 - Project reference paths are normalized lexically and retain their fragment for
   cross-document target identity; SciEqLint does not resolve symlinks or fetch

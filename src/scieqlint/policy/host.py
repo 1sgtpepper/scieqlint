@@ -22,6 +22,7 @@ _REFERENCE_SUPPORT: dict[str, frozenset[str]] = {
     # TeX reference commands are output-profile-specific source syntax.
     "typst": frozenset({"eq", "numref"}),
 }
+_CODE_CELL_METADATA_PROFILE = "code-cell-metadata"
 
 
 def _validated_output_profile(value: object) -> str:
@@ -35,11 +36,29 @@ class PolicyHost:
     """Resolve configured support and severity policy for fact consumers."""
 
     output_profile: str | None = None
+    profile: str | None = None
+    code_cell_languages: tuple[str, ...] = ()
 
     def severity(self, code: str) -> Severity:
         """Return the catalog severity selected for one diagnostic code."""
 
         return CATALOG[code].severity
+
+    def code_cell_metadata_profile(self) -> str | None:
+        """Return the active profile name when code-cell policy is enabled."""
+
+        if self.profile == _CODE_CELL_METADATA_PROFILE:
+            return _CODE_CELL_METADATA_PROFILE
+        return None
+
+    def code_cell_language_is_known(self, language: str) -> bool:
+        """Validate a language against the project catalog when one is configured.
+
+        An empty catalog means the project has not declared a closed kernel set, so
+        any syntactically valid language identifier remains usable.
+        """
+
+        return not self.code_cell_languages or language in self.code_cell_languages
 
     def cross_format_reference_risks(
         self,
