@@ -103,6 +103,7 @@ configuration options. Exceeding either bound skips notebook analysis and emits
 [project]
 root = "."
 order = ["symbols.md", "chapters/**/*.md"]
+code_cell_languages = ["python", "julia"]
 
 [project.visibility]
 "draft.md" = "hidden"
@@ -118,6 +119,12 @@ controls the analysis order of discovered files. When no paths are passed and
 `project.order` is non-empty, both commands discover those ordered project entries.
 Unmatched files keep deterministic lexical ordering after configured entries.
 The default empty order preserves single-command discovery behavior.
+
+`project.code_cell_languages` is an optional authoritative catalog for the
+`code-cell-metadata` profile. An empty list leaves syntactically valid language
+identifiers open; when the list is non-empty, a valid identifier not in the list is
+reported as unknown. The catalog does not execute cells or validate kernel-specific
+syntax.
 
 `project.visibility` uses project-relative POSIX paths and applies the rendered-project
 state before legacy or profile reference checks. Omitted documents are visible. Hidden
@@ -250,6 +257,14 @@ silently running a different rule set.
   cells have exact frontend source mapping but are intentionally outside this
   portability profile. Active TeX comments are ignored while source spans remain
   source-accurate. It does not invoke Typst or translate equations.
+- `code-cell-metadata` includes notebook-derived cells and reports unknown or
+  malformed language metadata without executing cell contents. Language names are
+  checked for identifier syntax first and then against the optional authoritative
+  `project.code_cell_languages` catalog. Labeled Markdown cells already participate
+  in ordinary reference resolution. The `DIR010` message covers Markdown/MyST and
+  notebook cells: default structure checks continue to report missing language on
+  Markdown/MyST cells, while notebook `DIR010` is emitted when the selected profile
+  admits notebook-derived code-cell facts.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset.

@@ -93,7 +93,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             output_label_spans,
             cell_source_ranges,
             cell_option_spans,
-        ) = _notebook_locations(document, cells, root_range)
+        ) = _notebook_locations(document, notebook, cells, root_range)
     except _NotebookSourceLimitError as exc:
         return NotebookInput(
             document=document,
@@ -209,6 +209,7 @@ def _notebook_schema_diagnostics(
 
 def _notebook_locations(
     document: SourceDocument,
+    notebook: Mapping[str, object],
     cells: tuple[object, ...],
     root_range: tuple[int, int],
 ) -> tuple[
@@ -246,6 +247,12 @@ def _notebook_locations(
     root_start, root_end = root_range
     root_members = json_object_members(decoder, document.text, root_start, root_end)
     cells_range = root_members["cells"]
+    default_language_span = _default_language_span(
+        decoder,
+        document,
+        root_members,
+        notebook,
+    )
     cell_ranges = json_array_ranges(decoder, document.text, *cells_range)
     for cell_index, (cell, (cell_start, cell_end)) in enumerate(
         zip(cells, cell_ranges, strict=True)
@@ -277,6 +284,7 @@ def _notebook_locations(
                 cell_members,
                 source,
                 cell_members.get("source"),
+                default_language_span,
             )
         raw_outputs = cell.get("outputs")
         if not isinstance(raw_outputs, list):
@@ -306,6 +314,37 @@ def _notebook_locations(
     )
 
 
+def _default_language_span(
+    decoder: json.JSONDecoder,
+    document: SourceDocument,
+    root_members: Mapping[str, tuple[int, int]],
+    notebook: Mapping[str, object],
+) -> SourceSpan | None:
+    metadata = notebook.get("metadata")
+    metadata_range = root_members.get("metadata")
+    if not isinstance(metadata, Mapping) or metadata_range is None:
+        return None
+    metadata = cast(Mapping[str, object], metadata)
+    metadata_members = json_object_members(decoder, document.text, *metadata_range)
+    for parent_key, value_key in (("kernelspec", "language"), ("language_info", "name")):
+        parent = metadata.get(parent_key)
+        parent_range = metadata_members.get(parent_key)
+        if not isinstance(parent, Mapping) or parent_range is None:
+            continue
+        parent = cast(Mapping[str, object], parent)
+        value = parent.get(value_key)
+        value_range = json_object_members(decoder, document.text, *parent_range).get(value_key)
+        if not isinstance(value, str) or not value.strip() or value_range is None:
+            continue
+        return _json_value_span(
+            document,
+            value_range,
+            cell=None,
+            cell_line=None,
+        )
+    return None
+
+
 def _cell_option_spans(
     decoder: json.JSONDecoder,
     document: SourceDocument,
@@ -314,6 +353,7 @@ def _cell_option_spans(
     cell_members: Mapping[str, tuple[int, int]],
     source: str | None,
     source_range: tuple[int, int] | None,
+    default_language_span: SourceSpan | None,
 ) -> tuple[tuple[str, SourceSpan], ...]:
     """Locate code-cell label options without losing JSON source identity."""
 
@@ -338,24 +378,24 @@ def _cell_option_spans(
             _record_option_spans(document, cell_index, quarto, quarto_members, spans)
 
     if source is not None and source_range is not None:
-        label_seen = False
-        label_range: tuple[int, int, int] | None = None
+        source_options: dict[str, tuple[int, int, int] | None] = {}
         for key, value, start, end, line in _source_option_entries(source):
-            if key != "label":
+            if key not in {"label", "language"}:
                 continue
-            label_seen = True
-            label_range = (start, end, line) if value else None
-        if label_seen:
-            if label_range is None:
-                spans.pop("label", None)
+            source_options[key] = None if key == "label" and not value else (start, end, line)
+        for key, option_range in source_options.items():
+            if option_range is None:
+                spans.pop(key, None)
             else:
-                spans["label"] = _source_option_span(
+                spans[key] = _source_option_span(
                     decoder,
                     document,
                     source_range,
-                    *label_range,
+                    *option_range,
                     cell_index=cell_index,
                 )
+    if "language" not in spans and default_language_span is not None:
+        spans["language"] = replace(default_language_span, cell=cell_index, cell_line=1)
     return tuple(sorted(spans.items()))
 
 
@@ -369,6 +409,21 @@ def _source_option_span(
     *,
     cell_index: int,
 ) -> SourceSpan:
+    if start == end:
+        position = _source_position(decoder, document.text, source_range, start)
+        line, col = document.line_index.position(position)
+        return SourceSpan(
+            path=document.path,
+            start=position,
+            end=position,
+            line=line,
+            col=col,
+            end_line=line,
+            end_col=col,
+            cell=cell_index,
+            cell_line=cell_line,
+            segments=(),
+        )
     source_ranges = tuple(
         _source_range_slice(
             decoder,
@@ -386,6 +441,24 @@ def _source_option_span(
     )
 
 
+def _source_position(
+    decoder: json.JSONDecoder,
+    text: str,
+    source_range: tuple[int, int],
+    offset: int,
+) -> int:
+    logical_position = 0
+    last_raw_end: int | None = None
+    for ranges in _normalized_source_ranges(decoder, text, source_range):
+        if logical_position == offset:
+            return ranges[0][0]
+        logical_position += 1
+        last_raw_end = ranges[-1][1]
+    if logical_position == offset and last_raw_end is not None:
+        return last_raw_end
+    raise NotebookSourceLocationError("notebook source position is outside its source")
+
+
 def _record_option_spans(
     document: SourceDocument,
     cell_index: int,
@@ -393,18 +466,27 @@ def _record_option_spans(
     members: Mapping[str, tuple[int, int]],
     spans: dict[str, SourceSpan],
 ) -> None:
-    if "label" not in options or "label" not in members:
-        return
-    raw_value = options["label"]
-    if not _option_value_present(raw_value):
-        spans.pop("label", None)
-        return
-    spans["label"] = _json_value_span(
-        document,
-        members["label"],
-        cell=cell_index,
-        cell_line=1,
-    )
+    for key in ("label", "language"):
+        if key not in options or key not in members:
+            continue
+        raw_value = options[key]
+        if key != "language" and not _option_value_present(raw_value):
+            spans.pop(key, None)
+            continue
+        if key == "language" and raw_value == "":
+            spans[key] = _json_span(
+                document,
+                *members[key],
+                cell=cell_index,
+                cell_line=1,
+            )
+            continue
+        spans[key] = _json_value_span(
+            document,
+            members[key],
+            cell=cell_index,
+            cell_line=1,
+        )
 
 
 def _option_value_present(value: object) -> bool:

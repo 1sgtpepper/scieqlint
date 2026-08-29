@@ -45,7 +45,7 @@ def code_cell_fact(
     source = cell_source(cell.get("source"))
     options = _cell_options(metadata, source)
     option_map = dict(options)
-    language = option_map.get("language") or default_language
+    language = option_map.get("language", default_language)
     engine = option_map.get("engine") or language
     label = option_map.get("label") or None
     normalized_label = normalize_label(label) if label is not None else None
@@ -66,6 +66,8 @@ def code_cell_fact(
         label=label,
         normalized_label=normalized_label,
         label_span=option_spans.get("label") if label is not None else None,
+        language_span=option_spans.get("language") if language else None,
+        source_format="notebook",
         tags=_tags(metadata.get("tags")),
     )
 
@@ -81,14 +83,26 @@ def _cell_options(
     for key in _CELL_OPTION_KEYS:
         if key not in merged:
             continue
+        if key == "language":
+            normalized[key] = _language_option_value(merged[key])
+            continue
         value = _option_value(merged[key])
         if value is not None:
             normalized[key] = value
     if source is not None:
         for key, value in quarto_option_prefix(source):
             if key in _CELL_OPTION_KEYS:
-                normalized[key] = value
+                normalized[key] = _language_option_value(value) if key == "language" else value
     return tuple(sorted(normalized.items()))
+
+
+def _language_option_value(value: object) -> str:
+    if isinstance(value, str):
+        normalized = value.strip()
+        return normalized if normalized else '<json:"">'
+    # An explicit non-string value is invalid, not an absent option that may
+    # inherit the notebook default.
+    return f"<json:{json.dumps(value, ensure_ascii=False, separators=(',', ':'))}>"
 
 
 def _option_value(value: object) -> str | None:

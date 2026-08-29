@@ -755,6 +755,8 @@ Current opt-in notebook profiles lower recorded metadata without execution:
   and output-boundary metadata.
 - `reference-display` resolves Markdown references against visible notebook
   headings, equations, code-cell labels, and recorded-output labels.
+- `code-cell-metadata` admits notebook code cells and checks their language metadata;
+  labeled Markdown code cells already participate in ordinary reference resolution.
 
 These profiles preserve notebook source spans and visibility semantics and never
 execute or re-render cell contents.
@@ -1942,6 +1944,8 @@ v1.1.0 loader accepts only the documented fixed schema: `[project]`,
 `[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
 `[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;
 `[project.visibility]`, `[vars]`, and `[aliases]` remain dynamic mappings.
+The current `[project]` table also accepts the optional `code_cell_languages`
+catalog used by the code-cell metadata profile.
 
 v0.1.2 adds:
 

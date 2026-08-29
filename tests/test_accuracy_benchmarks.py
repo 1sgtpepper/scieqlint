@@ -16,6 +16,7 @@ from scieqlint.config.model import (
     Config,
     OutputProfile,
     ProfileConfig,
+    ProjectConfig,
     ValidationProfile,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
@@ -123,7 +124,7 @@ def test_v110_typst_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
-def test_v110_notebook_fact_accuracy_benchmark_fixture_is_checked() -> None:
+def test_v110_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
     path = BENCHMARK_DIR / "notebook.yml"
     cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
     assert cases
@@ -248,11 +249,18 @@ def _check_notebook_case(case: dict[str, object]):
         DocumentKind.NOTEBOOK,
     )
     profile = case.get("profile")
-    config = (
-        Config(profile=ProfileConfig(name=cast(ValidationProfile, str(profile))))
-        if profile is not None
-        else Config()
-    )
+    if profile == "code-cell-metadata":
+        languages = cast(list[str], case.get("code_cell_languages", []))
+        config = Config(
+            profile=ProfileConfig(name="code-cell-metadata"),
+            project=ProjectConfig(code_cell_languages=tuple(languages)),
+        )
+    else:
+        config = (
+            Config(profile=ProfileConfig(name=cast(ValidationProfile, str(profile))))
+            if profile is not None
+            else Config()
+        )
     return check_documents([document], config=config)
 
 

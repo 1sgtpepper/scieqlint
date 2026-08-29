@@ -6,19 +6,24 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents as public_check_documents
-from scieqlint.app import _profile_snapshot
+from scieqlint.app import _profile_snapshot, check_documents
+from scieqlint.config.load import load_config
 from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
     Config,
     ProfileConfig,
+    ProjectConfig,
+    ProjectVisibility,
 )
 from scieqlint.engine.reference import ReferenceEngine
+from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.structure import CodeCellFact
 from scieqlint.frontend import notebook_input
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 
 
@@ -40,7 +45,7 @@ def notebook(data: object, path: str = "cells.ipynb") -> SourceDocument:
 
 def profile_config() -> Config:
     return Config(
-        profile=ProfileConfig(name="notebook-crossrefs"),
+        profile=ProfileConfig(name="code-cell-metadata"),
         checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
     )
 
@@ -168,6 +173,7 @@ See {ref}`cell-demo`.
     assert cell.normalized_label == "cell-demo"
     assert cell.language == "custom.kernel"
     assert source_slice(document, cell.label_span) == "cell-demo"
+    assert source_slice(document, cell.language_span) == "custom.kernel"
     assert QueryHost(snapshot).references.code_cell_targets() == (cell,)
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
@@ -386,6 +392,215 @@ See {ref}`missing-cell`.
     assert diagnostics[0].message.endswith("missing-cell")
 
 
+def test_language_profile_uses_project_catalog_after_syntax_validation() -> None:
+    document = markdown(
+        """```{code-cell}
+pass
+```
+
+```{code-cell} python shell
+pass
+```
+
+```{code-cell} c++
+pass
+```
+
+```{code-cell} brainfuck
+pass
+```
+
+```{code-cell} custom.kernel-3
+pass
+```
+"""
+    )
+    snapshot = MySTFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    default = StructureEngine().run(query)
+    profiled = StructureEngine(policy=PolicyHost(profile="code-cell-metadata")).run(query)
+    configured = StructureEngine(
+        policy=PolicyHost(
+            profile="code-cell-metadata",
+            code_cell_languages=("python", "c++", "custom.kernel-3"),
+        ),
+    ).run(query)
+
+    assert [diagnostic.code for diagnostic in default] == ["DIR010"]
+    assert default[0].profile is None
+    assert default[0].provenance_ids == ()
+    assert default[0].properties == ()
+    assert [diagnostic.code for diagnostic in profiled] == ["DIR010", "DIR013"]
+    assert profiled[0].profile == "code-cell-metadata"
+    assert profiled[0].properties == (("source_format", "markdown"), ("reason", "missing"))
+    assert source_slice(document, profiled[1].span) == "python shell"
+    assert profiled[1].properties == (
+        ("source_format", "markdown"),
+        ("language", "python shell"),
+        ("reason", "invalid"),
+    )
+    assert [diagnostic.code for diagnostic in configured] == ["DIR010", "DIR013", "DIR013"]
+    assert source_slice(document, configured[2].span) == "brainfuck"
+    assert configured[2].properties == (
+        ("source_format", "markdown"),
+        ("language", "brainfuck"),
+        ("reason", "unknown"),
+    )
+
+
+LANGUAGE_NOTEBOOK = r"""{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": "python"},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": "python shell"},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": "brainfuck"},
+      "outputs": [],
+      "source": "pass\n"
+    }
+  ],
+  "metadata": {},
+  "nbformat": 4,
+  "nbformat_minor": 5
+}"""
+
+
+MALFORMED_LANGUAGE_NOTEBOOK = r"""{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": "custom.kernel"},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": {"name": "python"}},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": null},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {"language": ""},
+      "outputs": [],
+      "source": "pass\n"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": "#| language:\npass\n"
+    }
+  ],
+  "metadata": {"kernelspec": {"language": "python", "name": "python3"}},
+  "nbformat": 4,
+  "nbformat_minor": 5
+}"""
+
+
+def test_notebook_language_metadata_preserves_malformed_values_and_decoder_spans() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("malformed-language.ipynb"),
+        MALFORMED_LANGUAGE_NOTEBOOK,
+        DocumentKind.NOTEBOOK,
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    diagnostics = StructureEngine(
+        policy=PolicyHost(
+            profile="code-cell-metadata",
+            code_cell_languages=("python", "custom.kernel"),
+        ),
+    ).run(QueryHost(snapshot))
+
+    [valid, defaulted, mapping, null_value, empty_metadata, empty_source] = snapshot.code_cells
+    assert [cell.language for cell in snapshot.code_cells] == [
+        "custom.kernel",
+        "python",
+        '<json:{"name":"python"}>',
+        "<json:null>",
+        '<json:"">',
+        '<json:"">',
+    ]
+    assert valid.language_span is not None
+    assert source_slice(document, valid.language_span) == "custom.kernel"
+    assert defaulted.language_span is not None
+    assert source_slice(document, defaulted.language_span) == "python"
+    assert mapping.language_span is not None
+    assert source_slice(document, mapping.language_span) == '{"name": "python"}'
+    assert null_value.language_span is not None
+    assert source_slice(document, null_value.language_span) == "null"
+    assert mapping.language_span.start == document.text.index('{"name": "python"}')
+    assert mapping.language_span.end == mapping.language_span.start + len('{"name": "python"}')
+    assert null_value.language_span.start == document.text.index('"language": null') + len(
+        '"language": '
+    )
+    assert null_value.language_span.end == null_value.language_span.start + len("null")
+    assert empty_metadata.language_span is not None
+    assert source_slice(document, empty_metadata.language_span) == '""'
+    assert empty_metadata.language_span.start == document.text.index('"language": ""') + len(
+        '"language": '
+    )
+    assert empty_metadata.language_span.end == empty_metadata.language_span.start + len('""')
+    assert empty_source.language_span is not None
+    assert source_slice(document, empty_source.language_span) == ""
+    assert empty_source.language_span.start == document.text.index("#| language:") + len(
+        "#| language:"
+    )
+    root_language = document.text.rindex('"language": "python"')
+    assert defaulted.language_span.start == document.text.index('"python"', root_language) + 1
+    assert [
+        (diagnostic.code, dict(diagnostic.properties)["reason"]) for diagnostic in diagnostics
+    ] == [
+        ("DIR013", "invalid"),
+        ("DIR013", "invalid"),
+        ("DIR013", "invalid"),
+        ("DIR013", "invalid"),
+    ]
+    assert diagnostics[0].span == mapping.language_span
+    assert diagnostics[1].span == null_value.language_span
+    assert diagnostics[2].span == empty_metadata.language_span
+    assert diagnostics[3].span == empty_source.language_span
+
+
 def test_empty_source_label_clears_metadata_without_invalid_root_defaults() -> None:
     payload = notebook_payload(
         code_cell(metadata={"label": "metadata-label"}, source="#| label:\npass\n")
@@ -399,6 +614,151 @@ def test_empty_source_label_clears_metadata_without_invalid_root_defaults() -> N
     assert cell.normalized_label is None
     assert cell.label_span is None
     assert cell.language is None
+    assert cell.language_span is None
+
+
+def test_notebook_language_policy_matches_markdown_with_exact_spans() -> None:
+    notebook_document = SourceDocument.from_text(
+        PurePosixPath("language.ipynb"),
+        LANGUAGE_NOTEBOOK,
+        DocumentKind.NOTEBOOK,
+    )
+    markdown_document = markdown(
+        """```{code-cell} python
+pass
+```
+
+```{code-cell}
+pass
+```
+
+```{code-cell} python shell
+pass
+```
+
+```{code-cell} brainfuck
+pass
+```
+""",
+        "language.md",
+    )
+    policy = PolicyHost(
+        profile="code-cell-metadata",
+        code_cell_languages=("python",),
+    )
+    notebook_snapshot = NotebookFrontend().lower((notebook_document,))
+    markdown_snapshot = MySTFrontend().lower((markdown_document,))
+    notebook_diagnostics = StructureEngine(
+        policy=policy,
+    ).run(QueryHost(notebook_snapshot))
+    markdown_diagnostics = StructureEngine(
+        policy=policy,
+    ).run(QueryHost(markdown_snapshot))
+
+    def language_contract(diagnostics):
+        return tuple(
+            (
+                diagnostic.code,
+                dict(diagnostic.properties).get("language"),
+                dict(diagnostic.properties).get("reason"),
+            )
+            for diagnostic in diagnostics
+        )
+
+    assert language_contract(notebook_diagnostics) == language_contract(markdown_diagnostics)
+    assert language_contract(notebook_diagnostics) == (
+        ("DIR010", None, "missing"),
+        ("DIR013", "python shell", "invalid"),
+        ("DIR013", "brainfuck", "unknown"),
+    )
+    [valid, missing, invalid, unknown] = notebook_snapshot.code_cells
+    assert valid.language_span is not None
+    assert source_slice(notebook_document, valid.language_span) == "python"
+    assert (
+        valid.language_span.start,
+        valid.language_span.end,
+        valid.language_span.line,
+        valid.language_span.col,
+        valid.language_span.end_line,
+        valid.language_span.end_col,
+    ) == (111, 117, 6, 33, 6, 38)
+    assert missing.language_span is None
+    assert missing.span is not None
+    assert (
+        missing.span.start,
+        missing.span.end,
+        missing.span.line,
+        missing.span.col,
+        missing.span.end_line,
+        missing.span.end_col,
+    ) == (178, 311, 10, 5, 16, 5)
+    assert invalid.language_span is not None
+    assert source_slice(notebook_document, invalid.language_span) == "python shell"
+    assert (
+        invalid.language_span.start,
+        invalid.language_span.end,
+        invalid.language_span.line,
+        invalid.language_span.col,
+        invalid.language_span.end_line,
+        invalid.language_span.end_col,
+    ) == (409, 421, 20, 33, 20, 44)
+    assert unknown.language_span is not None
+    assert source_slice(notebook_document, unknown.language_span) == "brainfuck"
+    assert (
+        unknown.language_span.start,
+        unknown.language_span.end,
+        unknown.language_span.line,
+        unknown.language_span.col,
+        unknown.language_span.end_line,
+        unknown.language_span.end_col,
+    ) == (574, 583, 27, 33, 27, 41)
+    assert notebook_diagnostics[0].span == missing.span
+    assert notebook_diagnostics[1].span == invalid.language_span
+    assert notebook_diagnostics[2].span == unknown.language_span
+    assert (
+        source_slice(notebook_document, notebook_diagnostics[0].span)
+        == notebook_document.text[missing.span.start : missing.span.end]
+    )
+    assert source_slice(notebook_document, notebook_diagnostics[1].span) == "python shell"
+    assert source_slice(notebook_document, notebook_diagnostics[2].span) == "brainfuck"
+    assert source_slice(markdown_document, markdown_diagnostics[0].span) == (
+        "```{code-cell}\npass\n```\n"
+    )
+    assert source_slice(markdown_document, markdown_diagnostics[1].span) == "python shell"
+    assert source_slice(markdown_document, markdown_diagnostics[2].span) == "brainfuck"
+
+
+def test_code_cell_language_policy_defaults_open_and_honors_project_catalog() -> None:
+    policy = PolicyHost(profile="code-cell-metadata")
+    configured = PolicyHost(
+        profile="code-cell-metadata",
+        code_cell_languages=("python", "c++"),
+    )
+
+    assert policy.code_cell_metadata_profile() == "code-cell-metadata"
+    assert policy.code_cell_language_is_known("python")
+    assert policy.code_cell_language_is_known("c++")
+    assert policy.code_cell_language_is_known("custom.kernel-3")
+    assert policy.code_cell_language_is_known("brainfuck")
+    assert configured.code_cell_language_is_known("python")
+    assert not configured.code_cell_language_is_known("brainfuck")
+
+
+def test_check_documents_applies_project_language_catalog() -> None:
+    document = markdown("```{code-cell} brainfuck\npass\n```\n")
+
+    open_result = check_documents((document,), config=profile_config())
+    closed_result = check_documents(
+        (document,),
+        config=Config(
+            profile=ProfileConfig(name="code-cell-metadata"),
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            project=ProjectConfig(code_cell_languages=("python",)),
+        ),
+    )
+
+    assert not any(item.code == "DIR013" for item in open_result.diagnostics)
+    assert [item.code for item in closed_result.diagnostics if item.code == "DIR013"] == ["DIR013"]
 
 
 def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> None:
@@ -412,7 +772,7 @@ def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> 
     )
     md = markdown("See {ref}`cell-notebook`.\n", "chapter.md")
     snapshot = _profile_snapshot((md, nb), profile_config())
-    [cell] = [fact for fact in snapshot.code_cells if fact.document_id == nb.path.as_posix()]
+    [cell] = [fact for fact in snapshot.code_cells if fact.source_format == "notebook"]
 
     assert cell.label == "cell-notebook"
     assert cell.normalized_label == "cell-notebook"
@@ -420,7 +780,122 @@ def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> 
     assert cell.label_span is not None
     assert source_slice(nb, cell.label_span) == "cell-notebook"
     assert cell.label_span.cell == 0
-    assert ReferenceEngine().run(QueryHost(snapshot)) == ()
+    assert cell.language_span is not None
+    assert source_slice(nb, cell.language_span) == "python"
+    assert cell.language_span.cell == 0
+    assert ReferenceEngine(profile="code-cell-metadata").run(QueryHost(snapshot)) == ()
+
+
+def test_notebook_source_language_overrides_kernel_and_preserves_cell_locations() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(source="pass\n"),
+            code_cell(source="#| language: python shell\npass\n"),
+            language=None,
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    diagnostics = StructureEngine(policy=PolicyHost(profile="code-cell-metadata")).run(
+        QueryHost(snapshot)
+    )
+
+    assert [cell.language for cell in snapshot.code_cells] == [None, "python shell"]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["DIR010", "DIR013"]
+    assert [diagnostic.span.cell for diagnostic in diagnostics if diagnostic.span] == [0, 1]
+    assert all(diagnostic.span and diagnostic.span.cell_line == 1 for diagnostic in diagnostics)
+    assert source_slice(document, snapshot.code_cells[1].language_span) == "python shell"
+    assert [dict(diagnostic.properties)["source_format"] for diagnostic in diagnostics] == [
+        "notebook",
+        "notebook",
+    ]
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_nonvisible_notebook_code_cells_keep_facts_without_language_or_reference_diagnostics(
+    visibility: ProjectVisibility,
+) -> None:
+    hidden_document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"label": "shared-cell", "fig-cap": "Figure"},
+                source="#| language: brainfuck\npass\n",
+            )
+        ),
+        "hidden.ipynb",
+    )
+    visible_document = notebook(
+        notebook_payload(
+            code_cell(metadata={"label": "shared-cell"}),
+        ),
+        "visible.ipynb",
+    )
+    config = Config(
+        profile=ProfileConfig(name="code-cell-metadata"),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+        project=ProjectConfig(
+            visibility=(("hidden.ipynb", visibility),),
+            code_cell_languages=("python",),
+        ),
+    )
+
+    snapshot = _profile_snapshot((hidden_document, visible_document), config)
+    query = QueryHost(snapshot)
+    hidden_cell, visible_cell = snapshot.code_cells
+
+    assert query.references.code_cell_targets() == (hidden_cell, visible_cell)
+    assert hidden_cell.visibility == visibility
+    assert visible_cell.visibility == "visible"
+    if visibility == "hidden":
+        assert query.references.hidden_code_cell_targets() == (hidden_cell,)
+    else:
+        assert query.references.excluded_code_cell_targets() == (hidden_cell,)
+    assert query.portability.quarto_crossref_label_issues() == ()
+    assert query.references.duplicate_code_cell_targets() == {}
+    assert query.structure.invalid_code_cell_languages() == ()
+    assert (
+        StructureEngine(
+            policy=PolicyHost(
+                profile="code-cell-metadata",
+                code_cell_languages=("python",),
+            ),
+        ).run(query)
+        == ()
+    )
+    assert ReferenceEngine(profile="code-cell-metadata").run(query) == ()
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_public_nonvisible_notebook_code_cells_emit_no_language_diagnostics(
+    visibility: ProjectVisibility,
+) -> None:
+    hidden_document = notebook(
+        notebook_payload(
+            code_cell(metadata={"language": "python shell"}),
+            language=None,
+        ),
+        "hidden.ipynb",
+    )
+    visible_document = notebook(
+        notebook_payload(
+            code_cell(metadata={"language": "python"}),
+            language=None,
+        ),
+        "visible.ipynb",
+    )
+    config = Config(
+        profile=ProfileConfig(name="code-cell-metadata"),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+        project=ProjectConfig(
+            visibility=(("hidden.ipynb", visibility),),
+            code_cell_languages=("python",),
+        ),
+    )
+
+    result = public_check_documents((hidden_document, visible_document), config=config)
+
+    assert [
+        diagnostic.code for diagnostic in result.diagnostics if diagnostic.code.startswith("DIR")
+    ] == []
 
 
 @pytest.mark.parametrize(
@@ -677,6 +1152,15 @@ pass
     ]
 
 
+def test_code_cell_metadata_profile_loads_from_strict_config(tmp_path) -> None:
+    path = tmp_path / "scieqlint.toml"
+    path.write_text('[profile]\nname = "code-cell-metadata"\n', encoding="utf-8")
+
+    loaded = load_config(path)
+
+    assert loaded.profile.name == "code-cell-metadata"
+
+
 def test_code_cell_spans_follow_source_metadata_forms() -> None:
     document = markdown(
         """```python
@@ -695,13 +1179,47 @@ pass
 """
     )
     snapshot = MySTFrontend().lower((document,))
-    plain_cell, directive_cell, _ = snapshot.code_cells
+    plain_cell, directive_cell, missing_language = snapshot.code_cells
 
     assert plain_cell.label is None
     assert plain_cell.label_span is None
     assert plain_cell.language == "python"
+    assert source_slice(document, plain_cell.language_span) == "python"
     assert directive_cell.label == "directive-cell"
     assert source_slice(document, directive_cell.label_span) == "directive-cell"
+    assert source_slice(document, directive_cell.language_span) == "python"
+    assert missing_language.language is None
+    assert missing_language.language_span is None
+
+
+@pytest.mark.public_regression
+def test_public_bare_quarto_bash_fence_resolves_reference_without_execution() -> None:
+    bash_document = markdown(
+        """```bash
+#| label: bash-cell
+printf 'not executed\\n'
+```
+
+See [bash cell](#bash-cell).
+""",
+        "bash.md",
+    )
+    unsupported_document = markdown(
+        """```brainfuck
+#| label: brainfuck-cell
+printf 'not executed\\n'
+```
+
+See [brainfuck cell](#brainfuck-cell).
+""",
+        "unsupported.md",
+    )
+
+    bash_result = public_check_documents((bash_document,), config=Config())
+    unsupported_result = public_check_documents((unsupported_document,), config=Config())
+
+    assert [diagnostic.code for diagnostic in bash_result.diagnostics] == []
+    assert [diagnostic.code for diagnostic in unsupported_result.diagnostics] == ["REF002"]
 
 
 def test_quarto_code_cell_options_skip_blank_and_comment_preamble() -> None:

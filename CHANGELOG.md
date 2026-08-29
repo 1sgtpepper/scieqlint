@@ -50,6 +50,8 @@ Release notes must use these sections:
   risks for focused display-syntax checks in Markdown and LaTeX inputs. Duplicate
   source paths are rejected, and notebook Markdown cells remain intentionally outside
   this portability profile despite retaining exact frontend source mapping.
+- The opt-in `code-cell-metadata` profile now admits notebook-derived code cells and
+  reports malformed or project-unknown language metadata without executing cells.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
 - Model source-neutral cross-reference metadata as fact, query, and engine contracts
@@ -78,6 +80,11 @@ Release notes must use these sections:
   separately from the requested display label.
 - Reference-display diagnostics preserve explicit display labels as trimmed source Markdown/MyST
   text, including inline markup, entities, and escapes; they do not render final prose.
+- The `DIR010` missing-language diagnostic now uses wording that covers both Markdown/MyST
+  and notebook code cells; its default Markdown/MyST scope is unchanged, and notebook
+  cells are reported when admitted by the selected profile.
+- Code-cell language validation now accepts valid uncommon identifiers by default and
+  uses an optional `[project].code_cell_languages` catalog when a project needs a closed set.
 - Project visibility is now configured through `[project].visibility` and is applied
   before legacy and profile reference observations.
 - Generated diagnostic metadata now crosses a post-policy, versioned SchemaHost
@@ -156,6 +163,8 @@ Release notes must use these sections:
 - Reference-display target typing now honors notebook caption metadata for untyped
   recorded-output labels and remains active when Markdown scanning is disabled for
   the explicit profile.
+- Notebook code-cell lowering preserves malformed explicit language metadata with
+  exact spans for `DIR013`.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Malformed local URL destinations are now ignored safely, and project-reference

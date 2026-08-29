@@ -245,6 +245,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/.gitkeep`
 - `tests/fixtures/bad/ambiguous_equation_reference.md`
 - `tests/fixtures/bad/architecture_myst_bad.md`
+- `tests/fixtures/bad/code_cell_metadata.ipynb`
+- `tests/fixtures/bad/code_cell_metadata.md`
 - `tests/fixtures/bad/cross_format_references.md`
 - `tests/fixtures/bad/duplicate_code_cell_label.md`
 - `tests/fixtures/bad/famous_bad.md`
@@ -284,6 +286,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/jats/inline_formula_converted.md`
 - `tests/fixtures/project/hidden_equation_references/hidden.md`
 - `tests/fixtures/project/hidden_equation_references/source.md`
+- `tests/golden/github/code_cell_metadata.txt`
 - `tests/golden/github/cross_format_references.txt`
 - `tests/golden/github/crossref_metadata.txt`
 - `tests/golden/github/duplicate_code_cell_label.txt`
@@ -294,6 +297,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/github/typst_portability_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
+- `tests/golden/json/code_cell_metadata.json`
 - `tests/golden/json/cross_format_references.json`
 - `tests/golden/json/crossref_metadata.json`
 - `tests/golden/json/duplicate_code_cell_label.json`
@@ -307,6 +311,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/json/typst_portability_bad.json`
+- `tests/golden/sarif/code_cell_metadata.sarif`
 - `tests/golden/sarif/cross_format_references.sarif`
 - `tests/golden/sarif/crossref_metadata.sarif`
 - `tests/golden/sarif/duplicate_code_cell_label.sarif`
@@ -318,6 +323,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/sarif/typst_portability_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
+- `tests/golden/text/code_cell_metadata.txt`
 - `tests/golden/text/cross_format_references.txt`
 - `tests/golden/text/crossref_metadata.txt`
 - `tests/golden/text/duplicate_code_cell_label.txt`
@@ -343,6 +349,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_ci_workflow.py`
 - `tests/test_cli.py`
 - `tests/test_code_cell_metadata.py`
+- `tests/test_code_cell_metadata_golden.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`
