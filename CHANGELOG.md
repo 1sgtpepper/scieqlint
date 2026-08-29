@@ -52,6 +52,8 @@ Release notes must use these sections:
   this portability profile despite retaining exact frontend source mapping.
 - The opt-in `code-cell-metadata` profile now admits notebook-derived code cells and
   reports malformed or project-unknown language metadata without executing cells.
+- Add bounded deterministic Hypothesis properties for source-token span integrity, raw
+  newline ingress, and Markdown code-cell fence lowering.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
 - Model source-neutral cross-reference metadata as fact, query, and engine contracts

@@ -31,6 +31,7 @@ dependencies = [
 dev = [
   "coverage[toml]>=7.6",
   "hatchling>=1.25",
+  "hypothesis>=6.100",
   "import-linter>=2.0",
   "jsonschema>=4.23",
   "pyright>=1.1.390",
