@@ -94,7 +94,7 @@ def crossref_facts(
             continue
         boundary_metadata = tuple(sorted(metadata.items()))
         label_span = (
-            cell.span
+            cell.label_span
             if output is None or output_label is None
             else _output_label_span(output, output_label_spans)
         )

@@ -39,6 +39,7 @@ def code_cell_fact(
     *,
     default_language: str | None,
     cell_span: SourceSpan | None,
+    option_spans: Mapping[str, SourceSpan],
 ) -> CodeCellFact:
     metadata = _mapping(cell.get("metadata"))
     source = cell_source(cell.get("source"))
@@ -47,6 +48,10 @@ def code_cell_fact(
     language = option_map.get("language") or default_language
     engine = option_map.get("engine") or language
     label = option_map.get("label") or None
+    normalized_label = normalize_label(label) if label is not None else None
+    if not normalized_label:
+        label = None
+        normalized_label = None
     cell_id = f"{document.path.as_posix()}::notebook-cell::{cell_index}"
     return CodeCellFact(
         fact_id=cell_id,
@@ -59,7 +64,8 @@ def code_cell_fact(
         engine=engine,
         options=options,
         label=label,
-        normalized_label=normalize_label(label) if label is not None else None,
+        normalized_label=normalized_label,
+        label_span=option_spans.get("label") if label is not None else None,
         tags=_tags(metadata.get("tags")),
     )
 

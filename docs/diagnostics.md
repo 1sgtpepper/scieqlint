@@ -35,6 +35,7 @@ codes before every code is emitted by the current analyzer.
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `REF008` | warning | Equation reference matches a hidden or excluded target |
 | `REF009` | warning | Non-heading reference has missing or generic display text |
+| `REF010` | warning | Duplicate code-cell target label |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -120,6 +121,16 @@ Markdown/MyST labels, the `display_text` property is the
 source label after surrounding whitespace is trimmed; inline markup, HTML entities, and
 backslash escapes remain unchanged. Its diagnostic span points to that source text rather than
 to rendered output.
+
+## REF010
+
+`REF010` reports a code-cell label that collides with another visible reference
+target. It points to the duplicate cell label; references to the shared target
+remain subject to `REF005` ambiguity diagnostics. Its structured `target` property
+serializes the normalized member path plus label; the human-readable message remains
+label-only. This reference check applies whenever code-cell facts are lowered; it is
+not gated by `code-cell-metadata`. Notebook-derived cells are available only to profiles
+that admit notebook code-cell facts.
 
 ## Generated-output engine
 

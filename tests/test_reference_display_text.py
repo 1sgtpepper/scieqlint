@@ -528,7 +528,7 @@ def test_reference_namespace_includes_code_cell_labels_and_preserves_identity() 
     assert query.references.unresolved_generic_refs() == ()
 
 
-def test_duplicate_code_cell_labels_remain_ambiguous_without_new_diagnostic() -> None:
+def test_duplicate_code_cell_labels_report_duplicate_and_ambiguous_diagnostics() -> None:
     source = doc(
         "```{code-cell} python\n"
         ":label: repeated-cell\n"
@@ -543,7 +543,7 @@ def test_duplicate_code_cell_labels_remain_ambiguous_without_new_diagnostic() ->
 
     diagnostics = ReferenceEngine().run(QueryHost(MySTFrontend().lower((source,))))
 
-    assert [diagnostic.code for diagnostic in diagnostics] == ["REF005"]
+    assert [diagnostic.code for diagnostic in diagnostics] == ["REF010", "REF005"]
 
 
 def test_hidden_code_cell_is_not_an_ordinary_reference_target() -> None:
@@ -1037,6 +1037,28 @@ def test_notebook_explicit_display_text_retains_its_json_span() -> None:
     [diagnostic] = [item for item in result.diagnostics if item.code == "REF009"]
     assert diagnostic.span == display.display_text_span
     assert dict(diagnostic.properties)["reason"] == "generic"
+
+
+def test_display_does_not_use_hidden_code_cell_target() -> None:
+    source = doc("See [](target.md#cell-target).\n", "source.md")
+    target = doc(
+        "```{code-cell} python\n:label: cell-target\n:fig-cap: Chart\npass\n```\n",
+        "target.md",
+    )
+
+    visible = check_documents((source, target), config=profile_config())
+    hidden = check_documents(
+        (source, target),
+        config=profile_config(
+            project=ProjectConfig(visibility=(("target.md", "hidden"),)),
+        ),
+    )
+
+    visible_display = tuple(d for d in visible.diagnostics if d.code == "REF009")
+    hidden_display = tuple(d for d in hidden.diagnostics if d.code == "REF009")
+    assert len(visible_display) == 1
+    assert dict(visible_display[0].properties)["target_type"] == "figure"
+    assert hidden_display == ()
 
 
 def test_load_config_accepts_reference_display_profile(tmp_path) -> None:

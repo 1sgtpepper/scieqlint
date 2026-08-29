@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Literal
 
 import pytest
 
@@ -11,6 +12,7 @@ from scieqlint.config.model import Config, ProfileConfig, ProjectConfig, Validat
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
+from scieqlint.query.host import QueryHost
 
 HIDDEN_EQUATION_FIXTURE_ROOT = Path("tests/fixtures/project/hidden_equation_references")
 
@@ -486,3 +488,34 @@ def test_absolute_documents_keep_graph_edges_and_diagnostics_project_relative(
             "markdown_anchor",
         )
     ]
+
+
+@pytest.mark.parametrize("visibility", ["hidden", "excluded"])
+def test_nonvisible_code_cell_target_is_not_resolvable_from_visible_reference(
+    visibility: Literal["hidden", "excluded"],
+) -> None:
+    source = SourceDocument.from_text(
+        PurePosixPath("source.md"),
+        "See {ref}`hidden-cell`.\n",
+        DocumentKind.MARKDOWN,
+    )
+    target = SourceDocument.from_text(
+        PurePosixPath("target.md"),
+        "```{code-cell} python\n:label: hidden-cell\npass\n```\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    config = Config(project=ProjectConfig(visibility=(("target.md", visibility),)))
+    snapshot = _profile_snapshot((source, target), config)
+    query = QueryHost(snapshot)
+    [cell] = query.references.code_cell_targets()
+
+    if visibility == "hidden":
+        assert query.references.hidden_code_cell_targets() == (cell,)
+    else:
+        assert query.references.excluded_code_cell_targets() == (cell,)
+    assert "hidden-cell" not in query.references.target_index()
+
+    result = check_documents((source, target), config=config)
+
+    assert [item.code for item in result.diagnostics if item.code.startswith("REF")] == ["REF004"]

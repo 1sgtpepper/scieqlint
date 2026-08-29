@@ -340,6 +340,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A rendered equation reference has matching target identity in a hidden or "
         "excluded source, which can change project-level resolution.",
     ),
+    "REF010": DiagnosticInfo(
+        "REF010",
+        Severity.WARNING,
+        "duplicate code-cell target label",
+        "v1.1.0",
+        "A code-cell label collides with another visible reference target.",
+    ),
     "REF009": DiagnosticInfo(
         "REF009",
         Severity.WARNING,

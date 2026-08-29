@@ -67,8 +67,9 @@ IDs.
 The `[project].visibility` configuration table uses each document's project-relative
 path as its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents
 are visible, and an entry for a path not present in the analyzed project is rejected.
-Hidden and excluded equation targets remain queryable as non-visible facts, while
-ordinary reference resolution uses visible targets only.
+Hidden and excluded equation or code-cell targets remain queryable as non-visible facts,
+while ordinary reference resolution uses visible targets only. Labeled Markdown code
+cells are ordinary reference targets and are never executed during analysis.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a

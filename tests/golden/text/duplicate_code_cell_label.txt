@@ -1,0 +1,4 @@
+tests/fixtures/bad/duplicate_code_cell_label.md:7:9: warning REF010 duplicate code-cell target label: repeated-cell
+  provenance: tests/fixtures/bad/duplicate_code_cell_label.md::fence::0::cell, tests/fixtures/bad/duplicate_code_cell_label.md::fence::54::cell
+  target: tests/fixtures/bad/duplicate_code_cell_label.md#repeated-cell
+  target_count: 2
