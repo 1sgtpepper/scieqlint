@@ -167,19 +167,18 @@ class ReferenceQueryView:
         """Return references whose target identity exists outside the visible set."""
 
         visible = self.equation_target_index()
-        hidden = self.hidden_equation_target_index()
-        excluded = self.excluded_equation_target_index()
+        hidden = {
+            target: tuple(sorted(labels, key=_equation_label_source_key))
+            for target, labels in self.hidden_equation_target_index().items()
+        }
+        excluded = {
+            target: tuple(sorted(labels, key=_equation_label_source_key))
+            for target, labels in self.excluded_equation_target_index().items()
+        }
         impacts: list[NonvisibleEquationTargetImpact] = []
         for ref in sorted(self.visible_equation_refs(), key=_reference_source_key):
-            hidden_targets = tuple(
-                sorted(hidden.get(ref.normalized_target, ()), key=_equation_label_source_key)
-            )
-            excluded_targets = tuple(
-                sorted(
-                    excluded.get(ref.normalized_target, ()),
-                    key=_equation_label_source_key,
-                )
-            )
+            hidden_targets = hidden.get(ref.normalized_target, ())
+            excluded_targets = excluded.get(ref.normalized_target, ())
             if not hidden_targets and not excluded_targets:
                 continue
             impacts.append(
