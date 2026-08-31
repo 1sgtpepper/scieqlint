@@ -404,11 +404,10 @@ def _json_value_span(
     start, end = value_range
     if document.text[start] != '"':
         return _json_span(document, start, end, cell, cell_line=cell_line)
-    characters = json_string_character_ranges(document.text, start, end)
     return _json_span(
         document,
-        characters[0][1],
-        characters[-1][2],
+        start + 1,
+        end - 1,
         cell,
         cell_line=cell_line,
     )

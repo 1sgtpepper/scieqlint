@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+import scieqlint.frontend.notebook_input as notebook_input_module
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.model import (
@@ -390,6 +391,33 @@ def test_notebook_output_label_spans_preserve_json_unicode_escapes() -> None:
     assert (
         document.text[anchor.label_span.start : anchor.label_span.end] == json.dumps("fig-😀")[1:-1]
     )
+
+
+def test_large_output_label_span_does_not_materialize_decoded_char_ranges(monkeypatch) -> None:
+    label = "fig-" + "x" * 100_000
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(display_output(output_metadata={"label": label}),),
+            )
+        )
+    )
+
+    def fail_if_materialized(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("output label spans do not need decoded character ranges")
+
+    monkeypatch.setattr(
+        notebook_input_module,
+        "json_string_character_ranges",
+        fail_if_materialized,
+    )
+    snapshot = NotebookFrontend().lower((document,))
+
+    [anchor] = snapshot.target_anchors
+    assert anchor.label == label
+    assert anchor.label_span is not None
+    assert document.text[anchor.label_span.start : anchor.label_span.end] == label
 
 
 def test_notebook_frontend_preserves_configured_project_member_identity() -> None:
