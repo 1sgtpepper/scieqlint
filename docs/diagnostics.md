@@ -119,6 +119,14 @@ also emit `DIR010` for missing notebook language metadata. The opt-in
 `code-cell-metadata` profile adds `DIR013` for malformed or project-unknown language
 values.
 
+## DIR013
+
+`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata that is
+not syntactically one identifier, or a syntactically valid identifier absent from the
+optional project-authoritative `[project].code_cell_languages` catalog. With no catalog,
+valid uncommon kernel names are accepted. SciEqLint does not execute cells or validate
+language-specific syntax.
+
 ## REF009
 
 `REF009` is opt-in through `reference-display`. It reports resolved non-heading targets
@@ -136,7 +144,7 @@ source label after surrounding whitespace is trimmed; inline markup, HTML entiti
 backslash escapes remain unchanged. Its diagnostic span points to that source text rather than
 to rendered output.
 
-## REF010 and DIR013
+## REF010
 
 `REF010` reports a code-cell label that collides with another visible reference
 target. It points to the duplicate cell label; references to the shared target
@@ -146,12 +154,6 @@ label-only. The exact `target_count` covers the complete collision while provena
 bounded to the duplicate and one deterministic conflicting target. This reference check
 applies whenever code-cell facts are lowered; it is not gated by `code-cell-metadata`.
 Notebook-derived cells are available only to profiles that admit notebook code-cell facts.
-
-`DIR013` is opt-in through `code-cell-metadata`. It reports language metadata that is
-not syntactically one identifier, or a syntactically valid identifier absent from the
-optional project-authoritative `[project].code_cell_languages` catalog. With no catalog,
-valid uncommon kernel names are accepted. SciEqLint does not execute cells or validate
-language-specific syntax.
 
 ## Generated-output engine
 
