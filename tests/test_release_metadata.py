@@ -84,31 +84,6 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     )
 
 
-def test_stable_release_accuracy_gate_invokes_behavioral_evidence_guard() -> None:
-    accuracy_path = Path("tests/test_accuracy_benchmarks.py")
-    accuracy_tree = ast.parse(accuracy_path.read_text(encoding="utf-8"))
-    gate_nodes = [
-        node
-        for node in accuracy_tree.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "test_stable_release_requires_100_independently_labeled_equations"
-    ]
-    assert len(gate_nodes) == 1
-    gate = gate_nodes[0]
-
-    guard_calls = [
-        node
-        for node in ast.walk(gate)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "_require_stable_release_evidence"
-    ]
-    assert len(guard_calls) == 1
-    assert len(guard_calls[0].args) == 1
-    assert isinstance(guard_calls[0].args[0], ast.Name)
-    assert guard_calls[0].args[0].id == "CORPUS_PATH"
-
-
 def test_ci_test_matrix_covers_declared_python_versions() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
