@@ -41,9 +41,9 @@ def test_catalog_has_core_codes() -> None:
         assert explain_code(code) is not None
 
 
-def test_new_accessibility_diagnostic_does_not_claim_a_published_release() -> None:
-    assert CATALOG["PORT002"].release == "Unreleased"
-    assert "(warning, Unreleased)" in (explain_code("PORT002") or "")
+def test_accessibility_diagnostic_is_cataloged_for_the_current_release() -> None:
+    assert CATALOG["PORT002"].release == "v1.1.0"
+    assert "(warning, v1.1.0)" in (explain_code("PORT002") or "")
 
 
 def test_typst_portability_diagnostic_is_cataloged_for_the_current_release() -> None:

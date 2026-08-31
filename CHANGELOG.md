@@ -90,7 +90,7 @@ Release notes must use these sections:
   LaTeX, and notebook inputs, preserving Markdown-link `REF002` reports without
   duplicate legacy diagnostics and retaining notebook cell identity.
 - Accessibility metadata now rejects identifiers that resolve to multiple inline-math
-  facts, and `PORT002` remains marked `Unreleased` until its release line is established.
+  facts before profile diagnostics are evaluated.
 - Accessibility metadata now rejects malformed key/value mappings at the loaded-document
   API boundary, and `PORT002` carries the stable source-owned accessibility ID used by
   those mappings. The `math-accessibility` profile covers Markdown documents and

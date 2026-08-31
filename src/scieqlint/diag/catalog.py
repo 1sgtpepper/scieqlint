@@ -344,7 +344,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "PORT002",
         Severity.WARNING,
         "inline math lacks accessible text metadata",
-        "Unreleased",
+        "v1.1.0",
         "An explicit inline-math span has no accessible text in the lowered "
         "source facts for the selected accessibility profile.",
     ),
