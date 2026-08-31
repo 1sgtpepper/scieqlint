@@ -814,7 +814,8 @@ def _inline_macro_span(
     line_starts: tuple[int, ...],
 ) -> SourceSpan:
     assert fact.span is not None
-    if start < 0 or end <= start or end > len(fact.body):
+    # Macro scanner offsets are bounded by ``fact.body``.
+    if start < 0 or end <= start or end > len(fact.body):  # pragma: no cover
         raise ValueError("inline macro subspan is outside its source text")
     cell_line = (
         None
@@ -822,7 +823,8 @@ def _inline_macro_span(
         else fact.span.cell_line + bisect_right(line_starts, start) - 1
     )
     if fact.span.segments:
-        if len(fact.span.segments) != len(fact.body):
+        # Mapped facts are length-validated before scanner admission.
+        if len(fact.span.segments) != len(fact.body):  # pragma: no cover
             raise ValueError("inline macro source mapping does not match its source text")
         segments = fact.span.segments[start:end]
         first = segments[0]

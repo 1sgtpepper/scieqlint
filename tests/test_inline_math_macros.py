@@ -172,6 +172,65 @@ def test_notebook_source_list_boundaries_preserve_exact_macro_segments() -> None
         )
 
 
+def test_math_host_skips_macro_materialization_for_span_body_mismatch() -> None:
+    source = doc(r"$\newcommand{\bad}{1}$ $\newcommand{\good}{2}$")
+    first, second = MySTFrontend().lower((source,)).inline_math
+    stale = replace(first, body=first.body + " stale")
+
+    assert first.span is not None
+    assert first.span.segments == ()
+    assert source.text[first.span.start : first.span.end] != stale.body
+
+    classified = MathHost().classify(FactSnapshot(documents=(source,), inline_math=(stale, second)))
+
+    assert len(classified.inline_math) == 2
+    assert [fact.macro_name for fact in classified.math_macro_declarations] == [r"\good"]
+    assert classified.math_macro_uses == ()
+
+
+def test_math_host_bounds_invalid_notebook_macro_source_ranges() -> None:
+    payload = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": r"$\newcommand{\bad}{1}$ $\newcommand{\good}{2}$",
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("macro-ranges.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+    first, second = NotebookFrontend().lower((document,)).inline_math
+    assert first.span is not None
+    source_segments = first.span.segments
+    assert source_segments
+    invalid_span = replace(first.span, segments=source_segments[:1])
+    invalid = replace(first, span=invalid_span)
+    overlapping_span = replace(
+        first.span,
+        segments=(source_segments[0], source_segments[0], *source_segments[2:]),
+    )
+    overlapping = replace(
+        first,
+        fact_id=f"{first.fact_id}::overlapping-source",
+        span=overlapping_span,
+    )
+
+    classified = MathHost().classify(
+        FactSnapshot(documents=(document,), inline_math=(invalid, overlapping, second))
+    )
+
+    assert len(classified.inline_math) == 3
+    assert [fact.macro_name for fact in classified.math_macro_declarations] == [r"\good"]
+    assert classified.math_macro_uses == ()
+
+
 def test_notebook_macro_span_work_is_linear_in_macro_count() -> None:
     macro_count = 128
     source = "$" + " ".join(r"\newcommand{\x}{x} \x" for _ in range(macro_count)) + "$"
