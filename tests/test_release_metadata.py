@@ -195,6 +195,13 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     assert 'test "$sdist_version" = "$source_version"' in version_run
     assert 'os.environ["SCIEQLINT_RELEASE_SOURCE"]' in version_run
     assert '(source_dir / "pyproject.toml")' in version_run
+    assert '(source_dir / "src/scieqlint/__init__.py")' in version_run
+    assert '(source_dir / "CITATION.cff")' in version_run
+    assert version_run.count("from scieqlint import __version__") == 2
+    assert "source __version__ does not match project version" in version_run
+    assert "citation version does not match project version" in version_run
+    assert "wheel __version__ does not match distribution metadata" in version_run
+    assert "sdist __version__ does not match distribution metadata" in version_run
     assert 'Path("pyproject.toml")' not in version_run
     assert (
         r'if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ '

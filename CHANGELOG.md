@@ -129,7 +129,6 @@ Release notes must use these sections:
   cells remain analyzable and oversized or deeply nested notebook input fails
   closed deterministically. Fixed notebook safety bounds are measured at the
   normalized `SourceDocument` boundary.
-- `PORT002` remains marked `Unreleased` until its release line is established.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic

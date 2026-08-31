@@ -148,26 +148,59 @@ jobs:
       - name: Verify source, wheel, source distribution, and stable tag versions
         run: |
           source_version="$(python - <<'PY'
+          import ast
           import os
           import tomllib
           from pathlib import Path
 
           source_dir = Path(os.environ["SCIEQLINT_RELEASE_SOURCE"])
-          print(
-              tomllib.loads(
-                  (source_dir / "pyproject.toml").read_text(encoding="utf-8")
-              )["project"]["version"]
+          project_version = tomllib.loads(
+              (source_dir / "pyproject.toml").read_text(encoding="utf-8")
+          )["project"]["version"]
+          init_tree = ast.parse(
+              (source_dir / "src/scieqlint/__init__.py").read_text(encoding="utf-8")
           )
+          init_versions = [
+              node.value.value
+              for node in init_tree.body
+              if isinstance(node, ast.Assign)
+              for target in node.targets
+              if isinstance(target, ast.Name)
+              and target.id == "__version__"
+              and isinstance(node.value, ast.Constant)
+              and isinstance(node.value.value, str)
+          ]
+          citation = (source_dir / "CITATION.cff").read_text(encoding="utf-8")
+          citation_versions = [
+              line.removeprefix("version:").strip()
+              for line in citation.splitlines()
+              if line.startswith("version:")
+          ]
+          if init_versions != [project_version]:
+              raise SystemExit("source __version__ does not match project version")
+          if citation_versions != [project_version]:
+              raise SystemExit("citation version does not match project version")
+          print(project_version)
           PY
           )"
           wheel_version="$(/tmp/scieqlint-release-wheel-smoke/bin/python - <<'PY'
           from importlib.metadata import version
-          print(version("scieqlint"))
+          from scieqlint import __version__
+
+          installed_version = version("scieqlint")
+          if __version__ != installed_version:
+              raise SystemExit("wheel __version__ does not match distribution metadata")
+          print(installed_version)
           PY
           )"
           sdist_version="$(/tmp/scieqlint-release-sdist-smoke/bin/python - <<'PY'
           from importlib.metadata import version
-          print(version("scieqlint"))
+          from scieqlint import __version__
+
+          installed_version = version("scieqlint")
+          if __version__ != installed_version:
+              raise SystemExit("sdist __version__ does not match distribution metadata")
+          print(installed_version)
           PY
           )"
           test "$wheel_version" = "$source_version"
