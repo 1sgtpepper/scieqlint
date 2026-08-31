@@ -237,4 +237,7 @@ Target-definition metadata must carry a member path; incomplete definitions are 
 grouped by label. Source format is retained as provenance and does not conflict by
 itself. A reference role or local display title belongs to the reference use and does
 not participate in this comparison. The diagnostic properties preserve both boundary
-identities; reporters do not inspect source documents to reconstruct them.
+identities; reporters do not inspect source documents to reconstruct them. Small
+metadata dictionaries remain exact in the diagnostic detail. Oversized metadata uses
+a deterministic key-and-value-length preview capped at 256 characters per boundary;
+the complete metadata facts still determine whether a conflict exists.

@@ -428,6 +428,8 @@ def test_portability_normalizes_output_crossref_markers_once() -> None:
     snapshot = NotebookFrontend().lower((document,))
     query = QueryHost(snapshot)
 
+    [cell] = snapshot.code_cells
+    assert query.portability.renderings_with_crossref_options() == (cell,)
     assert query.portability.quarto_crossref_label_issues() == ()
     [conflict] = query.portability.notebook_rendering_conflicts()
     assert conflict.crossref_options == ("label", "fig-cap")

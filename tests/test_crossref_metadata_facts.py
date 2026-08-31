@@ -664,6 +664,76 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
 
 
 @pytest.mark.public_regression
+@pytest.mark.parametrize(
+    ("caption", "caption_preview"),
+    [
+        pytest.param("x" * 4096, "<4096 chars>", id="large"),
+        pytest.param("\\" * 128, "<128 chars>", id="escape-heavy"),
+    ],
+)
+def test_public_notebook_metadata_conflict_details_are_bounded(
+    caption: str,
+    caption_preview: str,
+) -> None:
+    output_count = 32
+    outputs = [
+        {
+            "data": {"image/png": "payload"},
+            "metadata": {},
+            "output_type": "display_data",
+        }
+    ]
+    outputs.extend(
+        {
+            "data": {"image/png": "payload"},
+            "metadata": {"fig-cap": "different"},
+            "output_type": "display_data",
+        }
+        for _ in range(output_count - 1)
+    )
+    payload = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {"fig-cap": caption, "label": "fig-shared"},
+                "outputs": outputs,
+                "source": [],
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("bounded-conflicts.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+
+    conflicts = tuple(
+        diagnostic
+        for diagnostic in check_documents((document,), config=cross_format_config()).diagnostics
+        if diagnostic.code == "REF007"
+    )
+
+    assert len(conflicts) == output_count - 1
+    assert all(
+        diagnostic.span is not None
+        and diagnostic.span.path == document.path
+        and diagnostic.span.cell == 0
+        for diagnostic in conflicts
+    )
+    assert all(
+        diagnostic.detail is not None
+        and "metadata={'fig-cap': 'different'}" in diagnostic.detail
+        and f"metadata={{'fig-cap': {caption_preview}}}" in diagnostic.detail
+        and len(diagnostic.detail) < 512
+        for diagnostic in conflicts
+    )
+
+
+@pytest.mark.public_regression
 def test_public_check_documents_reports_listing_alias_output_metadata_conflict() -> None:
     def document(second_caption: str) -> SourceDocument:
         payload = {
