@@ -141,7 +141,10 @@ class EquationRefFact(FactBase):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ReferenceDisplayTextFact(FactBase):
-    """Resolved display-text intent for one source reference."""
+    """Resolved display-text intent for one source reference.
+
+    Target identity and fact IDs are retained only for one unique selection.
+    """
 
     source_fact_id: str
     normalized_target: str

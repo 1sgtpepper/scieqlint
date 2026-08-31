@@ -116,8 +116,10 @@ typed `{eq}`/`{numref}` or TeX `\ref`/`\eqref` forms remain quiet; explicitly ti
 typed roles are checked like other explicit display text. Diagnostics retain the explicit display span when one exists, target type,
 reference kind, display intent, the selected canonical target identity, and originating fact
 IDs. The canonical identity is the normalized member path plus fragment; the requested
-display label remains a separate value. The rule does not render final prose or enforce a
-universal writing style. For explicit Markdown/MyST labels, the `display_text` property is the
+display label remains a separate value. Unresolved and ambiguous matches stay quiet and do
+not attach candidate target IDs; only a unique selected target contributes target provenance.
+The rule does not render final prose or enforce a universal writing style. For explicit
+Markdown/MyST labels, the `display_text` property is the
 source label after surrounding whitespace is trimmed; inline markup, HTML entities, and
 backslash escapes remain unchanged. Its diagnostic span points to that source text rather than
 to rendered output.

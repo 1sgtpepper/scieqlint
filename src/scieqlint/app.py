@@ -226,7 +226,10 @@ def check_documents(
     if config.scanner.markdown:
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
-        frontend_snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
+        frontend_snapshot = MySTFrontend(workspace=workspace).lower(
+            markdown_documents,
+            _include_reference_display=False,
+        )
         raw_opaque_spans = tuple(
             fact.span
             for fact in frontend_snapshot.display_math
@@ -692,7 +695,10 @@ def _generated_profile_snapshot(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     snapshot = (
-        MySTFrontend(workspace=workspace).lower(markdown_documents)
+        MySTFrontend(workspace=workspace).lower(
+            markdown_documents,
+            _include_reference_display=False,
+        )
         if frontend_snapshot is None
         else frontend_snapshot
     )
@@ -725,6 +731,7 @@ def _generated_profile_snapshot(
             _include_markdown=(
                 config.scanner.markdown or config.profile.name == "reference-display"
             ),
+            _include_reference_display=False,
         )
         if notebook_full_profile:
             snapshot = replace(
@@ -806,13 +813,17 @@ def _generated_profile_snapshot(
     snapshot = workspace.apply_visibility(snapshot, profile_visibility)
     snapshot = replace(
         snapshot,
-        reference_display_text=reference_display_text_facts(
-            snapshot.generic_refs,
-            snapshot.equation_refs,
-            snapshot.target_anchors,
-            snapshot.equation_labels,
-            project_root=workspace.project_root,
-            code_cells=snapshot.code_cells,
+        reference_display_text=(
+            reference_display_text_facts(
+                snapshot.generic_refs,
+                snapshot.equation_refs,
+                snapshot.target_anchors,
+                snapshot.equation_labels,
+                project_root=workspace.project_root,
+                code_cells=snapshot.code_cells,
+            )
+            if config.profile.name == "reference-display"
+            else ()
         ),
     )
     provenance = (
@@ -1169,7 +1180,10 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(
+        documents,
+        _include_reference_display=False,
+    )
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math
