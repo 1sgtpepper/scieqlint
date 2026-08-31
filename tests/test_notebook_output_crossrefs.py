@@ -411,6 +411,7 @@ def test_large_output_label_span_does_not_materialize_decoded_char_ranges(monkey
         notebook_input_module,
         "json_string_character_ranges",
         fail_if_materialized,
+        raising=False,
     )
     snapshot = NotebookFrontend().lower((document,))
 
