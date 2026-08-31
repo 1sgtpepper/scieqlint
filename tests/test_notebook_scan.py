@@ -272,6 +272,18 @@ def test_notebook_source_string_standalone_cr_retains_its_json_span() -> None:
     assert scan.diagnostics == ()
 
 
+def test_notebook_reference_before_trailing_standalone_cr_keeps_exact_span() -> None:
+    document = _notebook([_markdown_cell("See {eq}`missing`.\r")])
+
+    result = check_documents((document,), config=Config())
+
+    [diagnostic] = result.diagnostics
+    assert diagnostic.code == "REF002"
+    assert diagnostic.span is not None
+    assert diagnostic.span.cell_line == 1
+    assert _raw_segments(document, diagnostic.span) == list("missing")
+
+
 def test_notebook_reference_after_unicode_surrogate_pair_uses_raw_json_span() -> None:
     document = _notebook([_markdown_cell("😀 See {eq}`missing`.\n")])
 

@@ -77,7 +77,7 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             diagnostics=(size_diagnostic(document, detail=str(exc)),),
             valid=False,
         )
-    except (ValueError, RecursionError) as exc:
+    except (ValueError, RecursionError) as exc:  # pragma: no cover - defensive replay guard
         return NotebookInput(
             document=document,
             root=None,
