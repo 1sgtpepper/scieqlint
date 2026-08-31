@@ -207,6 +207,19 @@ def test_notebook_symbol_spans_follow_splitlines(separator: str) -> None:
     ]
 
 
+def test_notebook_symbol_mapping_rejects_incomplete_source_segments() -> None:
+    document = _notebook_document("$$\nA = B\n$$\n")
+    [block] = NotebookScanner().scan(document, Config()).blocks
+    assert block.span.segments
+    malformed_span = replace(block.span, segments=block.span.segments[:-1])
+
+    with pytest.raises(
+        ValueError,
+        match="block logical range does not match its source segments",
+    ):
+        check_symbols((replace(block, span=malformed_span),), ())
+
+
 def test_notebook_symbol_span_work_is_linear_in_symbol_count() -> None:
     equation_count = 128
     document = _notebook_document(
