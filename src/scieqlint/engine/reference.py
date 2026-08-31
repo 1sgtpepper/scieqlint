@@ -13,6 +13,8 @@ from scieqlint.facts.reference import (
 )
 from scieqlint.query.host import QueryHost
 
+_METADATA_PREVIEW_MAX_CHARS = 256
+
 
 class ReferenceEngine:
     name = "references"
@@ -110,6 +112,7 @@ class ReferenceEngine:
             canonical = facts[0]
             canonical_kind = canonical.resolved_target_kind
             canonical_metadata = canonical.target_metadata
+            canonical_metadata_preview = _metadata_preview(canonical_metadata)
             canonical_signature = (canonical_kind, tuple(sorted(canonical_metadata)))
             for fact in facts:
                 fact_kind = fact.resolved_target_kind
@@ -127,11 +130,11 @@ class ReferenceEngine:
                             f"{fact.output_boundary!r} reports "
                             f"kind={fact_kind!r}, "
                             f"format={fact.source_format!r}, "
-                            f"metadata={dict(fact_metadata)!r}; "
+                            f"metadata={_metadata_preview(fact_metadata)}; "
                             f"canonical boundary {canonical.output_boundary!r} reports "
                             f"kind={canonical_kind!r}, "
                             f"format={canonical.source_format!r}, "
-                            f"metadata={dict(canonical_metadata)!r}"
+                            f"metadata={canonical_metadata_preview}"
                         ),
                         hint="Use consistent cross-reference metadata for this target.",
                         rule="references.crossref_metadata_conflict",
@@ -198,6 +201,26 @@ class ReferenceEngine:
                 )
             )
         return tuple(sorted(diagnostics, key=_diagnostic_key))
+
+
+def _metadata_preview(metadata: tuple[tuple[str, str], ...]) -> str:
+    raw_chars = sum(len(key) + len(value) for key, value in metadata)
+    if raw_chars <= _METADATA_PREVIEW_MAX_CHARS:
+        rendered = repr(dict(metadata))
+        if len(rendered) <= _METADATA_PREVIEW_MAX_CHARS:
+            return rendered
+
+    key, value = metadata[0]
+    omitted = len(metadata) - 1
+    suffix = f", ... <{omitted} entries omitted>" if omitted else ""
+    return f"{{{_metadata_atom_preview(key)}: {_metadata_atom_preview(value)}{suffix}}}"
+
+
+def _metadata_atom_preview(value: str) -> str:
+    if len(value) > 64:
+        return f"<{len(value)} chars>"
+    rendered = repr(value)
+    return rendered if len(rendered) <= 80 else f"<{len(value)} chars>"
 
 
 def _fact_source_key(

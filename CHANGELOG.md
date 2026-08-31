@@ -53,7 +53,8 @@ Release notes must use these sections:
 - Model source-neutral cross-reference metadata as fact, query, and engine contracts
   across document and output boundaries. Built-in recorded notebook-output metadata
   now makes `REF007` reachable without execution; arbitrary producer facts are not a
-  public input surface.
+  public input surface. Conflict details keep small metadata exact and use bounded
+  key-and-value-length previews for oversized metadata.
 - Lower notebook code-cell renderings, cross-reference options, and output-boundary
   facts, with an opt-in warning for incompatible renderings/crossref combinations.
 
