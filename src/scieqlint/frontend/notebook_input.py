@@ -456,7 +456,9 @@ def _source_position(
         last_raw_end = ranges[-1][1]
     if logical_position == offset and last_raw_end is not None:
         return last_raw_end
-    raise NotebookSourceLocationError("notebook source position is outside its source")
+    raise NotebookSourceLocationError(  # pragma: no cover - internal replay invariant
+        "notebook source position is outside its source"
+    )
 
 
 def _record_option_spans(
