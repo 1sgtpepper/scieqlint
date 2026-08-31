@@ -70,13 +70,28 @@ def _block_events(blocks: tuple[MathBlock, ...]) -> list[_Event]:
 def _symbols(block: MathBlock | None) -> tuple[tuple[str, SourceSpan], ...]:
     if block is None:
         return ()
-    text = _strip_labels(block.source_aligned_text)
+    source = block.source_aligned_text
+    text = _strip_labels(source)
     symbols: list[tuple[str, SourceSpan]] = []
-    for match in SYMBOL_RE.finditer(text):
-        symbol = match.group(0)
-        if symbol in TEX_NON_SYMBOLS:
-            continue
-        symbols.append((symbol, _span_from_block(block, match.start(), match.end())))
+    offset = 0
+    for line_delta, line in enumerate(source.splitlines(keepends=True)):
+        line_end = offset + len(line)
+        for match in SYMBOL_RE.finditer(text, offset, line_end):
+            symbol = match.group(0)
+            if symbol in TEX_NON_SYMBOLS:
+                continue
+            symbols.append(
+                (
+                    symbol,
+                    _span_from_block(
+                        block,
+                        match.start(),
+                        match.end(),
+                        line_delta=line_delta,
+                    ),
+                )
+            )
+        offset = line_end
     return tuple(symbols)
 
 
@@ -94,7 +109,13 @@ def _spaces(value: str) -> str:
     return "".join("\n" if char == "\n" else " " for char in value)
 
 
-def _span_from_block(block: MathBlock, start: int, end: int) -> SourceSpan:
+def _span_from_block(
+    block: MathBlock,
+    start: int,
+    end: int,
+    *,
+    line_delta: int,
+) -> SourceSpan:
     if start < 0 or end < start or end > len(block.source_aligned_text):
         raise ValueError("block logical range is outside its source")
     if block.span.segments:
@@ -103,7 +124,6 @@ def _span_from_block(block: MathBlock, start: int, end: int) -> SourceSpan:
             raise ValueError("block logical range does not match its source segments")
         first = segments[0]
         last = segments[-1]
-        line_delta = block.source_aligned_text[:start].count("\n")
         return SourceSpan(
             path=block.span.path,
             start=first.start,
