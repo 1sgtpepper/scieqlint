@@ -123,7 +123,8 @@ Release notes must use these sections:
 - Ambiguous generic-reference diagnostics now retain supported local Markdown-link
   references.
 - Notebook lowering scopes nested equation-reference owners by cell, and notebook
-  cross-reference label prefixes are matched case-insensitively.
+  cross-reference labels recognize documented lowercase prefixes after an optional
+  leading `#` marker.
 - Notebook output targets now retain complete member-path identity and exact JSON
   output and label locations; unavailable source locations fail closed with `INP001`.
 - Notebook rendering conflicts now preserve one diagnostic per recorded output and

@@ -17,7 +17,7 @@ from scieqlint.config.model import (
     ReferencesConfig,
     ValidationProfile,
 )
-from scieqlint.diag.model import SourceSpan
+from scieqlint.diag.model import Severity, SourceSpan
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.notebook import NotebookFrontend
@@ -349,8 +349,8 @@ def test_notebook_source_cell_options_override_generated_metadata() -> None:
     assert [item.code for item in diagnostics] == ["PORT004"]
 
 
-@pytest.mark.parametrize("label", ["FIG-plot", "TBL-table", "EQ-energy", "LST-listing"])
-def test_portability_accepts_case_insensitive_crossref_prefixes(label: str) -> None:
+@pytest.mark.parametrize("label", ["fig-plot", "#tbl-table", "eq-energy", "#lst-listing"])
+def test_portability_accepts_normalized_lowercase_crossref_prefixes(label: str) -> None:
     document = notebook(
         notebook_payload(
             code_cell(
@@ -370,6 +370,27 @@ def test_portability_accepts_case_insensitive_crossref_prefixes(label: str) -> N
     assert query.portability.renderings_with_crossref_options() == (cell,)
     [conflict] = query.portability.notebook_rendering_conflicts()
     assert conflict.cell is cell
+
+
+def test_portability_keeps_uppercase_label_prefixes_untyped() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "FIG-plot",
+                    "fig-cap": "Plot",
+                    "renderings": ["light", "dark"],
+                }
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    query = QueryHost(snapshot)
+
+    [cell] = snapshot.code_cells
+    assert query.portability.quarto_crossref_label_issues() == (cell,)
+    [conflict] = query.portability.notebook_rendering_conflicts()
+    assert conflict.crossref_options == ("fig-cap",)
 
 
 def test_portability_keeps_unprefixed_crossref_labels_as_issues() -> None:
@@ -393,13 +414,13 @@ def test_portability_keeps_unprefixed_crossref_labels_as_issues() -> None:
     assert len(query.portability.notebook_rendering_conflicts()) == 1
 
 
-def test_portability_normalizes_output_crossref_labels_once() -> None:
+def test_portability_normalizes_output_crossref_markers_once() -> None:
     document = notebook(
         notebook_payload(
             code_cell(
                 metadata={"renderings": ["light", "dark"]},
                 outputs=(
-                    display_output(output_metadata={"label": "FIG-output", "fig-cap": "Plot"}),
+                    display_output(output_metadata={"label": "#fig-output", "fig-cap": "Plot"}),
                 ),
             )
         )
@@ -560,6 +581,13 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
         )
     )
 
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+
+    assert result.diagnostics == ()
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+
     snapshot = NotebookFrontend().lower((document,))
     query = QueryHost(snapshot)
 
@@ -576,6 +604,11 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
     assert anchor.label == "lst-output"
     assert anchor.target_kind == "listing"
     assert anchor.label_span is not None
+    label_start = document.text.index('"lst-label": "lst-output"') + len('"lst-label": "')
+    assert (anchor.label_span.start, anchor.label_span.end) == (
+        label_start,
+        label_start + len("lst-output"),
+    )
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "lst-output"
     assert metadata.logical_target == "lst-output"
     assert metadata.target_metadata == (("lst-cap", "Output listing"),)
@@ -583,8 +616,6 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
     assert query.references.target_index()["lst-output"] == (anchor,)
     assert query.references.unresolved_generic_refs() == ()
     assert ReferenceEngine().run(query) == ()
-    result = public_check_documents((document,), config=notebook_crossrefs_config())
-    assert not any(item.code in {"REF002", "REF004"} for item in result.diagnostics)
 
 
 def test_notebook_output_label_precedes_listing_alias() -> None:
@@ -630,6 +661,57 @@ def test_notebook_output_listing_aliases_participate_in_duplicate_resolution() -
             {"cell_type": "markdown", "metadata": {}, "source": "See {ref}`lst-output`.\n"},
         )
     )
+
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+
+    [diagnostic] = result.diagnostics
+    assert (
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.rule,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        diagnostic.profile,
+        diagnostic.provenance_ids,
+        diagnostic.properties,
+    ) == (
+        "REF005",
+        Severity.WARNING,
+        "ambiguous generic reference target: lst-output",
+        None,
+        "reference text: {ref}`lst-output`",
+        None,
+        "references.generic_target_ambiguous",
+        False,
+        None,
+        None,
+        (),
+        (),
+    )
+    assert diagnostic.span is not None
+    assert (diagnostic.span.path, diagnostic.span.cell, diagnostic.span.cell_line) == (
+        document.path,
+        2,
+        1,
+    )
+    target_start = document.text.rindex("lst-output")
+    assert (diagnostic.span.start, diagnostic.span.end) == (
+        target_start,
+        target_start + len("lst-output"),
+    )
+    assert document.text[diagnostic.span.start : diagnostic.span.end] == "lst-output"
+    assert [
+        document.text[start:end]
+        for segment in diagnostic.span.segments
+        for start, end in segment.ranges
+    ] == list("lst-output")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
     snapshot = NotebookFrontend().lower((document,))
     query = QueryHost(snapshot)
@@ -823,6 +905,7 @@ def test_notebook_frontend_preserves_configured_project_member_identity() -> Non
     assert QueryHost(snapshot).references.unresolved_generic_refs() == ()
 
 
+@pytest.mark.public_regression
 def test_public_output_link_reports_only_the_missing_control() -> None:
     document = notebook(
         notebook_payload(
@@ -838,16 +921,56 @@ def test_public_output_link_reports_only_the_missing_control() -> None:
         )
     )
 
-    result = check_documents((document,), config=config())
+    result = public_check_documents((document,), config=config())
 
-    reference_diagnostics = [
-        diagnostic for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
-    ]
-    assert [diagnostic.code for diagnostic in reference_diagnostics] == ["REF002"]
-    [missing] = reference_diagnostics
+    [missing] = result.diagnostics
+    assert (
+        missing.code,
+        missing.severity,
+        missing.message,
+        missing.equation,
+        missing.detail,
+        missing.hint,
+        missing.rule,
+        missing.suppressed,
+        missing.suppression_reason,
+        missing.profile,
+        missing.provenance_ids,
+        missing.properties,
+    ) == (
+        "REF002",
+        Severity.WARNING,
+        "equation reference target not found: missing-output",
+        None,
+        "reference text: [](#missing-output)",
+        None,
+        "references",
+        False,
+        None,
+        None,
+        (),
+        (),
+    )
     assert missing.span is not None
+    assert (missing.span.path, missing.span.cell, missing.span.cell_line) == (
+        document.path,
+        0,
+        1,
+    )
+    target_start = document.text.index("missing-output")
+    assert (missing.span.start, missing.span.end) == (
+        target_start,
+        target_start + len("missing-output"),
+    )
     assert document.text[missing.span.start : missing.span.end] == "missing-output"
-    assert missing.profile is None
+    assert [
+        document.text[start:end]
+        for segment in missing.span.segments
+        for start, end in segment.ranges
+    ] == list("missing-output")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
 
 def test_nested_notebook_equation_refs_keep_cell_owned_source_blocks() -> None:

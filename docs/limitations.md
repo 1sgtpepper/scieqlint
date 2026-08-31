@@ -433,7 +433,8 @@ Code-cell facts retain the cell index, language/engine, supported scalar options
 labels or tags, raw source, and the exact JSON cell span. Output facts retain the
 cell/output indexes, output type, MIME keys, supported scalar metadata, raw output,
 and exact JSON output span. Typed output labels (`eq-`, `fig-`, `tbl-`, and `lst-`)
-provide target metadata; labels are not inferred from output order.
+are case-sensitive, may include one leading `#` marker, and provide target metadata;
+labels are not inferred from output order.
 
 Markdown-cell math and reference facts retain the notebook path, cell, and
 cell-relative line while remapping logical offsets to the original JSON source.
