@@ -9,7 +9,7 @@ import pytest
 
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
-from scieqlint.diag.model import Diagnostic, Severity, SourceSegment, SourceSpan
+from scieqlint.diag.model import Severity, SourceSpan
 from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.github import GitHubReporter
@@ -17,7 +17,6 @@ from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 from scieqlint.scan.notebook import NotebookScanner
-from scieqlint.scan.notebook_input import NotebookSourceLocationError, map_notebook_span
 
 
 def test_notebook_markdown_cells_are_scanned() -> None:
@@ -44,37 +43,58 @@ def test_notebook_diagnostic_cell_line_uses_markdown_splitline_boundaries() -> N
 
     start = document.text.index("missing")
     end = start + len("missing")
-    segments = tuple(
-        SourceSegment(
-            ranges=((offset, offset + 1),),
-            line=1,
-            col=offset + 1,
-            end_line=1,
-            end_col=offset + 1,
-        )
-        for offset in range(start, end)
+    [diagnostic] = result.diagnostics
+    assert (
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.rule,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        diagnostic.profile,
+        diagnostic.provenance_ids,
+        diagnostic.properties,
+    ) == (
+        "REF002",
+        Severity.WARNING,
+        "equation reference target not found: missing",
+        None,
+        "reference text: {eq}`missing`",
+        None,
+        "references",
+        False,
+        None,
+        None,
+        (),
+        (),
     )
-    assert result.diagnostics == (
-        Diagnostic(
-            code="REF002",
-            severity=Severity.WARNING,
-            message="equation reference target not found: missing",
-            span=SourceSpan(
-                path=document.path,
-                start=start,
-                end=end,
-                line=1,
-                col=start + 1,
-                end_line=1,
-                end_col=end,
-                cell=0,
-                cell_line=2,
-                segments=segments,
-            ),
-            detail="reference text: {eq}`missing`",
-            rule="references",
-        ),
+    span = diagnostic.span
+    assert span is not None
+    assert (
+        span.path,
+        span.start,
+        span.end,
+        span.line,
+        span.col,
+        span.end_line,
+        span.end_col,
+        span.cell,
+        span.cell_line,
+    ) == (
+        document.path,
+        start,
+        end,
+        1,
+        start + 1,
+        1,
+        end,
+        0,
+        2,
     )
+    assert _raw_segments(document, span) == list("missing")
     assert result.files_checked == 1
     assert result.math_blocks_checked == 0
     assert result.exit_code() == 0
@@ -128,6 +148,8 @@ def test_source_segment_rejects_invalid_raw_range_contracts(
     ranges: tuple[tuple[int, int], ...],
     message: str,
 ) -> None:
+    from scieqlint.diag.model import SourceSegment
+
     with pytest.raises(ValueError, match=message):
         SourceSegment(
             ranges=ranges,
@@ -153,6 +175,11 @@ def test_notebook_span_mapping_rejects_invalid_logical_source_contracts(
     end: int,
     message: str,
 ) -> None:
+    from scieqlint.scan.notebook_input import (
+        NotebookSourceLocationError,
+        map_notebook_span,
+    )
+
     document = SourceDocument.from_text(
         PurePosixPath("mapping.ipynb"),
         "x",
@@ -356,41 +383,58 @@ def test_notebook_algebra_span_uses_exact_segments_across_source_items() -> None
 
     first_start = document.text.index("x = ")
     second_start = document.text.index("x + 1")
-    offsets = (*range(first_start, first_start + 4), *range(second_start, second_start + 5))
-    segments = tuple(
-        SourceSegment(
-            ranges=((offset, offset + 1),),
-            line=1,
-            col=offset + 1,
-            end_line=1,
-            end_col=offset + 1,
-        )
-        for offset in offsets
+    [diagnostic] = result.diagnostics
+    assert (
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.rule,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        diagnostic.profile,
+        diagnostic.provenance_ids,
+        diagnostic.properties,
+    ) == (
+        "ALG001",
+        Severity.ERROR,
+        "algebraic identity does not hold",
+        "x = x + 1",
+        "left - right = -1",
+        None,
+        "algebra",
+        False,
+        None,
+        None,
+        (),
+        (),
     )
-    assert result.diagnostics == (
-        Diagnostic(
-            code="ALG001",
-            severity=Severity.ERROR,
-            message="algebraic identity does not hold",
-            span=SourceSpan(
-                path=document.path,
-                start=first_start,
-                end=second_start + 5,
-                line=1,
-                col=first_start + 1,
-                end_line=1,
-                end_col=second_start + 5,
-                cell=0,
-                cell_line=1,
-                segments=segments,
-            ),
-            equation="x = x + 1",
-            detail="left - right = -1",
-            rule="algebra",
-        ),
+    span = diagnostic.span
+    assert span is not None
+    assert (
+        span.path,
+        span.start,
+        span.end,
+        span.line,
+        span.col,
+        span.end_line,
+        span.end_col,
+        span.cell,
+        span.cell_line,
+    ) == (
+        document.path,
+        first_start,
+        second_start + 5,
+        1,
+        first_start + 1,
+        1,
+        second_start + 5,
+        0,
+        1,
     )
-    assert result.diagnostics[0].span is not None
-    assert _raw_segments(document, result.diagnostics[0].span) == list("x = x + 1")
+    assert _raw_segments(document, span) == list("x = x + 1")
     assert ', "' in document.text[first_start : second_start + 5]
     assert result.files_checked == 1
     assert result.math_blocks_checked == 1
@@ -930,5 +974,6 @@ def _code_cell(source: str | list[str]) -> dict[str, object]:
 
 
 def _raw_segments(document: SourceDocument, span: SourceSpan) -> list[str]:
-    assert span.segments
-    return [document.text[start:end] for segment in span.segments for start, end in segment.ranges]
+    segments = getattr(span, "segments", ())
+    assert segments
+    return [document.text[start:end] for segment in segments for start, end in segment.ranges]

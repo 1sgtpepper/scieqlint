@@ -25,8 +25,6 @@ from .notebook_input import (
     map_notebook_span,
     parse_notebook_input,
 )
-
-_MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 from .notebook_input import (
     cell_source as _cell_source,
 )
@@ -36,6 +34,8 @@ from .notebook_input import (
 from .notebook_input import (
     schema_diagnostic as _schema_diagnostic,
 )
+
+_MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 class NotebookScanner:
