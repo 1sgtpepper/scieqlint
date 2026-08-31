@@ -628,7 +628,10 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(
+        documents,
+        _include_reference_display=False,
+    )
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math
