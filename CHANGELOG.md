@@ -123,7 +123,8 @@ Release notes must use these sections:
   classified as ambiguous unsupported math instead of a preserved formula.
 - Reference validation now reports `REF008` without duplicate `REF002` when an equation
   reference matches only hidden or excluded targets; genuinely missing targets remain
-  `REF002`.
+  `REF002`. The warning retains exact target counts with bounded representative source
+  metadata when many non-visible definitions share one label.
 - Profile model construction and TOML loading now reject unknown or non-string profile choices
   with deterministic `ValueError` results.
 - Cross-format profile inputs now reject duplicate document paths before fact lowering so

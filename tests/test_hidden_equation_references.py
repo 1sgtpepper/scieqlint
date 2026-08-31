@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+import pytest
+
+import scieqlint.query.reference as reference_query
 from scieqlint.diag.model import CheckResult, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact, TargetVisibility
@@ -122,7 +125,8 @@ def test_reference_engine_reports_one_nonvisible_resolution_impact_per_reference
         "equation reference matches a hidden or excluded target: eq-energy"
     )
     assert diagnostic.detail == (
-        "visible targets=1; hidden targets=['appendix.md']; excluded targets=['draft.md']"
+        "visible targets=1; hidden targets=1 (example='appendix.md'); "
+        "excluded targets=1 (example='draft.md')"
     )
     assert diagnostic.provenance_ids == ("ref", "hidden", "excluded")
     assert dict(diagnostic.properties) == {
@@ -130,8 +134,8 @@ def test_reference_engine_reports_one_nonvisible_resolution_impact_per_reference
         "visible_target_count": "1",
         "hidden_target_count": "1",
         "excluded_target_count": "1",
-        "hidden_documents": "appendix.md",
-        "excluded_documents": "draft.md",
+        "hidden_example_document": "appendix.md",
+        "excluded_example_document": "draft.md",
     }
 
     payload = json.loads(
@@ -148,7 +152,7 @@ def test_reference_engine_reports_one_nonvisible_resolution_impact_per_reference
     projected = payload["diagnostics"][0]
     assert projected["code"] == "REF008"
     assert projected["provenance_ids"] == ["ref", "hidden", "excluded"]
-    assert projected["properties"]["hidden_documents"] == "appendix.md"
+    assert projected["properties"]["hidden_example_document"] == "appendix.md"
 
 
 def test_hidden_only_target_remains_unresolved_and_reports_visibility_impact() -> None:
@@ -247,7 +251,7 @@ def test_nonvisible_labels_without_matching_references_do_not_warn() -> None:
     assert ReferenceEngine().run(query) == ()
 
 
-def test_nonvisible_target_provenance_is_stable_under_shuffled_fact_input() -> None:
+def test_nonvisible_target_summary_is_stable_under_shuffled_fact_input() -> None:
     earlier = label(
         "hidden-a",
         document="a.md",
@@ -270,8 +274,69 @@ def test_nonvisible_target_provenance_is_stable_under_shuffled_fact_input() -> N
     )
 
     assert first == second
-    assert first[-1].provenance_ids == ("ref", "hidden-a", "hidden-b")
-    assert dict(first[-1].properties)["hidden_documents"] == "a.md,b.md"
+    assert first[-1].provenance_ids == ("ref", "hidden-a")
+    assert dict(first[-1].properties)["hidden_example_document"] == "a.md"
+
+
+def test_many_nonvisible_targets_have_bounded_deterministic_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_count = 32
+    key_calls = 0
+    source_key = reference_query._equation_label_source_key
+
+    def counting_source_key(fact: EquationLabelFact) -> tuple[str, int, int, str]:
+        nonlocal key_calls
+        key_calls += 1
+        return source_key(fact)
+
+    monkeypatch.setattr(reference_query, "_equation_label_source_key", counting_source_key)
+    hidden = tuple(
+        label(
+            f"hidden-{index:02d}",
+            document=f"hidden/{index:02d}.md",
+            visibility="hidden",
+            start=index,
+        )
+        for index in range(target_count)
+    )
+    excluded = tuple(
+        label(
+            f"excluded-{index:02d}",
+            document=f"excluded/{index:02d}.md",
+            visibility="excluded",
+            start=index,
+        )
+        for index in range(target_count)
+    )
+    refs = tuple(reference(f"ref-{index:02d}", start=100 + index) for index in range(target_count))
+
+    diagnostics = ReferenceEngine().run(
+        QueryHost(
+            FactSnapshot(
+                equation_labels=(*reversed(hidden), *reversed(excluded)),
+                equation_refs=tuple(reversed(refs)),
+            )
+        )
+    )
+
+    assert len(diagnostics) == target_count
+    assert {diagnostic.code for diagnostic in diagnostics} == {"REF008"}
+    assert key_calls <= target_count * 2
+    for diagnostic, ref in zip(diagnostics, refs, strict=True):
+        assert diagnostic.detail == (
+            "visible targets=0; hidden targets=32 (example='hidden/00.md'); "
+            "excluded targets=32 (example='excluded/00.md')"
+        )
+        assert diagnostic.provenance_ids == (ref.fact_id, "hidden-00", "excluded-00")
+        assert dict(diagnostic.properties) == {
+            "target": "eq-energy",
+            "visible_target_count": "0",
+            "hidden_target_count": "32",
+            "excluded_target_count": "32",
+            "hidden_example_document": "hidden/00.md",
+            "excluded_example_document": "excluded/00.md",
+        }
 
 
 def test_visible_duplicate_behavior_and_default_visibility_are_unchanged() -> None:

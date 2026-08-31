@@ -101,6 +101,9 @@ excluded source. Visible labels continue to define ordinary resolution; hidden a
 labels are retained as separate facts and do not create `REF001` duplicates by themselves.
 When only non-visible matches exist, `ReferenceEngine` reports `REF008` instead of also
 reporting generic `REF002`; a target with no matching label still reports `REF002`.
+The diagnostic reports exact visible, hidden, and excluded target counts. To keep output
+bounded when many sources define the same label, it includes at most one deterministic
+example document and provenance fact from each non-visible category.
 The rule does not read ignored files or change project include/exclude behavior.
 
 ## Generated-output engine
