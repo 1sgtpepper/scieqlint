@@ -1112,6 +1112,47 @@ def test_duplicate_source_labels_keep_the_winning_exact_span() -> None:
     assert decoded_source_segment_text(document, cell.label_span) == "candidate-127"
 
 
+def test_duplicate_source_languages_use_the_winning_value_and_span() -> None:
+    source = "#| language: first\n#| language: second\npass\n"
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.language == "second"
+    assert cell.language_span is not None
+    assert cell.language_span.cell_line == 2
+    assert decoded_source_segment_text(document, cell.language_span) == "second"
+
+
+def test_empty_final_source_language_overrides_an_earlier_value() -> None:
+    source = "#| language: python\n#| language:\npass\n"
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.language == '<json:"">'
+    assert cell.language_span is not None
+    assert cell.language_span.cell_line == 2
+    assert cell.language_span.start == cell.language_span.end
+    assert source_slice(document, cell.language_span) == ""
+
+
+def test_empty_source_language_at_end_preserves_its_position() -> None:
+    source = "#| language:"
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    expected_position = document.text.index(source) + len(source)
+    assert cell.language == '<json:"">'
+    assert cell.language_span is not None
+    assert cell.language_span.cell_line == 1
+    assert (cell.language_span.start, cell.language_span.end) == (
+        expected_position,
+        expected_position,
+    )
+
+
 def test_notebook_code_cell_without_source_keeps_metadata_label() -> None:
     raw_cell = code_cell(metadata={"label": "metadata-only"})
     raw_cell.pop("source")
