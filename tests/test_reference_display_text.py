@@ -781,7 +781,7 @@ def test_pathless_role_with_duplicate_member_targets_is_ambiguous() -> None:
     assert not [item for item in result.diagnostics if item.code == "REF009"]
 
 
-def test_ambiguous_display_resolution_has_linear_bounded_evidence(
+def test_display_resolution_indexes_label_and_member_identities_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target_count = 32
@@ -794,7 +794,11 @@ def test_ambiguous_display_resolution_has_linear_bounded_evidence(
         return normalize(*args, **kwargs)
 
     monkeypatch.setattr(reference_display, "normalize_project_path", counting_normalize)
-    source = doc("".join("See {ref}`shared`.\n" for _ in range(target_count)), "source.md")
+    source = doc(
+        "".join("See {ref}`shared`.\n" for _ in range(target_count))
+        + "".join(f"See [](target-{index:02d}.md#shared).\n" for index in range(target_count)),
+        "source.md",
+    )
     targets = tuple(
         doc(f"(shared)=\n# Target {index}\n", f"target-{index:02d}.md")
         for index in range(target_count)
@@ -802,14 +806,23 @@ def test_ambiguous_display_resolution_has_linear_bounded_evidence(
 
     snapshot = MySTFrontend().lower((source, *reversed(targets)))
 
-    assert len(snapshot.reference_display_text) == target_count
-    assert normalize_calls <= target_count
+    ambiguous = snapshot.reference_display_text[:target_count]
+    selected = snapshot.reference_display_text[target_count:]
+    assert len(snapshot.reference_display_text) == target_count * 2
+    assert normalize_calls <= target_count * 2
     assert all(
         fact.target_type_source == "ambiguous"
         and fact.target_identity is None
         and fact.target_fact_ids == ()
-        for fact in snapshot.reference_display_text
+        for fact in ambiguous
     )
+    assert [(fact.target_identity, fact.target_fact_ids) for fact in selected] == [
+        (
+            (PurePosixPath(f"target-{index:02d}.md"), "shared"),
+            (f"target-{index:02d}.md::anchor::0",),
+        )
+        for index in range(target_count)
+    ]
     assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
 
 
