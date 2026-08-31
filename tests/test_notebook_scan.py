@@ -224,6 +224,8 @@ def test_notebook_scanner_reports_unmappable_parsed_source_as_input_error() -> N
 
 
 def test_notebook_frontend_drops_unmappable_markdown_cell_without_partial_facts() -> None:
+    from scieqlint.frontend.notebook_input import NotebookSourceLocationError
+
     document = _notebook([_markdown_cell("See {eq}`missing`.\n")])
     parsed = NotebookScanner().parse(document)
     malformed = replace(parsed, cell_source_ranges=((),))
