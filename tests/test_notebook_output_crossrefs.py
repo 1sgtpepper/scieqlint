@@ -334,6 +334,24 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert QueryHost(snapshot).references.target_identity_index()[identity] == (anchor,)
 
 
+def test_notebook_output_target_prefixes_remain_case_sensitive() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(display_output(output_metadata={"label": "FIG-output"}),),
+            )
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    [anchor] = snapshot.target_anchors
+    assert anchor.label == "FIG-output"
+    assert anchor.target_kind is None
+    assert snapshot.crossref_metadata == ()
+
+
 def test_notebook_frontend_ignores_nonmarkdown_and_malformed_markdown_cells() -> None:
     document = notebook(
         notebook_payload(
