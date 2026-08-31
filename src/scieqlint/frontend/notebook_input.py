@@ -14,7 +14,7 @@ from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_NOTEBOOK_SOU
 from scieqlint.io.source import DocumentKind, LineIndex, SourceDocument
 
 from .notebook_json import (
-    _iter_json_string_character_ranges,
+    iter_json_string_character_ranges,
     json_array_ranges,
     json_decoder,
     json_object_members,
@@ -592,10 +592,10 @@ def _source_character_ranges(
 ) -> Iterator[tuple[str, int, int]]:
     start, end = source_range
     if text[start] == '"':
-        yield from _iter_json_string_character_ranges(text, start, end)
+        yield from iter_json_string_character_ranges(text, start, end)
         return
     for item_start, item_end in json_array_ranges(decoder, text, start, end):
-        yield from _iter_json_string_character_ranges(text, item_start, item_end)
+        yield from iter_json_string_character_ranges(text, item_start, item_end)
 
 
 def _json_value_span(

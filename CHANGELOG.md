@@ -141,7 +141,7 @@ Release notes must use these sections:
   reference identities and diagnostics remain deterministic.
 - Ambiguous generic-reference diagnostics now retain supported local Markdown-link
   references, and duplicate code-cell diagnostics serialize complete member-path
-  identities.
+  identities and exact collision counts with bounded representative provenance.
 - Notebook lowering scopes nested equation-reference owners by cell, and notebook
   cross-reference labels recognize documented lowercase prefixes after an optional
   leading `#` marker.

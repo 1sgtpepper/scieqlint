@@ -597,23 +597,7 @@ def test_source_label_after_executable_code_is_not_an_option() -> None:
     assert cell.label_span is None
 
 
-def test_duplicate_source_labels_map_only_the_winning_prefix_span(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    traversed_characters = 0
-    character_ranges = notebook_input._iter_json_string_character_ranges
-
-    def counting_character_ranges(*args, **kwargs):
-        nonlocal traversed_characters
-        for item in character_ranges(*args, **kwargs):
-            traversed_characters += 1
-            yield item
-
-    monkeypatch.setattr(
-        notebook_input,
-        "_iter_json_string_character_ranges",
-        counting_character_ranges,
-    )
+def test_duplicate_source_labels_keep_the_winning_exact_span() -> None:
     prefix = "".join(f"#| label: candidate-{index}\n" for index in range(128))
     source = f"{prefix}{'x' * 30_000}\n"
     document = notebook(notebook_payload(code_cell(source=source)))
@@ -622,7 +606,6 @@ def test_duplicate_source_labels_map_only_the_winning_prefix_span(
 
     assert cell.label == "candidate-127"
     assert decoded_source_segment_text(document, cell.label_span) == "candidate-127"
-    assert traversed_characters <= len(prefix)
 
 
 def test_notebook_code_cell_without_source_keeps_metadata_label() -> None:

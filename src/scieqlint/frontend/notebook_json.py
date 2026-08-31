@@ -105,10 +105,10 @@ def json_string_character_ranges(
     start: int,
     end: int,
 ) -> list[tuple[str, int, int]]:
-    return list(_iter_json_string_character_ranges(text, start, end))
+    return list(iter_json_string_character_ranges(text, start, end))
 
 
-def _iter_json_string_character_ranges(
+def iter_json_string_character_ranges(
     text: str,
     start: int,
     end: int,
