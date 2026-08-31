@@ -8,7 +8,7 @@ from typing import cast
 
 from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic, SourceSpan
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, LineIndex, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.scan.base import (
     EquationLabel,
@@ -25,6 +25,8 @@ from .notebook_input import (
     map_notebook_span,
     parse_notebook_input,
 )
+
+_MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 from .notebook_input import (
     cell_source as _cell_source,
 )
@@ -143,6 +145,16 @@ def _cell_document(document: SourceDocument, cell_index: int, source: str) -> So
     return replace(
         cell_document,
         display_path=f"{document.display_path}#cell-{cell_index}",
+        line_index=LineIndex(
+            (
+                0,
+                *(
+                    index + 1
+                    for index, character in enumerate(cell_document.text)
+                    if character in _MARKDOWN_LINE_BOUNDARIES
+                ),
+            )
+        ),
     )
 
 

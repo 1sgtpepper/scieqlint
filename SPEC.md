@@ -1267,14 +1267,16 @@ Rules:
 - `line`, `col`, `end_line`, and `end_col` are one-based.
 - `cell` is zero-based notebook cell index.
 - `cell_line` is one-based line inside the notebook markdown cell.
-- For non-empty notebook spans, `segments` contains one `SourceSegment` per
-  logical decoded source character. Each segment's `ranges` contains the exact
-  raw JSON range or ranges for that character, including escapes, normalized
-  CRLF, and source-list items.
+- For non-empty notebook spans mapped from decoded cell source, `segments`
+  contains one `SourceSegment` per logical decoded source character. Each
+  segment's `ranges` contains the exact raw JSON range or ranges for that
+  character, including escapes, normalized CRLF, and source-list items.
 - Notebook `start`/`end` and line/column values identify the physical span in
   normalized raw JSON. The envelope may include JSON separators between
   source-list items; consumers reconstructing decoded source must use
   `segments`.
+- Notebook object and metadata spans have no decoded source mapping and leave
+  `segments` empty.
 - For non-notebook spans, `segments` remains empty.
 - For synthetic spans, use the nearest enclosing source span and set detail text accordingly.
 

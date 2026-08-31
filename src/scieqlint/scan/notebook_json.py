@@ -21,7 +21,14 @@ def parse_json_document(text: str) -> tuple[object, tuple[int, int]]:
 
 
 def json_decoder() -> json.JSONDecoder:
-    return json.JSONDecoder(parse_int=_parse_json_integer)
+    return json.JSONDecoder(
+        parse_int=_parse_json_integer,
+        parse_constant=_reject_json_constant,
+    )
+
+
+def _reject_json_constant(value: str) -> object:
+    raise ValueError(f"non-standard JSON constant is not supported: {value}")
 
 
 def _decode_json_value(

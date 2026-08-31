@@ -9,7 +9,7 @@ import pytest
 
 from scieqlint.api import check_documents
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
-from scieqlint.diag.model import Severity, SourceSegment, SourceSpan
+from scieqlint.diag.model import Diagnostic, Severity, SourceSegment, SourceSpan
 from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.report.github import GitHubReporter
@@ -34,6 +34,50 @@ def test_notebook_markdown_cells_are_scanned() -> None:
     assert result.diagnostics[0].span is not None
     assert result.diagnostics[0].span.cell == 0
     assert result.diagnostics[0].span.cell_line == 2
+
+
+@pytest.mark.public_regression
+def test_notebook_diagnostic_cell_line_uses_markdown_splitline_boundaries() -> None:
+    document = _notebook([_markdown_cell("Heading\u2028See {eq}`missing`.\n")])
+
+    result = check_documents([document], config=Config())
+
+    start = document.text.index("missing")
+    end = start + len("missing")
+    segments = tuple(
+        SourceSegment(
+            ranges=((offset, offset + 1),),
+            line=1,
+            col=offset + 1,
+            end_line=1,
+            end_col=offset + 1,
+        )
+        for offset in range(start, end)
+    )
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF002",
+            severity=Severity.WARNING,
+            message="equation reference target not found: missing",
+            span=SourceSpan(
+                path=document.path,
+                start=start,
+                end=end,
+                line=1,
+                col=start + 1,
+                end_line=1,
+                end_col=end,
+                cell=0,
+                cell_line=2,
+                segments=segments,
+            ),
+            detail="reference text: {eq}`missing`",
+            rule="references",
+        ),
+    )
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
 
 def test_notebook_scanner_spans_slice_the_original_json_source() -> None:
@@ -304,27 +348,53 @@ def test_notebook_source_list_boundary_keeps_the_complete_math_block() -> None:
     assert result.math_blocks_checked == 1
 
 
+@pytest.mark.public_regression
 def test_notebook_algebra_span_uses_exact_segments_across_source_items() -> None:
     document = _notebook([_markdown_cell(["$$x = ", "x + 1\n$$"])])
 
     result = check_documents([document], config=Config())
 
-    [diagnostic] = result.diagnostics
-    assert diagnostic.code == "ALG001"
-    assert diagnostic.span is not None
-    assert _raw_segments(document, diagnostic.span) == [
-        "x",
-        " ",
-        "=",
-        " ",
-        "x",
-        " ",
-        "+",
-        " ",
-        "1",
-    ]
-    assert ', "' in document.text[diagnostic.span.start : diagnostic.span.end]
+    first_start = document.text.index("x = ")
+    second_start = document.text.index("x + 1")
+    offsets = (*range(first_start, first_start + 4), *range(second_start, second_start + 5))
+    segments = tuple(
+        SourceSegment(
+            ranges=((offset, offset + 1),),
+            line=1,
+            col=offset + 1,
+            end_line=1,
+            end_col=offset + 1,
+        )
+        for offset in offsets
+    )
+    assert result.diagnostics == (
+        Diagnostic(
+            code="ALG001",
+            severity=Severity.ERROR,
+            message="algebraic identity does not hold",
+            span=SourceSpan(
+                path=document.path,
+                start=first_start,
+                end=second_start + 5,
+                line=1,
+                col=first_start + 1,
+                end_line=1,
+                end_col=second_start + 5,
+                cell=0,
+                cell_line=1,
+                segments=segments,
+            ),
+            equation="x = x + 1",
+            detail="left - right = -1",
+            rule="algebra",
+        ),
+    )
+    assert result.diagnostics[0].span is not None
+    assert _raw_segments(document, result.diagnostics[0].span) == list("x = x + 1")
+    assert ', "' in document.text[first_start : second_start + 5]
+    assert result.files_checked == 1
     assert result.math_blocks_checked == 1
+    assert result.exit_code() == 1
 
 
 def test_notebook_code_cells_are_ignored() -> None:
@@ -459,6 +529,24 @@ def test_oversized_notebook_integer_ignores_interpreter_digit_limit() -> None:
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
     assert result.diagnostics[0].detail == "JSON integer exceeds 4096 digits"
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_nonstandard_notebook_json_constants_fail_closed(constant: str) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("nonstandard.ipynb"),
+        '{"cells":[],"metadata":{},"nbformat":' + constant + ',"nbformat_minor":0}',
+        DocumentKind.NOTEBOOK,
+    )
+
+    result = check_documents([document], config=Config())
+
+    [diagnostic] = result.diagnostics
+    assert diagnostic.code == "INP001"
+    assert diagnostic.detail == f"non-standard JSON constant is not supported: {constant}"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == document.path
+    assert result.math_blocks_checked == 0
 
 
 def test_notebook_root_schema_issue_is_deterministic() -> None:
