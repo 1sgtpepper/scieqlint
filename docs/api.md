@@ -155,9 +155,10 @@ where the format supports it.
 The opt-in `notebook-crossrefs` profile inspects only declarative code-cell and
 recorded-output metadata. Quarto `lst-label` is an alias of output `label` for
 target resolution; when both are present, `label` takes precedence. `fig-subcap`
-and `tbl-subcap` are cross-reference display options. Each affected recorded output
-retains its own fact identity and exact JSON label-value span; notebook code is never
-executed or re-rendered.
+and `tbl-subcap` are cross-reference display options. Typed labels use the lowercase
+`eq-`, `fig-`, `lst-`, or `tbl-` prefixes after an optional leading `#`. Each affected
+recorded output retains its own fact identity and exact JSON label-value span; notebook
+code is never executed or re-rendered.
 
 Notebook parsing applies fixed safety bounds at the already-loaded
 `SourceDocument` boundary: the UTF-8 byte length of normalized `SourceDocument.text`

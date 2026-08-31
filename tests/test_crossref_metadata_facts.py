@@ -693,7 +693,7 @@ def test_public_check_documents_reports_listing_alias_output_metadata_conflict()
                     "source": [],
                 }
             ],
-            "metadata": {},
+            "metadata": {"language_info": {"name": "python"}},
             "nbformat": 4,
             "nbformat_minor": 5,
         }
@@ -726,29 +726,65 @@ def test_public_check_documents_reports_listing_alias_output_metadata_conflict()
         if fact.target_span is not None
     )
 
-    conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
     canonical_boundary = "reachable.ipynb::notebook-cell::0::output::0"
-    diagnostics = tuple(item for item in result.diagnostics if item.code == "REF007")
-    assert len(diagnostics) == 1
-    item = diagnostics[0]
-    assert item.span == definitions[1].target_span
-    assert item.provenance_ids == (
-        f"{canonical_boundary}::crossref-metadata",
-        f"{conflict_boundary}::crossref-metadata",
+    conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
+    label_marker = '"lst-label": "lst-shared"'
+    first_marker = conflicting.text.index(label_marker)
+    second_marker = conflicting.text.index(label_marker, first_marker + len(label_marker))
+    label_start = second_marker + len('"lst-label": "')
+    label_end = label_start + len("lst-shared")
+    line, col = conflicting.line_index.position(label_start)
+    end_line, end_col = conflicting.line_index.position(label_end - 1)
+    expected_span = SourceSpan(
+        path=conflicting.path,
+        start=label_start,
+        end=label_end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+        cell=0,
+        cell_line=1,
     )
-    assert item.properties == (
-        ("target", "reachable.ipynb#lst-shared"),
-        ("output_boundary", conflict_boundary),
-        ("resolved_target_kind", "listing"),
-        ("source_format", "notebook"),
-        ("canonical_boundary", canonical_boundary),
-        ("canonical_resolved_target_kind", "listing"),
-        ("canonical_source_format", "notebook"),
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF007",
+            severity=Severity.WARNING,
+            message="conflicting cross-reference metadata: reachable.ipynb#lst-shared",
+            span=expected_span,
+            detail=(
+                f"{conflict_boundary!r} reports kind='listing', format='notebook', "
+                "metadata={'lst-cap': 'Different listing'}; canonical boundary "
+                f"{canonical_boundary!r} reports kind='listing', format='notebook', "
+                "metadata={'lst-cap': 'Shared listing'}"
+            ),
+            hint="Use consistent cross-reference metadata for this target.",
+            rule="references.crossref_metadata_conflict",
+            provenance_ids=(
+                f"{canonical_boundary}::crossref-metadata",
+                f"{conflict_boundary}::crossref-metadata",
+            ),
+            properties=(
+                ("target", "reachable.ipynb#lst-shared"),
+                ("output_boundary", conflict_boundary),
+                ("resolved_target_kind", "listing"),
+                ("source_format", "notebook"),
+                ("canonical_boundary", canonical_boundary),
+                ("canonical_resolved_target_kind", "listing"),
+                ("canonical_source_format", "notebook"),
+            ),
+        ),
     )
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
     equivalent = document("Shared listing")
     equivalent_result = check_documents((equivalent,), config=cross_format_config())
-    assert not any(item.code == "REF007" for item in equivalent_result.diagnostics)
+    assert equivalent_result.diagnostics == ()
+    assert equivalent_result.files_checked == 1
+    assert equivalent_result.math_blocks_checked == 0
+    assert equivalent_result.exit_code() == 0
 
 
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:

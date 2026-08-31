@@ -126,7 +126,9 @@ def _cell_creates_crossref(cell: CodeCellFact) -> bool:
 
 
 def _has_crossref_prefix(label: str | None) -> bool:
-    return label is not None and label.casefold().startswith(_CROSSREF_PREFIXES)
+    if label is None:
+        return False
+    return label.strip().removeprefix("#").startswith(_CROSSREF_PREFIXES)
 
 
 def _outputs_by_cell(

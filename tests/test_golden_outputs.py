@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
@@ -15,7 +16,7 @@ from scieqlint.config.model import (
     ProfileConfig,
     ReportConfig,
 )
-from scieqlint.diag.model import CheckResult, SourceSpan
+from scieqlint.diag.model import CheckResult, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import CrossrefMetadataFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -175,7 +176,151 @@ def test_notebook_crossrefs_bad_path_fixture_emits_each_conflict(tmp_path) -> No
         config_path=config_path,
     )
 
-    assert [item.code for item in result.diagnostics] == ["PORT004", "PORT004", "PORT004"]
+    document_id = PurePosixPath(
+        os.path.relpath(NOTEBOOK_CROSSREF_BAD_FIXTURE, config_path.parent)
+    ).as_posix()
+    assert {
+        (
+            item.code,
+            item.severity,
+            item.message,
+            item.equation,
+            item.hint,
+            item.rule,
+            item.suppressed,
+            item.suppression_reason,
+            item.profile,
+        )
+        for item in result.diagnostics
+    } == {
+        (
+            "PORT004",
+            Severity.WARNING,
+            "cell renderings are incompatible with cross-reference options",
+            None,
+            (
+                "Keep renderings on a cell without cross-reference options, or move "
+                "the labeled figure/table structure outside the rendered cell."
+            ),
+            "portability.notebook_renderings_crossref",
+            False,
+            None,
+            "notebook-crossrefs",
+        )
+    }
+    assert [
+        (
+            item.detail,
+            item.provenance_ids,
+            item.properties,
+            (
+                item.span.path,
+                item.span.start,
+                item.span.end,
+                item.span.line,
+                item.span.col,
+                item.span.end_line,
+                item.span.end_col,
+                item.span.cell,
+                item.span.cell_line,
+                item.span.segments,
+            )
+            if item.span is not None
+            else None,
+        )
+        for item in result.diagnostics
+    ] == [
+        (
+            (
+                "cell 'fig-first' at output 0 combines renderings='[\"light\",\"dark\"]' "
+                "with ['label', 'fig-cap']"
+            ),
+            (
+                f"{document_id}::notebook-cell::0",
+                f"{document_id}::notebook-cell::0::output::0",
+            ),
+            (
+                ("label", "fig-first"),
+                ("renderings", '["light","dark"]'),
+                ("crossref_options", "label,fig-cap"),
+                ("source_format", "notebook"),
+                ("subject_fact_id", f"{document_id}::notebook-cell::0"),
+                ("output_index", "0"),
+            ),
+            (
+                PurePosixPath(NOTEBOOK_CROSSREF_BAD_FIXTURE.as_posix()),
+                285,
+                603,
+                13,
+                17,
+                22,
+                17,
+                0,
+                None,
+                (),
+            ),
+        ),
+        (
+            (
+                "cell 'lst-second' at output 1 combines renderings='[\"light\",\"dark\"]' "
+                "with ['lst-label', 'lst-cap']"
+            ),
+            (
+                f"{document_id}::notebook-cell::0",
+                f"{document_id}::notebook-cell::0::output::1",
+            ),
+            (
+                ("label", "lst-second"),
+                ("renderings", '["light","dark"]'),
+                ("crossref_options", "lst-label,lst-cap"),
+                ("source_format", "notebook"),
+                ("subject_fact_id", f"{document_id}::notebook-cell::0"),
+                ("output_index", "1"),
+            ),
+            (
+                PurePosixPath(NOTEBOOK_CROSSREF_BAD_FIXTURE.as_posix()),
+                621,
+                949,
+                23,
+                17,
+                32,
+                17,
+                0,
+                None,
+                (),
+            ),
+        ),
+        (
+            (
+                "cell 'lst-source' combines renderings='[\"light\",\"dark\"]' with "
+                "['lst-label', 'fig-subcap', 'lst-cap', 'tbl-subcap']"
+            ),
+            (f"{document_id}::notebook-cell::1",),
+            (
+                ("label", "lst-source"),
+                ("renderings", '["light","dark"]'),
+                ("crossref_options", "lst-label,fig-subcap,lst-cap,tbl-subcap"),
+                ("source_format", "notebook"),
+                ("subject_fact_id", f"{document_id}::notebook-cell::1"),
+            ),
+            (
+                PurePosixPath(NOTEBOOK_CROSSREF_BAD_FIXTURE.as_posix()),
+                1081,
+                1664,
+                38,
+                9,
+                58,
+                9,
+                1,
+                1,
+                (),
+            ),
+        ),
+    ]
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path == PurePosixPath(config_path.as_posix())
+    assert result.exit_code() == 0
 
 
 def test_notebook_crossrefs_good_path_fixture_is_quiet(tmp_path) -> None:
@@ -184,7 +329,11 @@ def test_notebook_crossrefs_good_path_fixture_is_quiet(tmp_path) -> None:
 
     result = check_paths([NOTEBOOK_CROSSREF_GOOD_FIXTURE], config_path=config_path)
 
-    assert not any(item.code == "PORT004" for item in result.diagnostics)
+    assert result.diagnostics == ()
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.config_path == PurePosixPath(config_path.as_posix())
+    assert result.exit_code() == 0
 
 
 def test_text_golden_output_matches_crossref_metadata_engine_path() -> None:
