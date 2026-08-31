@@ -35,6 +35,7 @@ from scieqlint.scan.base import (
 )
 from scieqlint.scan.markdown import MarkdownScanner
 
+
 class NotebookScanner:
     def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
         self._markdown = MarkdownScanner(workspace=workspace)

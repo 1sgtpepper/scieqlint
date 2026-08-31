@@ -440,6 +440,7 @@ def test_public_cross_format_notebook_split_generic_ref_keeps_exact_target_span(
     assert result.files_checked == 1
     assert result.math_blocks_checked == 0
     assert result.exit_code() == 0
+    assert len(result.diagnostics) == 1
     [diagnostic] = result.diagnostics
     assert (
         diagnostic.code,
@@ -550,6 +551,7 @@ def test_public_cross_format_notebook_raw_equation_reports_exact_reference() -> 
 
     result = public_check_documents((document,), config=config("commonmark"))
 
+    assert len(result.diagnostics) == 1
     [diagnostic] = result.diagnostics
     assert (
         diagnostic.code,
