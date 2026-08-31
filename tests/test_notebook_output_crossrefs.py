@@ -1785,7 +1785,12 @@ def test_notebook_frontend_bounds_malformed_cell_and_output_metadata() -> None:
                 metadata={"cap": ["caption", {"unsupported": True}]},
                 outputs=(
                     display_output(output_metadata=[]),
-                    display_output(output_metadata={"label": ["fig-theme", {"unsupported": True}]}),
+                    display_output(
+                        output_metadata={
+                            "fig-cap": {"unsupported": True},
+                            "label": ["fig-theme", {"unsupported": True}],
+                        }
+                    ),
                     {"data": {}, "metadata": {}},
                 ),
                 source=["plot()", 7],

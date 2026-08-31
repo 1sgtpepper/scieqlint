@@ -173,17 +173,16 @@ def _output_label(metadata: Mapping[str, str]) -> str | None:
 def _crossref_target_kind(
     label: str,
     *,
-    metadata: Mapping[str, str] | None = None,
+    metadata: Mapping[str, str],
 ) -> str | None:
-    if metadata is not None:
-        if "fig-cap" in metadata or "fig-subcap" in metadata:
-            return "figure"
-        if "tbl-cap" in metadata or "tbl-subcap" in metadata:
-            return "table"
-        if "lst-cap" in metadata:
-            return "listing"
-        if "cap" in metadata or "caption" in metadata:
-            return "block"
+    if "fig-cap" in metadata or "fig-subcap" in metadata:
+        return "figure"
+    if "tbl-cap" in metadata or "tbl-subcap" in metadata:
+        return "table"
+    if "lst-cap" in metadata:
+        return "listing"
+    if "cap" in metadata or "caption" in metadata:
+        return "block"
     normalized = normalize_label(label)
     for prefix, kind in (
         ("eq-", "equation"),

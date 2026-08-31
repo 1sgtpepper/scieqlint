@@ -233,6 +233,18 @@ def test_hidden_reference_source_does_not_produce_display_facts() -> None:
     assert snapshot.reference_display_text == ()
 
 
+def test_hidden_equation_reference_source_does_not_produce_display_facts() -> None:
+    source = doc("See {eq}`eq-target`.\n", "source.md")
+    target = doc("$$\nx = 1\n$$ {#eq-target}\n", "target.md")
+    snapshot = _profile_snapshot(
+        (source, target),
+        profile_config(project=ProjectConfig(visibility=(("source.md", "hidden"),))),
+    )
+
+    assert [ref.visibility for ref in snapshot.equation_refs] == ["hidden"]
+    assert snapshot.reference_display_text == ()
+
+
 def test_display_facts_omit_identityless_references() -> None:
     identityless = GenericRefFact(
         fact_id="identityless-ref",
@@ -401,6 +413,33 @@ def test_display_resolution_includes_labeled_code_cells() -> None:
     assert display.target_type == "figure"
     assert display.target_type_source == "inferred"
     assert display.target_fact_ids == (cell.fact_id,)
+
+
+@pytest.mark.parametrize(
+    ("label", "normalized_label"),
+    [("fig-cell", None), (None, "fig-cell")],
+)
+def test_code_cell_fact_rejects_partial_label_identity(
+    label: str | None,
+    normalized_label: str | None,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="code-cell label and normalized label must both be present or absent",
+    ):
+        CodeCellFact(
+            fact_id="cell-figure",
+            document_id="paper.md",
+            span=None,
+            raw=None,
+            fence_fact_id="fence-figure",
+            directive_fact_id=None,
+            language="python",
+            engine="jupyter",
+            options=(),
+            label=label,
+            normalized_label=normalized_label,
+        )
 
 
 def test_public_reference_role_resolves_labeled_code_cell_target() -> None:
