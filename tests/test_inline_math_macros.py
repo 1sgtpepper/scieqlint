@@ -188,13 +188,16 @@ def test_math_host_skips_macro_materialization_for_span_body_mismatch() -> None:
     assert classified.math_macro_uses == ()
 
 
-def test_math_host_bounds_invalid_notebook_macro_source_ranges() -> None:
+def test_math_host_rejects_invalid_notebook_macro_source_mappings() -> None:
     payload = {
         "cells": [
             {
                 "cell_type": "markdown",
                 "metadata": {},
-                "source": r"$\newcommand{\bad}{1}$ $\newcommand{\good}{2}$",
+                "source": [
+                    "$\\newcommand{\\",
+                    r"bad}{1}$ $\newcommand{\good}{2}$",
+                ],
             }
         ],
         "metadata": {},
@@ -221,12 +224,22 @@ def test_math_host_bounds_invalid_notebook_macro_source_ranges() -> None:
         fact_id=f"{first.fact_id}::overlapping-source",
         span=overlapping_span,
     )
-
-    classified = MathHost().classify(
-        FactSnapshot(documents=(document,), inline_math=(invalid, overlapping, second))
+    stale_body = first.body.replace(r"\bad", r"\alt")
+    assert len(stale_body) == len(first.body)
+    stale = replace(
+        first,
+        fact_id=f"{first.fact_id}::stale-body",
+        body=stale_body,
     )
 
-    assert len(classified.inline_math) == 3
+    classified = MathHost().classify(
+        FactSnapshot(
+            documents=(document,),
+            inline_math=(invalid, overlapping, stale, second),
+        )
+    )
+
+    assert len(classified.inline_math) == 4
     assert [fact.macro_name for fact in classified.math_macro_declarations] == [r"\good"]
     assert classified.math_macro_uses == ()
 
