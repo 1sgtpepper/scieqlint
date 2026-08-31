@@ -146,7 +146,8 @@ Release notes must use these sections:
   recognize Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases; recorded
   output aliases retain the exact JSON option span used for their target.
 - Notebook reference-display facts are resolved after notebook-wide target aggregation,
-  and the profile admits notebook documents through the public API.
+  and the profile admits notebook documents through the public API. Application analysis
+  derives these facts only for the opt-in profile, and ambiguous matches retain no target IDs.
 - Reference-display target typing now honors notebook caption metadata for untyped
   recorded-output labels and remains active when Markdown scanning is disabled for
   the explicit profile.

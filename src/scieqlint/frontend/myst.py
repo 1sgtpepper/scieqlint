@@ -66,7 +66,12 @@ class MySTFrontend:
     def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
         self.workspace = workspace or WorkspaceHost()
 
-    def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
+    def lower(
+        self,
+        documents: Sequence[SourceDocument],
+        *,
+        _include_reference_display: bool = True,
+    ) -> FactSnapshot:
         parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         target_anchors = _flatten(parts, "target_anchors")
         generic_refs = _flatten(parts, "generic_refs")
@@ -87,13 +92,17 @@ class MySTFrontend:
             equation_labels=equation_labels,
             equation_refs=equation_refs,
             crossref_metadata=_flatten(parts, "crossref_metadata"),
-            reference_display_text=reference_display_text_facts(
-                generic_refs,
-                equation_refs,
-                target_anchors,
-                equation_labels,
-                project_root=self.workspace.project_root,
-                code_cells=code_cells,
+            reference_display_text=(
+                reference_display_text_facts(
+                    generic_refs,
+                    equation_refs,
+                    target_anchors,
+                    equation_labels,
+                    project_root=self.workspace.project_root,
+                    code_cells=code_cells,
+                )
+                if _include_reference_display
+                else ()
             ),
             inline_math=_flatten(parts, "inline_math"),
             display_math=_flatten(parts, "display_math"),

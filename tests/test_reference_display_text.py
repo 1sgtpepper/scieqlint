@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+import scieqlint.frontend.reference_display as reference_display
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
@@ -530,6 +531,55 @@ def test_hidden_code_cell_is_not_an_ordinary_reference_target() -> None:
     ] == ["REF004"]
 
 
+def test_application_derives_display_facts_only_for_the_opt_in_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = doc("(fig-target)=\n# Target\n\nSee [](#fig-target).\n")
+    notebook = SourceDocument.from_text(
+        PurePosixPath("display.ipynb"),
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": "See [](#fig-cell).\n",
+                    },
+                    {
+                        "cell_type": "code",
+                        "execution_count": None,
+                        "metadata": {"label": "fig-cell"},
+                        "outputs": [],
+                        "source": "plot()\n",
+                    },
+                ],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            },
+            sort_keys=True,
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    def unexpected_derivation(*args, **kwargs):
+        raise AssertionError("default application profiles must not derive display facts")
+
+    for owner in (
+        "scieqlint.app.reference_display_text_facts",
+        "scieqlint.frontend.myst.reference_display_text_facts",
+        "scieqlint.frontend.notebook.reference_display_text_facts",
+    ):
+        monkeypatch.setattr(owner, unexpected_derivation)
+
+    config = profile_config(None)
+    snapshot = _profile_snapshot((source, notebook), config)
+    result = public_check_documents((source, notebook), config=config)
+
+    assert snapshot.reference_display_text == ()
+    assert not [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "REF009"]
+
+
 def test_reference_display_profile_is_opt_in_and_reports_exact_metadata() -> None:
     source = doc(fixture_source())
     default = check_documents((source,), config=profile_config(None))
@@ -586,6 +636,7 @@ $$
         None,
         None,
     ]
+    assert all(fact.target_fact_ids == () for fact in snapshot.reference_display_text)
     assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
     assert ReferenceEngine(profile="reference-display").run(QueryHost(snapshot))[0].code == (
         "REF001"
@@ -719,10 +770,47 @@ def test_pathless_role_with_duplicate_member_targets_is_ambiguous() -> None:
     first = doc("(shared)=\n```{figure}\nfirst.png\n```\n", "first.md")
     second = doc("(shared)=\n```{figure}\nsecond.png\n```\n", "second.md")
 
+    snapshot = MySTFrontend().lower((source, first, second))
     result = check_documents((source, first, second), config=profile_config())
 
+    [display] = snapshot.reference_display_text
+    assert display.target_type_source == "ambiguous"
+    assert display.target_identity is None
+    assert display.target_fact_ids == ()
     assert [item.code for item in result.diagnostics if item.code == "REF005"] == ["REF005"]
     assert not [item for item in result.diagnostics if item.code == "REF009"]
+
+
+def test_ambiguous_display_resolution_has_linear_bounded_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_count = 32
+    normalize_calls = 0
+    normalize = reference_display.normalize_project_path
+
+    def counting_normalize(*args, **kwargs):
+        nonlocal normalize_calls
+        normalize_calls += 1
+        return normalize(*args, **kwargs)
+
+    monkeypatch.setattr(reference_display, "normalize_project_path", counting_normalize)
+    source = doc("".join("See {ref}`shared`.\n" for _ in range(target_count)), "source.md")
+    targets = tuple(
+        doc(f"(shared)=\n# Target {index}\n", f"target-{index:02d}.md")
+        for index in range(target_count)
+    )
+
+    snapshot = MySTFrontend().lower((source, *reversed(targets)))
+
+    assert len(snapshot.reference_display_text) == target_count
+    assert normalize_calls <= target_count
+    assert all(
+        fact.target_type_source == "ambiguous"
+        and fact.target_identity is None
+        and fact.target_fact_ids == ()
+        for fact in snapshot.reference_display_text
+    )
+    assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
 
 
 def test_display_resolution_applies_visibility_before_matching_targets() -> None:

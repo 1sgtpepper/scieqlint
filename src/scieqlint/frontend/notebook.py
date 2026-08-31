@@ -61,6 +61,7 @@ class NotebookFrontend:
             list[tuple[SourceDocument, NotebookSourceLocationError]] | None
         ) = None,
         _include_markdown: bool = True,
+        _include_reference_display: bool = True,
     ) -> FactSnapshot:
         parts = tuple(
             _lower_document(
@@ -95,13 +96,17 @@ class NotebookFrontend:
             equation_labels=all_equation_labels,
             equation_refs=all_equation_refs,
             crossref_metadata=tuple(fact for part in parts for fact in part.crossref_metadata),
-            reference_display_text=reference_display_text_facts(
-                all_generic_refs,
-                all_equation_refs,
-                all_target_anchors,
-                all_equation_labels,
-                project_root=self.workspace.project_root,
-                code_cells=all_code_cells,
+            reference_display_text=(
+                reference_display_text_facts(
+                    all_generic_refs,
+                    all_equation_refs,
+                    all_target_anchors,
+                    all_equation_labels,
+                    project_root=self.workspace.project_root,
+                    code_cells=all_code_cells,
+                )
+                if _include_reference_display
+                else ()
             ),
         )
 

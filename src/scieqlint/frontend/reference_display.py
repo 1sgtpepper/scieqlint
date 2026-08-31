@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import PurePosixPath
 
@@ -44,30 +43,40 @@ def reference_display_text_facts(
 ) -> tuple[ReferenceDisplayTextFact, ...]:
     """Describe display text only after visible project targets are known."""
 
-    targets: dict[str, list[TargetFact]] = defaultdict(list)
+    targets: dict[str, list[TargetFact]] = {}
+    identity_targets: dict[NormalizedReferenceTarget, list[TargetFact]] = {}
+    equation_targets: dict[str, list[TargetFact]] = {}
+
+    def index_target(target: TargetFact) -> None:
+        label = _target_label(target)
+        _retain_resolution_candidates(targets.setdefault(label, []), target)
+        identity = (
+            normalize_project_path(target.document_id, project_root=project_root),
+            label,
+        )
+        _retain_resolution_candidates(identity_targets.setdefault(identity, []), target)
+        if isinstance(target, EquationLabelFact):
+            _retain_resolution_candidates(equation_targets.setdefault(label, []), target)
+
     for anchor in target_anchors:
         if anchor.visibility == "visible" and anchor.placement != "orphaned":
-            targets[anchor.normalized_label].append(anchor)
+            index_target(anchor)
     for label in equation_labels:
         if label.visibility == "visible":
-            targets[label.normalized_label].append(label)
+            index_target(label)
     for cell in code_cells:
         if cell.visibility == "visible" and cell.normalized_label is not None:
-            targets[cell.normalized_label].append(cell)
+            index_target(cell)
 
     facts: list[ReferenceDisplayTextFact] = []
     for ref in generic_refs:
-        if ref.visibility != "visible" or generic_reference_identity(ref) is None:
+        identity = generic_reference_identity(ref)
+        if ref.visibility != "visible" or identity is None:
             continue
         matched = tuple(
-            sorted(
-                (
-                    target
-                    for target in targets.get(ref.normalized_target, ())
-                    if _matches_target(ref, target, project_root=project_root)
-                ),
-                key=_target_key,
-            )
+            identity_targets.get(identity, ())
+            if isinstance(identity, tuple)
+            else targets.get(identity, ())
         )
         facts.append(
             _display_fact(
@@ -83,12 +92,7 @@ def reference_display_text_facts(
     for ref in equation_refs:
         if ref.visibility != "visible":
             continue
-        matched = tuple(
-            target
-            for target in sorted(targets.get(ref.normalized_target, ()), key=_target_key)
-            if isinstance(target, EquationLabelFact)
-            and _matches_target(ref, target, project_root=project_root)
-        )
+        matched = tuple(equation_targets.get(ref.normalized_target, ()))
         facts.append(
             _display_fact(
                 ref,
@@ -140,7 +144,7 @@ def _display_fact(
         display_intent=display_intent,
         target_type_source=target_type_source,
         target_identity=target_identity,
-        target_fact_ids=tuple(target.fact_id for target in matched_targets),
+        target_fact_ids=(matched_targets[0].fact_id,) if len(matched_targets) == 1 else (),
         display_text_span=display_text_span,
     )
 
@@ -167,22 +171,6 @@ def _resolved_target_type(
         if lowered.startswith(prefix):
             return target_type, "inferred"
     return None, "unresolved"
-
-
-def _matches_target(
-    ref: GenericRefFact | EquationRefFact,
-    target: TargetFact,
-    *,
-    project_root: PurePosixPath,
-) -> bool:
-    target_path = normalize_project_path(target.document_id, project_root=project_root)
-    target_label = _target_label(target)
-    if isinstance(ref, GenericRefFact):
-        identity = generic_reference_identity(ref)
-        if isinstance(identity, tuple):
-            return target_path == identity[0] and target_label == identity[1]
-        return target_label == identity
-    return target_label == ref.normalized_target
 
 
 def _selected_target_identity(
@@ -221,6 +209,14 @@ def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:
         span.end if span is not None else -1,
         fact.fact_id,
     )
+
+
+def _retain_resolution_candidates(bucket: list[TargetFact], target: TargetFact) -> None:
+    """Retain only enough source-ordered targets to distinguish ambiguity."""
+
+    bucket.append(target)
+    bucket.sort(key=_target_key)
+    del bucket[2:]
 
 
 def _target_label(fact: TargetFact) -> str:
