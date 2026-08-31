@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from bisect import bisect_left
+from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import replace
 
@@ -189,6 +189,7 @@ def _raw_equation_facts(
     lexical = scan_tex_lexically(raw)
     active_raw = lexical.active_text
     opaque_ranges = lexical.non_math_ranges
+    line_starts = _splitline_starts(raw) if fact.span.cell_line is not None else ()
     labels: list[EquationLabelFact] = []
     references: list[EquationRefFact] = []
     for match in _TEX_LABEL_RE.finditer(active_raw):
@@ -198,7 +199,13 @@ def _raw_equation_facts(
         if not label.strip():
             continue
         label_start = match.start("label")
-        label_span = _raw_subspan(fact, source_map, label_start, label_start + len(label))
+        label_span = _raw_subspan(
+            fact,
+            source_map,
+            label_start,
+            label_start + len(label),
+            line_starts,
+        )
         labels.append(
             EquationLabelFact(
                 fact_id=(
@@ -226,12 +233,13 @@ def _raw_equation_facts(
         target_start = match.start("target") + leading
         role_start = match.start()
         role_end = match.end()
-        role_span = _raw_subspan(fact, source_map, role_start, role_end)
+        role_span = _raw_subspan(fact, source_map, role_start, role_end, line_starts)
         target_span = _raw_subspan(
             fact,
             source_map,
             target_start,
             target_start + len(target),
+            line_starts,
         )
         references.append(
             EquationRefFact(
@@ -258,6 +266,7 @@ def _raw_subspan(
     source_map: SourceMap,
     start: int,
     end: int,
+    line_starts: tuple[int, ...],
 ) -> SourceSpan:
     """Map a raw-equation subspan without reconstructing notebook source text."""
 
@@ -265,6 +274,11 @@ def _raw_subspan(
     raw = fact.raw or ""
     if start < 0 or end <= start or end > len(raw):
         raise ValueError("raw equation subspan is outside its source text")
+    cell_line = (
+        None
+        if fact.span.cell_line is None
+        else fact.span.cell_line + bisect_right(line_starts, start) - 1
+    )
     if fact.span.segments:
         if len(fact.span.segments) != len(raw):
             raise ValueError("raw equation source mapping does not match its source text")
@@ -279,19 +293,24 @@ def _raw_subspan(
             col=first.col,
             end_line=last.end_line,
             end_col=last.end_col,
-            cell_line=None
-            if fact.span.cell_line is None
-            else fact.span.cell_line + raw.count("\n", 0, start),
+            cell_line=cell_line,
             segments=segments,
         )
     mapped = source_map.span(fact.span.start + start, fact.span.start + end)
     return replace(
         mapped,
         cell=fact.span.cell,
-        cell_line=None
-        if fact.span.cell_line is None
-        else fact.span.cell_line + raw.count("\n", 0, start),
+        cell_line=cell_line,
     )
+
+
+def _splitline_starts(text: str) -> tuple[int, ...]:
+    """Index Python split-line boundaries once for repeated local span mapping."""
+
+    starts = [0]
+    for line in text.splitlines(keepends=True):
+        starts.append(starts[-1] + len(line))
+    return tuple(starts)
 
 
 def _normalize_label(value: str) -> str:
@@ -568,6 +587,7 @@ def _suspicious_formula_facts(
     )
     facts: list[GeneratedFormulaFact] = []
     active_text = without_tex_comments(candidate.text)
+    line_starts = _splitline_starts(candidate.text) if candidate.span.cell_line is not None else ()
     for kind, pattern in patterns:
         for match in pattern.finditer(active_text):
             local_start, local_end = match.span("artifact")
@@ -601,9 +621,11 @@ def _suspicious_formula_facts(
                     col=first.col,
                     end_line=last.end_line,
                     end_col=last.end_col,
-                    cell_line=None
-                    if candidate.span.cell_line is None
-                    else candidate.span.cell_line + candidate.text.count("\n", 0, local_start),
+                    cell_line=(
+                        None
+                        if candidate.span.cell_line is None
+                        else candidate.span.cell_line + bisect_right(line_starts, local_start) - 1
+                    ),
                     segments=segments,
                 )
                 fact_id = f"{candidate.fact_id}::{kind}::{local_start}"

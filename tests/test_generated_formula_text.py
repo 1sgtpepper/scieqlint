@@ -55,6 +55,35 @@ def test_suspicious_formula_facts_are_source_spanned_and_limited_to_explicit_mat
     assert all(fact.source_math_fact_id is not None for fact in snapshot.generated_formulas)
 
 
+def test_notebook_suspicious_formula_spans_use_splitline_positions() -> None:
+    source = "$$\u2028\\A t t e n t { Q , K , V }\u2028/C0 apod\u2028$$\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("generated.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    snapshot = MathHost().classify(NotebookFrontend().lower((document,)))
+
+    assert [fact.kind for fact in snapshot.generated_formulas] == [
+        "spaced-token",
+        "garbled-marker",
+    ]
+    assert [fact.span.cell_line for fact in snapshot.generated_formulas if fact.span] == [2, 3]
+    assert [
+        document.text[fact.span.start : fact.span.end]
+        for fact in snapshot.generated_formulas
+        if fact.span is not None
+    ] == [json.dumps(fact.text)[1:-1] for fact in snapshot.generated_formulas]
+
+
 def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_provenance() -> None:
     source = "$\\A t t e n t { Q , K , V }$ and $/C0 apod$.\n"
     generated = doc(

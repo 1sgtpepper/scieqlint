@@ -518,6 +518,47 @@ c &= d \eqref{missing}
     assert source[span.start : span.end] == "missing"
 
 
+def test_notebook_raw_equation_subspans_use_splitline_positions() -> None:
+    fact_count = 128
+    source = (
+        "\\begin{equation}\n"
+        + "\u2028".join(
+            f"x_{index}=1 \\label{{eq-{index}}} \\eqref{{eq-{index}}}"
+            for index in range(fact_count)
+        )
+        + "\n\\end{equation}\n"
+    )
+    document = SourceDocument.from_text(
+        PurePosixPath("raw-equations.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    snapshot = MathHost().classify(NotebookFrontend().lower((document,)))
+
+    assert [fact.label for fact in snapshot.equation_labels] == [
+        f"eq-{index}" for index in range(fact_count)
+    ]
+    assert [fact.label_span.cell_line for fact in snapshot.equation_labels if fact.label_span] == [
+        index + 2 for index in range(fact_count)
+    ]
+    assert [fact.target_span.cell_line for fact in snapshot.equation_refs if fact.target_span] == [
+        index + 2 for index in range(fact_count)
+    ]
+    assert all(
+        fact.label_span is not None
+        and document.text[fact.label_span.start : fact.label_span.end] == fact.label
+        for fact in snapshot.equation_labels
+    )
+
+
 @pytest.mark.parametrize("environment", ["flalign", "flalign*"])
 def test_raw_flalign_environments_follow_supported_math_classification(
     environment: str,
