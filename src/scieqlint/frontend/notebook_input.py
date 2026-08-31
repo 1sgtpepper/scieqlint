@@ -546,7 +546,8 @@ def _source_range_slice(
 ) -> Iterator[tuple[tuple[int, int], ...]]:
     """Yield one exact logical source slice without retaining its prefix."""
 
-    if start < 0 or end <= start:
+    # Option entries are non-empty slices derived from the same decoded source.
+    if start < 0 or end <= start:  # pragma: no cover - internal span invariant
         raise NotebookSourceLocationError("notebook source slice is empty or invalid")
     for logical_position, ranges in enumerate(
         _normalized_source_ranges(decoder, text, source_range)
@@ -555,7 +556,10 @@ def _source_range_slice(
             yield ranges
         if logical_position + 1 == end:
             return
-    raise NotebookSourceLocationError("notebook source slice is outside its source")
+    # Exhaustion would mean the decoded source and its raw JSON replay disagree.
+    raise NotebookSourceLocationError(  # pragma: no cover - internal replay invariant
+        "notebook source slice is outside its source"
+    )
 
 
 def _normalized_source_ranges(
@@ -693,7 +697,8 @@ def _mapped_notebook_span(
 ) -> SourceSpan:
     """Build one non-empty raw notebook span from exact logical ranges."""
 
-    if not source_ranges:
+    # Public mapping validates ranges; option slices are non-empty by construction.
+    if not source_ranges:  # pragma: no cover - internal span invariant
         raise NotebookSourceLocationError(
             f"notebook cell {cell_index} source span has no character ranges"
         )

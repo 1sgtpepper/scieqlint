@@ -745,6 +745,12 @@ pass
 ```
 """,
         """```{code-cell} python
+:label:
+:label: second
+pass
+```
+""",
+        """```{code-cell} python
 :name: first
 :name: second
 pass
@@ -758,6 +764,12 @@ pass
 """,
         """```python
 #| label: first
+#| label: second
+pass
+```
+""",
+        """```python
+#| label:
 #| label: second
 pass
 ```
