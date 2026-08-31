@@ -267,6 +267,12 @@ def test_notebook_json_parser_keeps_scan_compatibility_export() -> None:
     )
     parsed, _source_range = scan_json.parse_json_document('{"cells": []}')
     assert parsed == {"cells": []}
+    encoded = r'"a\n\u00e9"'
+    assert scan_json.json_string_character_ranges(encoded, 0, len(encoded)) == [
+        ("a", 1, 2),
+        ("\n", 2, 4),
+        ("é", 4, 10),
+    ]
 
 
 def test_notebook_source_list_items_remain_valid_when_facts_do_not_cross_boundary() -> None:
