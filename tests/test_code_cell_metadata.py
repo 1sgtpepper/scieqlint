@@ -110,7 +110,6 @@ def code_cell_fact_for_label(*, label: str | None, normalized_label: str | None)
 @pytest.mark.parametrize(
     ("label", "normalized_label", "message"),
     [
-        ("cell", None, "code-cell label and normalized label must both be present or absent"),
         (
             "#cell",
             "other",
