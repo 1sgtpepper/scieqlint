@@ -142,15 +142,16 @@ and diagnostic schemas. The 0.1 schemas remain unchanged.
 `SourceSpan` offsets and line/column values refer to the normalized
 `SourceDocument` text. For notebook diagnostics, the physical span is the raw
 JSON document location; `cell` identifies the zero-based notebook cell and
-`cell_line` identifies the one-based line in the decoded Markdown cell. A
-non-empty notebook span also exposes `segments`, one `SourceSegment` per logical
-character covered by the span. Each segment's `ranges` contains the exact raw JSON
-range or ranges for that character, including escaped characters, normalized CRLF,
-and source-list items. A span envelope can therefore include JSON separators when a
-fact crosses source-list items; consumers that need exact source characters should
-use `segments`. Text, JSON, GitHub, and SARIF reporters use the physical span's raw
-JSON line and column while retaining notebook cell metadata where the format
-supports it.
+`cell_line` identifies the one-based line in the decoded Markdown cell. A non-empty
+span mapped from decoded cell source also exposes `segments`, one `SourceSegment` per
+logical character covered by the span. Each segment's `ranges` contains the exact raw
+JSON range or ranges for that character, including escaped characters, normalized
+CRLF, and source-list items. A span envelope can therefore include JSON separators
+when a fact crosses source-list items; consumers that need exact source characters
+should use `segments`. Physical notebook object and metadata spans have no decoded
+source mapping and leave `segments` empty. Text, JSON, GitHub, and SARIF reporters use
+the physical span's raw JSON line and column while retaining notebook cell metadata
+where the format supports it.
 
 Notebook parsing applies fixed safety bounds at the already-loaded
 `SourceDocument` boundary: the UTF-8 byte length of normalized `SourceDocument.text`
