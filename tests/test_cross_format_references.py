@@ -18,7 +18,7 @@ from scieqlint.config.model import (
     ProfileConfig,
     ScannerConfig,
 )
-from scieqlint.diag.model import SourceSpan
+from scieqlint.diag.model import Severity, SourceSpan
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -354,14 +354,64 @@ def test_public_cross_format_notebook_role_emits_one_portability_diagnostic() ->
     source = "$$\nx = 1\n$$ {#eq-one}\n\n{eq}`eq-one`\n"
     document = notebook_doc(source)
 
-    result = check_documents((document,), config=config("commonmark"))
+    result = public_check_documents((document,), config=config("commonmark"))
 
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PORT001"]
+    assert [
+        (
+            diagnostic.code,
+            diagnostic.severity,
+            diagnostic.message,
+            diagnostic.equation,
+            diagnostic.detail,
+            diagnostic.hint,
+            diagnostic.rule,
+            diagnostic.suppressed,
+            diagnostic.suppression_reason,
+            diagnostic.profile,
+            diagnostic.provenance_ids,
+            diagnostic.properties,
+        )
+        for diagnostic in result.diagnostics
+    ] == [
+        (
+            "PORT001",
+            Severity.WARNING,
+            "equation reference syntax may not survive configured output profile",
+            None,
+            "eq reference to 'eq-one' is not in the commonmark portability baseline",
+            "Use reference syntax supported by the configured publishing target.",
+            "portability.equation_reference_syntax",
+            False,
+            None,
+            "cross-format-references",
+            (),
+            (
+                ("output_profile", "commonmark"),
+                ("ref_kind", "eq"),
+                ("target", "eq-one"),
+                (
+                    "subject_fact_id",
+                    "cross-format.ipynb::notebook-cell::0::cross-format.ipynb::eq-ref::28",
+                ),
+            ),
+        )
+    ]
     [diagnostic] = result.diagnostics
-    assert diagnostic.profile == "cross-format-references"
     assert diagnostic.span is not None
-    assert diagnostic.span.cell == 0
+    assert (diagnostic.span.path, diagnostic.span.cell, diagnostic.span.cell_line) == (
+        document.path,
+        0,
+        5,
+    )
     assert document.text[diagnostic.span.start : diagnostic.span.end] == "{eq}`eq-one`"
+    assert [
+        document.text[start:end]
+        for segment in diagnostic.span.segments
+        for start, end in segment.ranges
+    ] == list("{eq}`eq-one`")
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 0
 
 
 @pytest.mark.public_regression
@@ -385,22 +435,54 @@ def test_public_cross_format_notebook_split_generic_ref_keeps_exact_target_span(
         DocumentKind.NOTEBOOK,
     )
 
-    result = check_documents((document,), config=config("commonmark"))
+    result = public_check_documents((document,), config=config("commonmark"))
 
     assert result.files_checked == 1
     assert result.math_blocks_checked == 0
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF004"]
+    assert result.exit_code() == 0
     [diagnostic] = result.diagnostics
-    assert diagnostic.detail == "reference text: {ref}`missing`"
+    assert (
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.rule,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        diagnostic.profile,
+        diagnostic.provenance_ids,
+        diagnostic.properties,
+    ) == (
+        "REF004",
+        Severity.WARNING,
+        "missing generic reference target: missing",
+        None,
+        "reference text: {ref}`missing`",
+        None,
+        "references.generic_target",
+        False,
+        None,
+        None,
+        (),
+        (),
+    )
     assert diagnostic.span is not None
-    assert diagnostic.span.path == document.path
-    assert diagnostic.span.cell == 0
-    assert diagnostic.span.segments
+    assert (diagnostic.span.path, diagnostic.span.cell, diagnostic.span.cell_line) == (
+        document.path,
+        0,
+        1,
+    )
     assert document.text[diagnostic.span.start : diagnostic.span.end] == "missing"
+    assert [
+        document.text[start:end]
+        for segment in diagnostic.span.segments
+        for start, end in segment.ranges
+    ] == list("missing")
 
 
-@pytest.mark.public_regression
-def test_public_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None:
+def test_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None:
     source = (
         r"\begin{equation}"
         "\n"
@@ -454,16 +536,73 @@ def test_public_cross_format_notebook_raw_equation_preserves_json_owned_facts() 
         ("reference-use", "eq-raw"),
     ]
 
-    result = check_documents((document,), config=config("commonmark"))
+@pytest.mark.public_regression
+def test_public_cross_format_notebook_raw_equation_reports_exact_reference() -> None:
+    source = (
+        r"\begin{equation}"
+        "\n"
+        r"x = 1 \label{eq-raw} \eqref{eq-raw}"
+        "\n"
+        r"\end{equation}"
+    )
+    document = notebook_doc(source)
 
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["PORT001"]
+    result = public_check_documents((document,), config=config("commonmark"))
+
     [diagnostic] = result.diagnostics
+    assert (
+        diagnostic.code,
+        diagnostic.severity,
+        diagnostic.message,
+        diagnostic.equation,
+        diagnostic.detail,
+        diagnostic.hint,
+        diagnostic.rule,
+        diagnostic.suppressed,
+        diagnostic.suppression_reason,
+        diagnostic.profile,
+        diagnostic.provenance_ids,
+        diagnostic.properties,
+    ) == (
+        "PORT001",
+        Severity.WARNING,
+        "equation reference syntax may not survive configured output profile",
+        None,
+        "tex-eqref reference to 'eq-raw' is not in the commonmark portability baseline",
+        "Use reference syntax supported by the configured publishing target.",
+        "portability.equation_reference_syntax",
+        False,
+        None,
+        "cross-format-references",
+        (),
+        (
+            ("output_profile", "commonmark"),
+            ("ref_kind", "tex-eqref"),
+            ("target", "eq-raw"),
+            (
+                "subject_fact_id",
+                "cross-format.ipynb::notebook-cell::0::cross-format.ipynb::raw-math::0::ref::45",
+            ),
+        ),
+    )
     assert diagnostic.span is not None
-    assert diagnostic.span.cell == 0
+    assert (diagnostic.span.path, diagnostic.span.cell, diagnostic.span.cell_line) == (
+        document.path,
+        0,
+        2,
+    )
     assert (
         document.text[diagnostic.span.start : diagnostic.span.end]
         == json.dumps(r"\eqref{eq-raw}")[1:-1]
     )
+    assert [
+        document.text[start:end]
+        for segment in diagnostic.span.segments
+        for start, end in segment.ranges
+    ] == [r"\\", *list("eqref{eq-raw}")]
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
 
 def test_notebook_raw_equation_ids_are_stable_across_json_formatting() -> None:
