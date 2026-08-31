@@ -12,7 +12,7 @@ from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.markdown import is_escaped, range_contains, scan_tex_lexically
 from scieqlint.source.maps import SourceMap
 
-from .normalize import _splitline_starts
+from .normalize import splitline_starts
 
 _TEX_LABEL_RE = re.compile(r"\\label\{(?P<label>[^{}\r\n]+)\}")
 _TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
@@ -29,7 +29,7 @@ def raw_equation_facts(
     lexical = scan_tex_lexically(raw)
     active_raw = lexical.active_text
     opaque_ranges = lexical.non_math_ranges
-    line_starts = _splitline_starts(raw) if fact.span.cell_line is not None else ()
+    line_starts = splitline_starts(raw) if fact.span.cell_line is not None else ()
     labels: list[EquationLabelFact] = []
     references: list[EquationRefFact] = []
     for match in _TEX_LABEL_RE.finditer(active_raw):

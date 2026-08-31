@@ -17,7 +17,7 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.source.maps import SourceMap
 
 from .macros import InlineMacroSource, MacroDeclarationKey, scan_scoped_inline_macros
-from .normalize import _splitline_starts
+from .normalize import splitline_starts
 
 
 def inline_math_macro_facts(
@@ -72,7 +72,7 @@ def inline_math_macro_facts(
             return ()
         starts = line_starts_by_fact_id.get(fact.fact_id)
         if starts is None:
-            starts = _splitline_starts(fact.body)
+            starts = splitline_starts(fact.body)
             line_starts_by_fact_id[fact.fact_id] = starts
         return starts
 
