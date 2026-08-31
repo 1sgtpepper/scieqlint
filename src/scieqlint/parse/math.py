@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import replace
 
-from scieqlint.diag.model import SourceSpan
+from scieqlint.diag.model import SourceSegment, SourceSpan
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedFormulaKind
 from scieqlint.facts.math import (
     DisplayMathFact,
@@ -704,26 +705,10 @@ def inline_math_macro_facts(
                 continue
         else:
             if (
-                len(segments) != len(fact.body)
-                or fact.span.start != segments[0].start
+                fact.span.start != segments[0].start
                 or fact.span.end != segments[-1].end
+                or not _mapped_notebook_body_matches(document, segments, fact.body)
             ):
-                continue
-            previous_end = -1
-            valid_segments = True
-            for segment in segments:
-                for range_start, range_end in segment.ranges:
-                    if (
-                        range_start < previous_end
-                        or range_start < 0
-                        or range_end > len(document.text)
-                    ):
-                        valid_segments = False
-                        break
-                    previous_end = range_end
-                if not valid_segments:
-                    break
-            if not valid_segments:
                 continue
         facts_by_id[fact.fact_id] = fact
         sources.append(
@@ -804,6 +789,37 @@ def inline_math_macro_facts(
             )
         )
     return tuple(declarations), tuple(uses)
+
+
+def _mapped_notebook_body_matches(
+    document: SourceDocument,
+    segments: Sequence[SourceSegment],
+    body: str,
+) -> bool:
+    """Validate mapped logical characters against their raw notebook ranges."""
+
+    if len(segments) != len(body):
+        return False
+    previous_end = -1
+    for segment, expected in zip(segments, body, strict=True):
+        raw_parts: list[str] = []
+        for range_start, range_end in segment.ranges:
+            if range_start < previous_end or range_start < 0 or range_end > len(document.text):
+                return False
+            raw_parts.append(document.text[range_start:range_end])
+            previous_end = range_end
+        raw = "".join(raw_parts)
+        if len(raw) == 1 and raw not in {'"', "\\"} and ord(raw) >= 0x20:
+            decoded = raw
+        else:
+            try:
+                decoded = json.loads(f'"{raw}"')
+            except json.JSONDecodeError:
+                return False
+        normalized = decoded.replace("\r\n", "\n").replace("\r", "\n")
+        if normalized != expected:
+            return False
+    return True
 
 
 def _inline_macro_span(
