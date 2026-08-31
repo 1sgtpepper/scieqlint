@@ -536,6 +536,7 @@ def test_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None
         ("reference-use", "eq-raw"),
     ]
 
+
 @pytest.mark.public_regression
 def test_public_cross_format_notebook_raw_equation_reports_exact_reference() -> None:
     source = (

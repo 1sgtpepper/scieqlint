@@ -11,11 +11,17 @@ from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.frontend.notebook_input import (
     NotebookInput,
     NotebookSourceLocationError,
-    cell_source as _cell_source,
-    input_diagnostic as _input_diagnostic,
     map_notebook_span,
     notebook_cell_document,
     parse_notebook_input,
+)
+from scieqlint.frontend.notebook_input import (
+    cell_source as _cell_source,
+)
+from scieqlint.frontend.notebook_input import (
+    input_diagnostic as _input_diagnostic,
+)
+from scieqlint.frontend.notebook_input import (
     schema_diagnostic as _schema_diagnostic,
 )
 from scieqlint.io.source import SourceDocument
