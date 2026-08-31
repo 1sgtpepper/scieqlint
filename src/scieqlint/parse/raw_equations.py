@@ -112,7 +112,8 @@ def _raw_subspan(
 
     assert fact.span is not None, "raw-LaTeX candidates must retain source spans"
     raw = fact.raw or ""
-    if start < 0 or end <= start or end > len(raw):
+    # Regex match offsets are bounded by ``raw`` before they reach this mapper.
+    if start < 0 or end <= start or end > len(raw):  # pragma: no cover
         raise ValueError("raw equation subspan is outside its source text")
     cell_line = (
         None
