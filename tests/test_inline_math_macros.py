@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -9,6 +10,7 @@ from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.macros import scan_inline_macro_syntax
 from scieqlint.parse.math import MathHost
@@ -168,6 +170,53 @@ def test_notebook_source_list_boundaries_preserve_exact_macro_segments() -> None
             )
             == r"\RR"
         )
+
+
+def test_notebook_macro_span_work_is_linear_in_macro_count() -> None:
+    macro_count = 128
+    source = "$" + " ".join(r"\newcommand{\x}{x} \x" for _ in range(macro_count)) + "$"
+    payload = {
+        "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("macro-work.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+    raw = NotebookFrontend().lower((document,))
+    [fact] = raw.inline_math
+    scanned_chars = 0
+
+    class PrefixCountingText(str):
+        def count(self, sub, start=0, end=None):
+            nonlocal scanned_chars
+            scanned_chars += (len(self) if end is None else end) - start
+            if end is None:
+                return super().count(sub, start)
+            return super().count(sub, start, end)
+
+    counted = replace(fact, body=PrefixCountingText(fact.body))
+    snapshot = MathHost().classify(replace(raw, inline_math=(counted,)))
+    declarations = snapshot.math_macro_declarations
+    uses = snapshot.math_macro_uses
+
+    assert len(declarations) == len(uses) == macro_count
+    assert all(
+        item.span is not None and item.span.cell_line == 1 for item in (*declarations, *uses)
+    )
+    assert {
+        "".join(
+            json.loads(f'"{document.text[start:end]}"')
+            for segment in item.span.segments
+            for start, end in segment.ranges
+        )
+        for item in (*declarations, *uses)
+        if item.span is not None
+    } == {r"\x"}
+    assert scanned_chars <= 4 * len(counted.body) + 32
 
 
 def test_redeclaration_changes_only_later_use_context() -> None:
