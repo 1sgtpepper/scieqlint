@@ -581,7 +581,7 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
         )
     )
 
-    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    result = public_check_documents((document,), config=config("math-accessibility"))
 
     assert result.diagnostics == ()
     assert result.files_checked == 1
@@ -662,8 +662,9 @@ def test_notebook_output_listing_aliases_participate_in_duplicate_resolution() -
         )
     )
 
-    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    result = public_check_documents((document,), config=config("math-accessibility"))
 
+    assert len(result.diagnostics) == 1
     [diagnostic] = result.diagnostics
     assert (
         diagnostic.code,
@@ -905,7 +906,6 @@ def test_notebook_frontend_preserves_configured_project_member_identity() -> Non
     assert QueryHost(snapshot).references.unresolved_generic_refs() == ()
 
 
-@pytest.mark.public_regression
 def test_public_output_link_reports_only_the_missing_control() -> None:
     document = notebook(
         notebook_payload(
