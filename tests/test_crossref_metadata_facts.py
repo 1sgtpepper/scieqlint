@@ -8,7 +8,7 @@ import pytest
 from scieqlint.api import check_documents
 from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
-from scieqlint.diag.model import CheckResult, Severity, SourceSpan
+from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import CrossrefMetadataFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -591,7 +591,7 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
                     "source": [],
                 }
             ],
-            "metadata": {},
+            "metadata": {"language_info": {"name": "python"}},
             "nbformat": 4,
             "nbformat_minor": 5,
         }
@@ -622,28 +622,45 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
     )
     canonical_boundary = "reachable.ipynb::notebook-cell::0::output::0"
     conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
-    diagnostics = tuple(item for item in result.diagnostics if item.code == "REF007")
-    assert len(diagnostics) == 1
-    item = diagnostics[0]
-    assert item.code == "REF007"
-    assert item.span == expected_span
-    assert item.provenance_ids == (
-        f"{canonical_boundary}::crossref-metadata",
-        f"{conflict_boundary}::crossref-metadata",
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF007",
+            severity=Severity.WARNING,
+            message="conflicting cross-reference metadata: reachable.ipynb#fig-shared",
+            span=expected_span,
+            detail=(
+                f"{conflict_boundary!r} reports kind='figure', format='notebook', "
+                "metadata={'fig-cap': 'Different plot'}; canonical boundary "
+                f"{canonical_boundary!r} reports kind='figure', format='notebook', "
+                "metadata={'fig-cap': 'Shared plot'}"
+            ),
+            hint="Use consistent cross-reference metadata for this target.",
+            rule="references.crossref_metadata_conflict",
+            provenance_ids=(
+                f"{canonical_boundary}::crossref-metadata",
+                f"{conflict_boundary}::crossref-metadata",
+            ),
+            properties=(
+                ("target", "reachable.ipynb#fig-shared"),
+                ("output_boundary", conflict_boundary),
+                ("resolved_target_kind", "figure"),
+                ("source_format", "notebook"),
+                ("canonical_boundary", canonical_boundary),
+                ("canonical_resolved_target_kind", "figure"),
+                ("canonical_source_format", "notebook"),
+            ),
+        ),
     )
-    assert item.properties == (
-        ("target", "reachable.ipynb#fig-shared"),
-        ("output_boundary", conflict_boundary),
-        ("resolved_target_kind", "figure"),
-        ("source_format", "notebook"),
-        ("canonical_boundary", canonical_boundary),
-        ("canonical_resolved_target_kind", "figure"),
-        ("canonical_source_format", "notebook"),
-    )
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
 
     equivalent = document("Shared plot")
     equivalent_result = check_documents((equivalent,), config=cross_format_config())
-    assert not any(item.code == "REF007" for item in equivalent_result.diagnostics)
+    assert equivalent_result.diagnostics == ()
+    assert equivalent_result.files_checked == 1
+    assert equivalent_result.math_blocks_checked == 0
+    assert equivalent_result.exit_code() == 0
 
 
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:
