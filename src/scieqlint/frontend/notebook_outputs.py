@@ -154,7 +154,7 @@ def _output_label_span(
 
 
 def _crossref_target_kind(label: str) -> str | None:
-    normalized = normalize_label(label).casefold()
+    normalized = normalize_label(label)
     for prefix, kind in (
         ("eq-", "equation"),
         ("fig-", "figure"),
