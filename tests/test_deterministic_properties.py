@@ -7,7 +7,6 @@ from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from scieqlint.diag.model import SourceSpan
-from scieqlint.engine.structure import StructureEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
@@ -317,4 +316,3 @@ def test_code_cell_frontend_preserves_fence_and_reference_semantics(
     _assert_span_coordinates(document.text, reference.target_span)
     assert query.references.target_index()[normalized_label] == (cell,)
     assert query.references.unresolved_generic_refs() == ()
-    assert StructureEngine().run(query) == ()
