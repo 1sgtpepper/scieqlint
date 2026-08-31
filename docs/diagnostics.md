@@ -128,9 +128,10 @@ to rendered output.
 target. It points to the duplicate cell label; references to the shared target
 remain subject to `REF005` ambiguity diagnostics. Its structured `target` property
 serializes the normalized member path plus label; the human-readable message remains
-label-only. This reference check applies whenever code-cell facts are lowered; it is
-not gated by `code-cell-metadata`. Notebook-derived cells are available only to profiles
-that admit notebook code-cell facts.
+label-only. The exact `target_count` covers the complete collision while provenance stays
+bounded to the duplicate and one deterministic conflicting target. This reference check
+applies whenever code-cell facts are lowered; it is not gated by `code-cell-metadata`.
+Notebook-derived cells are available only to profiles that admit notebook code-cell facts.
 
 ## Generated-output engine
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from typing import cast
 
 _MAX_JSON_INTEGER_DIGITS = 4096
@@ -104,12 +105,21 @@ def json_string_character_ranges(
     start: int,
     end: int,
 ) -> list[tuple[str, int, int]]:
-    ranges: list[tuple[str, int, int]] = []
+    return list(_iter_json_string_character_ranges(text, start, end))
+
+
+def _iter_json_string_character_ranges(
+    text: str,
+    start: int,
+    end: int,
+) -> Iterator[tuple[str, int, int]]:
+    """Yield decoded characters with their exact raw JSON ranges."""
+
     position = start + 1
     while position < end - 1:
         raw_start = position
         if text[position] != "\\":
-            ranges.append((text[position], raw_start, raw_start + 1))
+            yield text[position], raw_start, raw_start + 1
             position += 1
             continue
         position += 1
@@ -128,7 +138,7 @@ def json_string_character_ranges(
                 if 0xDC00 <= low <= 0xDFFF:
                     character = chr(0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00))
                     raw_end += 6
-            ranges.append((character, raw_start, raw_end))
+            yield character, raw_start, raw_end
             position = raw_end
             continue
         escaped = {
@@ -141,6 +151,5 @@ def json_string_character_ranges(
             "r": "\r",
             "t": "\t",
         }[escape]
-        ranges.append((escaped, raw_start, position + 1))
+        yield escaped, raw_start, position + 1
         position += 1
-    return ranges

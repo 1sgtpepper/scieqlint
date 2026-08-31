@@ -15,6 +15,7 @@ from scieqlint.config.model import (
 )
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.structure import CodeCellFact
+from scieqlint.frontend import notebook_input
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -77,6 +78,18 @@ def source_segment_text(document: SourceDocument, span) -> str:
     return "".join(
         document.text[start:end] for segment in span.segments for start, end in segment.ranges
     )
+
+
+def decoded_source_segment_text(document: SourceDocument, span) -> str:
+    assert span is not None
+    assert span.segments
+    decoded: list[str] = []
+    for segment in span.segments:
+        for start, end in segment.ranges:
+            value = json.loads(f'"{document.text[start:end]}"')
+            assert isinstance(value, str)
+            decoded.append(value)
+    return "".join(decoded)
 
 
 def code_cell_fact_for_label(*, label: str | None, normalized_label: str | None) -> CodeCellFact:
@@ -246,6 +259,32 @@ See {ref}`repeated-cell`.
     assert duplicate.properties == (("target", "cells.md#repeated-cell"), ("target_count", "2"))
 
 
+def test_duplicate_code_cell_diagnostics_keep_bounded_exact_evidence() -> None:
+    cell_count = 32
+    document = markdown(
+        "\n".join(
+            "```{code-cell} python\n:label: repeated-cell\npass\n```" for _ in range(cell_count)
+        )
+    )
+    snapshot = MySTFrontend().lower((document,))
+
+    diagnostics = tuple(
+        diagnostic
+        for diagnostic in ReferenceEngine().run(QueryHost(snapshot))
+        if diagnostic.code == "REF010"
+    )
+
+    assert len(diagnostics) == cell_count - 1
+    canonical = snapshot.code_cells[0]
+    for diagnostic, duplicate in zip(diagnostics, snapshot.code_cells[1:], strict=True):
+        assert source_slice(document, diagnostic.span) == "repeated-cell"
+        assert diagnostic.provenance_ids == tuple(sorted((canonical.fact_id, duplicate.fact_id)))
+        assert diagnostic.properties == (
+            ("target", "cells.md#repeated-cell"),
+            ("target_count", str(cell_count)),
+        )
+
+
 def test_equal_code_cell_labels_in_distinct_members_do_not_collide() -> None:
     first = markdown(
         """```{code-cell} python
@@ -324,6 +363,9 @@ See {ref}`shared-target`.
 
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF010", "REF005"]
     assert source_slice(document, diagnostics[0].span) == "shared-target"
+    assert diagnostics[0].provenance_ids == tuple(
+        sorted((snapshot.target_anchors[0].fact_id, snapshot.code_cells[0].fact_id))
+    )
     assert diagnostics[0].properties == (
         ("target", "cells.md#shared-target"),
         ("target_count", "2"),
@@ -456,6 +498,145 @@ def test_notebook_source_list_label_span_preserves_each_json_string_segment() ->
     second_item_start = document.text.index('"label\\r\\n')
     assert cell.label_span.start < second_item_start
     assert cell.label_span.end > second_item_start
+
+
+def test_notebook_source_list_label_span_decodes_escapes_and_split_crlf() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(source=["# comment\r", "\n#| label: caf", "é-😀\r", "\npass\r\n"]),
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "See {ref}`café-😀`.\n",
+            },
+        )
+    )
+
+    result = public_check_documents((document,), config=profile_config())
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert result.diagnostics == ()
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+    assert cell.label == "café-😀"
+    assert cell.label_span is not None
+    assert cell.label_span.cell_line == 2
+    assert decoded_source_segment_text(document, cell.label_span) == "café-😀"
+    assert len(cell.label_span.segments) == len("café-😀")
+
+
+def test_notebook_source_label_after_large_preamble_keeps_exact_span() -> None:
+    preamble = "# comment before options\n" * 400
+    assert len(preamble) > 8192
+    document = notebook(
+        notebook_payload(
+            code_cell(source=f"{preamble}#| label: after-preamble\npass\n"),
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "See {ref}`after-preamble`.\n",
+            },
+        )
+    )
+
+    result = public_check_documents((document,), config=profile_config())
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert result.diagnostics == ()
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+    assert cell.label == "after-preamble"
+    assert cell.normalized_label == "after-preamble"
+    assert cell.label_span is not None
+    assert cell.label_span.cell_line == 401
+    assert decoded_source_segment_text(document, cell.label_span) == "after-preamble"
+
+
+@pytest.mark.parametrize(
+    "separator", ["\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"]
+)
+def test_notebook_source_label_uses_python_splitline_boundaries(separator: str) -> None:
+    document = notebook(
+        notebook_payload(code_cell(source=f"# comment{separator}#| label: exotic{separator}pass"))
+    )
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.label == "exotic"
+    assert cell.label_span is not None
+    assert cell.label_span.cell_line == 2
+    assert decoded_source_segment_text(document, cell.label_span) == "exotic"
+
+
+def test_large_notebook_code_source_does_not_materialize_character_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_source_ranges(*args, **kwargs):
+        raise AssertionError("code-cell source mapping must stay sparse")
+
+    monkeypatch.setattr(notebook_input, "_source_ranges", unexpected_source_ranges)
+    source = "pass\n" * 30_000
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.raw == source
+    assert cell.label is None
+    assert cell.label_span is None
+
+
+def test_source_label_after_executable_code_is_not_an_option() -> None:
+    source = f"value = {'1' * 30_000}\n#| label: ignored\n"
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.label is None
+    assert cell.label_span is None
+
+
+def test_duplicate_source_labels_map_only_the_winning_prefix_span(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    traversed_characters = 0
+    character_ranges = notebook_input._iter_json_string_character_ranges
+
+    def counting_character_ranges(*args, **kwargs):
+        nonlocal traversed_characters
+        for item in character_ranges(*args, **kwargs):
+            traversed_characters += 1
+            yield item
+
+    monkeypatch.setattr(
+        notebook_input,
+        "_iter_json_string_character_ranges",
+        counting_character_ranges,
+    )
+    prefix = "".join(f"#| label: candidate-{index}\n" for index in range(128))
+    source = f"{prefix}{'x' * 30_000}\n"
+    document = notebook(notebook_payload(code_cell(source=source)))
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.label == "candidate-127"
+    assert decoded_source_segment_text(document, cell.label_span) == "candidate-127"
+    assert traversed_characters <= len(prefix)
+
+
+def test_notebook_code_cell_without_source_keeps_metadata_label() -> None:
+    raw_cell = code_cell(metadata={"label": "metadata-only"})
+    raw_cell.pop("source")
+    document = notebook(notebook_payload(raw_cell))
+
+    result = public_check_documents((document,), config=profile_config())
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert not any(diagnostic.code == "INP001" for diagnostic in result.diagnostics)
+    assert cell.raw is None
+    assert cell.label == "metadata-only"
+    assert source_slice(document, cell.label_span) == "metadata-only"
 
 
 def test_reference_engine_is_input_order_deterministic() -> None:

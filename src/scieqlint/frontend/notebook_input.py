@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 from typing import cast
 
@@ -14,10 +14,10 @@ from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_NOTEBOOK_SOU
 from scieqlint.io.source import DocumentKind, LineIndex, SourceDocument
 
 from .notebook_json import (
+    _iter_json_string_character_ranges,
     json_array_ranges,
     json_decoder,
     json_object_members,
-    json_string_character_ranges,
     parse_json_document,
 )
 
@@ -262,13 +262,12 @@ def _notebook_locations(
         cell = cast(Mapping[str, object], cell)
         cell_members = json_object_members(decoder, document.text, cell_start, cell_end)
         source = cell_source(cell.get("source"))
-        source_ranges = (
-            None
-            if source is None
-            else _source_ranges(decoder, document.text, cell_members["source"])
-        )
         if cell.get("cell_type") == "markdown":
-            cell_source_ranges[cell_index] = source_ranges
+            cell_source_ranges[cell_index] = (
+                None
+                if source is None
+                else _source_ranges(decoder, document.text, cell_members["source"])
+            )
         elif cell.get("cell_type") == "code":
             cell_option_spans[cell_index] = _cell_option_spans(
                 decoder,
@@ -277,7 +276,7 @@ def _notebook_locations(
                 cell,
                 cell_members,
                 source,
-                source_ranges,
+                cell_members.get("source"),
             )
         raw_outputs = cell.get("outputs")
         if not isinstance(raw_outputs, list):
@@ -314,7 +313,7 @@ def _cell_option_spans(
     cell: Mapping[str, object],
     cell_members: Mapping[str, tuple[int, int]],
     source: str | None,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...] | None,
+    source_range: tuple[int, int] | None,
 ) -> tuple[tuple[str, SourceSpan], ...]:
     """Locate code-cell label options without losing JSON source identity."""
 
@@ -338,25 +337,53 @@ def _cell_option_spans(
             )
             _record_option_spans(document, cell_index, quarto, quarto_members, spans)
 
-    if source is not None and source_ranges:
-        source_document = SourceDocument.from_text(
-            document.path,
-            source,
-            DocumentKind.MARKDOWN,
-        )
-        for key, value, start, end in _source_option_entries(source_document.text):
+    if source is not None and source_range is not None:
+        label_seen = False
+        label_range: tuple[int, int, int] | None = None
+        for key, value, start, end, line in _source_option_entries(source):
             if key != "label":
                 continue
-            if not value:
-                spans.pop(key, None)
-                continue
-            spans[key] = map_notebook_span(
-                document,
-                _cell_local_span(source_document, start, end, cell_index),
-                cell_index=cell_index,
-                source_ranges=source_ranges,
-            )
+            label_seen = True
+            label_range = (start, end, line) if value else None
+        if label_seen:
+            if label_range is None:
+                spans.pop("label", None)
+            else:
+                spans["label"] = _source_option_span(
+                    decoder,
+                    document,
+                    source_range,
+                    *label_range,
+                    cell_index=cell_index,
+                )
     return tuple(sorted(spans.items()))
+
+
+def _source_option_span(
+    decoder: json.JSONDecoder,
+    document: SourceDocument,
+    source_range: tuple[int, int],
+    start: int,
+    end: int,
+    cell_line: int,
+    *,
+    cell_index: int,
+) -> SourceSpan:
+    source_ranges = tuple(
+        _source_range_slice(
+            decoder,
+            document.text,
+            source_range,
+            start,
+            end,
+        )
+    )
+    return _mapped_notebook_span(
+        document,
+        cell_index=cell_index,
+        cell_line=cell_line,
+        source_ranges=source_ranges,
+    )
 
 
 def _record_option_spans(
@@ -393,45 +420,46 @@ def _option_value_present(value: object) -> bool:
     return False
 
 
-def _source_option_entries(text: str) -> tuple[tuple[str, str, int, int], ...]:
-    entries: list[tuple[str, str, int, int]] = []
-    offset = 0
-    for line in text.splitlines(keepends=True):
-        stripped = line.strip()
+def _source_option_entries(text: str) -> Iterator[tuple[str, str, int, int, int]]:
+    logical_start = 0
+    for line_number, (raw_start, content_end, raw_end) in enumerate(
+        _source_line_ranges(text), start=1
+    ):
+        content = text[raw_start:content_end]
+        logical_width = len(content) + (raw_end > content_end)
+        stripped = content.strip()
         if not stripped or (stripped.startswith("#") and not stripped.startswith("#|")):
-            offset += len(line)
+            logical_start += logical_width
             continue
-        match = _NOTEBOOK_OPTION_RE.match(line.rstrip("\r\n"))
+        match = _NOTEBOOK_OPTION_RE.match(content)
         if match is None:
             break
         raw_value = match.group("value")
         value = raw_value.strip()
         leading = len(raw_value) - len(raw_value.lstrip())
-        value_start = offset + match.start("value") + leading
-        entries.append((match.group("key"), value, value_start, value_start + len(value)))
-        offset += len(line)
-    return tuple(entries)
+        value_start = logical_start + match.start("value") + leading
+        logical_start += logical_width
+        yield match.group("key"), value, value_start, value_start + len(value), line_number
 
 
-def _cell_local_span(
-    document: SourceDocument,
-    start: int,
-    end: int,
-    cell_index: int,
-) -> SourceSpan:
-    line, col = document.line_index.position(start)
-    end_line, end_col = document.line_index.position(max(start, end - 1))
-    return SourceSpan(
-        path=document.path,
-        start=start,
-        end=end,
-        line=line,
-        col=col,
-        end_line=end_line,
-        end_col=end_col,
-        cell=cell_index,
-        cell_line=line,
-    )
+def _source_line_ranges(text: str) -> Iterator[tuple[int, int, int]]:
+    """Yield content ranges with the same boundaries as ``str.splitlines``."""
+
+    start = 0
+    position = 0
+    while position < len(text):
+        character = text[position]
+        if character not in _MARKDOWN_LINE_BOUNDARIES:
+            position += 1
+            continue
+        content_end = position
+        position += 1
+        if character == "\r" and position < len(text) and text[position] == "\n":
+            position += 1
+        yield start, content_end, position
+        start = position
+    if start < len(text):
+        yield start, len(text), len(text)
 
 
 def _output_label_spans(
@@ -506,33 +534,68 @@ def _source_ranges(
 ) -> tuple[tuple[tuple[int, int], ...], ...]:
     """Map normalized decoded source characters to raw JSON offsets."""
 
-    start, end = source_range
-    ranges: list[tuple[str, int, int]] = []
-    if text[start] == '"':
-        ranges.extend(json_string_character_ranges(text, start, end))
-    else:
-        for item_start, item_end in json_array_ranges(decoder, text, start, end):
-            ranges.extend(json_string_character_ranges(text, item_start, item_end))
+    return tuple(_normalized_source_ranges(decoder, text, source_range))
 
-    normalized: list[tuple[tuple[int, int], ...]] = []
-    range_index = 0
-    while range_index < len(ranges):
-        character, raw_start, raw_end = ranges[range_index]
-        if (
-            character == "\r"
-            and range_index + 1 < len(ranges)
-            and ranges[range_index + 1][0] == "\n"
-        ):
-            # SourceDocument normalizes CRLF to one character. Keep both raw
-            # ranges so a list boundary or an escape cannot corrupt offsets.
-            normalized.append(
-                ((raw_start, raw_end), (ranges[range_index + 1][1], ranges[range_index + 1][2]))
-            )
-            range_index += 2
-            continue
-        normalized.append(((raw_start, raw_end),))
-        range_index += 1
-    return tuple(normalized)
+
+def _source_range_slice(
+    decoder: json.JSONDecoder,
+    text: str,
+    source_range: tuple[int, int],
+    start: int,
+    end: int,
+) -> Iterator[tuple[tuple[int, int], ...]]:
+    """Yield one exact logical source slice without retaining its prefix."""
+
+    if start < 0 or end <= start:
+        raise NotebookSourceLocationError("notebook source slice is empty or invalid")
+    for logical_position, ranges in enumerate(
+        _normalized_source_ranges(decoder, text, source_range)
+    ):
+        if logical_position >= start:
+            yield ranges
+        if logical_position + 1 == end:
+            return
+    raise NotebookSourceLocationError("notebook source slice is outside its source")
+
+
+def _normalized_source_ranges(
+    decoder: json.JSONDecoder,
+    text: str,
+    source_range: tuple[int, int],
+) -> Iterator[tuple[tuple[int, int], ...]]:
+    pending_cr: tuple[int, int] | None = None
+    for character, raw_start, raw_end in _source_character_ranges(
+        decoder,
+        text,
+        source_range,
+    ):
+        raw_range = (raw_start, raw_end)
+        if pending_cr is not None:
+            if character == "\n":
+                yield pending_cr, raw_range
+                pending_cr = None
+                continue
+            yield (pending_cr,)
+            pending_cr = None
+        if character == "\r":
+            pending_cr = raw_range
+        else:
+            yield (raw_range,)
+    if pending_cr is not None:
+        yield (pending_cr,)
+
+
+def _source_character_ranges(
+    decoder: json.JSONDecoder,
+    text: str,
+    source_range: tuple[int, int],
+) -> Iterator[tuple[str, int, int]]:
+    start, end = source_range
+    if text[start] == '"':
+        yield from _iter_json_string_character_ranges(text, start, end)
+        return
+    for item_start, item_end in json_array_ranges(decoder, text, start, end):
+        yield from _iter_json_string_character_ranges(text, item_start, item_end)
 
 
 def _json_value_span(
@@ -594,23 +657,51 @@ def map_notebook_span(
         raise NotebookSourceLocationError(
             f"notebook cell {cell_index} source location is outside its source"
         )
-    if span.start == span.end:
-        position = (
-            source_ranges[span.start][0][0]
-            if span.start < len(source_ranges)
-            else source_ranges[-1][-1][1]
+    if span.start != span.end:
+        return _mapped_notebook_span(
+            document,
+            cell_index=cell_index,
+            cell_line=span.line,
+            source_ranges=source_ranges[span.start : span.end],
         )
-        start = position
-        end = position
-        segments: tuple[SourceSegment, ...] = ()
-    else:
-        segments = tuple(
-            _source_segment(document, ranges) for ranges in source_ranges[span.start : span.end]
+    position = (
+        source_ranges[span.start][0][0]
+        if span.start < len(source_ranges)
+        else source_ranges[-1][-1][1]
+    )
+    line, col = document.line_index.position(position)
+    return SourceSpan(
+        path=document.path,
+        start=position,
+        end=position,
+        line=line,
+        col=col,
+        end_line=line,
+        end_col=col,
+        cell=cell_index,
+        cell_line=span.line,
+        segments=(),
+    )
+
+
+def _mapped_notebook_span(
+    document: SourceDocument,
+    *,
+    cell_index: int,
+    cell_line: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> SourceSpan:
+    """Build one non-empty raw notebook span from exact logical ranges."""
+
+    if not source_ranges:
+        raise NotebookSourceLocationError(
+            f"notebook cell {cell_index} source span has no character ranges"
         )
-        start = segments[0].start
-        end = segments[-1].end
+    segments = tuple(_source_segment(document, ranges) for ranges in source_ranges)
+    start = segments[0].start
+    end = segments[-1].end
     line, col = document.line_index.position(start)
-    end_line, end_col = document.line_index.position(max(start, end - 1))
+    end_line, end_col = document.line_index.position(end - 1)
     return SourceSpan(
         path=document.path,
         start=start,
@@ -620,7 +711,7 @@ def map_notebook_span(
         end_line=end_line,
         end_col=end_col,
         cell=cell_index,
-        cell_line=span.line,
+        cell_line=cell_line,
         segments=segments,
     )
 
