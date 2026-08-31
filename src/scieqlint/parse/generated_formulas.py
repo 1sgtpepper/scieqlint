@@ -12,7 +12,7 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.markdown import is_escaped, without_tex_comments
 from scieqlint.source.maps import SourceMap
 
-from .normalize import _splitline_starts
+from .normalize import splitline_starts
 
 _MAX_SPACED_TOKEN_PARTS = 64
 _SPACED_COMMAND_RE = re.compile(
@@ -99,7 +99,7 @@ def _suspicious_formula_facts(
     )
     facts: list[GeneratedFormulaFact] = []
     active_text = without_tex_comments(candidate.text)
-    line_starts = _splitline_starts(candidate.text) if candidate.span.cell_line is not None else ()
+    line_starts = splitline_starts(candidate.text) if candidate.span.cell_line is not None else ()
     for kind, pattern in patterns:
         for match in pattern.finditer(active_text):
             local_start, local_end = match.span("artifact")

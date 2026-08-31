@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-def _splitline_starts(text: str) -> tuple[int, ...]:
+def splitline_starts(text: str) -> tuple[int, ...]:
     """Index Python split-line boundaries once for repeated local span mapping."""
 
     starts = [0]
