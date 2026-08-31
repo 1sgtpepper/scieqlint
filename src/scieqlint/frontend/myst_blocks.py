@@ -436,11 +436,9 @@ def _option_value_span(
             continue
         if match.group("key") == key:
             raw_value = match.group("value")
-            leading = len(raw_value) - len(raw_value.lstrip())
             value = raw_value.strip()
-            if not value:
-                selected = None
-            else:
+            if value:
+                leading = len(raw_value) - len(raw_value.lstrip())
                 start = offset + match.start("value") + leading
                 selected = SourceMap.for_document(document).span(start, start + len(value))
         offset += len(line)
