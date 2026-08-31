@@ -596,7 +596,20 @@ def test_notebook_raw_equation_subspans_use_splitline_positions() -> None:
         DocumentKind.NOTEBOOK,
     )
 
-    snapshot = MathHost().classify(NotebookFrontend().lower((document,)))
+    frontend_snapshot = NotebookFrontend().lower((document,))
+    [raw_display] = frontend_snapshot.display_math
+    scanned_chars = 0
+
+    class PrefixCountingText(str):
+        def count(self, sub, start=0, end=None):
+            nonlocal scanned_chars
+            scanned_chars += (len(self) if end is None else end) - start
+            if end is None:
+                return super().count(sub, start)
+            return super().count(sub, start, end)
+
+    counted = replace(raw_display, raw=PrefixCountingText(raw_display.raw or ""))
+    snapshot = MathHost().classify(replace(frontend_snapshot, display_math=(counted,)))
 
     assert [fact.label for fact in snapshot.equation_labels] == [
         f"eq-{index}" for index in range(fact_count)
@@ -612,6 +625,7 @@ def test_notebook_raw_equation_subspans_use_splitline_positions() -> None:
         and document.text[fact.label_span.start : fact.label_span.end] == fact.label
         for fact in snapshot.equation_labels
     )
+    assert scanned_chars <= 4 * len(counted.raw or "") + 32
 
 
 @pytest.mark.parametrize("environment", ["flalign", "flalign*"])
