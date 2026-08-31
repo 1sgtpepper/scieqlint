@@ -721,6 +721,18 @@ def inline_math_macro_facts(
         )
 
     scoped = scan_scoped_inline_macros(tuple(sources))
+    line_starts_by_fact_id: dict[str, tuple[int, ...]] = {}
+
+    def line_starts(fact: InlineMathFact) -> tuple[int, ...]:
+        assert fact.span is not None
+        if fact.span.cell_line is None:
+            return ()
+        starts = line_starts_by_fact_id.get(fact.fact_id)
+        if starts is None:
+            starts = _splitline_starts(fact.body)
+            line_starts_by_fact_id[fact.fact_id] = starts
+        return starts
+
     declarations: list[MathMacroDeclarationFact] = []
     declaration_ids: dict[MacroDeclarationKey, str] = {}
     for item in scoped.declarations:
@@ -738,6 +750,7 @@ def inline_math_macro_facts(
                     source_maps[fact.document_id],
                     syntax.name_start,
                     syntax.name_end,
+                    line_starts(fact),
                 ),
                 raw=fact.body[syntax.start : syntax.end],
                 source_math_fact_id=fact.fact_id,
@@ -763,6 +776,7 @@ def inline_math_macro_facts(
                     source_maps[fact.document_id],
                     syntax.start,
                     syntax.end,
+                    line_starts(fact),
                 ),
                 raw=fact.body[syntax.start : syntax.end],
                 source_math_fact_id=fact.fact_id,
@@ -782,10 +796,16 @@ def _inline_macro_span(
     source_map: SourceMap,
     start: int,
     end: int,
+    line_starts: tuple[int, ...],
 ) -> SourceSpan:
     assert fact.span is not None
     if start < 0 or end <= start or end > len(fact.body):
         raise ValueError("inline macro subspan is outside its source text")
+    cell_line = (
+        None
+        if fact.span.cell_line is None
+        else fact.span.cell_line + bisect_right(line_starts, start) - 1
+    )
     if fact.span.segments:
         if len(fact.span.segments) != len(fact.body):
             raise ValueError("inline macro source mapping does not match its source text")
@@ -800,22 +820,14 @@ def _inline_macro_span(
             col=first.col,
             end_line=last.end_line,
             end_col=last.end_col,
-            cell_line=(
-                None
-                if fact.span.cell_line is None
-                else fact.span.cell_line + fact.body.count("\n", 0, start)
-            ),
+            cell_line=cell_line,
             segments=segments,
         )
     span = source_map.span(fact.span.start + start, fact.span.start + end)
     return replace(
         span,
         cell=fact.span.cell,
-        cell_line=(
-            None
-            if fact.span.cell_line is None
-            else fact.span.cell_line + fact.body.count("\n", 0, start)
-        ),
+        cell_line=cell_line,
     )
 
 
