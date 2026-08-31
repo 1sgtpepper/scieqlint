@@ -1465,26 +1465,62 @@
       "expected_pass": true
     },
     {
-      "id": "equation-markdown-valid-01",
+      "id": "generated-equation-like-text",
       "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
+      "label": "positive",
+      "rule": "GEN005",
       "source_format": "markdown",
-      "scientific_domain": "algebra",
+      "scientific_domain": "generated-content",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-markdown-valid-01.md",
+          "path": "generated-equation-like-text.md",
           "format": "markdown",
-          "content": "$$\na + b = b + a\n$$\n"
+          "content": "F(x) = x + 1\n",
+          "source_document_id": "source/generated-equation-like-text.pdf"
         }
       ],
       "config": {
         "dimension_variables": {},
         "unknown_variables": "warn",
-        "profile": null,
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "GEN005"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "generated-equation-like-text-numeric-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "GEN005",
+      "source_format": "markdown",
+      "scientific_domain": "generated-content",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "generated-equation-like-text-numeric-control.md",
+          "format": "markdown",
+          "content": "1 < 2\n",
+          "source_document_id": "source/generated-equation-like-text-numeric-control.pdf"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
         "missing_label_strict": false,
         "inline_math": false,
         "symbols": false
@@ -1493,56 +1529,62 @@
       "expected_pass": true
     },
     {
-      "id": "equation-markdown-invalid-01",
+      "id": "generated-literal-bracketed-latex",
       "release": "v1.1.0",
       "label": "positive",
-      "rule": "ALG001",
+      "rule": "GEN003",
       "source_format": "markdown",
-      "scientific_domain": "algebra",
+      "scientific_domain": "generated-content",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-markdown-invalid-01.md",
+          "path": "generated-literal-bracketed-latex.md",
           "format": "markdown",
-          "content": "$$\nalpha+1 = alpha\n$$\n"
+          "content": "[\n\\begin{array}{cc}\nx & y\n\\end{array}\n]\n",
+          "source_document_id": "source/generated-literal-bracketed-latex.pdf"
         }
       ],
       "config": {
         "dimension_variables": {},
         "unknown_variables": "warn",
-        "profile": null,
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
         "missing_label_strict": false,
         "inline_math": false,
         "symbols": false
       },
       "expected_codes": [
-        "ALG001"
+        "GEN003"
       ],
-      "expected_pass": false
+      "expected_pass": true
     },
     {
-      "id": "equation-markdown-valid-02",
+      "id": "generated-standard-display-control",
       "release": "v1.1.0",
       "label": "negative",
-      "rule": "ALG001",
+      "rule": "GEN003",
       "source_format": "markdown",
-      "scientific_domain": "algebra",
+      "scientific_domain": "generated-content",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-markdown-valid-02.md",
+          "path": "generated-standard-display-control.md",
           "format": "markdown",
-          "content": "$$\na*b = b*a\n$$\n"
+          "content": "$$\nx = y\n$$\n",
+          "source_document_id": "source/generated-standard-display-control.pdf"
         }
       ],
       "config": {
         "dimension_variables": {},
         "unknown_variables": "warn",
-        "profile": null,
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
         "missing_label_strict": false,
         "inline_math": false,
         "symbols": false
@@ -1551,1672 +1593,18 @@
       "expected_pass": true
     },
     {
-      "id": "equation-markdown-invalid-02",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-02.md",
-          "format": "markdown",
-          "content": "$$\nbeta^2 = beta\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-03",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-03.md",
-          "format": "markdown",
-          "content": "$$\nx + 0 = x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-03",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-03.md",
-          "format": "markdown",
-          "content": "$$\ngamma*delta = gamma+delta\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-04",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-04.md",
-          "format": "markdown",
-          "content": "$$\nx * 1 = x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-04",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-04.md",
-          "format": "markdown",
-          "content": "$$\nepsilon/epsilon = 0\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-05",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-05.md",
-          "format": "markdown",
-          "content": "$$\nx^2 = x*x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-05",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-05.md",
-          "format": "markdown",
-          "content": "$$\nzeta-1 = zeta\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-06",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-06.md",
-          "format": "markdown",
-          "content": "$$\nm = m\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-06",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-06.md",
-          "format": "markdown",
-          "content": "$$\neta^3 = eta\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-07",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-07.md",
-          "format": "markdown",
-          "content": "$$\np / 1 = p\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-07",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-07.md",
-          "format": "markdown",
-          "content": "$$\ntheta+2 = theta\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-08",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-08.md",
-          "format": "markdown",
-          "content": "$$\nu - v = u - v\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-08",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-08.md",
-          "format": "markdown",
-          "content": "$$\niota*j = iota+j\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-09",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-09.md",
-          "format": "markdown",
-          "content": "$$\n2*x = x + x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-09",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-09.md",
-          "format": "markdown",
-          "content": "$$\nlambda-lambda = 1\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-10",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-10.md",
-          "format": "markdown",
-          "content": "$$\nx + y + z = z + y + x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-10",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-10.md",
-          "format": "markdown",
-          "content": "$$\nmu^2 = 2*mu\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-11",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-11.md",
-          "format": "markdown",
-          "content": "$$\nr^2 = r*r\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-11",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-11.md",
-          "format": "markdown",
-          "content": "$$\nnu+nu = nu\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-12",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-12.md",
-          "format": "markdown",
-          "content": "$$\nq/q = 1\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-12",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-12.md",
-          "format": "markdown",
-          "content": "$$\nxi/2 = xi\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-13",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-13.md",
-          "format": "markdown",
-          "content": "$$\nx - 0 = x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-13",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-13.md",
-          "format": "markdown",
-          "content": "$$\npi^2 = 2*pi\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-14",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-14.md",
-          "format": "markdown",
-          "content": "$$\n1*x = x\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-14",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-14.md",
-          "format": "markdown",
-          "content": "$$\ntau^2 = tau+1\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-15",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-15.md",
-          "format": "markdown",
-          "content": "$$\na*(b+c) = a*b + a*c\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-15",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-15.md",
-          "format": "markdown",
-          "content": "$$\nupsilon/upsilon = 0\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-16",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-16.md",
-          "format": "markdown",
-          "content": "$$\nx + y = x + y\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-16",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-16.md",
-          "format": "markdown",
-          "content": "$$\nphi*chi = phi-chi\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-17",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-17.md",
-          "format": "markdown",
-          "content": "$$\nv = v\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-17",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-17.md",
-          "format": "markdown",
-          "content": "$$\npsi+3 = psi\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-18",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-18.md",
-          "format": "markdown",
-          "content": "$$\nk^3 = k*k*k\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-18",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-18.md",
-          "format": "markdown",
-          "content": "$$\nomega^4 = omega\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-19",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-19.md",
-          "format": "markdown",
-          "content": "$$\ns/1 = s\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-19",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-19.md",
-          "format": "markdown",
-          "content": "$$\naa+1 = aa\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-markdown-valid-20",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-valid-20.md",
-          "format": "markdown",
-          "content": "$$\nc*d = d*c\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-markdown-invalid-20",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "markdown",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-markdown-invalid-20.md",
-          "format": "markdown",
-          "content": "$$\nbb^2 = bb\n$$\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-01",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-01.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\na + b = b + a\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-01",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-01.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nalpha+1 = alpha\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-02",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-02.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\na*b = b*a\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-02",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-02.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nbeta^2 = beta\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-03",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-03.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nx + 0 = x\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-03",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-03.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\ngamma*delta = gamma+delta\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-04",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-04.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nx * 1 = x\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-04",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-04.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nepsilon/epsilon = 0\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-05",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-05.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nx^2 = x*x\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-05",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-05.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nzeta-1 = zeta\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-06",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-06.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nm = m\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-06",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-06.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\neta^3 = eta\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-07",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-07.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\np / 1 = p\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-07",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-07.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\ntheta+2 = theta\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-08",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-08.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nu - v = u - v\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-08",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-08.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\niota*j = iota+j\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-09",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-09.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\n2*x = x + x\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-09",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-09.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nlambda-lambda = 1\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-latex-valid-10",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-valid-10.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nx + y + z = z + y + x\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-latex-invalid-10",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "latex",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-latex-invalid-10.tex",
-          "format": "latex",
-          "content": "\\begin{equation}\nmu^2 = 2*mu\n\\end{equation}\n"
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-valid-01",
-      "release": "v1.1.0",
+      "id": "notebook-markdown-source-list-boundary",
+      "release": "v0.1.4",
       "label": "negative",
       "rule": "ALG001",
       "source_format": "notebook",
-      "scientific_domain": "algebra",
+      "scientific_domain": "computational-science",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-notebook-valid-01.ipynb",
+          "path": "notebook-markdown-source-list-boundary.ipynb",
           "format": "notebook",
           "content": {
             "cells": [
@@ -3224,7 +1612,8 @@
                 "cell_type": "markdown",
                 "metadata": {},
                 "source": [
-                  "$$\na + b = b + a\n$$\n"
+                  "$$\nx = ",
+                  "1\n$$\n"
                 ]
               }
             ],
@@ -3246,33 +1635,363 @@
       "expected_pass": true
     },
     {
-      "id": "equation-notebook-valid-02",
+      "id": "notebook-code-output-facts",
       "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
+      "label": "positive",
+      "rule": "PORT002",
       "source_format": "notebook",
-      "scientific_domain": "algebra",
+      "scientific_domain": "computational-science",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-notebook-valid-02.ipynb",
+          "path": "notebook-code-output-facts.ipynb",
           "format": "notebook",
           "content": {
             "cells": [
               {
                 "cell_type": "markdown",
                 "metadata": {},
-                "source": [
-                  "$$\na*b = b*a\n$$\n"
-                ]
+                "source": "Inline $x$.\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "quarto": {
+                    "label": "fig-facts",
+                    "fig-cap": "Fact output",
+                    "renderings": [
+                      "light",
+                      "dark"
+                    ]
+                  },
+                  "tags": [
+                    "hide-input"
+                  ]
+                },
+                "outputs": [
+                  {
+                    "data": {
+                      "image/png": "payload"
+                    },
+                    "metadata": {
+                      "label": "fig-output"
+                    },
+                    "output_type": "display_data"
+                  }
+                ],
+                "source": "raise RuntimeError('not executed')\n"
+              }
+            ],
+            "metadata": {
+              "kernelspec": {
+                "language": "python",
+                "name": "python3"
+              }
+            },
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "math-accessibility",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-accessibility-non-math-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT002",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-accessibility-non-math-control.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "Only prose and `code`.\n"
               }
             ],
             "metadata": {},
             "nbformat": 4,
             "nbformat_minor": 5
           }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "math-accessibility",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-metadata-notebook-language-policy",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR013",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-metadata-notebook-language-policy.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "code",
+                "metadata": {},
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python shell"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "brainfuck"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "bash"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "code-cell-metadata",
+        "algebra_enabled": false,
+        "code_cell_languages": [
+          "python",
+          "bash"
+        ],
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR010",
+        "DIR013",
+        "DIR013"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-metadata-known-languages-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR013",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-metadata-known-languages-control.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "bash"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "code-cell-metadata",
+        "algebra_enabled": false,
+        "code_cell_languages": [
+          "python",
+          "bash"
+        ],
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "raw-latex-equation-reference",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF002",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "raw-latex-equation-reference.md",
+          "format": "markdown",
+          "content": "\\begin{equation}\n[hidden](#hidden) {eq}`hidden`\n\\eqref{missing}\n\\end{equation}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "duplicate-equation-reference",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "duplicate-equation-reference.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#shared}\n$$\ny = 2$$ {#shared}\n\nSee {eq}`shared`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF001",
+        "REF011"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "duplicate-equation-reference-ref011",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "REF011",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "duplicate-equation-reference-ref011.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#shared}\n$$\ny = 2$$ {#shared}\n\nSee {eq}`shared`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF001",
+        "REF011"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "unique-equation-labels-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "REF001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "unique-equation-labels-control.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#first}\n$$\ny = 2$$ {#second}\n\nSee {eq}`first`."
         }
       ],
       "config": {
@@ -3287,33 +2006,20 @@
       "expected_pass": true
     },
     {
-      "id": "equation-notebook-valid-03",
+      "id": "resolved-equation-reference-control",
       "release": "v1.1.0",
       "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
+      "rule": "REF011",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-notebook-valid-03.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nx + 0 = x\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
+          "path": "resolved-equation-reference-control.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#resolved}\n\nSee {eq}`resolved`."
         }
       ],
       "config": {
@@ -3328,39 +2034,60 @@
       "expected_pass": true
     },
     {
-      "id": "equation-notebook-valid-04",
+      "id": "cross-format-commonmark-equation-role",
       "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
+      "label": "positive",
+      "rule": "PORT001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-notebook-valid-04.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nx * 1 = x\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
+          "path": "cross-format-commonmark-equation-role.md",
+          "format": "markdown",
+          "content": "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
         }
       ],
       "config": {
         "dimension_variables": {},
         "unknown_variables": "warn",
-        "profile": null,
+        "profile": "cross-format-references",
+        "output_profile": "commonmark",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT001"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "cross-format-myst-equation-role",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "cross-format-myst-equation-role.md",
+          "format": "markdown",
+          "content": "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "cross-format-references",
+        "output_profile": "myst",
+        "algebra_enabled": false,
         "missing_label_strict": false,
         "inline_math": false,
         "symbols": false
@@ -3369,637 +2096,95 @@
       "expected_pass": true
     },
     {
-      "id": "equation-notebook-valid-05",
+      "id": "typst-markdown-unsupported-display-command",
       "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
+      "label": "positive",
+      "rule": "PORT003",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
       "provenance": "maintainer-authored",
       "license": null,
       "synthetic": true,
       "documents": [
         {
-          "path": "equation-notebook-valid-05.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nx^2 = x*x\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
+          "path": "typst-markdown-unsupported-display-command.md",
+          "format": "markdown",
+          "content": "$$\n\\dfrac{x}{2}\n$$\n"
         }
       ],
       "config": {
         "dimension_variables": {},
         "unknown_variables": "warn",
-        "profile": null,
+        "profile": "typst-portability",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "typst-latex-unsupported-display-command",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PORT003",
+      "source_format": "latex",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "typst-latex-unsupported-display-command.tex",
+          "format": "latex",
+          "content": "\\[\\argmin_x f(x)\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "typst-portability",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "typst-supported-display-baseline",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT003",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "typst-supported-display-baseline.md",
+          "format": "markdown",
+          "content": "$$\nx = \\frac{a}{b}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "typst-portability",
+        "algebra_enabled": false,
         "missing_label_strict": false,
         "inline_math": false,
         "symbols": false
       },
       "expected_codes": [],
       "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-valid-06",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-valid-06.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nm = m\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-valid-07",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-valid-07.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\np / 1 = p\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-valid-08",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-valid-08.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nu - v = u - v\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-valid-09",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-valid-09.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\n2*x = x + x\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-valid-10",
-      "release": "v1.1.0",
-      "label": "negative",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-valid-10.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nx + y + z = z + y + x\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [],
-      "expected_pass": true
-    },
-    {
-      "id": "equation-notebook-invalid-01",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-01.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nalpha+1 = alpha\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-02",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-02.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nbeta^2 = beta\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-03",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-03.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\ngamma*delta = gamma+delta\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-04",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-04.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nepsilon/epsilon = 0\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-05",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-05.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nzeta-1 = zeta\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-06",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-06.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\neta^3 = eta\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-07",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-07.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\ntheta+2 = theta\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-08",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-08.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\niota*j = iota+j\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
-    },
-    {
-      "id": "equation-notebook-invalid-09",
-      "release": "v1.1.0",
-      "label": "positive",
-      "rule": "ALG001",
-      "source_format": "notebook",
-      "scientific_domain": "algebra",
-      "provenance": "maintainer-authored",
-      "license": null,
-      "synthetic": true,
-      "documents": [
-        {
-          "path": "equation-notebook-invalid-09.ipynb",
-          "format": "notebook",
-          "content": {
-            "cells": [
-              {
-                "cell_type": "markdown",
-                "metadata": {},
-                "source": [
-                  "$$\nlambda-lambda = 1\n$$\n"
-                ]
-              }
-            ],
-            "metadata": {},
-            "nbformat": 4,
-            "nbformat_minor": 5
-          }
-        }
-      ],
-      "config": {
-        "dimension_variables": {},
-        "unknown_variables": "warn",
-        "profile": null,
-        "missing_label_strict": false,
-        "inline_math": false,
-        "symbols": false
-      },
-      "expected_codes": [
-        "ALG001"
-      ],
-      "expected_pass": false
     },
     {
       "id": "openstax-electric-power-incorrect",

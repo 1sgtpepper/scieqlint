@@ -2131,7 +2131,7 @@ Rules:
 
 - The top-level object and every case, document, and config object reject missing, unknown, and duplicate fields.
 - Each case records a positive or negative label, target rule, source format, scientific domain, provenance, and license or synthetic status. Only a non-synthetic case with an explicit `independent_equation_id` and exactly one equality-bearing line under the checkers' equation semantics contributes to the stable independent-equation count. Its identity preserves the checker's token boundaries and unrecognized non-whitespace text while normalizing checker-equivalent grouping braces and lexically insignificant spacing. Scanner-owned LaTeX alignment markers, paths, source format, notebook source segmentation, and inert notebook metadata do not change that identity; literal Markdown ampersands and identifier boundaries do. Equivalent identities must reuse one ID, and repeated IDs must keep the same equation and label/rule metadata. Wrappers and synthetic fixtures remain executable coverage, not accuracy evidence.
-- Expected diagnostic codes and pass/fail status are human-authored and every case runs through the public analysis path.
+- Expected diagnostic codes and pass/fail status are human-authored and every case runs through the public analysis path. Profile-specific cases record the generated-source provenance, conversion settings, output target, and project policy required to reproduce that behavior.
 - Benchmarks must run in PR CI as ordinary fast tests.
 - Release notes should report benchmark count and changed expectations.
 - Benchmark cases must be small and license-safe.

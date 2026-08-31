@@ -13,7 +13,7 @@ from scieqlint.check.algebra import TOKEN_RE, _equation_lines
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.diag.catalog import CATALOG
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
@@ -41,6 +41,7 @@ _CASE_FIELDS = frozenset(
 )
 _OPTIONAL_CASE_FIELDS = frozenset({"independent_equation_id"})
 _DOCUMENT_FIELDS = frozenset({"path", "format", "content"})
+_OPTIONAL_DOCUMENT_FIELDS = frozenset({"source_document_id"})
 _CONFIG_FIELDS = frozenset(
     {
         "dimension_variables",
@@ -51,7 +52,15 @@ _CONFIG_FIELDS = frozenset(
         "symbols",
     }
 )
-_OPTIONAL_CONFIG_FIELDS = frozenset({"output_profile"})
+_OPTIONAL_CONFIG_FIELDS = frozenset(
+    {
+        "algebra_enabled",
+        "code_cell_languages",
+        "conversion_stage",
+        "output_profile",
+        "source_kind",
+    }
+)
 _SOURCE_FORMATS = frozenset({"markdown", "latex", "notebook"})
 _PROFILE_NAMES = frozenset(
     {
@@ -67,6 +76,26 @@ _PROFILE_NAMES = frozenset(
 _OUTPUT_PROFILES = frozenset({"commonmark", "myst", "notebook", "typst"})
 _INDEPENDENT_EQUATION_THRESHOLD = 100
 _CASE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
+_REQUIRED_MIGRATED_CASE_IDS = frozenset(
+    {
+        "code-cell-metadata-notebook-language-policy",
+        "cross-format-commonmark-equation-role",
+        "cross-format-myst-equation-role",
+        "duplicate-equation-reference",
+        "generated-equation-like-text",
+        "generated-equation-like-text-numeric-control",
+        "generated-literal-bracketed-latex",
+        "notebook-code-output-facts",
+        "notebook-markdown-source-list-boundary",
+        "raw-latex-equation-reference",
+        "typst-latex-unsupported-display-command",
+        "typst-markdown-unsupported-display-command",
+        "typst-supported-display-baseline",
+    }
+)
+_REQUIRED_MIGRATED_RULES = frozenset(
+    {"DIR013", "GEN003", "GEN005", "PORT001", "PORT002", "PORT003", "REF001", "REF011"}
+)
 
 
 def test_accuracy_corpus_is_strict_versioned_and_balanced() -> None:
@@ -75,11 +104,13 @@ def test_accuracy_corpus_is_strict_versioned_and_balanced() -> None:
     cases = _load_corpus(CORPUS_PATH)
 
     assert len(cases) >= 48
+    assert {cast(str, case["id"]) for case in cases} >= _REQUIRED_MIGRATED_CASE_IDS
 
     labels_by_rule: dict[str, set[str]] = {}
     for case in cases:
         labels_by_rule.setdefault(cast(str, case["rule"]), set()).add(cast(str, case["label"]))
     assert len(labels_by_rule) >= 20
+    assert labels_by_rule.keys() >= _REQUIRED_MIGRATED_RULES
     assert all(labels == {"positive", "negative"} for labels in labels_by_rule.values())
     assert {cast(str, case["source_format"]) for case in cases} == {
         "markdown",
@@ -689,26 +720,65 @@ def test_stable_release_evidence_gate_enforces_99_100_boundary(
         encoding="utf-8",
     )
 
-    results = [_check_case(tmp_path, case) for case in cases]
-    assert all(result.diagnostics == () for result in results)
-    assert all(result.exit_code() == 0 for result in results)
     if passes:
-        _require_stable_release_evidence(path)
+        _require_stable_release_evidence(tmp_path, path)
     else:
         with pytest.raises(AssertionError, match="found 99"):
-            _require_stable_release_evidence(path)
+            _require_stable_release_evidence(tmp_path, path)
+
+
+@pytest.mark.parametrize("failure", ["diagnostics", "exit-status"])
+def test_stable_release_evidence_gate_executes_each_independent_case(
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    payload = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    source_case = cast(dict[str, object], payload["cases"][0])
+    source_document = cast(list[dict[str, object]], source_case["documents"])[0]
+    case = dict(
+        source_case,
+        id=f"behavioral-evidence-{failure}",
+        provenance="https://example.com/behavioral-evidence",
+        license="CC0-1.0",
+        synthetic=False,
+        independent_equation_id=f"behavioral-evidence-{failure}",
+        documents=[
+            dict(
+                source_document,
+                path=f"behavioral-evidence-{failure}.md",
+                content="$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+            )
+        ],
+    )
+    if failure == "exit-status":
+        case.update(label="positive", expected_codes=["ALG001"], expected_pass=True)
+    path = tmp_path / f"behavioral-evidence-{failure}.json"
+    path.write_text(
+        json.dumps({"format_version": _FORMAT_VERSION, "cases": [case]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError, match=f"behavioral-evidence-{failure}"):
+        _require_stable_release_evidence(tmp_path, path)
 
 
 @pytest.mark.skipif(
     os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
     reason="stable-release evidence is enforced by the release workflow",
 )
-def test_stable_release_requires_100_independently_labeled_equations() -> None:
-    _require_stable_release_evidence(CORPUS_PATH)
+def test_stable_release_requires_100_independently_labeled_equations(tmp_path: Path) -> None:
+    _require_stable_release_evidence(tmp_path, CORPUS_PATH)
 
 
-def _require_stable_release_evidence(path: Path) -> None:
+def _require_stable_release_evidence(tmp_path: Path, path: Path) -> None:
     cases = _load_corpus(path)
+    independent_cases = [case for case in cases if case.get("independent_equation_id") is not None]
+    for case in independent_cases:
+        result = _check_case(tmp_path, case)
+        assert [diagnostic.code for diagnostic in result.diagnostics] == case["expected_codes"], (
+            case["id"]
+        )
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
     independent_equation_ids = _independent_equation_ids(cases)
 
     assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD, (
@@ -737,6 +807,11 @@ def _case_documents(case: dict[str, object]) -> tuple[SourceDocument, ...]:
                 PurePosixPath(f"benchmarks/accuracy/{raw_document['path']}"),
                 text,
                 DocumentKind(source_format),
+                origin=(
+                    SourceOrigin(source_document_id=cast(str, raw_document["source_document_id"]))
+                    if "source_document_id" in raw_document
+                    else None
+                ),
             )
         )
     return tuple(documents)
@@ -796,6 +871,9 @@ def _case_config(tmp_path: Path, case: dict[str, object]):
     data = cast(dict[str, object], case["config"])
     variables = cast(dict[str, str], data["dimension_variables"])
     lines = [
+        "[checks.algebra]",
+        f"enabled = {str(data.get('algebra_enabled', True)).lower()}",
+        "",
         "[checks.dimension]",
         'mode = "auto"',
         f'unknown_variables = "{data["unknown_variables"]}"',
@@ -815,6 +893,19 @@ def _case_config(tmp_path: Path, case: dict[str, object]):
         lines.extend(("", "[profile]", f'name = "{profile}"'))
         if output_profile is not None:
             lines.append(f'output_profile = "{output_profile}"')
+        if source_kind := data.get("source_kind"):
+            lines.append(f'source_kind = "{source_kind}"')
+        if conversion_stage := data.get("conversion_stage"):
+            lines.append(f'conversion_stage = "{conversion_stage}"')
+    code_cell_languages = cast(list[str], data.get("code_cell_languages", []))
+    if code_cell_languages:
+        lines.extend(
+            (
+                "",
+                "[project]",
+                f"code_cell_languages = {json.dumps(code_cell_languages)}",
+            )
+        )
     if variables:
         lines.extend(("", "[vars]"))
         lines.extend(f'{name} = "{dimension}"' for name, dimension in sorted(variables.items()))
@@ -904,6 +995,16 @@ def _validate_case(case: dict[str, object], index: int) -> None:
         raise ValueError(f"{context} source_format must match the first document")
 
     _validate_config(case["config"], context)
+    config = cast(dict[str, object], case["config"])
+    has_generated_origin = all(
+        "source_document_id" in cast(dict[str, object], document) for document in documents
+    )
+    if config["profile"] == "generated-myst" and not has_generated_origin:
+        raise ValueError(f"{context} generated-myst documents require source_document_id")
+    if config["profile"] != "generated-myst" and any(
+        "source_document_id" in cast(dict[str, object], document) for document in documents
+    ):
+        raise ValueError(f"{context} source_document_id is only valid for generated-myst")
     expected_codes = case["expected_codes"]
     if not isinstance(expected_codes, list) or not all(
         isinstance(code, str) and code in CATALOG for code in expected_codes
@@ -918,7 +1019,12 @@ def _validate_document(value: object, context: str, index: int) -> None:
     document_context = f"{context} document {index}"
     if not isinstance(value, dict):
         raise ValueError(f"{document_context} must be a JSON object")
-    _require_exact_fields(value, _DOCUMENT_FIELDS, document_context)
+    _require_exact_fields(
+        value,
+        _DOCUMENT_FIELDS,
+        document_context,
+        optional=_OPTIONAL_DOCUMENT_FIELDS,
+    )
     _require_string(value["path"], f"{document_context} path")
     source_format = _require_choice(value["format"], _SOURCE_FORMATS, f"{document_context} format")
     content = value["content"]
@@ -927,6 +1033,8 @@ def _validate_document(value: object, context: str, index: int) -> None:
             raise ValueError(f"{document_context} notebook content must be an object")
     elif not isinstance(content, str):
         raise ValueError(f"{document_context} content must be a string")
+    if "source_document_id" in value:
+        _require_string(value["source_document_id"], f"{document_context} source_document_id")
 
 
 def _validate_config(value: object, context: str) -> None:
@@ -959,6 +1067,23 @@ def _validate_config(value: object, context: str) -> None:
         raise ValueError(
             f"{config_context} output_profile is only valid for cross-format-references"
         )
+    source_kind = value.get("source_kind")
+    conversion_stage = value.get("conversion_stage")
+    if profile == "generated-myst":
+        _require_string(source_kind, f"{config_context} source_kind")
+        _require_string(conversion_stage, f"{config_context} conversion_stage")
+    elif source_kind is not None or conversion_stage is not None:
+        raise ValueError(
+            f"{config_context} source_kind and conversion_stage are only valid for generated-myst"
+        )
+    if "algebra_enabled" in value:
+        _require_bool(value["algebra_enabled"], f"{config_context} algebra_enabled")
+    if "code_cell_languages" in value:
+        languages = value["code_cell_languages"]
+        if not isinstance(languages, list) or not all(
+            isinstance(language, str) and language.strip() for language in languages
+        ):
+            raise ValueError(f"{config_context} code_cell_languages must contain non-empty strings")
     _require_bool(value["missing_label_strict"], f"{config_context} missing_label_strict")
     _require_bool(value["inline_math"], f"{config_context} inline_math")
     _require_bool(value["symbols"], f"{config_context} symbols")

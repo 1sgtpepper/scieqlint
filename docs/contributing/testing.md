@@ -57,11 +57,12 @@ metadata. Non-equation display math, multiple-equation wrappers, format wrappers
 synthetic fixtures cannot inflate the stable accuracy threshold.
 Keep expected diagnostics human-authored and execute cases through
 `scieqlint.api.check_documents`; do not derive expectations from the implementation
-under test. Unknown, missing, and duplicate fields are errors. The checked-in corpus
-currently has 2 independently labeled equations (one positive and one negative), so
-the stable gate remains blocked at 2/100. Canary comparisons and precision/recall
-release gates remain out of scope until the corpus is larger and baseline variance has
-been measured.
+under test. Profile-specific cases record the source provenance, conversion settings,
+output target, and project policy needed to reproduce their public behavior. Unknown,
+missing, and duplicate fields are errors. The checked-in corpus currently has 2
+independently labeled equations (one positive and one negative), so the stable gate
+remains blocked at 2/100. Canary comparisons and precision/recall release gates remain
+out of scope until the corpus is larger and baseline variance has been measured.
 
 ## Bounded property checks
 
