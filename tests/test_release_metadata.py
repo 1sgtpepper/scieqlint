@@ -154,7 +154,10 @@ def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     assert isinstance(triggers, dict)
     push = triggers["push"]
     assert isinstance(push, dict)
-    assert push["tags"] == ["v[0-9]+.[0-9]+.[0-9]+"]
+    assert push["tags"] == ["v*"]
+
+    build = _workflow_job(workflow, "build")
+    _assert_local_release_ref_guard(_step_run(_workflow_step(build, step_id="verify-release-ref")))
 
     publish = _workflow_job(workflow, "publish")
     assert publish["if"] == "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')"
