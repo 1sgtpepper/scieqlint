@@ -130,33 +130,51 @@ class ReferenceQueryView:
             normalized = member.normalized_path or member.path
             normalized_members[normalized.as_posix()].append(member.document_id)
 
+        raw_member_index = {path: tuple(document_ids) for path, document_ids in raw_members.items()}
+        normalized_member_index = {
+            path: tuple(document_ids) for path, document_ids in normalized_members.items()
+        }
+        normalized_member_ids = {
+            path: frozenset(document_ids) for path, document_ids in normalized_members.items()
+        }
+
         mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
         target_facts = self._target_facts()
         target_index = self._target_identity_index(target_facts)
         raw_target_index: dict[tuple[str, str], list[tuple[int, TargetFact]]] = defaultdict(list)
         for order, fact in enumerate(target_facts):
             raw_target_index[(fact.document_id, fact.normalized_label)].append((order, fact))
+        normalized_target_cache: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]] = {}
+        mismatch_cache: dict[tuple[str, NormalizedReferenceTarget], bool] = {}
         for ref in self.snapshot.generic_refs:
             if ref.resolved_raw_target_path is None or ref.normalized_target_path is None:
                 continue
-            raw_matches = tuple(raw_members.get(ref.resolved_raw_target_path, ()))
-            normalized_matches = tuple(
-                normalized_members.get(ref.normalized_target_path.as_posix(), ())
-            )
+            raw_matches = raw_member_index.get(ref.resolved_raw_target_path, ())
+            normalized_path = ref.normalized_target_path.as_posix()
+            normalized_matches = normalized_member_index.get(normalized_path, ())
             identity = normalized_reference_target(ref)
-            normalized_targets = tuple(
-                fact
-                for fact in target_index.get(identity, ())
-                if fact.document_id in normalized_matches
-            )
-            raw_target_candidates = [
-                candidate
-                for document_id in dict.fromkeys(raw_matches)
-                for candidate in raw_target_index.get((document_id, identity[1]), ())
-            ]
-            raw_target_candidates.sort(key=lambda candidate: candidate[0])
-            raw_targets = tuple(fact for _order, fact in raw_target_candidates)
-            if raw_targets != normalized_targets and normalized_targets:
+            normalized_targets = normalized_target_cache.get(identity)
+            if normalized_targets is None:
+                member_ids = normalized_member_ids.get(normalized_path, frozenset())
+                normalized_targets = tuple(
+                    fact
+                    for fact in target_index.get(identity, ())
+                    if fact.document_id in member_ids
+                )
+                normalized_target_cache[identity] = normalized_targets
+            resolution = (ref.resolved_raw_target_path, identity)
+            mismatch = mismatch_cache.get(resolution)
+            if mismatch is None:
+                raw_target_candidates = [
+                    candidate
+                    for document_id in dict.fromkeys(raw_matches)
+                    for candidate in raw_target_index.get((document_id, identity[1]), ())
+                ]
+                raw_target_candidates.sort(key=lambda candidate: candidate[0])
+                raw_targets = tuple(fact for _order, fact in raw_target_candidates)
+                mismatch = raw_targets != normalized_targets and bool(normalized_targets)
+                mismatch_cache[resolution] = mismatch
+            if mismatch:
                 mismatches.append((ref, raw_matches, normalized_matches))
         return tuple(mismatches)
 
