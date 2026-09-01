@@ -519,12 +519,16 @@ def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
 
 
 def test_path_normalization_mismatch_indexes_targets_once_for_all_references(monkeypatch) -> None:
+    target_count = 32
     source = doc(
         "chapters/index.md",
-        "[first](./energy.md#eq-energy) [second](./energy.md#eq-energy) "
-        "[third](./energy.md#eq-energy)\n",
+        " ".join(f"[reference {index}](./energy.md#shared)" for index in range(target_count))
+        + "\n",
     )
-    target = doc("chapters/energy.md", "(eq-energy)=\n# Energy\n")
+    target = doc(
+        "chapters/energy.md",
+        "\n".join(f"(shared)=\n## Energy {index}" for index in range(target_count)) + "\n",
+    )
     snapshot = MySTFrontend().lower((source, target))
 
     class CountingTargets(tuple):
@@ -534,17 +538,50 @@ def test_path_normalization_mismatch_indexes_targets_once_for_all_references(mon
             type(self).iterations += 1
             return super().__iter__()
 
+    class CountingBucket(tuple):
+        iterations = 0
+
+        def __iter__(self):
+            type(self).iterations += 1
+            return super().__iter__()
+
     counted_targets = CountingTargets(ReferenceQueryView(snapshot)._target_facts())
+    target_identity = (PurePosixPath("chapters/energy.md"), "shared")
+    target_identity_index = ReferenceQueryView._target_identity_index
 
     def target_facts(_view: ReferenceQueryView) -> tuple:
         return counted_targets
 
+    def counting_target_identity_index(
+        view: ReferenceQueryView,
+        targets: tuple,
+    ) -> dict:
+        index = target_identity_index(view, targets)
+        index[target_identity] = CountingBucket(index[target_identity])
+        return index
+
     monkeypatch.setattr(ReferenceQueryView, "_target_facts", target_facts)
+    monkeypatch.setattr(
+        ReferenceQueryView,
+        "_target_identity_index",
+        counting_target_identity_index,
+    )
 
-    mismatches = ReferenceQueryView(snapshot).path_normalization_mismatches()
+    references = ReferenceQueryView(snapshot)
+    assert len(references.ambiguous_generic_refs()) == target_count
+    assert references.unresolved_generic_refs() == ()
 
-    assert len(mismatches) == 3
+    CountingTargets.iterations = 0
+    CountingBucket.iterations = 0
+    mismatches = references.path_normalization_mismatches()
+
+    assert len(mismatches) == target_count
+    assert all(
+        raw_matches == () and normalized_matches == ("chapters/energy.md",)
+        for _ref, raw_matches, normalized_matches in mismatches
+    )
     assert CountingTargets.iterations == 2
+    assert CountingBucket.iterations <= 1
 
 
 def test_path_and_fragment_identity_selects_the_referenced_member() -> None:
