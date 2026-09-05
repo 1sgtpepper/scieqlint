@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 
 from scieqlint.facts.base import FactBase
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import (
+    DisplayMathFact,
+    InlineMathFact,
+    MathMacroDeclarationFact,
+    MathMacroUseFact,
+    UnknownMathFact,
+)
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import (
@@ -46,6 +52,8 @@ class FactSnapshot:
     crossref_metadata: tuple[CrossrefMetadataFact, ...] = ()
     reference_display_text: tuple[ReferenceDisplayTextFact, ...] = ()
     inline_math: tuple[InlineMathFact, ...] = ()
+    math_macro_declarations: tuple[MathMacroDeclarationFact, ...] = ()
+    math_macro_uses: tuple[MathMacroUseFact, ...] = ()
     display_math: tuple[DisplayMathFact, ...] = ()
     unknown_math: tuple[UnknownMathFact, ...] = ()
     project_members: tuple[ProjectMemberFact, ...] = ()
@@ -71,6 +79,8 @@ class FactSnapshot:
             *self.crossref_metadata,
             *self.reference_display_text,
             *self.inline_math,
+            *self.math_macro_declarations,
+            *self.math_macro_uses,
             *self.display_math,
             *self.unknown_math,
             *self.project_members,
@@ -97,6 +107,8 @@ class FactSnapshot:
             crossref_metadata=self.crossref_metadata,
             reference_display_text=self.reference_display_text,
             inline_math=self.inline_math,
+            math_macro_declarations=self.math_macro_declarations,
+            math_macro_uses=self.math_macro_uses,
             display_math=self.display_math,
             unknown_math=(*self.unknown_math, *unknown_math),
             project_members=self.project_members,
