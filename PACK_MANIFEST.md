@@ -247,6 +247,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/generated_myst_profile_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
+- `tests/fixtures/bad/notebook_crossrefs_bad.ipynb`
 - `tests/fixtures/bad/preset_mechanics_bad.md`
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
@@ -269,6 +270,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/inline_math_accessibility.md`
 - `tests/fixtures/good/markdown_lexical_precedence.md`
 - `tests/fixtures/good/myst_good.md`
+- `tests/fixtures/good/notebook_crossrefs_good.ipynb`
 - `tests/fixtures/good/notebook_facts.ipynb`
 - `tests/fixtures/good/references_good.md`
 - `tests/fixtures/good/symbol_directives.md`
@@ -280,6 +282,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/github/crossref_metadata.txt`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
+- `tests/golden/github/notebook_crossrefs_bad.txt`
 - `tests/golden/github/typst_portability_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
@@ -290,6 +293,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/generated_formula_placeholders.json`
 - `tests/golden/json/generated_formula_quality.json`
 - `tests/golden/json/inline_math_accessibility.json`
+- `tests/golden/json/notebook_crossrefs_bad.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/json/typst_portability_bad.json`
@@ -298,6 +302,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/sarif/inline_math_accessibility.sarif`
+- `tests/golden/sarif/notebook_crossrefs_bad.sarif`
 - `tests/golden/sarif/typst_portability_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
@@ -309,6 +314,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/generated_equation_like_text.txt`
 - `tests/golden/text/generated_formula_quality.txt`
 - `tests/golden/text/generated_formula_text.txt`
+- `tests/golden/text/notebook_crossrefs_bad.txt`
 - `tests/golden/text/typst_portability_bad.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`

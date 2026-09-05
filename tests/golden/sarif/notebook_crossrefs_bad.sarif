@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "cell:0",
+                  "kind": "module"
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 18,
+                  "endLine": 22,
+                  "startColumn": 17,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "cell renderings are incompatible with cross-reference options: cell 'fig-first' at output 0 combines renderings='[\"light\",\"dark\"]' with ['label', 'fig-cap']"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c097add4b8eb42ef3abf7251fe57d19699ebd84be1668c36d614224f217a0599"
+          },
+          "properties": {
+            "crossref_options": "label,fig-cap",
+            "label": "fig-first",
+            "output_index": "0",
+            "profile": "notebook-crossrefs",
+            "provenanceIds": [
+              "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0",
+              "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::0"
+            ],
+            "renderings": "[\"light\",\"dark\"]",
+            "source_format": "notebook",
+            "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0"
+          },
+          "ruleId": "PORT004"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "cell:0",
+                  "kind": "module"
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 18,
+                  "endLine": 32,
+                  "startColumn": 17,
+                  "startLine": 23
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "cell renderings are incompatible with cross-reference options: cell 'lst-second' at output 1 combines renderings='[\"light\",\"dark\"]' with ['lst-label', 'lst-cap']"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "d02c2bf2248d796eb4a1ede0420ef4ba9cbdbb4ae4c7494383b76cfe96d15726"
+          },
+          "properties": {
+            "crossref_options": "lst-label,lst-cap",
+            "label": "lst-second",
+            "output_index": "1",
+            "profile": "notebook-crossrefs",
+            "provenanceIds": [
+              "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0",
+              "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0::output::1"
+            ],
+            "renderings": "[\"light\",\"dark\"]",
+            "source_format": "notebook",
+            "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::0"
+          },
+          "ruleId": "PORT004"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "cell:1",
+                  "kind": "module"
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 10,
+                  "endLine": 58,
+                  "startColumn": 9,
+                  "startLine": 38
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "cell renderings are incompatible with cross-reference options: cell 'lst-source' combines renderings='[\"light\",\"dark\"]' with ['lst-label', 'fig-subcap', 'lst-cap', 'tbl-subcap']"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "703ea50381469df295a6474cb6e0d050c015d6ef43ec881e1c9c2017f07d4db1"
+          },
+          "properties": {
+            "crossref_options": "lst-label,fig-subcap,lst-cap,tbl-subcap",
+            "label": "lst-source",
+            "profile": "notebook-crossrefs",
+            "provenanceIds": [
+              "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1"
+            ],
+            "renderings": "[\"light\",\"dark\"]",
+            "source_format": "notebook",
+            "subject_fact_id": "tests/fixtures/bad/notebook_crossrefs_bad.ipynb::notebook-cell::1"
+          },
+          "ruleId": "PORT004"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "A notebook or executable Markdown cell combines renderings with a label or caption option that creates a cross-reference."
+              },
+              "id": "PORT004",
+              "name": "PORT004",
+              "shortDescription": {
+                "text": "cell renderings are incompatible with cross-reference options"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -732,6 +732,15 @@ Required baseline:
 - markdown-cell scanning,
 - cell index in JSON.
 
+#### Unreleased notebook cross-reference checks
+
+The opt-in `notebook-crossrefs` profile reports `PORT004` when declarative
+renderings combine with typed labels or caption options on code cells and recorded
+outputs. It never executes code. Output `label` takes precedence over `lst-label`;
+each affected output retains its identity and exact JSON source span. Equivalent
+metadata and renderings without cross-reference options remain quiet. Full facts
+remain available while diagnostic rendering values use a 256-character preview.
+
 ### 5.7 v0.1.5 — SARIF and thin GitHub Action
 
 Goal: support GitHub code scanning and copy-pasteable CI without changing analysis behavior.
