@@ -58,6 +58,14 @@ def scan_formula_candidates(
         assert math_fact.document_id == document.path.as_posix()
         assert math_fact.span is not None
         segment = document.text[math_fact.span.start : math_fact.span.end]
+        text = segment
+        if isinstance(math_fact, DisplayMathFact) and math_fact.option_prefix_length:
+            prefix = math_fact.option_prefix_length
+            # Options are opaque, but masking must preserve source locations.
+            text = (
+                "".join(char if char in "\r\n" else " " for char in segment[:prefix])
+                + segment[prefix:]
+            )
         facts.append(
             GeneratedFormulaFact(
                 fact_id=(
@@ -69,7 +77,7 @@ def scan_formula_candidates(
                 raw=segment,
                 confidence="source",
                 kind="candidate",
-                text=segment,
+                text=text,
                 candidate_kind="formula-text",
                 source_math_fact_id=math_fact.fact_id,
             )

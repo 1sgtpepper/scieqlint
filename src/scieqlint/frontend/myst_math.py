@@ -469,6 +469,12 @@ def _math_fact_from_fence(
     body_text = document.text[fence.body_span.start : fence.body_span.end]
     body = body_text.strip()
     fact_id = f"{fence.fact_id}::math"
+    option_prefix_length = 0
+    if fence.info_string == "{math}":
+        for _line_start, line_end, line in directive_option_prefix_lines(document, fence):
+            if MYST_OPTION_RE.match(line) is None:
+                break
+            option_prefix_length = line_end - fence.body_span.start
     labels = list(_tex_label_facts(document, smap, fact_id, fence.body_span.start, body_text))
     if fence.info_string == "{math}":
         labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
@@ -480,6 +486,7 @@ def _math_fact_from_fence(
             raw=body,
             body=body,
             container="myst-math-directive" if fence.info_string == "{math}" else "fenced-math",
+            option_prefix_length=option_prefix_length,
             label_fact_ids=tuple(label.fact_id for label in labels),
             complete=fence.is_closed,
         ),
