@@ -1,17 +1,38 @@
 from __future__ import annotations
 
+import json
 import sys
+from dataclasses import replace
 from pathlib import PurePosixPath
+
+import pytest
 
 from scieqlint.check.algebra import check_algebra
 from scieqlint.config.model import Config
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.markdown import MarkdownScanner
+from scieqlint.scan.notebook import NotebookScanner
 
 
 def _first_block(text: str):
     document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
     return MarkdownScanner().scan(document, Config()).blocks[0]
+
+
+def _first_notebook_block(text: str):
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": text}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+    return document, NotebookScanner().scan(document, Config()).blocks[0]
 
 
 def test_false_polynomial_identity_reports_residual() -> None:
@@ -32,6 +53,42 @@ def test_line_separated_equations_are_checked_independently() -> None:
     assert diagnostics[0].equation == "y = y + 1"
     assert diagnostics[0].span is not None
     assert (diagnostics[0].span.line, diagnostics[0].span.col) == (3, 1)
+
+
+@pytest.mark.parametrize(
+    "separator", ["\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"]
+)
+def test_notebook_algebra_spans_follow_splitlines(separator: str) -> None:
+    document, block = _first_notebook_block(f"$$\nx = x{separator}y = y + 1\n$$\n")
+
+    [diagnostic] = check_algebra(block)
+
+    assert diagnostic.code == "ALG001"
+    assert diagnostic.span is not None
+    assert (diagnostic.span.cell, diagnostic.span.cell_line) == (0, 3)
+    assert document.text[diagnostic.span.start : diagnostic.span.end] == "y = y + 1"
+
+
+def test_notebook_algebra_span_work_is_linear_in_equation_count() -> None:
+    equation_count = 128
+    _document, block = _first_notebook_block(
+        "$$\n" + "\n".join(f"x{index} = x{index} + 1" for index in range(equation_count)) + "\n$$\n"
+    )
+    slice_work = 0
+
+    class SliceCountingText(str):
+        def __getitem__(self, key):
+            nonlocal slice_work
+            value = super().__getitem__(key)
+            if isinstance(key, slice):
+                slice_work += len(value)
+            return value
+
+    diagnostics = check_algebra(replace(block, text=SliceCountingText(block.text)))
+
+    assert len(diagnostics) == equation_count
+    assert all(diagnostic.code == "ALG001" for diagnostic in diagnostics)
+    assert slice_work <= len(block.text)
 
 
 def test_line_equation_span_preserves_indentation_after_label() -> None:

@@ -1,8 +1,8 @@
 # Implementation Status
 
-This repository contains the current v1.1.0 analyzer and its implementation status.
+The development tree uses package version v1.1.0 and includes unreleased changes.
 
-The included Python package is a v1.1.0 implementation. It can:
+The analyzer can:
 
 - install as a Python package,
 - expose `scieqlint` and `python -m scieqlint`,
@@ -15,6 +15,9 @@ The included Python package is a v1.1.0 implementation. It can:
 - check simple scalar polynomial identities and configured dimensions,
 - report duplicate labels, missing equation and generic references, and undefined
   symbols from explicit directives,
+- preserve source-neutral cross-reference metadata facts and the `REF007` conflict
+  contract; built-in standalone cross-boundary producer inputs remain deferred to
+  #372/#356,
 - apply suppressions and diagnostic baselines,
 - export a deterministic equation label/reference graph,
 - provide package resources, docs, schemas, examples, and CI templates.

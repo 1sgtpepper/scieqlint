@@ -164,6 +164,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/facts/snapshot.py`
 - `src/scieqlint/facts/structure.py`
 - `src/scieqlint/frontend/__init__.py`
+- `src/scieqlint/frontend/crossref.py`
 - `src/scieqlint/frontend/generated.py`
 - `src/scieqlint/frontend/myst.py`
 - `src/scieqlint/frontend/myst_blocks.py`
@@ -219,6 +220,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/scan/latex.py`
 - `src/scieqlint/scan/markdown.py`
 - `src/scieqlint/scan/notebook.py`
+- `src/scieqlint/scan/notebook_input.py`
+- `src/scieqlint/scan/notebook_json.py`
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
 - `src/scieqlint/schema/diagnostic.py`
@@ -267,12 +270,14 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/fixtures/jats/inline_formula_converted.md`
 - `tests/golden/github/cross_format_references.txt`
+- `tests/golden/github/crossref_metadata.txt`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/github/typst_portability_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/cross_format_references.json`
+- `tests/golden/json/crossref_metadata.json`
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
@@ -282,6 +287,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/json/typst_portability_bad.json`
 - `tests/golden/sarif/cross_format_references.sarif`
+- `tests/golden/sarif/crossref_metadata.sarif`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/sarif/inline_math_accessibility.sarif`
@@ -289,6 +295,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
 - `tests/golden/text/cross_format_references.txt`
+- `tests/golden/text/crossref_metadata.txt`
 - `tests/golden/text/famous_bad.txt`
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
@@ -311,6 +318,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`
+- `tests/test_crossref_metadata_facts.py`
 - `tests/test_crossref_path_normalization.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`

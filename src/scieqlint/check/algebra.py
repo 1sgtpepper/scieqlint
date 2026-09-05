@@ -24,6 +24,7 @@ class _EquationLine:
     text: str
     start: int
     end: int
+    line_delta: int
 
 
 def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
@@ -68,14 +69,14 @@ def _equation_lines(text: str) -> tuple[_EquationLine, ...]:
     masked = _mask_labels(text)
     equations: list[_EquationLine] = []
     offset = 0
-    for line in masked.splitlines(keepends=True):
+    for line_delta, line in enumerate(masked.splitlines(keepends=True)):
         line_end = offset + len(line)
         content_end = line_end - (1 if line.endswith("\n") else 0)
         content = masked[offset:content_end]
         start = offset + len(content) - len(content.lstrip())
         end = offset + len(content.rstrip())
         if "=" in content[start - offset : end - offset]:
-            equations.append(_EquationLine(masked[start:end], start, end))
+            equations.append(_EquationLine(masked[start:end], start, end, line_delta))
         offset = line_end
     return tuple(equations)
 
@@ -264,6 +265,26 @@ def _spaces_for_match(match: re.Match[str]) -> str:
 
 
 def _equation_span(block: MathBlock, equation: _EquationLine) -> SourceSpan:
+    if block.span.segments and len(block.span.segments) == len(block.text):
+        segments = block.span.segments[equation.start : equation.end]
+        if segments:
+            first = segments[0]
+            last = segments[-1]
+            return replace(
+                block.span,
+                start=first.start,
+                end=last.end,
+                line=first.line,
+                col=first.col,
+                end_line=last.end_line,
+                end_col=last.end_col,
+                cell_line=(
+                    None
+                    if block.span.cell_line is None
+                    else block.span.cell_line + equation.line_delta
+                ),
+                segments=segments,
+            )
     if block.span.end - block.span.start != len(block.text):
         return block.span
 

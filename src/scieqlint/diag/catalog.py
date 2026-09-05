@@ -181,9 +181,9 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "INP003": DiagnosticInfo(
         "INP003",
         Severity.WARNING,
-        "file exceeded configured limit",
+        "input exceeds fixed safety limit",
         "v0.1.0",
-        "The file was skipped because it exceeded a configured limit.",
+        "The input was skipped because it exceeded a fixed safety limit.",
     ),
     "CFG001": DiagnosticInfo(
         "CFG001",
@@ -323,6 +323,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Unreleased",
         "A local cross-document target resolves only after lexical project-path "
         "normalization, such as removal of a './' component.",
+    ),
+    "REF007": DiagnosticInfo(
+        "REF007",
+        Severity.WARNING,
+        "conflicting cross-reference metadata",
+        "Unreleased",
+        "Two source or engine-output boundaries describe the same logical target "
+        "with different reference kind or display metadata.",
     ),
     "PORT001": DiagnosticInfo(
         "PORT001",

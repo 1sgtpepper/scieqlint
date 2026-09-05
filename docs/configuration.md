@@ -89,6 +89,15 @@ generated-document gates where unsupported or garbled formula output should fail
 CI instead of being advisory. It is currently the only accepted key under
 `[parser]`.
 
+## Notebook resource limits
+
+Notebook parsing applies fixed safety bounds at the already-loaded
+`SourceDocument` boundary. The normalized `SourceDocument.text` may contain at
+most 1048576 UTF-8 bytes, and the aggregate normalized source across Markdown
+cells may contain at most 100000 logical characters. These bounds are not current
+configuration options. Exceeding either bound skips notebook analysis and emits
+`INP003`; excessive JSON nesting is rejected with deterministic `INP001`.
+
 ## Project config
 
 ```toml
@@ -291,8 +300,10 @@ keys documented on this page. Unknown tables and keys are configuration errors.
 `[vars]` and `[aliases]` are dynamic mappings; their entries are validated as
 dimension names and aliases rather than as fixed option names.
 
-The severity overrides and resource limits shown in `SPEC.md` are future
-specification surface, not accepted settings in the current loader. Use
+The severity overrides and general resource limits shown in `SPEC.md` are future
+configuration surface, not accepted settings in the current loader. The fixed
+notebook safety bounds documented above are scanner safety guards and cannot be
+overridden. Use
 documented CLI/config toggles such as `--strict-unknowns`,
 `[parser].strict_unknowns`, `[checks.references].missing_label_strict`, and
 `[checks.dimension].unknown_variables` for current behavior.
