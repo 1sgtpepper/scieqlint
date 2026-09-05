@@ -41,6 +41,29 @@ To replay against an existing base checkout directly:
 python tools/public_regression_replay.py --base ../scieqlint-base
 ```
 
+## Accuracy corpus
+
+`benchmarks/accuracy/corpus-v1.json` is strict versioned JSON. Every case has a
+positive or negative label, one target rule, source format, scientific domain,
+provenance, and license or synthetic status. A non-synthetic case must also carry
+an `independent_equation_id` and contain exactly one equality-bearing line under the
+checkers' equation semantics. Its identity preserves checker token boundaries and
+unrecognized non-whitespace text while normalizing checker-equivalent grouping braces
+and lexically insignificant spacing. Scanner-owned LaTeX alignment markers, paths,
+source format, notebook source segmentation, and inert notebook metadata do not change
+that identity; literal Markdown ampersands and identifier boundaries do. Equivalent
+identities must reuse one ID, and repeated IDs must keep the same equation and label/rule
+metadata. Non-equation display math, multiple-equation wrappers, format wrappers, and
+synthetic fixtures cannot inflate the stable accuracy threshold.
+Keep expected diagnostics human-authored and execute cases through
+`scieqlint.api.check_documents`; do not derive expectations from the implementation
+under test. Profile-specific cases record the source provenance, conversion settings,
+output target, and project policy needed to reproduce their public behavior. Unknown,
+missing, and duplicate fields are errors. The checked-in corpus currently has 2
+independently labeled equations (one positive and one negative), so the stable gate
+remains blocked at 2/100. Canary comparisons and precision/recall release gates remain
+out of scope until the corpus is larger and baseline variance has been measured.
+
 ## Bounded property checks
 
 The pull-request suite includes at most three deterministic Hypothesis properties for

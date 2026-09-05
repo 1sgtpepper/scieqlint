@@ -1,0 +1,2258 @@
+{
+  "format_version": 1,
+  "cases": [
+    {
+      "id": "polynomial-good-square",
+      "release": "v0.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "polynomial-good-square.md",
+          "format": "markdown",
+          "content": "$$\n(a+b)^2 = a^2 + 2*a*b + b^2\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "famous-bad-square",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "famous-bad-square.md",
+          "format": "markdown",
+          "content": "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "trig-unsupported",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "PARSE021",
+      "source_format": "markdown",
+      "scientific_domain": "trigonometry",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "trig-unsupported.md",
+          "format": "markdown",
+          "content": "$$\n\\sin(x)^2 + \\cos(x)^2 = 1\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PARSE021"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "trig-rule-negative-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PARSE021",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "trig-rule-negative-control.md",
+          "format": "markdown",
+          "content": "$$\nx + x = 2*x\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "incomplete-equation",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "incomplete-equation.md",
+          "format": "markdown",
+          "content": "$$\nx =\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "supported-equation",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "supported-equation.md",
+          "format": "markdown",
+          "content": "$$\nx = x\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "missing-myst-ref",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF002",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "missing-myst-ref.md",
+          "format": "markdown",
+          "content": "See {eq}`missing`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "tokenized-markdown-contexts",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF002",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "tokenized-markdown-contexts.md",
+          "format": "markdown",
+          "content": "Literal \\{eq}`escaped-role`.\nLiteral \\[Eq.](#escaped-link).\n![equation](#image-target)\n[site](https://example.invalid/{eq}`destination-target`)\n[site](https://example.invalid/ \"{eq}`title-target`\")\n[See {eq}`active-label`](https://example.invalid/)"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "fenced-target-anchor",
+      "release": "v0.1.0",
+      "label": "negative",
+      "rule": "REF004",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "fenced-target-anchor.md",
+          "format": "markdown",
+          "content": "(tip)=\n```{note}\nKeep this note.\n```\n\nSee {ref}`tip` and [the note](#tip).\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "missing-generic-reference",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "REF004",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "missing-generic-reference.md",
+          "format": "markdown",
+          "content": "See {ref}`missing-target`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF004"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "markdown-lexical-precedence",
+      "release": "v0.1.0",
+      "label": "negative",
+      "rule": "SCAN001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "markdown-lexical-precedence.md",
+          "format": "markdown",
+          "content": "Code ``$not = math$ `inner` tail``.\n\n```python\n$$\nhidden = hidden\n```\n\n```python\ncode\n````\n$x=x+1$\n~~~python\nstill inside\n~~~\n\n<div>\n$$\nhidden = hidden\n</div>\n\n$$\nE = m c^2\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "dimension-zero-config-quiet",
+      "release": "v0.1.2",
+      "label": "negative",
+      "rule": "DIM010",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "dimension-zero-config-quiet.md",
+          "format": "markdown",
+          "content": "$$\nF = m*a\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "mechanics-force-good",
+      "release": "v0.1.2",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-force-good.md",
+          "format": "markdown",
+          "content": "$$\nF = m*a\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "m": "M",
+          "a": "L T^-2",
+          "F": "M L T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "mechanics-energy-good",
+      "release": "v0.1.2",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-energy-good.md",
+          "format": "markdown",
+          "content": "$$\nE = m*c^2\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "m": "M",
+          "c": "L T^-1",
+          "E": "M L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "mechanics-energy-bad",
+      "release": "v0.1.2",
+      "label": "positive",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-energy-bad.md",
+          "format": "markdown",
+          "content": "$$\nE = m*c\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "m": "M",
+          "c": "L T^-1",
+          "E": "M L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIM001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "mechanics-addition-bad",
+      "release": "v0.1.2",
+      "label": "positive",
+      "rule": "DIM002",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-addition-bad.md",
+          "format": "markdown",
+          "content": "$$\nx + t = x\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "x": "L",
+          "t": "T"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIM002"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "mechanics-addition-good",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM002",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-addition-good.md",
+          "format": "markdown",
+          "content": "$$\nx + y = x + y\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "x": "L",
+          "y": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "mechanics-unknown-warn",
+      "release": "v0.1.2",
+      "label": "positive",
+      "rule": "DIM010",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "mechanics-unknown-warn.md",
+          "format": "markdown",
+          "content": "$$\nF = m*j\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "m": "M",
+          "F": "M L T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIM010"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-markdown-bad-equation",
+      "release": "v0.1.4",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-markdown-bad-equation.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "notebook-code-cell-ignored",
+      "release": "v0.1.4",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-code-cell-ignored.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "code",
+                "metadata": {},
+                "execution_count": 1,
+                "outputs": [],
+                "source": "$$\n(a+b)^2 = a^2 + b^2\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-schema-best-effort",
+      "release": "v0.1.4",
+      "label": "positive",
+      "rule": "INP002",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-schema-best-effort.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nE = m c^2\n$$\n"
+              }
+            ],
+            "metadata": {}
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "INP002",
+        "INP002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-schema-valid",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "INP002",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-schema-valid.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nE = m c^2\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "latex-equation-bad",
+      "release": "v0.1.3",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-equation-bad.tex",
+          "format": "latex",
+          "content": "\\begin{equation}\n(a+b)^2 = a^2 + b^2\n\\end{equation}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "latex-align-good",
+      "release": "v0.1.3",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "mechanics",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-align-good.tex",
+          "format": "latex",
+          "content": "\\begin{align}\nE &= m c^2 \\\\[3pt]\nF &= m a\n\\end{align}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "latex-missing-reference",
+      "release": "v0.1.3",
+      "label": "positive",
+      "rule": "REF002",
+      "source_format": "latex",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-missing-reference.tex",
+          "format": "latex",
+          "content": "See \\eqref{missing}.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "latex-cross-format-reference",
+      "release": "v0.1.3",
+      "label": "negative",
+      "rule": "REF002",
+      "source_format": "latex",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-cross-format-reference.tex",
+          "format": "latex",
+          "content": "See \\eqref{energy}.\n"
+        },
+        {
+          "path": "latex-cross-format-reference.md",
+          "format": "markdown",
+          "content": "$$\nE = m c^2\n$$ {#energy}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "latex-unterminated-equation",
+      "release": "v0.1.3",
+      "label": "positive",
+      "rule": "SCAN001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-unterminated-equation.tex",
+          "format": "latex",
+          "content": "\\begin{equation}\na = a\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "SCAN001"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "latex-verbatim-transitions",
+      "release": "v0.1.3",
+      "label": "negative",
+      "rule": "SCAN001",
+      "source_format": "latex",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "latex-verbatim-transitions.tex",
+          "format": "latex",
+          "content": "\\begin{verbatim}%\\end{verbatim} % \\begin{equation}x = x + 1\\end{equation}\n\\begin{verbatim}\n\\begin{equation}\ny = y + 1\n\\end{equation}\n\\end{verbatim}\n\\begin{equation}\nE = m c^2\n\\end{equation}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "heading-space-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "STR001",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "heading-space-positive.md",
+          "format": "markdown",
+          "content": "#Bad\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "STR001"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "heading-space-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "STR001",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "heading-space-negative.md",
+          "format": "markdown",
+          "content": "# Good\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "closed-fence-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "STR002",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "closed-fence-positive.md",
+          "format": "markdown",
+          "content": "```python\nprint(1)\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "STR002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "closed-fence-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "STR002",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "closed-fence-negative.md",
+          "format": "markdown",
+          "content": "```python\nprint(1)\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "fence-info-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "STR003",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "fence-info-positive.md",
+          "format": "markdown",
+          "content": "```\ntext\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "STR003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "fence-info-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "STR003",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "fence-info-negative.md",
+          "format": "markdown",
+          "content": "```text\ntext\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "heading-level-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "STR004",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "heading-level-positive.md",
+          "format": "markdown",
+          "content": "# Parent\n### Skipped\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "STR004"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "heading-level-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "STR004",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "heading-level-negative.md",
+          "format": "markdown",
+          "content": "# Parent\n## Child\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "top-level-heading-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "STR005",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "top-level-heading-positive.md",
+          "format": "markdown",
+          "content": "# First\n# Second\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "STR005"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "top-level-heading-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "STR005",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "top-level-heading-negative.md",
+          "format": "markdown",
+          "content": "# Only\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "directive-opener-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR001",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "directive-opener-positive.md",
+          "format": "markdown",
+          "content": "```{note\nBroken.\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR001"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "directive-opener-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR001",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "directive-opener-negative.md",
+          "format": "markdown",
+          "content": "```{note}\nValid.\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "directive-option-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR002",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "directive-option-positive.md",
+          "format": "markdown",
+          "content": "```{note}\n:class tip\nBroken.\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "directive-option-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR002",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "directive-option-negative.md",
+          "format": "markdown",
+          "content": "```{note}\n:class: tip\nValid.\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-language-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR010",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-language-positive.md",
+          "format": "markdown",
+          "content": "```{code-cell}\npass\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR010"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-language-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR010",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-language-negative.md",
+          "format": "markdown",
+          "content": "```{code-cell} python\npass\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "myst-role-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR011",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "myst-role-positive.md",
+          "format": "markdown",
+          "content": "See {ref}target.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR011"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "myst-role-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR011",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "myst-role-negative.md",
+          "format": "markdown",
+          "content": "(target)=\n# Target\n\nSee {ref}`target`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-tags-positive",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR012",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-tags-positive.md",
+          "format": "markdown",
+          "content": "```{code-cell} python\n:tags: [hide-input\npass\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR012"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-tags-negative",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR012",
+      "source_format": "markdown",
+      "scientific_domain": "document-structure",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-tags-negative.md",
+          "format": "markdown",
+          "content": "```{code-cell} python\n:tags: [hide-input]\npass\n```\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "generated-equation-like-text",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "GEN005",
+      "source_format": "markdown",
+      "scientific_domain": "generated-content",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "generated-equation-like-text.md",
+          "format": "markdown",
+          "content": "F(x) = x + 1\n",
+          "source_document_id": "source/generated-equation-like-text.pdf"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "GEN005"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "generated-equation-like-text-numeric-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "GEN005",
+      "source_format": "markdown",
+      "scientific_domain": "generated-content",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "generated-equation-like-text-numeric-control.md",
+          "format": "markdown",
+          "content": "1 < 2\n",
+          "source_document_id": "source/generated-equation-like-text-numeric-control.pdf"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "generated-literal-bracketed-latex",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "GEN003",
+      "source_format": "markdown",
+      "scientific_domain": "generated-content",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "generated-literal-bracketed-latex.md",
+          "format": "markdown",
+          "content": "[\n\\begin{array}{cc}\nx & y\n\\end{array}\n]\n",
+          "source_document_id": "source/generated-literal-bracketed-latex.pdf"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "GEN003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "generated-standard-display-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "GEN003",
+      "source_format": "markdown",
+      "scientific_domain": "generated-content",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "generated-standard-display-control.md",
+          "format": "markdown",
+          "content": "$$\nx = y\n$$\n",
+          "source_document_id": "source/generated-standard-display-control.pdf"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "generated-myst",
+        "source_kind": "pdf",
+        "conversion_stage": "pdf-to-markdown",
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-markdown-source-list-boundary",
+      "release": "v0.1.4",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-markdown-source-list-boundary.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                  "$$\nx = ",
+                  "1\n$$\n"
+                ]
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-code-output-facts",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PORT002",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-code-output-facts.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "Inline $x$.\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "quarto": {
+                    "label": "fig-facts",
+                    "fig-cap": "Fact output",
+                    "renderings": [
+                      "light",
+                      "dark"
+                    ]
+                  },
+                  "tags": [
+                    "hide-input"
+                  ]
+                },
+                "outputs": [
+                  {
+                    "data": {
+                      "image/png": "payload"
+                    },
+                    "metadata": {
+                      "label": "fig-output"
+                    },
+                    "output_type": "display_data"
+                  }
+                ],
+                "source": "raise RuntimeError('not executed')\n"
+              }
+            ],
+            "metadata": {
+              "kernelspec": {
+                "language": "python",
+                "name": "python3"
+              }
+            },
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "math-accessibility",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "notebook-accessibility-non-math-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT002",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "notebook-accessibility-non-math-control.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "Only prose and `code`.\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "math-accessibility",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-metadata-notebook-language-policy",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIR013",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-metadata-notebook-language-policy.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "code",
+                "metadata": {},
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python shell"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "brainfuck"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "bash"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "code-cell-metadata",
+        "algebra_enabled": false,
+        "code_cell_languages": [
+          "python",
+          "bash"
+        ],
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIR010",
+        "DIR013",
+        "DIR013"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "code-cell-metadata-known-languages-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIR013",
+      "source_format": "notebook",
+      "scientific_domain": "computational-science",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "code-cell-metadata-known-languages-control.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "python"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              },
+              {
+                "cell_type": "code",
+                "metadata": {
+                  "language": "bash"
+                },
+                "outputs": [],
+                "source": "pass\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "code-cell-metadata",
+        "algebra_enabled": false,
+        "code_cell_languages": [
+          "python",
+          "bash"
+        ],
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "raw-latex-equation-reference",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF002",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "raw-latex-equation-reference.md",
+          "format": "markdown",
+          "content": "\\begin{equation}\n[hidden](#hidden) {eq}`hidden`\n\\eqref{missing}\n\\end{equation}\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF002"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "duplicate-equation-reference",
+      "release": "v0.1.0",
+      "label": "positive",
+      "rule": "REF001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "duplicate-equation-reference.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#shared}\n$$\ny = 2$$ {#shared}\n\nSee {eq}`shared`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF001",
+        "REF011"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "duplicate-equation-reference-ref011",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "REF011",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "duplicate-equation-reference-ref011.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#shared}\n$$\ny = 2$$ {#shared}\n\nSee {eq}`shared`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "REF001",
+        "REF011"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "unique-equation-labels-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "REF001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "unique-equation-labels-control.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#first}\n$$\ny = 2$$ {#second}\n\nSee {eq}`first`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "resolved-equation-reference-control",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "REF011",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "resolved-equation-reference-control.md",
+          "format": "markdown",
+          "content": "$$\nx = 1$$ {#resolved}\n\nSee {eq}`resolved`."
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "cross-format-commonmark-equation-role",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PORT001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "cross-format-commonmark-equation-role.md",
+          "format": "markdown",
+          "content": "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "cross-format-references",
+        "output_profile": "commonmark",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT001"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "cross-format-myst-equation-role",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT001",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "cross-format-myst-equation-role.md",
+          "format": "markdown",
+          "content": "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "cross-format-references",
+        "output_profile": "myst",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "typst-markdown-unsupported-display-command",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PORT003",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "typst-markdown-unsupported-display-command.md",
+          "format": "markdown",
+          "content": "$$\n\\dfrac{x}{2}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "typst-portability",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "typst-latex-unsupported-display-command",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PORT003",
+      "source_format": "latex",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "typst-latex-unsupported-display-command.tex",
+          "format": "latex",
+          "content": "\\[\\argmin_x f(x)\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "typst-portability",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "PORT003"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "typst-supported-display-baseline",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "PORT003",
+      "source_format": "markdown",
+      "scientific_domain": "scientific-writing",
+      "provenance": "maintainer-authored",
+      "license": null,
+      "synthetic": true,
+      "documents": [
+        {
+          "path": "typst-supported-display-baseline.md",
+          "format": "markdown",
+          "content": "$$\nx = \\frac{a}{b}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": "typst-portability",
+        "algebra_enabled": false,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "openstax-electric-power-incorrect",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "electromagnetism",
+      "provenance": "https://openstax.org/books/physics/pages/19-multiple-choice",
+      "license": "CC-BY-4.0",
+      "synthetic": false,
+      "independent_equation_id": "openstax-electric-power-v-over-r-squared",
+      "documents": [
+        {
+          "path": "openstax-electric-power-incorrect.md",
+          "format": "markdown",
+          "content": "$$\nP = \\frac{V}{R^2}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "P": "M L^2 T^-3",
+          "R": "M L^2 T^-3 I^-2",
+          "V": "M L^2 T^-3 I^-1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [
+        "DIM001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "openstax-kinetic-energy",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "mechanics",
+      "provenance": "https://openstax.org/books/university-physics-volume-1/pages/7-2-kinetic-energy",
+      "license": "CC-BY-NC-SA-4.0",
+      "synthetic": false,
+      "independent_equation_id": "openstax-kinetic-energy-half-mv-squared",
+      "documents": [
+        {
+          "path": "openstax-kinetic-energy.md",
+          "format": "markdown",
+          "content": "$$\nK = \\frac{1}{2}m{v}^{2}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "K": "M L^2 T^-2",
+          "m": "M",
+          "v": "L T^-1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    }
+  ]
+}
