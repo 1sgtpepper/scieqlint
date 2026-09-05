@@ -55,7 +55,7 @@ def test_formula_artifact_after_directive_options_keeps_its_source_span() -> Non
         assert [diagnostic.code for diagnostic in result.diagnostics] == ["GEN002"]
         span = result.diagnostics[0].span
         assert span is not None
-        start = source.rindex("/C0 apod")
+        start = source.replace("\r\n", "\n").rindex("/C0 apod")
         assert (span.start, span.end, span.line, span.col, span.end_line, span.end_col) == (
             start,
             start + len("/C0 apod"),
