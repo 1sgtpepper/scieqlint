@@ -5,7 +5,7 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents, graph_documents
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ProjectConfig
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
@@ -494,6 +494,59 @@ def test_graph_edges_resolve_unique_label_targets() -> None:
     equation_ids = [node.id for node in graph.nodes if node.kind == "equation"]
     assert len(equation_ids) == 1
     assert [(edge.target, edge.target_label) for edge in graph.edges] == [(equation_ids[0], "only")]
+
+
+def test_graph_path_fragment_identity_distinguishes_same_labels_across_members() -> None:
+    source = _markdown(
+        "book/index.md",
+        "[first](./chapter-a.md#shared) [second](./chapter-b.md#shared)\n",
+    )
+    first_text = "$$\na = a\n$$ {#shared}\n"
+    second_text = "$$\nb = b\n$$ {#shared}\n"
+    first = _markdown("book/chapter-a.md", first_text)
+    second = _markdown("book/chapter-b.md", second_text)
+
+    graph = graph_documents(
+        [source, first, second],
+        config=Config(project=ProjectConfig(root=PurePosixPath("book"))),
+    )
+
+    assert [(edge.raw, edge.target, edge.target_label) for edge in graph.edges] == [
+        (
+            "[first](./chapter-a.md#shared)",
+            f"eq:book/chapter-a.md:{first_text.index('shared')}",
+            "shared",
+        ),
+        (
+            "[second](./chapter-b.md#shared)",
+            f"eq:book/chapter-b.md:{second_text.index('shared')}",
+            "shared",
+        ),
+    ]
+
+
+def test_graph_unresolved_path_target_keeps_legacy_label_id() -> None:
+    source = _markdown("book/index.md", "[missing](chapter.md#missing)\n")
+
+    graph = graph_documents(
+        [source],
+        config=Config(project=ProjectConfig(root=PurePosixPath("book"))),
+    )
+
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
+        ("label:missing", "missing")
+    ]
+
+
+def test_graph_fragment_only_reference_binds_to_its_source_member() -> None:
+    source_text = "$$\ne = e\n$$ {#shared}\nSee [local](#shared).\n"
+    document = _markdown("paper.md", source_text)
+
+    graph = graph_documents([document], config=Config())
+
+    assert [(edge.target, edge.target_label) for edge in graph.edges] == [
+        (f"eq:paper.md:{source_text.index('shared')}", "shared")
+    ]
 
 
 def test_duplicate_label_nodes_have_stable_unique_ids_and_ambiguous_edges() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import PurePosixPath
 from typing import Protocol
 
 from scieqlint.config.model import Config
@@ -65,6 +66,8 @@ class EquationReference:
     span: SourceSpan
     raw: str
     source: ReferenceSource
+    normalized_target_path: PurePosixPath | None = None
+    target_fragment: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

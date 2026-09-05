@@ -308,7 +308,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "ambiguous generic reference target",
         "v1.1.0",
-        "A supported MyST generic reference points to more than one target.",
+        "A supported generic reference points to more than one target.",
     ),
     "REF011": DiagnosticInfo(
         "REF011",
@@ -316,6 +316,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "ambiguous equation reference",
         "Unreleased",
         "A supported equation reference points to more than one equation target.",
+    ),
+    "REF006": DiagnosticInfo(
+        "REF006",
+        Severity.WARNING,
+        "cross-reference path resolves differently after project normalization",
+        "Unreleased",
+        "A local cross-document target resolves only after lexical project-path "
+        "normalization, such as removal of a './' component.",
     ),
     "PORT001": DiagnosticInfo(
         "PORT001",

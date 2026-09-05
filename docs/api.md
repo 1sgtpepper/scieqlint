@@ -45,6 +45,9 @@ syntax are expanded.
 do not read baseline files from disk. Path-based APIs preserve their analysis result
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
+Both document APIs reject repeated raw paths and distinct raw paths that normalize
+to the same canonical project member; canonical member identity is owned by
+`WorkspaceHost`.
 
 `accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
 accessibility ID to accessible text. IDs percent-encode the document path and trimmed
@@ -97,20 +100,20 @@ Programmatic provenance identifiers, source kinds, and conversion stages are
 trimmed when constructed; blank values raise `ValueError` before analysis.
 
 An absent origin means that source-to-generated identity is unknown, so the generated
-profile does not manufacture a provenance relationship. `check_documents()` with the
-`generated-myst`, `cross-format-references`, or `typst-portability` profiles requires
-each supplied `SourceDocument.path` to be unique; duplicate paths raise `ValueError`.
-Other profiles retain the ordinary document-lowering behavior.
+profile does not manufacture a provenance relationship.
 
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered
 relative to the current working directory by default. For `check_paths()`,
 `absolute_paths=True` retains an explicitly absolute input's lexical spelling
-without resolving symlinks; `graph_paths()` always uses the default presentation.
+without resolving symlinks; this presentation choice does not change
+project-relative reference resolution. `graph_paths()` always uses the default
+presentation.
 When an absolute input and the current directory have different native roots,
 default presentation raises `ValueError` rather than leak an absolute path or
-collapse distinct roots. Checks may opt into absolute paths; graph inputs must be
-expressed on the current root.
+collapse distinct roots. Checks may opt into absolute paths. Graph inputs may be
+absolute when they share the current native root; graph presentation has no
+absolute-path opt-in for cross-native-root inputs.
 
 `CheckResult` exposes `diagnostics`, `files_checked`, `math_blocks_checked`,
 `config_path`, `version`, `show_suppressed`, and `exit_code()`. `exit_code()`

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -809,6 +810,25 @@ def test_duplicate_label_is_error() -> None:
 def test_existing_reference_is_quiet() -> None:
     scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n")
     assert check_references(scan.labels, scan.references) == ()
+
+
+def test_legacy_reference_checker_defers_path_bearing_references() -> None:
+    scan = _scan("See {eq}`missing`.\n")
+    [reference] = scan.references
+    path_bearing_reference = replace(
+        reference,
+        normalized_target_path=PurePosixPath("other.md"),
+    )
+
+    assert check_references((), (path_bearing_reference,)) == ()
+
+
+def test_legacy_reference_checker_resolves_local_fragments_by_document() -> None:
+    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n")
+    [reference] = scan.references
+    local_fragment_reference = replace(reference, target_fragment="energy")
+
+    assert check_references(scan.labels, (local_fragment_reference,)) == ()
 
 
 def test_latex_missing_reference_warns() -> None:

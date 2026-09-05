@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from scieqlint.facts.reference import EquationRefFact, GenericRefFact
 from scieqlint.io.source import SourceDocument
+from scieqlint.io.workspace import WorkspaceHost, decode_project_fragment
 from scieqlint.markdown import (
     MarkdownLinkToken,
     MarkdownReferenceSnapshot,
@@ -29,6 +30,7 @@ def scan_refs(
     snapshot: MarkdownReferenceSnapshot,
     *,
     raw_occupied: Sequence[OffsetRange] = (),
+    workspace: WorkspaceHost,
 ) -> tuple[tuple[GenericRefFact, ...], tuple[EquationRefFact, ...]]:
     generic: list[GenericRefFact] = []
     equation: list[EquationRefFact] = []
@@ -37,9 +39,19 @@ def scan_refs(
     for token in link_tokens:
         if token.is_image or token.destination is None or in_ranges(token.start, raw_occupied):
             continue
-        if token.fragment_target is None:
+        project_target = workspace.project_reference_target(document.path, token.destination)
+        fragment_target = (
+            None
+            if token.fragment_target is None
+            else decode_project_fragment(token.fragment_target)
+        )
+        if token.fragment_target is None and (
+            project_target is None or project_target.fragment is None
+        ):
             continue
-        generic.append(_markdown_link_ref_fact(document, smap, token))
+        if token.fragment_target is not None and fragment_target is None:
+            continue
+        generic.append(_markdown_link_ref_fact(document, smap, token, workspace=workspace))
     for match in ROLE_RE.finditer(document.text):
         if (
             in_ranges(match.start(), occupied)
@@ -68,12 +80,33 @@ def _markdown_link_ref_fact(
     document: SourceDocument,
     smap: SourceMap,
     token: MarkdownLinkToken,
+    *,
+    workspace: WorkspaceHost,
 ) -> GenericRefFact:
-    assert token.fragment_target is not None
-    assert token.fragment_target_start is not None
-    assert token.fragment_target_end is not None
-    target_start = token.fragment_target_start
-    target = token.fragment_target
+    assert token.destination is not None
+    assert token.destination_start is not None
+    assert token.destination_end is not None
+    project_target = workspace.project_reference_target(document.path, token.destination)
+    fragment = (
+        None if token.fragment_target is None else decode_project_fragment(token.fragment_target)
+    )
+    if project_target is not None:
+        fragment = project_target.fragment
+    assert fragment is not None
+    if token.fragment_target is not None:
+        assert token.fragment_target_start is not None
+        assert token.fragment_target_end is not None
+        target_start = token.fragment_target_start
+        target_end = token.fragment_target_end
+    else:
+        target_start = token.destination_start
+        target_end = token.destination_end
+    target = fragment
+    normalized_target_path = (
+        project_target.normalized_path
+        if project_target is not None
+        else workspace.normalize_project_path(document.path)
+    )
     return GenericRefFact(
         fact_id=f"{document.path.as_posix()}::md-ref::{target_start}",
         document_id=document.path.as_posix(),
@@ -83,7 +116,13 @@ def _markdown_link_ref_fact(
         target=target,
         normalized_target=normalize_label(target),
         role_span=smap.span(token.start, token.end),
-        target_span=smap.span(target_start, token.fragment_target_end),
+        target_span=smap.span(target_start, target_end),
+        raw_target_path=None if project_target is None else project_target.raw_path,
+        resolved_raw_target_path=(
+            None if project_target is None else project_target.resolved_raw_path
+        ),
+        normalized_target_path=normalized_target_path,
+        target_fragment=fragment,
     )
 
 

@@ -9,7 +9,7 @@ from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
 from scieqlint.api import check_documents as public_check_documents
-from scieqlint.app import _profile_snapshot, check_documents
+from scieqlint.app import _profile_snapshot, _source_reference_facts, check_documents
 from scieqlint.config.model import (
     AlgebraConfig,
     ChecksConfig,
@@ -18,6 +18,7 @@ from scieqlint.config.model import (
     ProfileConfig,
     ScannerConfig,
 )
+from scieqlint.diag.model import SourceSpan
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
@@ -26,6 +27,7 @@ from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
+from scieqlint.scan.base import EquationReference, ReferenceSource
 
 
 def doc(text: str) -> SourceDocument:
@@ -132,6 +134,37 @@ def test_public_profile_filters_non_source_references_before_materializing_facts
         ("eq", notebook.path),
         ("eq", markdown.path),
     ]
+
+
+def test_cross_format_profile_ignores_caller_references_outside_included_sources() -> None:
+    included = SourceDocument.from_text(
+        PurePosixPath("included.tex"),
+        "",
+        DocumentKind.LATEX,
+    )
+    external = EquationReference(
+        target="outside",
+        span=SourceSpan(
+            path=PurePosixPath("outside.tex"),
+            start=0,
+            end=7,
+            line=1,
+            col=1,
+            end_line=1,
+            end_col=8,
+        ),
+        raw=r"\ref{outside}",
+        source=ReferenceSource.LATEX_REF,
+    )
+
+    assert (
+        _source_reference_facts(
+            (included,),
+            (external,),
+            config("commonmark"),
+        )
+        == ()
+    )
 
 
 def test_cross_format_profile_preserves_source_role_ownership_across_paths() -> None:

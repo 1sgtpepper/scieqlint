@@ -160,26 +160,6 @@ $$
     )
 
 
-def test_same_path_cross_kind_labels_preserve_scanner_ownership() -> None:
-    markdown = SourceDocument.from_text(
-        PurePosixPath("same.md"),
-        "$$\nx = 1 \\label{md}\n$$\n\n{eq}`tex`\n",
-        DocumentKind.MARKDOWN,
-    )
-    latex = SourceDocument.from_text(
-        PurePosixPath("same.md"),
-        "\\begin{equation}\ny = 2 \\label{tex}\n\\end{equation}\n",
-        DocumentKind.LATEX,
-    )
-
-    result = check_documents((markdown, latex), config=without_algebra())
-
-    reference_codes = [
-        diagnostic.code for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
-    ]
-    assert reference_codes == []
-
-
 def test_duplicate_aligned_labels_report_declaration_and_reference_ambiguity() -> None:
     source = """\
 $$
@@ -479,6 +459,57 @@ def test_reference_engine_output_is_independent_of_document_input_order() -> Non
         ("REF002", "equation reference target not found: missing-z", "z.md"),
     ]
     assert reverse == forward
+
+
+def test_duplicate_equation_labels_across_documents_report_duplicate_and_ambiguity() -> None:
+    first = SourceDocument.from_text(
+        PurePosixPath("first.md"),
+        "$$\n\\begin{align}\na &= b \\label{dup}\n\\end{align}\n$$\n",
+        DocumentKind.MARKDOWN,
+    )
+    second = SourceDocument.from_text(
+        PurePosixPath("second.md"),
+        "$$\n\\begin{align}\nc &= d \\label{dup}\n\\end{align}\n$$\n\n{eq}`dup`\n",
+        DocumentKind.MARKDOWN,
+    )
+
+    snapshot = MathHost().classify(MySTFrontend().lower((first, second)))
+    query = QueryHost(snapshot)
+    result = check_documents([first, second], config=without_algebra())
+    reference_diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
+    )
+
+    assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in reference_diagnostics] == [
+        ("REF001", "duplicate equation label: dup"),
+        ("REF011", "ambiguous equation reference: dup"),
+    ]
+
+
+def test_public_api_reports_duplicate_equation_labels_across_latex_documents() -> None:
+    first = SourceDocument.from_text(
+        PurePosixPath("first.tex"),
+        r"\begin{equation}a = b \label{dup}\end{equation}" + "\n",
+        DocumentKind.LATEX,
+    )
+    second = SourceDocument.from_text(
+        PurePosixPath("second.tex"),
+        r"\begin{equation}c = d \label{dup}\end{equation}" + "\n",
+        DocumentKind.LATEX,
+    )
+
+    result = check_documents([first, second], config=without_algebra())
+    duplicate_diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "REF001"
+    )
+
+    assert [
+        (diagnostic.message, diagnostic.span.path if diagnostic.span else None)
+        for diagnostic in duplicate_diagnostics
+    ] == [
+        ("duplicate equation label: dup", PurePosixPath("second.tex")),
+    ]
 
 
 def test_tex_reference_scanning_is_container_bounded_and_source_ordered() -> None:
