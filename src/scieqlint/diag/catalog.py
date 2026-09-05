@@ -336,7 +336,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "PORT003",
         Severity.WARNING,
         "equation syntax may not survive Typst export",
-        "v1.1.0",
+        "Unreleased",
         "A focused TeX display-math form is known to be unsupported or fragile "
         "in current Typst publishing paths.",
     ),

@@ -76,6 +76,34 @@ $$
 """
 
 
+@pytest.mark.parametrize("option", ["alt", "name", "label"])
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("x = 1", []),
+        (r"\dfrac{x}{2}", [r"\dfrac"]),
+        (r"\argmin_x f(x)", [r"\argmin"]),
+        (r"\left(\begin{matrix}x\end{matrix}\right)", [r"\begin{matrix}"]),
+    ],
+)
+def test_typst_checks_math_body_after_myst_option_prefix(
+    option: str, body: str, expected: list[str]
+) -> None:
+    prefix = f":{option}: \\dfrac \\argmin \\left(\\begin{{matrix}}x\\end{{matrix}}\\right)\n\n"
+    source = f"```{{math}}\n{prefix}{body}\n```\n"
+    snapshot = _profile_snapshot((doc(source),), typst_config())
+    result = check_documents((doc(source),), config=typst_config())
+
+    risks = snapshot.portability
+    assert [risk.raw for risk in risks] == expected
+    assert [item.code for item in result.diagnostics] == ["PORT003"] * len(expected)
+    for risk in risks:
+        assert risk.span is not None
+        assert risk.raw is not None
+        assert risk.span.start == source.index(risk.raw, len("```{math}\n") + len(prefix))
+        assert source[risk.span.start : risk.span.end] == risk.raw
+
+
 def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
     snapshot = _profile_snapshot((doc(_SOURCE),), typst_config())
 

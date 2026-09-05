@@ -1,20 +1,20 @@
 cases:
   - id: typst-markdown-unsupported-display-command
-    release: v1.1.0
+    release: Unreleased
     source_kind: markdown
     input: "$$\n\\dfrac{x}{2}\n$$\n"
     expected_codes: ["PORT003"]
     expected_pass: true
 
   - id: typst-latex-unsupported-display-command
-    release: v1.1.0
+    release: Unreleased
     source_kind: latex
     input: "\\[\\argmin_x f(x)\\]\n"
     expected_codes: ["PORT003"]
     expected_pass: true
 
   - id: typst-supported-display-baseline
-    release: v1.1.0
+    release: Unreleased
     source_kind: markdown
     input: "$$\nx = \\frac{a}{b}\n$$\n"
     expected_codes: []

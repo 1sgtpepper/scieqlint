@@ -374,7 +374,9 @@ content. An unclosed range stays protected through end of file.
 
 The opt-in `typst-portability` profile performs focused, source-spanned checks on
 display math; it does not invoke a Typst renderer or claim complete LaTeX-to-Typst
-translation. For `.tex` inputs, complete `\[ ... \]`, `$$ ... $$`, `equation`,
+translation. Recognized MyST math-directive option prefixes are metadata and are
+excluded from these TeX checks; commands in the formula body remain active.
+For `.tex` inputs, complete `\[ ... \]`, `$$ ... $$`, `equation`,
 `equation*`, `align`, and `align*` blocks are lowered by the LaTeX scanner. Malformed
 or unterminated forms remain scanner diagnostics or unlowered source rather than being
 reconstructed by the portability check. The profile reports only the documented

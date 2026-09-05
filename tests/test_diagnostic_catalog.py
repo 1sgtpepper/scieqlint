@@ -45,6 +45,6 @@ def test_new_accessibility_diagnostic_does_not_claim_a_published_release() -> No
     assert "(warning, Unreleased)" in (explain_code("PORT002") or "")
 
 
-def test_typst_portability_diagnostic_is_cataloged_for_the_current_release() -> None:
-    assert CATALOG["PORT003"].release == "v1.1.0"
-    assert "(warning, v1.1.0)" in (explain_code("PORT003") or "")
+def test_typst_portability_diagnostic_is_cataloged_as_unreleased() -> None:
+    assert CATALOG["PORT003"].release == "Unreleased"
+    assert "(warning, Unreleased)" in (explain_code("PORT003") or "")

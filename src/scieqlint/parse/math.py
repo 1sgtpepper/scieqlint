@@ -578,7 +578,9 @@ def _typst_math_risks(
         document = documents.get((display.document_id, source_kind))
         if document is None:
             continue
-        lexical = scan_tex_lexically(document.text[display.span.start : display.span.end])
+        source = document.text[display.span.start : display.span.end]
+        prefix = display.option_prefix_length
+        lexical = scan_tex_lexically(" " * prefix + source[prefix:])
         segment = _mask_non_math_tex_ranges(lexical.active_text, lexical.non_math_ranges)
         environment_tokens = tuple(
             token
