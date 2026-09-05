@@ -1,0 +1,162 @@
+{
+  "diagnostics": [
+    {
+      "cell": 0,
+      "cell_line": 1,
+      "code": "DIR010",
+      "col": 5,
+      "detail": null,
+      "end_col": 5,
+      "end_line": 8,
+      "equation": null,
+      "hint": "Set an executable language on the cell, for example ```{code-cell} python or notebook metadata language='python'.",
+      "line": 3,
+      "message": "code cell is missing an executable language",
+      "path": "tests/fixtures/bad/code_cell_metadata.ipynb",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "reason": "missing",
+        "source_format": "notebook"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::0"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": 2,
+      "cell_line": 1,
+      "code": "DIR013",
+      "col": 22,
+      "detail": null,
+      "end_col": 33,
+      "end_line": 20,
+      "equation": null,
+      "hint": "Use a syntactically valid language identifier; when the project declares [project].code_cell_languages, include it in that catalog.",
+      "line": 20,
+      "message": "code-cell language metadata is unknown or malformed: python shell",
+      "path": "tests/fixtures/bad/code_cell_metadata.ipynb",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "language": "python shell",
+        "reason": "invalid",
+        "source_format": "notebook"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::2"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": 3,
+      "cell_line": 1,
+      "code": "DIR013",
+      "col": 22,
+      "detail": null,
+      "end_col": 30,
+      "end_line": 28,
+      "equation": null,
+      "hint": "Use a syntactically valid language identifier; when the project declares [project].code_cell_languages, include it in that catalog.",
+      "line": 28,
+      "message": "code-cell language metadata is unknown or malformed: brainfuck",
+      "path": "tests/fixtures/bad/code_cell_metadata.ipynb",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "language": "brainfuck",
+        "reason": "unknown",
+        "source_format": "notebook"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::3"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "DIR010",
+      "col": 1,
+      "detail": null,
+      "end_col": 4,
+      "end_line": 5,
+      "equation": null,
+      "hint": "Set an executable language on the cell, for example ```{code-cell} python or notebook metadata language='python'.",
+      "line": 3,
+      "message": "code cell is missing an executable language",
+      "path": "tests/fixtures/bad/code_cell_metadata.md",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "reason": "missing",
+        "source_format": "markdown"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.md::fence::31::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "DIR013",
+      "col": 16,
+      "detail": null,
+      "end_col": 27,
+      "end_line": 7,
+      "equation": null,
+      "hint": "Use a syntactically valid language identifier; when the project declares [project].code_cell_languages, include it in that catalog.",
+      "line": 7,
+      "message": "code-cell language metadata is unknown or malformed: python shell",
+      "path": "tests/fixtures/bad/code_cell_metadata.md",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "language": "python shell",
+        "reason": "invalid",
+        "source_format": "markdown"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.md::fence::56::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "DIR013",
+      "col": 16,
+      "detail": null,
+      "end_col": 24,
+      "end_line": 11,
+      "equation": null,
+      "hint": "Use a syntactically valid language identifier; when the project declares [project].code_cell_languages, include it in that catalog.",
+      "line": 11,
+      "message": "code-cell language metadata is unknown or malformed: brainfuck",
+      "path": "tests/fixtures/bad/code_cell_metadata.md",
+      "profile": "code-cell-metadata",
+      "properties": {
+        "language": "brainfuck",
+        "reason": "unknown",
+        "source_format": "markdown"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/code_cell_metadata.md::fence::94::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 2,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 6
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

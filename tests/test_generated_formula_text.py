@@ -84,6 +84,43 @@ def test_notebook_suspicious_formula_spans_use_splitline_positions() -> None:
     ] == [json.dumps(fact.text)[1:-1] for fact in snapshot.generated_formulas]
 
 
+def test_notebook_suspicious_formula_span_work_is_linear_in_match_count() -> None:
+    fact_count = 128
+    source = "$$" + "\u2028".join(r"\A t t e n t {Q}" for _ in range(fact_count)) + "$$\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("generated-work.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+    frontend_snapshot = NotebookFrontend().lower((document,))
+    [candidate] = frontend_snapshot.generated_formulas
+    scanned_chars = 0
+
+    class PrefixCountingText(str):
+        def count(self, sub, start=0, end=None):
+            nonlocal scanned_chars
+            scanned_chars += (len(self) if end is None else end) - start
+            if end is None:
+                return super().count(sub, start)
+            return super().count(sub, start, end)
+
+    counted = replace(candidate, text=PrefixCountingText(candidate.text))
+    snapshot = MathHost().classify(replace(frontend_snapshot, generated_formulas=(counted,)))
+
+    assert len(snapshot.generated_formulas) == fact_count
+    assert [fact.span.cell_line for fact in snapshot.generated_formulas if fact.span] == list(
+        range(1, fact_count + 1)
+    )
+    assert scanned_chars <= 4 * len(counted.text) + 32
+
+
 def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_provenance() -> None:
     source = "$\\A t t e n t { Q , K , V }$ and $/C0 apod$.\n"
     generated = doc(

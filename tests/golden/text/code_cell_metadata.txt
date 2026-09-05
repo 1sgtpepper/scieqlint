@@ -1,0 +1,34 @@
+tests/fixtures/bad/code_cell_metadata.ipynb:3:5: warning DIR010 code cell is missing an executable language
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::0
+  source_format: notebook
+  reason: missing
+tests/fixtures/bad/code_cell_metadata.ipynb:20:22: warning DIR013 code-cell language metadata is unknown or malformed: python shell
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::2
+  source_format: notebook
+  language: python shell
+  reason: invalid
+tests/fixtures/bad/code_cell_metadata.ipynb:28:22: warning DIR013 code-cell language metadata is unknown or malformed: brainfuck
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.ipynb::notebook-cell::3
+  source_format: notebook
+  language: brainfuck
+  reason: unknown
+tests/fixtures/bad/code_cell_metadata.md:3:1: warning DIR010 code cell is missing an executable language
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.md::fence::31::cell
+  source_format: markdown
+  reason: missing
+tests/fixtures/bad/code_cell_metadata.md:7:16: warning DIR013 code-cell language metadata is unknown or malformed: python shell
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.md::fence::56::cell
+  source_format: markdown
+  language: python shell
+  reason: invalid
+tests/fixtures/bad/code_cell_metadata.md:11:16: warning DIR013 code-cell language metadata is unknown or malformed: brainfuck
+  profile: code-cell-metadata
+  provenance: tests/fixtures/bad/code_cell_metadata.md::fence::94::cell
+  source_format: markdown
+  language: brainfuck
+  reason: unknown

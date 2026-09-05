@@ -68,8 +68,29 @@ The `[project].visibility` configuration table uses each document's project-rela
 path as its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents
 are visible, and an entry for a path not present in the analyzed project is rejected.
 Hidden and excluded equation or code-cell targets remain queryable as non-visible facts,
-while ordinary reference resolution uses visible targets only. Labeled Markdown code
-cells are ordinary reference targets and are never executed during analysis.
+while ordinary reference resolution uses visible targets only.
+
+Already-loaded callers can opt into code-cell language policy directly through the
+public config model:
+
+```python
+from scieqlint.config.model import Config, ProfileConfig, ProjectConfig
+
+config = Config(
+    profile=ProfileConfig(name="code-cell-metadata"),
+    project=ProjectConfig(code_cell_languages=("python", "julia")),
+)
+result = check_documents(documents, config=config)
+```
+
+Labeled Markdown code cells are ordinary reference targets even without this profile.
+The profile additionally admits notebook-derived cells and reports `DIR013` for malformed
+language values or values outside a nonempty project catalog. `DIR010` remains active
+for Markdown/MyST cells by default; its message covers both formats, and it is emitted
+for notebook cells when the selected profile admits notebook-derived code-cell facts.
+SciEqLint neither executes cells nor syntax-checks their contents. Profile-produced
+code-cell diagnostics retain their source span, originating fact IDs, and structured
+properties through `CheckResult`.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a
