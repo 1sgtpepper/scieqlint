@@ -16,7 +16,7 @@ from scieqlint.check.references import check_missing_labels, check_references
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
-from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
+from scieqlint.config.model import AlgebraConfig, Config, ParserConfig, ProjectVisibility
 from scieqlint.diag.baseline import (
     BaselineIdentity,
     apply_baseline,
@@ -208,8 +208,15 @@ def check_documents(
             )
             raise ValueError(f"duplicate document path(s): {paths}")
 
-    workspace = WorkspaceHost(project_root=config.project.root)
-    project_members = workspace.project_members(documents)
+    workspace = WorkspaceHost(project_root=_workspace_root(config, documents))
+    members, _hidden_excluded = workspace.project_facts(
+        documents,
+        config.project.visibility,
+    )
+    project_members = members
+    visible_document_ids = {
+        member.document_id for member in members if member.visibility == "visible"
+    }
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -302,13 +309,38 @@ def check_documents(
     if config.checks.references.enabled:
         if canonical_reference_path:
             if config.checks.references.missing_label_strict:
-                diagnostics.extend(check_missing_labels(tuple(blocks), tuple(labels)))
+                diagnostics.extend(
+                    check_missing_labels(
+                        tuple(
+                            block
+                            for block in blocks
+                            if _span_document_id(block.span) in visible_document_ids
+                        ),
+                        tuple(
+                            label
+                            for label in labels
+                            if _span_document_id(label.span) in visible_document_ids
+                        ),
+                    )
+                )
         else:
             diagnostics.extend(
                 check_references(
-                    tuple(labels),
-                    tuple(references),
-                    blocks=tuple(blocks),
+                    tuple(
+                        label
+                        for label in labels
+                        if _span_document_id(label.span) in visible_document_ids
+                    ),
+                    tuple(
+                        reference
+                        for reference in references
+                        if _span_document_id(reference.span) in visible_document_ids
+                    ),
+                    blocks=tuple(
+                        block
+                        for block in blocks
+                        if _span_document_id(block.span) in visible_document_ids
+                    ),
                     strict_missing_labels=config.checks.references.missing_label_strict,
                     project_root=config.project.root,
                 )
@@ -388,7 +420,7 @@ def check_documents(
                 diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
             )
             if config.checks.references.missing_label_strict:
-                diagnostics.extend(_raw_missing_label_diagnostics(query))
+                diagnostics.extend(_raw_missing_label_diagnostics(query, visible_document_ids))
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
@@ -499,12 +531,16 @@ def _without_profile_owned_legacy_reference_diagnostics(
     ]
 
 
-def _raw_missing_label_diagnostics(query: QueryHost) -> tuple[Diagnostic, ...]:
+def _raw_missing_label_diagnostics(
+    query: QueryHost,
+    visible_document_ids: set[str],
+) -> tuple[Diagnostic, ...]:
     info = CATALOG["REF003"]
     diagnostics: list[Diagnostic] = []
     for fact in query.math.display_math():
         if (
-            fact.source_syntax != "raw-latex"
+            fact.document_id not in visible_document_ids
+            or fact.source_syntax != "raw-latex"
             or fact.container != "ams"
             or not fact.complete
             or fact.label_fact_ids
@@ -639,7 +675,7 @@ def _generated_profile_snapshot(
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
-    workspace = WorkspaceHost(project_root=config.project.root)
+    workspace = WorkspaceHost(project_root=_workspace_root(config, documents))
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -717,7 +753,10 @@ def _generated_profile_snapshot(
             accessibility_metadata,
         ),
     )
-    snapshot = replace(snapshot, project_members=workspace.project_members(documents))
+    profile_visibility: tuple[tuple[str, ProjectVisibility], ...] = workspace.project_visibility(
+        documents,
+        config.project.visibility,
+    )
     raw_math_fact_ids = frozenset(
         fact.fact_id for fact in snapshot.display_math if fact.container == "raw-latex"
     )
@@ -749,6 +788,7 @@ def _generated_profile_snapshot(
             snapshot,
             crossref_metadata=(*snapshot.crossref_metadata, *raw_crossref_metadata),
         )
+    snapshot = workspace.apply_visibility(snapshot, profile_visibility)
     provenance = (
         _generated_provenance_facts(markdown_documents, config)
         if generated_provenance is None
@@ -1052,8 +1092,7 @@ def graph_documents(
     config: Config,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
-    workspace = WorkspaceHost(project_root=config.project.root)
-    workspace.project_members(documents)
+    workspace = WorkspaceHost(project_root=_workspace_root(config, documents))
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -1065,6 +1104,10 @@ def graph_documents(
     else:
         raw_labels, raw_references, raw_opaque_spans = (), (), ()
     scanner = MarkdownScanner(workspace=workspace)
+    workspace.project_facts(
+        documents,
+        config.project.visibility,
+    )
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner(workspace=workspace)
     labels: list[EquationLabel] = []
@@ -1085,7 +1128,7 @@ def graph_documents(
     return build_graph(
         tuple(labels),
         tuple(references),
-        project_root=config.project.root,
+        project_root=workspace.project_root,
     )
 
 
@@ -1311,6 +1354,14 @@ def _input_paths(
     return (Path("."),)
 
 
+def _workspace_root(config: Config, documents: Sequence[SourceDocument]) -> PurePosixPath:
+    """Use the physical configured root when caller paths retain absolute spelling."""
+
+    if not any(document.path.is_absolute() for document in documents):
+        return config.project.root
+    return PurePosixPath(_project_root(config).absolute().as_posix())
+
+
 def _project_root(config: Config) -> Path:
     root = Path(config.project.root.as_posix())
     if root.is_absolute():
@@ -1532,3 +1583,7 @@ def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, st
         diagnostic.code,
         diagnostic.message,
     )
+
+
+def _span_document_id(span: SourceSpan) -> str:
+    return span.path.as_posix()

@@ -465,3 +465,7 @@ JSON integers over 4096 decimal digits and excessive JSON nesting are rejected w
 as cross-reference metadata; unrelated presentation options such as `fig-alt` and
 `fig-align` remain quiet. Code-cell variable analysis, notebook execution, and
 full Jupyter schema validation are deferred.
+
+Hidden and excluded equation-label checks consume the `[project].visibility` mapping.
+Visibility is applied before legacy and profile reference resolution; SciEqLint does
+not read ignored files or infer table-of-contents visibility from filenames.

@@ -57,6 +57,8 @@ Release notes must use these sections:
   key-and-value-length previews for oversized metadata.
 - Lower notebook code-cell renderings, cross-reference options, and output-boundary
   facts, with an opt-in warning for incompatible renderings/crossref combinations.
+- Keep visible, hidden, and excluded equation-label facts separate and warn when
+  non-visible targets affect a rendered equation reference.
 
 ### Changed
 
@@ -66,6 +68,8 @@ Release notes must use these sections:
 - Reference targets now use normalized member-path-plus-label identity for path-bearing and
   fragment-only links, while genuinely pathless roles retain an explicit label-only namespace.
 - Cross-reference metadata no longer groups incomplete target definitions by label alone.
+- Project visibility is now configured through `[project].visibility` and is applied
+  before legacy and profile reference observations.
 - Generated diagnostic metadata now crosses a post-policy, versioned SchemaHost
   projection seam, so engine and suppression diagnostics reach text, JSON,
   SARIF, and GitHub reporters through one provenance and profile projection
@@ -117,6 +121,10 @@ Release notes must use these sections:
   snapshot and are rejected when any part crosses syntax owned by another construct.
 - Nested active `\(` or `\)` delimiters in a `\(...\)` candidate are now
   classified as ambiguous unsupported math instead of a preserved formula.
+- Reference validation now reports `REF008` without duplicate `REF002` when an equation
+  reference matches only hidden or excluded targets; genuinely missing targets remain
+  `REF002`. The warning retains exact target counts with bounded representative source
+  metadata when many non-visible definitions share one label.
 - Profile model construction and TOML loading now reject unknown or non-string profile choices
   with deterministic `ValueError` results.
 - Cross-format profile inputs now reject duplicate document paths before fact lowering so

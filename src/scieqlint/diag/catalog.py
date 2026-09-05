@@ -332,6 +332,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Two source or engine-output boundaries describe the same logical target "
         "with different reference kind or display metadata.",
     ),
+    "REF008": DiagnosticInfo(
+        "REF008",
+        Severity.WARNING,
+        "equation reference matches a hidden or excluded target",
+        "Unreleased",
+        "A rendered equation reference has matching target identity in a hidden or "
+        "excluded source, which can change project-level resolution.",
+    ),
     "PORT001": DiagnosticInfo(
         "PORT001",
         Severity.WARNING,

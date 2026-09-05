@@ -29,7 +29,7 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
   profile may supply source-kind and conversion-stage annotations when an origin omits
   them, but it never infers a source document or producer relationship.
 - WorkspaceHost owns project-relative identity and applies the caller-supplied configured
-  membership projection. It rejects raw document paths that collide after
+  membership/visibility projection. It rejects raw document paths that collide after
   normalization. Orchestration injects the host into stateful scanners and frontends;
   compatibility, query, and graph paths use its pure lexical normalizer.
 - Graph export models are built from scanner label/reference outputs and do not rescan documents.
