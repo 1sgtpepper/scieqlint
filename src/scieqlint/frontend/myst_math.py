@@ -140,10 +140,6 @@ def _raw_math_environment_ranges(
     candidate_malformed = False
     lexical = scan_tex_lexically(text, occupied=(*occupied, *bracketed_occupied))
     for kind, environment, token_start, token_end in lexical.environment_tokens:
-        if not stack and (
-            in_ranges(token_start, occupied) or in_ranges(token_start, bracketed_occupied)
-        ):
-            continue
         if kind == "begin":
             if not stack:
                 candidate_malformed = False

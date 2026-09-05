@@ -60,8 +60,9 @@ produce `\label{...}`, `\ref{...}`, and `\eqref{...}` facts. Known non-math
 containers such as `figure`/`figure*`, `table`/`table*`, `itemize`, and
 `document` remain opaque.
 Ownership is source ordered: a raw environment opened first makes later Markdown
-links and MyST reference roles in its candidate opaque, while a Markdown link
-opened first keeps ownership of its complete token.
+backticks, links, and MyST reference roles in its candidate literal. They cannot
+hide the raw closer or claim later source. Markdown code or a link opened first
+keeps ownership of its complete token, including any TeX-like controls inside it.
 Other raw environment candidates, including unsupported or incomplete forms, are
 preserved as `UnknownMathFact` candidates. Complete unsupported environments
 still preserve parseable equation label and reference facts; incomplete forms
