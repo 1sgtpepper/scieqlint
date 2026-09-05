@@ -47,8 +47,27 @@ of a line and closes only at the end of a source line (optionally followed by on
 complete label suffix); single-dollar inline math may be adjacent to ordinary
 text but stays on one source line. Empty bodies and unmatched delimiters are not
 core math facts. The generated-MyST profile additionally emits explicit GEN004
-placeholder facts for complete empty fenced, directive, and dollar-display
-containers; unmatched containers remain unclassified.
+placeholder facts for standalone formula-not-decoded markers and complete empty
+fenced, directive, and dollar-display containers, including accepted complete raw
+LaTeX displays. Markers inside unsupported or incomplete raw environments remain
+owned by their `UnknownMathFact` and do not become generated placeholders; unmatched
+containers remain unclassified.
+
+Raw LaTeX environments embedded in Markdown are scanned outside opaque code and
+link regions. Complete `equation`, `align`, `flalign`, `gather`, and `multline`
+forms, including their starred variants, are recognized as display math and may
+produce `\label{...}`, `\ref{...}`, and `\eqref{...}` facts. Known non-math
+containers such as `figure`/`figure*`, `table`/`table*`, `itemize`, and
+`document` remain opaque.
+Ownership is source ordered: a raw environment opened first makes later Markdown
+links and MyST reference roles in its candidate opaque, while a Markdown link
+opened first keeps ownership of its complete token.
+Other raw environment candidates, including unsupported or incomplete forms, are
+preserved as `UnknownMathFact` candidates. Complete unsupported environments
+still preserve parseable equation label and reference facts; incomplete forms
+do not. Explicit non-math and verbatim environments remain opaque and produce
+neither math nor equation-reference facts. Markdown delimiters inside raw owners
+cannot close or hide a math container or reference outside that source range.
 
 ## Core grammar subset
 
@@ -109,7 +128,8 @@ AMS classification. Incomplete fences and mismatched environment pairs retain
 their enclosing display identity and do not create AMS semantic claims. A closed
 dollar display is still a complete lexical container: even when its nested AMS
 pair is incomplete or mismatched, its TeX label and reference tokens retain
-lexical facts and source spans. Rendered equation numbers and arbitrary TeX environment parsing
+lexical facts and source spans; an incomplete raw environment does not create
+those facts. Rendered equation numbers and arbitrary TeX environment parsing
 remain unsupported. Labels and references inside an aligned display retain the
 enclosing display as their `source_block_id`; per-row identity and rendered
 equation-number ownership are not modeled.
