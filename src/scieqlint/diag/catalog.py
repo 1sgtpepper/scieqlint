@@ -256,7 +256,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "generated math contains suspicious formula text",
         "Unreleased",
         "An explicit generated-math container contains a high-confidence spaced-token "
-        "or garbled-marker artifact.",
+        "or garbled-marker artifact in its formula content, excluding directive options.",
     ),
     "GEN003": DiagnosticInfo(
         "GEN003",
@@ -294,7 +294,8 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "equation reference target not found",
         "v0.1.0",
-        "A supported equation reference points to a missing target.",
+        "A supported equation reference points to a missing target. "
+        "Math directive option values are not TeX references.",
     ),
     "REF003": DiagnosticInfo(
         "REF003",
