@@ -34,6 +34,66 @@ def lower(document: SourceDocument):
     return MathHost().classify(MySTFrontend().lower((document,)))
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+@pytest.mark.parametrize("quote", ["quoted", "`quoted'"])
+def test_tex_quote_keeps_later_equation_target_visible(quote: str, newline: str) -> None:
+    source = (
+        "\\begin{equation}\nx = \\text{" + quote + "}\n\\end{equation}\n\n"
+        "A normal `code` example.\n\n$$\ny = y\n$$ {#eq:second}\n"
+    )
+    reference_text = "See {eq}`eq:second` and {eq}`absent`.\n"
+    reference = SourceDocument.from_text(
+        PurePosixPath("reference.md"), reference_text, DocumentKind.MARKDOWN
+    )
+
+    result = check_documents((doc(source.replace("\n", newline)), reference), config=Config())
+
+    assert result.files_checked == 2
+    assert result.math_blocks_checked == 1
+    assert [item.code for item in result.diagnostics] == ["REF002"]
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert span.path == reference.path
+    start = reference_text.index("absent")
+    assert (span.start, span.end) == (start, start + len("absent"))
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "x = \\text{`quoted'}\n",
+        "\\begin{aligned}\nx &= \\text{`quoted'}\n\\end{aligned}\n",
+        "\\begin{verbatim}\n`quoted'\n\\end{verbatim}\n",
+        "% `quoted'\nx = x\n",
+    ],
+)
+def test_quote_range_cannot_reclaim_source_after_raw_closer(body: str) -> None:
+    first = "\\begin{equation}\n" + body + "\\end{equation}"
+    second = "\\begin{equation}\ny = y \\label{second}\n\\end{equation}"
+    source = first + "\n\n" + second + "\n\nA trailing `code` example.\n"
+
+    snapshot = lower(doc(source))
+
+    assert [(fact.environment, fact.complete) for fact in snapshot.display_math] == [
+        ("equation", True),
+        ("equation", True),
+    ]
+    assert [fact.raw for fact in snapshot.display_math] == [first, second]
+    assert [fact.label for fact in snapshot.equation_labels] == ["second"]
+
+
+@pytest.mark.parametrize("literal", ["%", r"\begin{verbatim}", r"\begin{equation}"])
+def test_markdown_code_opened_first_keeps_tex_controls_literal(literal: str) -> None:
+    source = "`" + literal + "` \\begin{equation}\nx = x \\label{live}\n\\end{equation}\n"
+
+    snapshot = lower(doc(source))
+
+    assert [(fact.environment, fact.complete) for fact in snapshot.display_math] == [
+        ("equation", True)
+    ]
+    assert [fact.label for fact in snapshot.equation_labels] == ["live"]
+
+
 @pytest.mark.parametrize("environment", ["verbatim", "verbatim*"])
 @pytest.mark.parametrize("literal", ["$$", "```math"])
 @pytest.mark.parametrize("outside", ["", "$$", "```math"])
