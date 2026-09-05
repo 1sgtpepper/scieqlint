@@ -113,6 +113,12 @@ Release notes must use these sections:
   cells remain analyzable and oversized or deeply nested notebook input fails
   closed deterministically. Fixed notebook safety bounds are measured at the
   normalized `SourceDocument` boundary.
+- Generated formula-text checks now exclude math directive options while retaining
+  the exact source locations of artifacts in the formula body.
+- TeX equation labels and references in math directive options no longer create
+  targets or missing-reference diagnostics; explicit MyST label options remain active.
+- Backtick quotes inside raw TeX environments no longer hide their closing
+  delimiters or later equation targets. Markdown code opened first stays opaque.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic
