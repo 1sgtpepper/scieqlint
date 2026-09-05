@@ -393,6 +393,120 @@ def test_generated_formula_fact_requires_bracketed_completeness_metadata() -> No
         replace(suspicious, delimiter_kind="literal")
 
 
+def test_generated_formula_fact_rejects_missing_placeholder_and_spurious_completion() -> None:
+    placeholder = MySTFrontend().lower((doc("formula-not-decoded\n"),)).generated_formulas[0]
+
+    with pytest.raises(ValueError, match="placeholder_kind"):
+        replace(placeholder, placeholder_kind=None)
+
+    formula = MySTFrontend().lower((doc("$x$"),)).generated_formulas[0]
+    assert formula.candidate_kind == "formula-text"
+    with pytest.raises(ValueError, match="complete"):
+        replace(formula, complete=True)
+
+
+@pytest.mark.parametrize(
+    ("kind", "candidate_kind", "placeholder_kind", "complete"),
+    [
+        ("candidate", "placeholder", "empty-display-math", True),
+        ("empty-display", None, "empty-display-math", True),
+        ("candidate", "bracketed-block", None, False),
+        ("candidate", "bracketed-block", None, True),
+        ("bracketed-block", None, None, False),
+        ("bracketed-block", None, None, True),
+    ],
+)
+def test_generated_formula_fact_accepts_completion_states(
+    kind: str,
+    candidate_kind: str | None,
+    placeholder_kind: str | None,
+    complete: bool,
+) -> None:
+    candidate = MySTFrontend().lower((doc("formula-not-decoded\n"),)).generated_formulas[0]
+
+    fact = replace(
+        candidate,
+        kind=kind,
+        candidate_kind=candidate_kind,
+        placeholder_kind=placeholder_kind,
+        complete=complete,
+        delimiter_kind=(
+            "escaped" if kind == "bracketed-block" or candidate_kind == "bracketed-block" else None
+        ),
+    )
+
+    assert fact.kind == kind
+    assert fact.complete is complete
+
+
+@pytest.mark.parametrize(
+    ("kind", "candidate_kind"),
+    [("candidate", "placeholder"), ("empty-display", None)],
+)
+def test_generated_formula_fact_rejects_incomplete_empty_display(
+    kind: str, candidate_kind: str | None
+) -> None:
+    candidate = MySTFrontend().lower((doc("formula-not-decoded\n"),)).generated_formulas[0]
+
+    with pytest.raises(ValueError, match="complete=True"):
+        replace(
+            candidate,
+            kind=kind,
+            candidate_kind=candidate_kind,
+            placeholder_kind="empty-display-math",
+            complete=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("placeholder_kind", "complete"),
+    [
+        ("formula-not-decoded", None),
+        ("empty-display-math", True),
+        ("formula-image", None),
+    ],
+)
+def test_candidate_placeholder_facts_allow_each_placeholder_kind(
+    placeholder_kind: str, complete: bool | None
+) -> None:
+    candidate = MySTFrontend().lower((doc("formula-not-decoded\n"),)).generated_formulas[0]
+
+    fact = replace(
+        candidate,
+        placeholder_kind=placeholder_kind,
+        complete=complete,
+    )
+
+    assert fact.kind == "candidate"
+    assert fact.candidate_kind == "placeholder"
+    assert fact.placeholder_kind == placeholder_kind
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_placeholder_kind", "wrong_placeholder_kind"),
+    [
+        ("placeholder", "formula-not-decoded", "formula-image"),
+        ("empty-display", "empty-display-math", "formula-not-decoded"),
+        ("image-placeholder", "formula-image", "empty-display-math"),
+    ],
+)
+def test_final_placeholder_facts_reject_contradictory_placeholder_kind(
+    kind: str, expected_placeholder_kind: str, wrong_placeholder_kind: str
+) -> None:
+    candidate = MySTFrontend().lower((doc("formula-not-decoded\n"),)).generated_formulas[0]
+    final = replace(
+        candidate,
+        kind=kind,
+        candidate_kind=None,
+        placeholder_kind=expected_placeholder_kind,
+        complete=True if kind == "empty-display" else None,
+    )
+
+    assert final.kind == kind
+    with pytest.raises(ValueError, match="requires placeholder_kind"):
+        replace(final, placeholder_kind=wrong_placeholder_kind)
+
+
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:
     lf = MathHost().classify(MySTFrontend().lower((doc("$\\A t t e n t { Q }$\n"),)))
     crlf = MathHost().classify(MySTFrontend().lower((doc("$\\A t t e n t { Q }$\r\n"),)))

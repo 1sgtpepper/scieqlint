@@ -259,16 +259,24 @@ def _classify_generated_candidate(
 ) -> tuple[GeneratedFormulaFact, ...]:
     if candidate.candidate_kind == "formula-text":
         return _suspicious_formula_facts(candidate, source_map)
-    assert candidate.candidate_kind == "bracketed-block"
-    assert candidate.delimiter_kind is not None
-    return (
-        replace(
-            candidate,
-            kind="bracketed-block",
-            candidate_kind=None,
-            delimiter_kind=candidate.delimiter_kind,
-        ),
-    )
+    if candidate.candidate_kind == "bracketed-block":
+        assert candidate.delimiter_kind is not None
+        return (
+            replace(
+                candidate,
+                kind="bracketed-block",
+                candidate_kind=None,
+                delimiter_kind=candidate.delimiter_kind,
+            ),
+        )
+    assert candidate.candidate_kind == "placeholder"
+    if candidate.placeholder_kind == "empty-display-math":
+        kind: GeneratedFormulaKind = "empty-display"
+    elif candidate.placeholder_kind == "formula-image":
+        kind = "image-placeholder"
+    else:
+        kind = "placeholder"
+    return (replace(candidate, kind=kind, candidate_kind=None),)
 
 
 def _suspicious_formula_facts(

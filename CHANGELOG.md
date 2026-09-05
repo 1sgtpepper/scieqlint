@@ -26,6 +26,8 @@ Release notes must use these sections:
   LaTeX display blocks (`\[...\]` and the literal `[...]` artifact), including
   complete and incomplete forms at source or Markdown-container boundaries;
   diagnostic metadata preserves whether the delimiter was escaped or literal.
+- Generated-document validation now reports `GEN004` for formula-not-decoded
+  markers, empty dollar or fenced displays, and explicit formula image placeholders.
 
 ### Changed
 
@@ -47,6 +49,10 @@ Release notes must use these sections:
 
 ### Fixed
 
+- `GEN004` now respects Markdown ownership boundaries, including headings, list
+  continuations, completed blocks, opaque HTML, nested source-owned comments, and
+  MyST directive options or TeX comments when deciding whether a formula placeholder
+  is present.
 - Generated formula-text checks now exclude math directive options while retaining
   the exact source locations of artifacts in the formula body.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
