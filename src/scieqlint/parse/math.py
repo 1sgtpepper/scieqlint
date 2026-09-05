@@ -282,8 +282,8 @@ def _classify_generated_candidate(
         else:
             kind = "placeholder"
         return (replace(candidate, kind=kind, candidate_kind=None),)
-    if candidate.candidate_kind != "equation-like-text" or candidate.source_math_fact_id is None:
-        return ()
+    assert candidate.candidate_kind == "equation-like-text"
+    assert candidate.source_math_fact_id is not None
     source_math = inline_math.get(candidate.source_math_fact_id)
     if source_math is None or source_math.parse_status != "text-leak":
         return ()
