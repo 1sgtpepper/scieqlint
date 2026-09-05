@@ -270,7 +270,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "GEN005",
         Severity.WARNING,
         "standalone text block looks like an equation",
-        "v1.1.0",
+        "Unreleased",
         "An isolated generated Markdown text item has high-confidence equation signals "
         "but is not inside a math container.",
     ),

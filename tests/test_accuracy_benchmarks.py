@@ -20,7 +20,7 @@ V010_BENCHMARKS = {
     "parse_unknown.yml",
     "references.yml",
 }
-V110_BENCHMARKS = {"generated.yml"}
+GENERATED_BENCHMARKS = {"generated.yml"}
 
 
 def test_v010_accuracy_benchmark_fixtures_are_checked() -> None:
@@ -76,9 +76,9 @@ def test_v014_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
-def test_v110_generated_accuracy_benchmark_fixtures_are_checked() -> None:
+def test_unreleased_generated_accuracy_benchmark_fixtures_are_checked() -> None:
     path = BENCHMARK_DIR / "generated.yml"
-    cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
+    cases = [case for case in _load_cases(path) if case.get("release") == "Unreleased"]
     assert cases
 
     for case in cases:
@@ -111,7 +111,7 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
             result = _check_notebook_case(case)
         elif path.name in V010_BENCHMARKS:
             result = _check_case(path, case)
-        elif path.name in V110_BENCHMARKS:
+        elif path.name in GENERATED_BENCHMARKS:
             result = _check_generated_case(path, case)
         else:
             pytest.fail(f"release gate has no executor for benchmark file: {path.name}")
