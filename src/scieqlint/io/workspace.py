@@ -137,7 +137,7 @@ def project_reference_target(
         resolved_raw = f"{root_prefix}{raw_root_path}"
         path_for_normalization = f"{root_prefix}{decoded_root_path}"
     else:
-        parent = _path_as_posix(source_path.parent)
+        parent = PurePosixPath(_path_as_posix(source_path)).parent.as_posix()
         resolved_raw = raw_path if parent == "." else f"{parent}/{raw_path}"
         path_for_normalization = (
             decoded_raw_path if parent == "." else f"{parent}/{decoded_raw_path}"
@@ -251,12 +251,7 @@ def _is_windows_root_relative(path: str) -> bool:
 
 
 def _is_windows_style_path(path: str | PurePath) -> bool:
-    if isinstance(path, PureWindowsPath):
-        return True
-    if isinstance(path, str):
-        return "\\" in path or _looks_like_windows_path(path)
-    normalized = _path_as_posix(path)
-    return "\\" in normalized or _looks_like_windows_path(normalized)
+    return isinstance(path, PureWindowsPath) or _looks_like_windows_path(str(path))
 
 
 def _has_nonempty_fragment(fragment: str) -> bool:
@@ -275,7 +270,7 @@ def _escapes_project_root(path: PurePosixPath) -> bool:
 
 
 def _path_as_posix(path: str | PurePath) -> str:
-    return path.replace("\\", "/") if isinstance(path, str) else path.as_posix()
+    return (path if isinstance(path, str) else path.as_posix()).replace("\\", "/")
 
 
 def _relative_to_project_root(

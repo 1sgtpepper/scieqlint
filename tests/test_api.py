@@ -301,6 +301,34 @@ def test_decode_error_detail_does_not_expose_the_input_path(tmp_path, monkeypatc
     assert str(tmp_path) not in diagnostic.detail
 
 
+@pytest.mark.parametrize("absolute_paths", [False, True])
+def test_read_error_path_cannot_be_remapped_to_a_loaded_sibling(
+    tmp_path, monkeypatch, absolute_paths: bool
+) -> None:
+    (tmp_path / "a.md").write_bytes(b"\xff")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub/a.md").write_text("See {eq}`absent`.\n", encoding="utf-8")
+    (tmp_path / "sub/scieqlint.toml").write_text("", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = check_paths(
+        (Path("a.md"), Path("sub/a.md")),
+        config_path=Path("sub/scieqlint.toml"),
+        absolute_paths=absolute_paths,
+    )
+
+    by_code = {diagnostic.code: diagnostic for diagnostic in result.diagnostics}
+    assert set(by_code) == {"INP001", "REF002"}
+    assert len(result.diagnostics) == 2
+    for code, path in (("INP001", "a.md"), ("REF002", "sub/a.md")):
+        span = by_code[code].span
+        assert span is not None
+        expected = (tmp_path / path).as_posix() if absolute_paths else path
+        assert span.path == PurePosixPath(expected)
+    assert result.files_checked == 2
+    assert result.math_blocks_checked == 0
+
+
 def test_check_documents_runs_scanner_and_checks() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),

@@ -140,13 +140,14 @@ def _run_check_paths(
         documents.append(document)
 
     result = check_documents(documents, config=analysis_config)
-    diagnostics_result = tuple(sorted((*diagnostics, *result.diagnostics), key=_diagnostic_key))
+    presented = _present_diagnostic_paths(result.diagnostics, presentation_paths)
+    diagnostics_result = tuple(sorted((*diagnostics, *presented), key=_diagnostic_key))
     baselines = _load_baselines(config, project_root, consumed_inputs)
     input_identities_complete = input_identities_complete and _consumed_inputs_complete(
         consumed_inputs
     )
     diagnostics_result = apply_baseline(
-        _present_diagnostic_paths(diagnostics_result, presentation_paths),
+        diagnostics_result,
         baselines,
     )
     return _AnalysisRun(
@@ -850,10 +851,9 @@ def _apply_accessibility_metadata(
         return tuple(inline_math)
     known_id_counts: dict[str, int] = {}
     for fact in inline_math:
-        if fact.accessibility_id is not None:
-            known_id_counts[fact.accessibility_id] = (
-                known_id_counts.get(fact.accessibility_id, 0) + 1
-            )
+        if fact.accessibility_id is None:
+            continue
+        known_id_counts[fact.accessibility_id] = known_id_counts.get(fact.accessibility_id, 0) + 1
     unknown_ids = sorted(set(metadata) - set(known_id_counts))
     if unknown_ids:
         raise ValueError(

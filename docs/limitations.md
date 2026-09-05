@@ -127,13 +127,14 @@ The opt-in `cross-format-references` profile reports `PORT001` when an equation
 reference role is outside the conservative syntax baseline for the configured
 `commonmark`, `myst`, `notebook`, or `typst` output profile. It materializes
 reference facts from Markdown/MyST, LaTeX, and notebook source documents but does
-not invoke an external renderer or guarantee output parity. The `generated-myst` and
-`cross-format-references` profiles require unique supplied document paths so fact and
-diagnostic identities remain stable.
+not invoke an external renderer or guarantee output parity. Both document APIs reject
+paths that identify the same normalized project member, under every profile, so fact
+and diagnostic identities remain stable.
 
 Local reference destinations are normalized lexically without filesystem access.
 POSIX separators and native Windows drive, root-relative, or backslash spellings are
 supported; Windows-style drive and UNC components are compared case-insensitively.
+Relative backslash separators alone do not change a POSIX project's case sensitivity.
 Valid UTF-8 percent-encoded path and fragment components are decoded before
 resolution, including fragment-only links. Malformed URL destinations, external URLs,
 empty decoded fragments, and paths that escape the configured project root are ignored

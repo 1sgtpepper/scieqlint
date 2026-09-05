@@ -29,6 +29,42 @@ def doc(path: str, text: str) -> SourceDocument:
 
 
 @pytest.mark.parametrize("operation", [check_documents, graph_documents])
+@pytest.mark.parametrize(
+    ("source_path", "target_path", "destination"),
+    [
+        (r"Chapters\index.md", r"Chapters\energy.md", "energy.md"),
+        ("Chapters/index.md", "Chapters/energy.md", r".\energy.md"),
+        (r"Chapters\index.md", "Chapters/energy.md", "energy.md"),
+        ("Chapters/index.md", r"Chapters\energy.md", "energy.md"),
+    ],
+)
+def test_loaded_members_share_separator_normalization(
+    operation, source_path: str, target_path: str, destination: str
+) -> None:
+    source = doc(source_path, f"See [energy]({destination}#eq-energy).\n")
+    target = doc(target_path, "$$\nE=mc^2\n$$ {#eq-energy}\n")
+
+    result = operation((source, target), config=Config())
+
+    if operation is check_documents:
+        assert not [d for d in result.diagnostics if d.code in {"REF002", "REF004"}]
+    else:
+        node = next(
+            node for node in result.nodes if node.kind == "equation" and node.label == "eq-energy"
+        )
+        assert [edge.target for edge in result.edges] == [node.id]
+
+
+def test_relative_backslash_destination_preserves_posix_case_identity() -> None:
+    source = doc("Chapters/index.md", r"See [energy](.\Energy.md#eq-energy)." + "\n")
+    target = doc("Chapters/energy.md", "(eq-energy)=\n# Energy\n")
+
+    result = check_documents((source, target), config=Config())
+
+    assert [d.code for d in result.diagnostics] == ["REF004"]
+
+
+@pytest.mark.parametrize("operation", [check_documents, graph_documents])
 def test_public_document_apis_reject_paths_with_one_normalized_project_member(operation) -> None:
     first = doc("chapter/../energy.md", "# First\n")
     second = doc("energy.md", "# Second\n")

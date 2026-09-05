@@ -320,7 +320,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF006",
         Severity.WARNING,
         "cross-reference path resolves differently after project normalization",
-        "v1.1.0",
+        "Unreleased",
         "A local cross-document target resolves only after lexical project-path "
         "normalization, such as removal of a './' component.",
     ),

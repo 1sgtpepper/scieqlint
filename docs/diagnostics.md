@@ -193,10 +193,10 @@ dimension checks are active.
 
 ## REF005
 
-`REF005` reports every supported generic reference whose selected member contains
-more than one matching target, including MyST `{ref}` roles and local Markdown links.
-Path-bearing and fragment-only links use the normalized member path plus fragment, so
-equal labels in different members do not create ambiguity by themselves.
+`REF005` reports supported generic references with more than one matching target.
+Pathless MyST `{ref}` roles use the global label namespace. Path-bearing and
+fragment-only Markdown links use the normalized member path plus fragment, so equal
+labels in different members do not make those links ambiguous by themselves.
 
 ## REF006
 
