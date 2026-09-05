@@ -250,6 +250,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "An explicit generated-math container contains a high-confidence spaced-token "
         "or garbled-marker artifact in its formula content, excluding directive options.",
     ),
+    "GEN003": DiagnosticInfo(
+        "GEN003",
+        Severity.WARNING,
+        "nonstandard bracketed LaTeX display block",
+        "Unreleased",
+        "Generated Markdown contains a standalone bracketed LaTeX display block outside "
+        "a supported math container.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

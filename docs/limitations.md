@@ -225,6 +225,27 @@ bounded to 64 spaced segments; longer runs remain unsupported and quiet.
 Formula placeholders such as `formula-not-decoded`, empty display math, and formula
 image placeholders are deliberately deferred and outside `GEN002`.
 
+### Bracketed LaTeX blocks
+
+Under the `generated-myst` profile, `GEN003` flags a standalone `\[...\]` block
+or a literal square-wrapper block (`[...]`) outside existing math, code, links,
+HTML, and other opaque Markdown regions. Literal wrappers are reported only when
+their body contains an unescaped TeX control word (for example, `\begin{array}`)
+or a concise equation-like relation such as `x = y`, so ordinary bracketed prose
+and Markdown links stay quiet. Literal wrappers use standalone opener and closer
+lines. For the escaped form, a non-commented, unescaped `\]` may also close on the
+opener line; either form may close with its unescaped closer
+(`\]` or `]`) on its own later line in the same Markdown container. An opener that
+reaches end of file or a Markdown ownership boundary first is incomplete. A
+completed HTML/comment/fence/math block is also a boundary when the next line
+starts directly without a blank line, while CommonMark HTML blocks that have not
+terminated remain opaque. Source spans retain the exact source text, including
+prefixes on list and blockquote continuation lines. Inline prose, escaped
+openers, valid links, and bracketed text inside supported `$$` or MyST math stay
+quiet; escaped closers do not complete a block. The diagnostic properties retain
+the delimiter kind as `escaped` or `literal`. The default profile does not emit
+`GEN003`.
+
 ## Suppression comments
 
 SciEqLint supports narrow source suppressions for Markdown and LaTeX:

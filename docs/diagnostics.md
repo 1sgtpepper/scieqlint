@@ -59,6 +59,7 @@ the first fact.
 |---|---|---|
 | `GEN001` | warning | Generated output is missing a preserved source anchor |
 | `GEN002` | warning | Generated math contains suspicious formula text |
+| `GEN003` | warning | Nonstandard bracketed LaTeX display block (`\[...\]` or `[...]`) |
 
 ## Reserved in catalog
 

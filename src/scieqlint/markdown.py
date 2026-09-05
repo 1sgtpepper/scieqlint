@@ -127,8 +127,14 @@ class _ListMarker:
 
 @dataclass(frozen=True, slots=True)
 class _ColumnContent:
+    """Canonical column text with an exact raw-source origin."""
+
     source_index: int
     text: str
+    # A tab can cross the requested column and require canonical padding. These
+    # leading characters have no source offsets; source_index points to the
+    # suffix's first raw character.
+    virtual_prefix: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,9 +143,12 @@ class _ContainerLine:
     end: int
     content_start: int
     content: str
+    virtual_prefix: int
     container_key: tuple[int, ...]
     block_start: bool
     text_role: _MarkdownTextRole
+    # Whether a following source line may start a new text item directly.
+    block_end: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -512,12 +521,14 @@ def _markdown_line_ownership(
                 if state.kind in {"type6", "type7"} and not relative.text.strip(" \t"):
                     active_html = None
                 else:
+                    block_end = _html_block_line_terminates(relative.text, state.kind)
                     container_lines.append(
                         _ContainerLine(
                             start=start,
                             end=end,
                             content_start=start + quote_index + relative.source_index,
                             content=relative.text,
+                            virtual_prefix=relative.virtual_prefix,
                             container_key=state.container_key,
                             block_start=False,
                             text_role=(
@@ -527,9 +538,10 @@ def _markdown_line_ownership(
                                 if state.list_content_column is not None
                                 else "paragraph"
                             ),
+                            block_end=block_end,
                         )
                     )
-                    if _html_block_line_terminates(relative.text, state.kind):
+                    if block_end:
                         active_html = None
                     previous_depth = state.quote_depth
                     continue
@@ -660,8 +672,9 @@ def _markdown_line_ownership(
             context.list_content_columns.append(content_column)
             next_container_id += 1
             context.list_container_ids.append(next_container_id)
+            assert marker.content_index >= relative.virtual_prefix
             item_content = _ColumnContent(
-                relative.source_index + marker.content_index,
+                relative.source_index + marker.content_index - relative.virtual_prefix,
                 relative.text[marker.content_index :],
             )
             item_is_code = marker.has_content and _indent_columns(item_content.text) >= 4
@@ -720,6 +733,10 @@ def _markdown_line_ownership(
             continue
 
         block_kind = _markdown_block_kind(relative.text, paragraph_active=paragraph_active)
+        html_kind = _html_block_kind(relative.text, paragraph_active=False)
+        block_end = block_kind in {"heading", "setext", "thematic", "fence", "display"}
+        if html_kind is not None:
+            block_end = _html_block_line_terminates(relative.text, html_kind)
         if block_kind is not None:
             boundaries.append(start)
             if block_kind in {"heading", "setext", "thematic"}:
@@ -738,12 +755,12 @@ def _markdown_line_ownership(
                 context,
                 depth,
                 block_start=block_kind is not None,
+                block_end=block_end,
             )
         )
         if block_kind == "html":
-            html_kind = _html_block_kind(relative.text, paragraph_active=False)
             assert html_kind is not None
-            if not _html_block_line_terminates(relative.text, html_kind):
+            if not block_end:
                 opener = container_lines[-1]
                 active_html = _HtmlBlockState(
                     container_key=opener.container_key,
@@ -771,12 +788,14 @@ def _make_container_line(
     quote_depth: int,
     *,
     block_start: bool,
+    block_end: bool = False,
 ) -> _ContainerLine:
     return _ContainerLine(
         start=start,
         end=end,
         content_start=start + quote_content_index + content.source_index,
         content=content.text,
+        virtual_prefix=content.virtual_prefix,
         container_key=(*quote_path, *context.list_container_ids),
         block_start=block_start,
         text_role=(
@@ -786,6 +805,7 @@ def _make_container_line(
             if context.list_container_ids
             else "paragraph"
         ),
+        block_end=block_end,
     )
 
 
@@ -834,7 +854,12 @@ def _content_after_columns(line: str, columns: int) -> _ColumnContent:
         else:
             current += 4 - current % 4
         index += 1
-    return _ColumnContent(index, " " * max(0, current - columns) + line[index:])
+    virtual_prefix = max(0, current - columns)
+    return _ColumnContent(
+        index,
+        " " * virtual_prefix + line[index:],
+        virtual_prefix,
+    )
 
 
 def _list_marker(line: str) -> _ListMarker | None:
@@ -1301,6 +1326,23 @@ def _markdown_link_tokens_from_lexical(
 
 def _link_label_boundaries(text: str) -> tuple[int, ...]:
     return _markdown_line_ownership(_source_lines(text)).link_boundaries
+
+
+def _markdown_line_ownership_for_generated(  # pyright: ignore[reportUnusedFunction]
+    text: str,
+) -> tuple[tuple[int, str, tuple[int, ...], bool, bool], ...]:
+    """Return the private ownership seam needed by generated-output lowering."""
+
+    return tuple(
+        (
+            line.content_start,
+            line.content[line.virtual_prefix :],
+            line.container_key,
+            line.block_start,
+            line.block_end,
+        )
+        for line in _markdown_line_ownership(_source_lines(text)).container_lines
+    )
 
 
 def _block_quote_content(line: str) -> tuple[int, int]:
