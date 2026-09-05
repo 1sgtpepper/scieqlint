@@ -439,6 +439,12 @@ def _plain_text_math_token_at(line: str, index: int) -> tuple[str, int] | None:
             (line[end].isascii() and line[end].isalnum()) or line[end] in "_{}"
         ):
             end += 1
+        if end < len(line) and line[end] == "(":
+            close = end + 1
+            while close < len(line) and line[close] not in "()\r\n":
+                close += 1
+            if close < len(line) and line[close] == ")":
+                end = close + 1
         return "atom", end
     return None
 

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/generated/equation_like_text.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 13,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "standalone text block looks like an equation: equation-like text was emitted outside a math container: 'F(x) = x + 1'"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c73d49c05238a306ac80aa0b29a269ae58ddc2c9e23e2ae05c1983663a9f8814"
+          },
+          "properties": {
+            "conversion_stage": "pdf-to-markdown",
+            "formula_artifact_kind": "equation-like-text",
+            "generated_document": "tests/fixtures/generated/equation_like_text.md",
+            "profile": "generated-myst",
+            "provenanceIds": [
+              "tests/fixtures/generated/equation_like_text.md::generated-provenance"
+            ],
+            "source_document": "source/equation_like_text.pdf",
+            "source_kind": "pdf"
+          },
+          "ruleId": "GEN005"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "An isolated generated Markdown text item has high-confidence equation signals but is not inside a math container."
+              },
+              "id": "GEN005",
+              "name": "GEN005",
+              "shortDescription": {
+                "text": "standalone text block looks like an equation"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

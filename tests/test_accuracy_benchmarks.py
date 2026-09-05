@@ -11,7 +11,7 @@ import pytest
 from scieqlint.api import check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config, ProfileConfig
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
 BENCHMARK_DIR = Path("benchmarks/accuracy")
 V010_BENCHMARKS = {
@@ -20,6 +20,7 @@ V010_BENCHMARKS = {
     "parse_unknown.yml",
     "references.yml",
 }
+GENERATED_BENCHMARKS = {"generated.yml"}
 
 
 def test_v010_accuracy_benchmark_fixtures_are_checked() -> None:
@@ -75,6 +76,19 @@ def test_v014_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
+def test_unreleased_generated_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "generated.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "Unreleased"]
+    assert cases
+
+    for case in cases:
+        result = _check_generated_case(path, case)
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
 @pytest.mark.skipif(
     os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
     reason="stable-release evidence is enforced by the release workflow",
@@ -97,6 +111,8 @@ def test_stable_release_executes_100_unique_documented_equations(tmp_path: Path)
             result = _check_notebook_case(case)
         elif path.name in V010_BENCHMARKS:
             result = _check_case(path, case)
+        elif path.name in GENERATED_BENCHMARKS:
+            result = _check_generated_case(path, case)
         else:
             pytest.fail(f"release gate has no executor for benchmark file: {path.name}")
         actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
@@ -123,6 +139,25 @@ def _check_case(path: Path, case: dict[str, object]):
     profile = case.get("profile")
     config = Config(profile=ProfileConfig(name=str(profile))) if profile is not None else Config()
     return check_documents([document], config=config)
+
+
+def _check_generated_case(path: Path, case: dict[str, object]):
+    document = SourceDocument.from_text(
+        PurePosixPath(f"{path.parent.as_posix()}/{case['id']}.md"),
+        str(case["input"]),
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(source_document_id=f"source/{case['id']}.pdf"),
+    )
+    return check_documents(
+        [document],
+        config=Config(
+            profile=ProfileConfig(
+                name="generated-myst",
+                source_kind="pdf",
+                conversion_stage="pdf-to-markdown",
+            )
+        ),
+    )
 
 
 def _check_dimension_case(tmp_path: Path, case: dict[str, object]):

@@ -31,7 +31,7 @@ generated-document scanner/parser policy, including source-only `GEN002` checks.
 
 The `generated-myst` preset uses deterministic checks only: Markdown/MyST math
 containers, inline math, suspicious generated formula text, bracketed LaTeX blocks,
-formula placeholders, algebra, equation references, duplicate
+formula placeholders, equation-like text, algebra, equation references, duplicate
 labels, and strict unsupported-math diagnostics. It does not judge OCR, translation,
 or prose quality. Formula placeholders are reported as `GEN004`; they remain outside
 `GEN002`.
