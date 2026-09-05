@@ -19,8 +19,8 @@ GOOD_FIXTURE = Path("tests/fixtures/good/architecture_myst_good.md")
 BAD_FIXTURE = Path("tests/fixtures/bad/architecture_myst_bad.md")
 
 
-def doc(text: str) -> SourceDocument:
-    return SourceDocument.from_text(PurePosixPath("lecture.md"), text, DocumentKind.MARKDOWN)
+def doc(text: str, path: str = "lecture.md") -> SourceDocument:
+    return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
 
 
 def fixture_doc(path: Path) -> SourceDocument:
@@ -470,7 +470,8 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
                         "```",
                         "$$ {#eq-end}",
                     ]
-                )
+                ),
+                path="supplement.md",
             ),
         )
     )

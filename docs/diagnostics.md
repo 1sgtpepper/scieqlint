@@ -30,6 +30,7 @@ codes before every code is emitted by the current analyzer.
 | `REF004` | warning | Missing generic reference target |
 | `REF005` | warning | Ambiguous generic reference target |
 | `REF011` | warning | Ambiguous equation reference |
+| `REF006` | warning | Local reference path changes resolution after normalization |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -189,3 +190,22 @@ through documented CLI/config switches:
 `--strict-unknowns` escalates parse-unknown diagnostics, strict missing-label
 mode emits `REF003`, and `unknown_variables = "ignore"` suppresses `DIM010` when
 dimension checks are active.
+
+## REF005
+
+`REF005` reports supported generic references with more than one matching target.
+Pathless MyST `{ref}` roles use the global label namespace. Path-bearing and
+fragment-only Markdown links use the normalized member path plus fragment, so equal
+labels in different members do not make those links ambiguous by themselves.
+
+## REF006
+
+`REF006` warns when a local cross-document reference resolves only after lexical
+project-path normalization, for example when `./chapter.md` must be normalized to
+`chapter.md`. Path-bearing links resolve by the pair `(normalized project path,
+fragment)`; a matching fragment in another document does not satisfy the link.
+Destination path and fragment components use valid UTF-8 percent-decoding and
+native Windows separators before normalization. Destinations that are malformed,
+external, have an empty decoded fragment, or escape the configured project root are
+ignored as unsupported links; fragment-only references remain in the source member
+and are not project paths.

@@ -192,12 +192,11 @@ def test_generated_profile_rejects_duplicate_paths_across_document_kinds() -> No
         )
 
 
-def test_default_profile_retains_duplicate_document_path_behavior() -> None:
+def test_default_profile_rejects_duplicate_document_paths() -> None:
     duplicate = doc("out/generated.md", "# Generated\n")
 
-    result = check_documents((duplicate, duplicate), config=Config())
-
-    assert result.files_checked == 2
+    with pytest.raises(ValueError, match=r"^duplicate document path\(s\): out/generated\.md$"):
+        check_documents((duplicate, duplicate), config=Config())
 
 
 @pytest.mark.parametrize("markdown_enabled", [True, False])

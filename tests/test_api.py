@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -171,6 +171,92 @@ def test_absolute_paths_keep_lexical_symlink_spelling(tmp_path, monkeypatch) -> 
     assert diagnostic.span.path == PurePosixPath(link.absolute().as_posix())
 
 
+def test_absolute_paths_only_change_presentation_for_configured_root(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    book = tmp_path / "book"
+    chapters = book / "chapters"
+    chapters.mkdir(parents=True)
+    (book / "index.md").write_text(
+        "See [energy](/chapters/energy.md#eq-energy).\nSee [active](#missing-active).\n",
+        encoding="utf-8",
+    )
+    (chapters / "energy.md").write_text("(eq-energy)=\n# Energy\n", encoding="utf-8")
+    config = tmp_path / "scieqlint.toml"
+    config.write_text('[project]\nroot = "book"\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    paths = (Path("book/index.md"), Path("book/chapters/energy.md"))
+
+    relative = check_paths(paths, config_path=config)
+    absolute = check_paths(paths, config_path=config, absolute_paths=True)
+
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in relative.diagnostics] == [
+        ("REF002", "equation reference target not found: missing-active")
+    ]
+    assert [(diagnostic.code, diagnostic.message) for diagnostic in absolute.diagnostics] == [
+        ("REF002", "equation reference target not found: missing-active")
+    ]
+    relative_span = relative.diagnostics[0].span
+    absolute_span = absolute.diagnostics[0].span
+    assert relative_span is not None
+    assert absolute_span is not None
+    assert relative_span.path == PurePosixPath("book/index.md")
+    assert absolute_span.path == PurePosixPath((book / "index.md").as_posix())
+
+
+@pytest.mark.public_regression
+def test_paths_resolve_configured_root_when_cwd_differs(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    project = tmp_path / "project"
+    book = project / "book"
+    chapters = book / "chapters"
+    chapters.mkdir(parents=True)
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    index = book / "index.md"
+    index.write_text(
+        "See [energy](/chapters/energy.md#eq-energy).\nSee [active](#missing-active).\n",
+        encoding="utf-8",
+    )
+    energy = chapters / "energy.md"
+    energy_text = "$$\nE = mc^2\n$$ {#eq-energy}\n"
+    energy.write_text(energy_text, encoding="utf-8")
+    config = project / "scieqlint.toml"
+    config.write_text('[project]\nroot = "book"\n', encoding="utf-8")
+    monkeypatch.chdir(runner)
+    paths = (index.absolute(), energy.absolute())
+
+    relative = check_paths(paths, config_path=config.absolute())
+    absolute = check_paths(paths, config_path=config.absolute(), absolute_paths=True)
+    graph = graph_paths(paths, config_path=config.absolute())
+
+    assert [diagnostic.code for diagnostic in relative.diagnostics] == ["REF002"]
+    assert [diagnostic.code for diagnostic in absolute.diagnostics] == ["REF002"]
+    relative_span = relative.diagnostics[0].span
+    absolute_span = absolute.diagnostics[0].span
+    assert relative_span is not None
+    assert absolute_span is not None
+    assert relative_span.path == PurePosixPath("../project/book/index.md")
+    assert absolute_span.path == PurePosixPath(index.as_posix())
+
+    energy_node = next(
+        node for node in graph.nodes if node.kind == "equation" and node.label == "eq-energy"
+    )
+    assert (
+        energy_node.id == f"eq:../project/book/chapters/energy.md:{energy_text.index('eq-energy')}"
+    )
+    assert any(
+        edge.raw.startswith("[energy]") and edge.target == energy_node.id for edge in graph.edges
+    )
+    assert any(
+        edge.raw.startswith("[active]") and edge.target == "label:missing-active"
+        for edge in graph.edges
+    )
+
+
 def test_read_error_uses_display_path_and_safe_os_error_detail(tmp_path, monkeypatch) -> None:
     workspace = tmp_path / "workspace"
     outside = tmp_path / "outside"
@@ -213,6 +299,34 @@ def test_decode_error_detail_does_not_expose_the_input_path(tmp_path, monkeypatc
     assert diagnostic.detail == "invalid start byte"
     assert str(tmp_path) not in diagnostic.message
     assert str(tmp_path) not in diagnostic.detail
+
+
+@pytest.mark.parametrize("absolute_paths", [False, True])
+def test_read_error_path_cannot_be_remapped_to_a_loaded_sibling(
+    tmp_path, monkeypatch, absolute_paths: bool
+) -> None:
+    (tmp_path / "a.md").write_bytes(b"\xff")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub/a.md").write_text("See {eq}`absent`.\n", encoding="utf-8")
+    (tmp_path / "sub/scieqlint.toml").write_text("", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    result = check_paths(
+        (Path("a.md"), Path("sub/a.md")),
+        config_path=Path("sub/scieqlint.toml"),
+        absolute_paths=absolute_paths,
+    )
+
+    by_code = {diagnostic.code: diagnostic for diagnostic in result.diagnostics}
+    assert set(by_code) == {"INP001", "REF002"}
+    assert len(result.diagnostics) == 2
+    for code, path in (("INP001", "a.md"), ("REF002", "sub/a.md")):
+        span = by_code[code].span
+        assert span is not None
+        expected = (tmp_path / path).as_posix() if absolute_paths else path
+        assert span.path == PurePosixPath(expected)
+    assert result.files_checked == 2
+    assert result.math_blocks_checked == 0
 
 
 def test_check_documents_runs_scanner_and_checks() -> None:
