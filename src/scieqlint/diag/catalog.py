@@ -262,7 +262,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "GEN004",
         Severity.WARNING,
         "generated output contains a formula placeholder",
-        "v1.1.0",
+        "Unreleased",
         "Generated Markdown contains a formula-not-decoded marker, empty display math, "
         "or a standalone formula image placeholder.",
     ),

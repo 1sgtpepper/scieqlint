@@ -420,10 +420,14 @@ def scan_formula_placeholders(
     for math_fact in source_math:
         assert math_fact.document_id == document.path.as_posix()
         assert math_fact.span is not None
-        if without_tex_comments(math_fact.body).strip() != _FORMULA_MARKER:
-            continue
         source_text = document.text[math_fact.span.start : math_fact.span.end]
-        marker_offset = without_tex_comments(source_text).index(_FORMULA_MARKER)
+        active_text = _active_math_body(
+            source_text,
+            math_fact.container if isinstance(math_fact, DisplayMathFact) else "",
+        )
+        if active_text.strip() != _FORMULA_MARKER:
+            continue
+        marker_offset = active_text.index(_FORMULA_MARKER)
         start = math_fact.span.start + marker_offset
         facts.append(
             _placeholder_fact(
@@ -443,7 +447,7 @@ def scan_formula_placeholders(
             or math_fact.span is None
             or math_fact.container not in {"fenced-math", "myst-math-directive"}
             or not math_fact.complete
-            or not _is_empty_math_body(math_fact.body, math_fact.container)
+            or _active_math_body(math_fact.body, math_fact.container).strip()
         ):
             continue
         facts.append(
@@ -650,12 +654,12 @@ def _placeholder_fact(
     )
 
 
-def _is_empty_math_body(body: str, container: str) -> bool:
-    """Treat directive options and TeX comments as non-formula content."""
+def _active_math_body(body: str, container: str) -> str:
+    """Mask directive options and TeX comments without changing source offsets."""
 
     active_body = without_tex_comments(body)
     if container != "myst-math-directive":
-        return not active_body.strip()
+        return active_body
     prefix_end = 0
     for line in active_body.splitlines(keepends=True):
         line_without_newline = line[:-1] if line.endswith("\n") else line
@@ -665,7 +669,7 @@ def _is_empty_math_body(body: str, container: str) -> bool:
         if MYST_OPTION_RE.match(line_without_newline) is None:
             break
         prefix_end += len(line)
-    return not active_body[prefix_end:].strip()
+    return " " * prefix_end + active_body[prefix_end:]
 
 
 def _is_standalone_line(text: str, start: int, end: int) -> bool:

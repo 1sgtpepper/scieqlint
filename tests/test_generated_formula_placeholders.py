@@ -311,6 +311,35 @@ def test_empty_myst_math_directive_ignores_options_and_tex_comments(body: str) -
     assert source[fact.span.start : fact.span.end] == body
 
 
+@pytest.mark.parametrize(
+    "options",
+    [
+        ":label: eq-missing\n",
+        ":name: missing\n\n",
+        ":alt: formula-not-decoded\n",
+        ":label: eq-missing\n% converter comment\n",
+    ],
+)
+def test_formula_markers_ignore_directive_options_with_exact_body_spans(options: str) -> None:
+    marker = "formula-not-decoded"
+    source = (
+        f"```{{math}}\n{options}{marker} % omitted formula\n```\n\n"
+        "```{math}\n:alt: formula-not-decoded\nx = 1\n```\n"
+    )
+
+    facts = placeholder_facts(source)
+    assert len(facts) == 1
+    [fact] = facts
+    assert (fact.kind, fact.placeholder_kind) == ("placeholder", marker)
+    assert fact.span is not None
+    expected_start = len("```{math}\n") + len(options)
+    assert (fact.span.start, fact.span.end) == (expected_start, expected_start + len(marker))
+    assert source[fact.span.start : fact.span.end] == marker
+    result = generated_result(source)
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["GEN004"]
+    assert result.diagnostics[0].span == fact.span
+
+
 def test_nonempty_myst_math_directive_is_not_mistaken_for_an_empty_placeholder() -> None:
     source = "```{math}\n:label: generated-equation\nx = 1\n```\n"
 

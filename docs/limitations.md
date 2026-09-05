@@ -224,7 +224,7 @@ guessed, and the default profile does not emit `GEN002`. The repeated-token scan
 bounded to 64 spaced segments; longer runs remain unsupported and quiet.
 
 Formula placeholders such as `formula-not-decoded`, empty display math, and formula
-image placeholders are deliberately deferred and outside `GEN002`.
+image placeholders are reported separately by `GEN004` and remain outside `GEN002`.
 
 ### Bracketed LaTeX blocks
 
