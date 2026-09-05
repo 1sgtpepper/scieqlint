@@ -344,7 +344,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF010",
         Severity.WARNING,
         "duplicate code-cell target label",
-        "v1.1.0",
+        "Unreleased",
         "A code-cell label collides with another visible reference target.",
     ),
     "REF009": DiagnosticInfo(

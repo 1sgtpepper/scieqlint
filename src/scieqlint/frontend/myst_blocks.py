@@ -168,7 +168,7 @@ def _make_fence_fact(
 
 
 def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCellFact | None:
-    if fence.language not in {"python", "r", "julia"}:
+    if fence.language not in {"python", "r", "julia", "bash"}:
         return None
     options = quarto_options(document, fence)
     label = dict(options).get("label") or None

@@ -45,6 +45,36 @@ def profile_config() -> Config:
     )
 
 
+@pytest.mark.parametrize("kind", ["markdown", "notebook"])
+@pytest.mark.parametrize("value", ["fig-theme", "'fig-theme'", '"fig-theme"'])
+def test_source_labels_keep_scalar_identity_and_original_value_span(kind: str, value: str) -> None:
+    source = f"#| label: {value}\nplot()\n"
+    reference = "See {ref}`fig-theme`.\n"
+    document = (
+        markdown(f"```python\n{source}```\n\n{reference}")
+        if kind == "markdown"
+        else notebook(
+            notebook_payload(
+                code_cell(source=source),
+                {"cell_type": "markdown", "metadata": {}, "source": reference},
+            )
+        )
+    )
+    frontend = MySTFrontend() if kind == "markdown" else NotebookFrontend()
+
+    [cell] = frontend.lower((document,)).code_cells
+
+    assert cell.label == cell.normalized_label == "fig-theme"
+    text = (
+        source_slice(document, cell.label_span)
+        if kind == "markdown"
+        else decoded_source_segment_text(document, cell.label_span)
+    )
+    assert text == value
+    result = public_check_documents((document,), config=profile_config())
+    assert result.diagnostics == ()
+
+
 def notebook_payload(*cells: object, language: str | None = "python") -> dict[str, object]:
     metadata: dict[str, object] = {}
     if language is not None:
@@ -702,6 +732,36 @@ pass
     assert plain_cell.language == "python"
     assert directive_cell.label == "directive-cell"
     assert source_slice(document, directive_cell.label_span) == "directive-cell"
+
+
+@pytest.mark.public_regression
+def test_public_bare_quarto_bash_fence_resolves_reference_without_execution() -> None:
+    bash_document = markdown(
+        """```bash
+#| label: bash-cell
+printf 'not executed\\n'
+```
+
+See [bash cell](#bash-cell).
+""",
+        "bash.md",
+    )
+    unsupported_document = markdown(
+        """```brainfuck
+#| label: brainfuck-cell
+printf 'not executed\\n'
+```
+
+See [brainfuck cell](#brainfuck-cell).
+""",
+        "unsupported.md",
+    )
+
+    bash_result = public_check_documents((bash_document,), config=Config())
+    unsupported_result = public_check_documents((unsupported_document,), config=Config())
+
+    assert [diagnostic.code for diagnostic in bash_result.diagnostics] == []
+    assert [diagnostic.code for diagnostic in unsupported_result.diagnostics] == ["REF002"]
 
 
 def test_quarto_code_cell_options_skip_blank_and_comment_preamble() -> None:
