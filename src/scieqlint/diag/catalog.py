@@ -309,6 +309,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "v1.1.0",
         "A supported MyST generic reference points to more than one target.",
     ),
+    "REF011": DiagnosticInfo(
+        "REF011",
+        Severity.WARNING,
+        "ambiguous equation reference",
+        "Unreleased",
+        "A supported equation reference points to more than one equation target.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,

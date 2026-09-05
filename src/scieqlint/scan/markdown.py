@@ -21,6 +21,7 @@ from scieqlint.markdown import (
     markdown_reference_snapshot,
     parse_fence_opener,
     range_contains,
+    without_tex_comments,
 )
 from scieqlint.scan.base import (
     EquationLabel,
@@ -35,7 +36,7 @@ from scieqlint.scan.base import (
 )
 from scieqlint.scan.symbols import parse_symbol_directive
 
-TEX_LABEL_RE = re.compile(r"\\label\{([^{}]+)\}")
+TEX_LABEL_RE = re.compile(r"\\label\{([^{}\r\n]+)\}")
 DOLLAR_LABEL_RE = re.compile(r"\{#([^}\s]+)\}|\(([^()\s]+)\)")
 MYST_LABEL_RE = re.compile(r"^[ \t]*:label:[ \t]*(?P<label>\S+)[ \t]*$", re.MULTILINE)
 EQ_ROLE_RE = re.compile(r"\{(?P<role>eq|numref)\}`(?P<body>[^`\r\n]+)`")
@@ -259,8 +260,11 @@ def _inline_blocks(
 
 
 def _tex_labels(document: SourceDocument, block: MathBlock) -> Iterable[EquationLabel]:
-    for match in TEX_LABEL_RE.finditer(block.text):
+    for match in TEX_LABEL_RE.finditer(without_tex_comments(block.text)):
         if is_escaped(block.text, match.start()):
+            continue
+        label = match.group(1)
+        if not label.strip():
             continue
         label_start = block.span.start + match.start(1)
         label_end = block.span.start + match.end(1)

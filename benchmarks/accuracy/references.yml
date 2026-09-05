@@ -11,3 +11,7 @@ cases:
     input: "(tip)=\n```{note}\nKeep this note.\n```\n\nSee {ref}`tip` and [the note](#tip)."
     expected_codes: []
     expected_pass: true
+  - id: duplicate-equation-reference
+    input: "$$\nx = 1$$ {#shared}\n$$\ny = 2$$ {#shared}\n\nSee {eq}`shared`."
+    expected_codes: ["REF001", "REF011"]
+    expected_pass: false

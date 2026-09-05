@@ -55,10 +55,13 @@ class InlineMathFact(FactBase):
 class DisplayMathFact(FactBase):
     body: str
     container: DisplayContainer
+    # Equation labels and references use this enclosing display as their owner;
+    # row-level equation-number identity is intentionally not modeled yet.
     label_fact_ids: tuple[str, ...] = ()
     alt: str | None = None
     enumerated: bool | None = None
     complete: bool = True
+    environment: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

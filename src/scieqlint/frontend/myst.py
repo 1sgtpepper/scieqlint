@@ -104,13 +104,22 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         document.text,
         reference_snapshot.link_metadata_ranges,
     )
-    display_math, equation_labels = scan_display_math(
+    display_math, equation_labels, display_equation_refs = scan_display_math(
         document,
         smap,
         fences,
         dollar_displays,
     )
-    generic_refs, equation_refs = scan_refs(document, smap, reference_snapshot)
+    generic_refs, prose_equation_refs = scan_refs(document, smap, reference_snapshot)
+    equation_refs = tuple(
+        sorted(
+            (*display_equation_refs, *prose_equation_refs),
+            key=lambda fact: (
+                fact.span.start if fact.span is not None else -1,
+                fact.fact_id,
+            ),
+        )
+    )
     inline_math = tuple(
         scan_inline_math(
             document,
