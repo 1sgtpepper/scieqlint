@@ -50,9 +50,9 @@ from scieqlint.scan.base import (
     SymbolDirective,
 )
 from scieqlint.scan.latex import LatexScanner
-from scieqlint.scan.markdown import (  # pyright: ignore[reportPrivateUsage]
+from scieqlint.scan.markdown import (
     MarkdownScanner,
-    _mask_ranges,
+    _mask_ranges,  # pyright: ignore[reportPrivateUsage]
 )
 from scieqlint.scan.notebook import NotebookScanner
 from scieqlint.schema import SchemaHost
