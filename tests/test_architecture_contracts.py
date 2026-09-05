@@ -350,7 +350,15 @@ def test_deterministic_snapshot_adr_pins_links_and_separates_evidence_from_plans
         adr,
     )
     assert file_links
-    assert all(f"/{ARCHITECTURE_EVIDENCE_REVISION}/" in link for link in file_links)
+    for link in file_links:
+        revision = (
+            "6c4a020c739a1fc9516e37255c36df032da3c561"
+            if link.endswith(
+                ("/src/scieqlint/io/workspace.py", "/tests/test_crossref_path_normalization.py")
+            )
+            else ARCHITECTURE_EVIDENCE_REVISION
+        )
+        assert f"/{revision}/" in link
     all_links = re.findall(r"\[[^]]+\]\(([^)]+)\)", adr)
     assert not [
         link for link in all_links if not link.startswith(("http://", "https://", "#", "mailto:"))

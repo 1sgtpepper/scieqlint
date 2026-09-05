@@ -38,9 +38,10 @@ signatures, diagnostics, schemas, ordering behavior, discovery, baselines, or
 suppressions.
 
 The R1 workstream tracker is [GitHub #132](https://github.com/1sgtpepper/scieqlint/issues/132).
-Repository-file links in this ADR are pinned to the reviewed `origin/main` revision
+Repository-file links in this ADR use the reviewed `origin/main` revision
 [`e7dbb1f2cdae2485c4027fc8c415da25c0ef9663`](https://github.com/1sgtpepper/scieqlint/commit/e7dbb1f2cdae2485c4027fc8c415da25c0ef9663),
-and tracker links use the current repository owner. R2/R3 work is not linked here until
+except the WorkspaceHost implementation and path tests, which cite their introducing
+revision. Tracker links use the current repository owner. R2/R3 work is not linked here until
 a uniquely scoped GitHub issue exists; future issue numbers are never reserved.
 
 The kernel's total ordering key is:
