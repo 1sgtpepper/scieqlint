@@ -230,7 +230,11 @@ def test_generated_myst_preset_leaves_placeholder_forms_outside_gen002(tmp_path)
 
 def test_generated_myst_profile_bounds_spaced_token_repetition() -> None:
     within_bound = "$A " + ("t " * 63) + "t (Q, K, V)$"
-    over_bound = "$A " + ("t " * 65) + "t (Q, K, V)$"
+    over_bound = (
+        "$A " + ("t " * 65) + "t (Q, K, V)$",
+        "$A " + ("t " * 60) + "B t t e n t (Q, K, V)$",
+        "$A\t" + ("t\t" * 60) + "B\tt\tt\te\tn\tt (Q, K, V)$",
+    )
 
     config = Config(
         profile=ProfileConfig(name="generated-myst"),
@@ -238,10 +242,10 @@ def test_generated_myst_profile_bounds_spaced_token_repetition() -> None:
     )
 
     within_result = check_documents((doc("generated.md", within_bound),), config=config)
-    over_result = check_documents((doc("generated.md", over_bound),), config=config)
-
     assert [diagnostic.code for diagnostic in within_result.diagnostics] == ["GEN002"]
-    assert all(diagnostic.code != "GEN002" for diagnostic in over_result.diagnostics)
+    for source in over_bound:
+        over_result = check_documents((doc("generated.md", source),), config=config)
+        assert all(diagnostic.code != "GEN002" for diagnostic in over_result.diagnostics)
 
 
 def test_generated_myst_profile_handles_long_unterminated_spaced_token_run() -> None:

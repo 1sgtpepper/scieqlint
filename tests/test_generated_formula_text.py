@@ -176,13 +176,31 @@ def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch
 ):
     source = "Valid $A(Q, K, V) = QK^T V$ and $a b c$.\n"
 
-    default = check_documents((doc("$A b c d e (x)$.\n"),), config=Config())
+    trigger = "$/C0 apod$"
+    default = check_documents(
+        (doc(trigger),), config=Config(scanner=ScannerConfig(inline_math=True))
+    )
+    active = check_documents(
+        (doc(trigger),),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            scanner=ScannerConfig(inline_math=True),
+        ),
+    )
     generated = check_documents(
         (doc(source),),
-        config=Config(profile=ProfileConfig(name="generated-myst")),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            scanner=ScannerConfig(inline_math=True),
+        ),
     )
 
-    assert all(diagnostic.code != "GEN002" for diagnostic in default.diagnostics)
+    assert default.diagnostics == ()
+    assert [diagnostic.code for diagnostic in active.diagnostics] == ["GEN002"]
+    assert active.diagnostics[0].span is not None
+    assert trigger[active.diagnostics[0].span.start : active.diagnostics[0].span.end] == (
+        "/C0 apod"
+    )
     assert all(diagnostic.code != "GEN002" for diagnostic in generated.diagnostics)
 
 
@@ -210,6 +228,8 @@ def test_suspicious_formula_classifier_keeps_valid_spaced_math_quiet() -> None:
         ("$A t t e n t (x)$", False),
         ("$/C0 apodx$", False),
         ("$/C0 apod$", True),
+        ("$A t, B t t e n t (Q, K, V)$", True),
+        ("$word B t t e n t (Q, K, V)$", True),
     )
 
     for source, suspicious in cases:

@@ -246,7 +246,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "GEN002",
         Severity.WARNING,
         "generated math contains suspicious formula text",
-        "v1.1.0",
+        "Unreleased",
         "An explicit generated-math container contains a high-confidence spaced-token "
         "or garbled-marker artifact.",
     ),

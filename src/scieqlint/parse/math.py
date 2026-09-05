@@ -271,6 +271,10 @@ def _suspicious_formula_facts(
             if kind == "spaced-token":
                 if artifact.startswith("\\") and is_escaped(candidate.text, local_start):
                     continue
+                if not artifact.startswith("\\") and not _starts_spaced_token_run(
+                    active_text, local_start
+                ):
+                    continue
                 if not _high_confidence_spaced_command(artifact):
                     continue
             start = candidate.span.start + local_start
@@ -288,6 +292,17 @@ def _suspicious_formula_facts(
                 )
             )
     return tuple(facts)
+
+
+def _starts_spaced_token_run(text: str, start: int) -> bool:
+    # A bounded regex match must not restart inside a longer continuous run.
+    end = start
+    while end > 0 and text[end - 1] in " \t":
+        end -= 1
+    if end == start:
+        return True
+    previous = text[max(0, end - 2) : end]
+    return re.fullmatch(r"(?:[^A-Za-z0-9_])?[A-Za-z]", previous) is None
 
 
 def _high_confidence_spaced_command(artifact: str) -> bool:
