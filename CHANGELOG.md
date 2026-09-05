@@ -43,6 +43,8 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Generated formula-text checks now exclude math directive options while retaining
+  the exact source locations of artifacts in the formula body.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic

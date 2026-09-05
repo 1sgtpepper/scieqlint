@@ -55,6 +55,8 @@ class InlineMathFact(FactBase):
 class DisplayMathFact(FactBase):
     body: str
     container: DisplayContainer
+    # Source width of recognized directive options, excluded from TeX interpretation.
+    option_prefix_length: int = 0
     label_fact_ids: tuple[str, ...] = ()
     alt: str | None = None
     enumerated: bool | None = None

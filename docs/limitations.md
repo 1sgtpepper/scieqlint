@@ -210,7 +210,8 @@ reference/structure analysis are skipped as well.
 ## Generated-document formula checks
 
 The `generated-myst` profile emits `GEN002` only for high-confidence artifacts
-inside explicit inline or display math containers. It recognizes spaced TeX
+inside explicit inline or display math containers. Math directive options are
+metadata and are excluded from formula checks. It recognizes spaced TeX
 commands such as `\A t t e n t { ... }` and spaced tokens that begin with an
 uppercase letter and are followed by a parenthesized list of at least three
 single-letter identifiers (for example,

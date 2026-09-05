@@ -23,6 +23,51 @@ def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
     )
 
 
+def test_directive_options_are_not_generated_formula_content() -> None:
+    for newline in ("\n", "\r\n"):
+        source = newline.join(
+            (
+                "```{math}",
+                ':typst: "/C0 apod"',
+                r":alt: \A t t e n t {x}",
+                "",
+                "x = x",
+                "```",
+                "",
+            )
+        )
+
+        result = check_documents(
+            (doc(source),), config=Config(profile=ProfileConfig(name="generated-myst"))
+        )
+
+        assert result.diagnostics == ()
+        assert result.math_blocks_checked == 1
+
+
+def test_formula_artifact_after_directive_options_keeps_its_source_span() -> None:
+    for newline in ("\n", "\r\n"):
+        source = newline.join(
+            ("```{math}", ':typst: "/C0 apod"', "", "/C0 apod", "```", "")
+        )
+        result = check_documents(
+            (doc(source),), config=Config(profile=ProfileConfig(name="generated-myst"))
+        )
+
+        assert [diagnostic.code for diagnostic in result.diagnostics] == ["GEN002"]
+        span = result.diagnostics[0].span
+        assert span is not None
+        start = source.rindex("/C0 apod")
+        assert (span.start, span.end, span.line, span.col, span.end_line, span.end_col) == (
+            start,
+            start + len("/C0 apod"),
+            4,
+            1,
+            4,
+            8,
+        )
+
+
 def test_suspicious_formula_facts_are_source_spanned_and_limited_to_explicit_math() -> None:
     source = (
         Path(__file__).parent / "fixtures" / "generated" / "suspicious_formula_text.md"

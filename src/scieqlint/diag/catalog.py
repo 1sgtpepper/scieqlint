@@ -248,7 +248,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "generated math contains suspicious formula text",
         "Unreleased",
         "An explicit generated-math container contains a high-confidence spaced-token "
-        "or garbled-marker artifact.",
+        "or garbled-marker artifact in its formula content, excluding directive options.",
     ),
     "REF001": DiagnosticInfo(
         "REF001",
