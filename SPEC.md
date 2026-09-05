@@ -1017,7 +1017,7 @@ v1.0.0 ships only when:
 - compatibility matrix is green,
 - accuracy benchmark summary is published,
 - performance budgets are met,
-- at least 100 documented equation fixtures exist.
+- at least 100 independently labeled semantic equations execute through the public analysis path.
 
 v1.0.0 must not be date-shipped if these conditions are not met.
 
@@ -2121,27 +2121,22 @@ Golden tests must be stable across operating systems.
 
 ### Accuracy benchmark fixtures
 
-v0.1.0 includes a small deterministic accuracy benchmark set:
+The current corpus is a strict, versioned JSON document:
 
 ```text
-benchmarks/accuracy/
-  algebra.yml
-  references.yml
-  parse_unknown.yml
-```
-
-v0.1.2 adds:
-
-```text
-benchmarks/accuracy/dimensions.yml
+benchmarks/accuracy/corpus-v1.json
 ```
 
 Rules:
 
-- Each benchmark case has input, config if needed, expected diagnostic codes, and expected pass/fail status.
+- The top-level object and every case, document, and config object reject missing, unknown, and duplicate fields.
+- Each case records a positive or negative label, target rule, source format, scientific domain, provenance, and license or synthetic status. Only a non-synthetic case with an explicit `independent_equation_id` and exactly one equality-bearing line under the checkers' equation semantics contributes to the stable independent-equation count. Its identity preserves the checker's token boundaries and unrecognized non-whitespace text while normalizing checker-equivalent grouping braces and lexically insignificant spacing. Scanner-owned LaTeX alignment markers, paths, source format, notebook source segmentation, and inert notebook metadata do not change that identity; literal Markdown ampersands and identifier boundaries do. Equivalent identities must reuse one ID, and repeated IDs must keep the same equation and label/rule metadata. Wrappers and synthetic fixtures remain executable coverage, not accuracy evidence.
+- Expected diagnostic codes and pass/fail status are human-authored and every case runs through the public analysis path. Profile-specific cases record the generated-source provenance, conversion settings, output target, and project policy required to reproduce that behavior.
 - Benchmarks must run in PR CI as ordinary fast tests.
 - Release notes should report benchmark count and changed expectations.
 - Benchmark cases must be small and license-safe.
+- The checked-in corpus currently has 2 independently labeled equations (one positive and one negative), so the stable release gate remains disabled by default and fails closed at 2/100 when explicitly enabled.
+- Canary differentials and precision/recall gates require a larger independently labeled corpus and measured baseline variance.
 
 ### Coverage gates
 
@@ -2825,7 +2820,7 @@ Package:
 - Accuracy benchmark summary published.
 - Performance budgets met.
 - Security/release docs complete.
-- At least 100 documented equation fixtures.
+- At least 100 independently labeled semantic equations execute through the public analysis path with their expected diagnostics and exit status.
 
 ---
 

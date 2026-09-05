@@ -15,6 +15,29 @@ from scieqlint.scan.latex import LatexScanner
 from scieqlint.scan.markdown import MarkdownScanner
 
 
+def test_graph_does_not_derive_reference_display_facts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unexpected_derivation(*args, **kwargs):
+        raise AssertionError("graph lowering must not derive display-only facts")
+
+    monkeypatch.setattr(
+        "scieqlint.frontend.myst.reference_display_text_facts",
+        unexpected_derivation,
+    )
+    document = _markdown(
+        "graph.md",
+        "$$\nx = 1\n$$ {#target}\n\nSee {eq}`target`.\n",
+    )
+
+    graph = graph_documents((document,), config=Config())
+
+    assert [(node.kind, node.label) for node in graph.nodes] == [
+        ("equation", "target"),
+        ("reference", "target"),
+    ]
+
+
 @pytest.mark.public_regression
 def test_indented_code_does_not_create_reference_facts() -> None:
     source = "- item\n\n        [hidden](#hidden)\nSee [active](#active).\n"

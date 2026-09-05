@@ -98,6 +98,34 @@ def test_cross_format_profile_materializes_source_spanned_reference_risks() -> N
     ] == ["{eq}`eq-one`", r"\eqref{eq-one}"]
 
 
+def test_profile_snapshot_scans_latex_references_when_caller_has_no_scan_result() -> None:
+    source = (
+        r"\begin{equation}"
+        "\n"
+        r"x = 1 \label{eq-one}"
+        "\n"
+        r"\end{equation}"
+        "\n"
+        r"See \eqref{eq-one}."
+    )
+    document = SourceDocument.from_text(
+        PurePosixPath("cross-format.tex"),
+        source,
+        DocumentKind.LATEX,
+    )
+
+    snapshot = _profile_snapshot((document,), config("commonmark"))
+
+    [reference] = snapshot.equation_refs
+    assert (reference.ref_kind, reference.target, reference.raw) == (
+        "tex-eqref",
+        "eq-one",
+        r"\eqref{eq-one}",
+    )
+    assert reference.span is not None
+    assert document.text[reference.span.start : reference.span.end] == reference.target
+
+
 def test_cross_format_profile_materializes_notebook_reference_risks() -> None:
     source = "$$\nx = 1\n$$ {#eq-one}\n\n{eq}`eq-one`\n\n{numref}`eq-one`\n"
 
