@@ -254,7 +254,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "GEN003",
         Severity.WARNING,
         "nonstandard bracketed LaTeX display block",
-        "v1.1.0",
+        "Unreleased",
         "Generated Markdown contains a standalone bracketed LaTeX display block outside "
         "a supported math container.",
     ),
