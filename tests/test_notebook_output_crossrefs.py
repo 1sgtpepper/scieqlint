@@ -648,6 +648,104 @@ def test_notebook_output_label_precedes_listing_alias() -> None:
     assert metadata.target_span == anchor.label_span
 
 
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({"label": "ordinary", "lst-label": "lst-unused"}, ()),
+        ({"label": "ordinary"}, ()),
+        ({"label": "fig-primary", "lst-label": "lst-unused"}, ("label",)),
+        ({"lst-label": "lst-only"}, ("lst-label",)),
+        ({"label": " ", "lst-label": "lst-only"}, ("lst-label",)),
+    ],
+)
+def test_renderings_use_the_effective_output_label(metadata, expected) -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": ["light", "dark"]},
+                outputs=(display_output(output_metadata=metadata),),
+            )
+        )
+    )
+
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    diagnostics = [d for d in result.diagnostics if d.code == "PORT004"]
+
+    assert [dict(d.properties)["crossref_options"] for d in diagnostics] == (
+        [",".join(expected)] if expected else []
+    )
+
+
+@pytest.mark.parametrize("kind", ["markdown", "notebook"])
+@pytest.mark.parametrize("label", ["fig-theme", "'fig-theme'", '"fig-theme"'])
+def test_renderings_preserve_quoted_source_label_meaning(kind: str, label: str) -> None:
+    source = f"#| label: {label}\n#| renderings: [light, dark]\nplot()\n"
+    document = (
+        markdown(f"```python\n{source}```\n")
+        if kind == "markdown"
+        else notebook(notebook_payload(code_cell(metadata={}, source=source)))
+    )
+
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    [diagnostic] = [d for d in result.diagnostics if d.code == "PORT004"]
+
+    assert dict(diagnostic.properties)["label"] == "fig-theme"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == document.path
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("'fig-it''s'", "fig-it's"),
+        ("''", ""),
+        ('""', ""),
+        ("'fig-open", "'fig-open"),
+        ('"fig-open', '"fig-open'),
+        (r'"fig-\u0078"', r'"fig-\u0078"'),
+        ("'fig-x' trailing", "'fig-x' trailing"),
+    ],
+)
+def test_source_scalar_normalization_preserves_unsupported_forms(value: str, expected: str) -> None:
+    document = notebook(
+        notebook_payload(code_cell(metadata={}, source=f"#| label: {value}\nplot()\n"))
+    )
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+
+    assert cell.option_dict()["label"] == expected
+
+
+@pytest.mark.parametrize("size", [255, 256, 257, 600])
+@pytest.mark.parametrize("output_count", [1, 3])
+def test_renderings_preview_is_bounded_without_losing_outputs(size: int, output_count: int) -> None:
+    renderings = "x" * size
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={"renderings": renderings},
+                outputs=tuple(
+                    display_output(output_metadata={"label": f"fig-{index}"})
+                    for index in range(output_count)
+                ),
+            )
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    assert snapshot.code_cells[0].option_dict()["renderings"] == renderings
+    result = public_check_documents((document,), config=notebook_crossrefs_config())
+    diagnostics = [d for d in result.diagnostics if d.code == "PORT004"]
+
+    assert len(diagnostics) == output_count
+    assert [dict(d.properties)["output_index"] for d in diagnostics] == [
+        str(index) for index in range(output_count)
+    ]
+    expected = renderings if size <= 256 else renderings[:253] + "..."
+    for diagnostic in diagnostics:
+        assert dict(diagnostic.properties)["renderings"] == expected
+        assert f"renderings={expected!r}" in (diagnostic.detail or "")
+
+
 @pytest.mark.public_regression
 def test_notebook_output_listing_aliases_participate_in_duplicate_resolution() -> None:
     document = notebook(

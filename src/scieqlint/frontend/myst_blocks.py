@@ -411,5 +411,10 @@ def quarto_option_prefix(text: str) -> tuple[tuple[str, str], ...]:
         match = QUARTO_OPTION_RE.match(line)
         if match is None:
             break
-        options.append((match.group("key"), match.group("value").strip()))
+        value = match.group("value").strip()
+        if re.fullmatch(r"'(?:[^']|'')*'", value):
+            value = value[1:-1].replace("''", "'")
+        elif re.fullmatch(r'"[^"\\]*"', value):
+            value = value[1:-1]
+        options.append((match.group("key"), value))
     return tuple(options)

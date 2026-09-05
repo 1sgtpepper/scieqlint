@@ -360,7 +360,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "PORT004",
         Severity.WARNING,
         "cell renderings are incompatible with cross-reference options",
-        "v1.1.0",
+        "Unreleased",
         "A notebook or executable Markdown cell combines renderings with a label or "
         "caption option that creates a cross-reference.",
     ),

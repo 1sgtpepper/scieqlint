@@ -131,6 +131,11 @@ not invoke an external renderer or guarantee output parity. Both document APIs r
 paths that identify the same normalized project member, under every profile, so fact
 and diagnostic identities remain stable.
 
+Quarto source option prefixes normalize complete single-quoted scalars (including
+doubled single quotes) and double-quoted scalars without escapes. Other scalar
+forms remain literal; this is not a general YAML parser. Original source spans
+retain the lexical option value.
+
 Local reference destinations are normalized lexically without filesystem access.
 POSIX separators and native Windows drive, root-relative, or backslash spellings are
 supported; Windows-style drive and UNC components are compared case-insensitively.

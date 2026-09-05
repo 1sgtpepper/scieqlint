@@ -79,6 +79,9 @@ frontend source mapping but are not admitted by this portability profile.
 Diagnostics retain the exact source span and command or environment metadata.
 The profile does not render Typst or claim complete translation coverage.
 
+`PORT004` diagnostic rendering values are limited to a 256-character preview;
+full option values remain in the source facts.
+
 `PORT004` is opt-in through `notebook-crossrefs`. It reports executable Markdown
 or notebook code cells that combine `renderings` with a cross-reference label or
 caption option, including Quarto's `lst-label`, `fig-subcap`, and `tbl-subcap`

@@ -163,11 +163,12 @@ def _cell_crossref_options(cell: CodeCellFact) -> tuple[str, ...]:
 def _output_crossref_options(output: NotebookOutputFact) -> tuple[str, ...]:
     metadata = dict(output.metadata)
     options = {key for key in _CROSSREF_OPTIONS if key in metadata}
-    label = metadata.get("label")
-    if _has_crossref_prefix(label):
-        options.add("label")
-    if _has_crossref_prefix(metadata.get("lst-label")):
-        options.add("lst-label")
+    for key in _CROSSREF_LABEL_ORDER:
+        label = metadata.get(key)
+        if label is not None and label.strip():
+            if _has_crossref_prefix(label):
+                options.add(key)
+            break
     return _ordered_crossref_options(options)
 
 

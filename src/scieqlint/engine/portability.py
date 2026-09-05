@@ -131,13 +131,16 @@ class PortabilityEngine:
             output_detail = f" at output {output.output_index}"
             output_properties = (("output_index", str(output.output_index)),)
         provenance_ids = (cell.fact_id, output.fact_id) if output is not None else (cell.fact_id,)
+        renderings = conflict.renderings
+        if len(renderings) > 256:
+            renderings = renderings[:253] + "..."
         return DiagnosticIR(
             code="PORT004",
             severity_default=self.policy.severity("PORT004"),
             message="cell renderings are incompatible with cross-reference options",
             span=location.span,
             detail=(
-                f"cell {label!r}{output_detail} combines renderings={conflict.renderings!r} "
+                f"cell {label!r}{output_detail} combines renderings={renderings!r} "
                 f"with {list(conflict.crossref_options)!r}"
             ),
             hint=(
@@ -151,7 +154,7 @@ class PortabilityEngine:
             provenance_ids=provenance_ids,
             properties=(
                 ("label", label),
-                ("renderings", conflict.renderings),
+                ("renderings", renderings),
                 ("crossref_options", ",".join(conflict.crossref_options)),
                 (
                     "source_format",
