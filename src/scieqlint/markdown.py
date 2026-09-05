@@ -94,6 +94,8 @@ class MarkdownLinkToken:
     start: int
     end: int
     is_image: bool
+    destination: str | None = None
+    image_alt: str | None = None
     fragment_target: str | None = None
     fragment_target_start: int | None = None
     fragment_target_end: int | None = None
@@ -148,7 +150,7 @@ class _ContainerLine:
     block_start: bool
     text_role: _MarkdownTextRole
     # Whether a following source line may start a new text item directly.
-    block_end: bool = False
+    block_end: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -531,6 +533,7 @@ def _markdown_line_ownership(
                             virtual_prefix=relative.virtual_prefix,
                             container_key=state.container_key,
                             block_start=False,
+                            block_end=block_end,
                             text_role=(
                                 "blockquote"
                                 if state.quote_depth
@@ -538,7 +541,6 @@ def _markdown_line_ownership(
                                 if state.list_content_column is not None
                                 else "paragraph"
                             ),
-                            block_end=block_end,
                         )
                     )
                     if block_end:
@@ -605,6 +607,7 @@ def _markdown_line_ownership(
                     context,
                     depth,
                     block_start=False,
+                    block_end=True,
                 )
             )
             previous_depth = depth
@@ -631,6 +634,7 @@ def _markdown_line_ownership(
                     context,
                     depth,
                     block_start=False,
+                    block_end=False,
                 )
             )
             previous_depth = depth
@@ -656,6 +660,7 @@ def _markdown_line_ownership(
                     context,
                     depth,
                     block_start=False,
+                    block_end=True,
                 )
             )
             previous_depth = depth
@@ -677,12 +682,10 @@ def _markdown_line_ownership(
                 relative.source_index + marker.content_index - relative.virtual_prefix,
                 relative.text[marker.content_index :],
             )
+            item_block_kind = _markdown_block_kind(item_content.text, paragraph_active=False)
             item_is_code = marker.has_content and _indent_columns(item_content.text) >= 4
-            context.paragraph_active = (
-                marker.has_content
-                and not item_is_code
-                and _markdown_block_kind(item_content.text, paragraph_active=False) is None
-            )
+            item_is_paragraph = marker.has_content and not item_is_code
+            context.paragraph_active = item_is_paragraph and item_block_kind is None
             boundaries.append(start)
             if item_is_code:
                 ranges.append((start, end))
@@ -696,6 +699,12 @@ def _markdown_line_ownership(
                     context,
                     depth,
                     block_start=not item_is_code,
+                    block_end=(
+                        item_is_code
+                        or not marker.has_content
+                        or item_block_kind
+                        in {"heading", "setext", "thematic", "fence", "html", "display"}
+                    ),
                 )
             )
             item_html_kind = _html_block_kind(item_content.text, paragraph_active=False)
@@ -727,6 +736,7 @@ def _markdown_line_ownership(
                     context,
                     depth,
                     block_start=False,
+                    block_end=True,
                 )
             )
             previous_depth = depth
@@ -788,7 +798,7 @@ def _make_container_line(
     quote_depth: int,
     *,
     block_start: bool,
-    block_end: bool = False,
+    block_end: bool,
 ) -> _ContainerLine:
     return _ContainerLine(
         start=start,
@@ -798,6 +808,7 @@ def _make_container_line(
         virtual_prefix=content.virtual_prefix,
         container_key=(*quote_path, *context.list_container_ids),
         block_start=block_start,
+        block_end=block_end,
         text_role=(
             "blockquote"
             if quote_depth
@@ -805,7 +816,6 @@ def _make_container_line(
             if context.list_container_ids
             else "paragraph"
         ),
-        block_end=block_end,
     )
 
 
@@ -1303,6 +1313,7 @@ def _markdown_link_tokens_from_lexical(
                     token = _make_link_token(
                         text,
                         frame.token_start,
+                        index,
                         end,
                         destination_start,
                         destination_end,
@@ -1330,9 +1341,25 @@ def _link_label_boundaries(text: str) -> tuple[int, ...]:
 
 def _markdown_line_ownership_for_generated(  # pyright: ignore[reportUnusedFunction]
     text: str,
-) -> tuple[tuple[int, str, tuple[int, ...], bool, bool], ...]:
+) -> tuple[tuple[int, str, tuple[int, ...], bool, bool, str], ...]:
     """Return the private ownership seam needed by generated-output lowering."""
 
+    lines = _source_lines(text)
+    ownership = _markdown_line_ownership(lines)
+    roles = _markdown_text_roles(lines, ownership.container_lines)
+    semantic_roles: list[_MarkdownTextRole] = []
+    for index, line in enumerate(ownership.container_lines):
+        role = roles[index]
+        visible = line.content[line.virtual_prefix :].lstrip(" \t")
+        is_heading = role == "heading" and (
+            not line.block_start
+            or visible.startswith("#")
+            or (
+                not line.block_end
+                and not (visible.startswith(("<", "```", "~~~")) or _starts_display_block(visible))
+            )
+        )
+        semantic_roles.append("heading" if is_heading else line.text_role)
     return tuple(
         (
             line.content_start,
@@ -1340,8 +1367,9 @@ def _markdown_line_ownership_for_generated(  # pyright: ignore[reportUnusedFunct
             line.container_key,
             line.block_start,
             line.block_end,
+            semantic_roles[index],
         )
-        for line in _markdown_line_ownership(_source_lines(text)).container_lines
+        for index, line in enumerate(ownership.container_lines)
     )
 
 
@@ -1415,6 +1443,7 @@ def _starts_display_block(line: str) -> bool:
 def _make_link_token(
     text: str,
     token_start: int,
+    label_end: int,
     end: int,
     destination_start: int,
     destination_end: int,
@@ -1437,6 +1466,8 @@ def _make_link_token(
         start=token_start,
         end=end,
         is_image=is_image,
+        destination=destination,
+        image_alt=(text[token_start + 2 : label_end] if is_image else None),
         fragment_target=fragment_target,
         fragment_target_start=fragment_target_start,
         fragment_target_end=fragment_target_end,

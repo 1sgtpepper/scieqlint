@@ -50,7 +50,10 @@ caller-supplied provenance enriches it when available. Source kind and
 conversion stage are retained per generated document when supplied on its
 `SourceOrigin`; an explicit profile value is only a fallback for an origin
 field that the caller left unspecified. Missing origin metadata is never
-inferred. If a diagnostic has more than one provenance fact, `provenance_ids`
+inferred. `GEN004` covers explicit `formula-not-decoded` markers, empty dollar or fenced
+display-math containers, and standalone formula image placeholders. An ordinary
+rendered equation image without placeholder evidence is not a placeholder.
+If a diagnostic has more than one provenance fact, `provenance_ids`
 retains every fact ID and the serialized metadata uses deterministic
 `provenance_1_*`, `provenance_2_*`, and later keys instead of discarding all but
 the first fact.
@@ -60,6 +63,7 @@ the first fact.
 | `GEN001` | warning | Generated output is missing a preserved source anchor |
 | `GEN002` | warning | Generated math contains suspicious formula text |
 | `GEN003` | warning | Nonstandard bracketed LaTeX display block (`\[...\]` or `[...]`) |
+| `GEN004` | warning | Generated output contains a formula placeholder |
 
 ## Reserved in catalog
 

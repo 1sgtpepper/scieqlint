@@ -190,9 +190,14 @@ def test_markdown_line_ownership_preserves_tab_expansion_source_offsets() -> Non
     )
 
     for source, expected in cases:
-        content_start, content, _container_key, _block_start, _block_end = (
-            _markdown_line_ownership_for_generated(source)[-1]
-        )
+        (
+            content_start,
+            content,
+            _container_key,
+            _block_start,
+            _block_end,
+            _text_role,
+        ) = _markdown_line_ownership_for_generated(source)[-1]
 
         expected_start = source.rindex(expected)
         assert content_start == expected_start
