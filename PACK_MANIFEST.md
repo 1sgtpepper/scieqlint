@@ -69,6 +69,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `benchmarks/accuracy/parse_unknown.yml`
 - `benchmarks/accuracy/portability.yml`
 - `benchmarks/accuracy/references.yml`
+- `benchmarks/accuracy/typst.yml`
 - `docs/api.md`
 - `docs/architecture.md`
 - `docs/architecture/deterministic-snapshot-kernel-adr.md`
@@ -240,6 +241,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
+- `tests/fixtures/bad/typst_portability_bad.md`
 - `tests/fixtures/generated/assets/equation-of-state.svg`
 - `tests/fixtures/generated/assets/equation-placeholder.svg`
 - `tests/fixtures/generated/bracketed_latex.md`
@@ -260,11 +262,13 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/references_good.md`
 - `tests/fixtures/good/symbol_directives.md`
 - `tests/fixtures/good/symbol_directives.tex`
+- `tests/fixtures/good/typst_portability_good.md`
 - `tests/fixtures/good/verbatim_transitions.tex`
 - `tests/fixtures/jats/inline_formula_converted.md`
 - `tests/golden/github/cross_format_references.txt`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
+- `tests/golden/github/typst_portability_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/cross_format_references.json`
@@ -275,10 +279,12 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/inline_math_accessibility.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
+- `tests/golden/json/typst_portability_bad.json`
 - `tests/golden/sarif/cross_format_references.sarif`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/sarif/inline_math_accessibility.sarif`
+- `tests/golden/sarif/typst_portability_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
 - `tests/golden/text/cross_format_references.txt`
@@ -288,6 +294,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/generated_equation_like_text.txt`
 - `tests/golden/text/generated_formula_quality.txt`
 - `tests/golden/text/generated_formula_text.txt`
+- `tests/golden/text/typst_portability_bad.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`
@@ -349,5 +356,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_source_kind_validation.py`
 - `tests/test_stabilization.py`
 - `tests/test_symbols.py`
+- `tests/test_typst_portability.py`
 - `tools/architecture/terminology_drift.py`
 - `tools/public_regression_replay.py`

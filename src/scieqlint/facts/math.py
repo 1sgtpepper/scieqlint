@@ -28,6 +28,7 @@ DisplayContainer = Literal[
     "dollar-dollar",
     "myst-math-directive",
     "fenced-math",
+    "latex-display",
     "ams",
     "quarto-equation",
     "raw-latex",
@@ -57,6 +58,8 @@ class InlineMathFact(FactBase):
 class DisplayMathFact(FactBase):
     body: str
     container: DisplayContainer
+    # Source width of recognized directive options, excluded from TeX interpretation.
+    option_prefix_length: int = 0
     # Equation labels and references use this enclosing display as their owner;
     # row-level equation-number identity is intentionally not modeled yet.
     label_fact_ids: tuple[str, ...] = ()

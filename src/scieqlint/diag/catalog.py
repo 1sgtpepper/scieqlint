@@ -332,6 +332,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "An explicit inline-math span has no accessible text in the lowered "
         "source facts for the selected accessibility profile.",
     ),
+    "PORT003": DiagnosticInfo(
+        "PORT003",
+        Severity.WARNING,
+        "equation syntax may not survive Typst export",
+        "Unreleased",
+        "A focused TeX display-math form is known to be unsupported or fragile "
+        "in current Typst publishing paths.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,
