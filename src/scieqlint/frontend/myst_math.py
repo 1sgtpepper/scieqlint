@@ -142,10 +142,6 @@ def _raw_math_environment_ranges(
     candidate_malformed = False
     lexical = scan_tex_lexically(text, occupied=(*occupied, *bracketed_occupied))
     for kind, environment, token_start, token_end in lexical.environment_tokens:
-        if not stack and (
-            in_ranges(token_start, occupied) or in_ranges(token_start, bracketed_occupied)
-        ):
-            continue
         if kind == "begin":
             if not stack:
                 candidate_malformed = False
@@ -628,13 +624,19 @@ def _math_fact_from_fence(
     body_text = document.text[fence.body_span.start : fence.body_span.end]
     body = body_text.strip()
     fact_id = f"{fence.fact_id}::math"
+    option_prefix_length = 0
+    if fence.info_string == "{math}":
+        for _line_start, line_end, line in directive_option_prefix_lines(document, fence):
+            if MYST_OPTION_RE.match(line) is None:
+                break
+            option_prefix_length = line_end - fence.body_span.start
     labels: list[EquationLabelFact] = []
     references: tuple[EquationRefFact, ...] = ()
     if fence.is_closed:
-        labels.extend(_tex_label_facts(document, smap, fact_id, fence.body_span.start, body_text))
-        references = tuple(
-            _tex_reference_facts(document, smap, fact_id, fence.body_span.start, body_text)
-        )
+        tex_body_start = fence.body_span.start + option_prefix_length
+        tex_body = body_text[option_prefix_length:]
+        labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body))
+        references = tuple(_tex_reference_facts(document, smap, fact_id, tex_body_start, tex_body))
         if fence.info_string == "{math}":
             labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
     return (
@@ -645,6 +647,7 @@ def _math_fact_from_fence(
             raw=body,
             body=body,
             container=("myst-math-directive" if fence.info_string == "{math}" else "fenced-math"),
+            option_prefix_length=option_prefix_length,
             label_fact_ids=tuple(label.fact_id for label in labels),
             complete=fence.is_closed,
         ),
