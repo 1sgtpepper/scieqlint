@@ -4,7 +4,7 @@ The stable API surface is exported from `scieqlint.api`:
 
 - `check_paths(paths, *, config_path=None, no_algebra=False, inline_math=False,
   strict_unknowns=False, absolute_paths=False)`
-- `check_documents(documents, *, config)`
+- `check_documents(documents, *, config, accessibility_metadata=None)`
 - `graph_paths(paths, *, config_path=None)`
 - `graph_documents(documents, *, config)`
 - `load_config(path=None, *, preset=None)`
@@ -45,6 +45,20 @@ syntax are expanded.
 do not read baseline files from disk. Path-based APIs preserve their analysis result
 when output-safety metadata is unavailable; that metadata is required only by the
 CLI guard before writing a file output.
+
+`accessibility_metadata` is a caller-owned mapping from a source-owned inline-math
+accessibility ID to accessible text. IDs percent-encode the document path and trimmed
+body as `<document-path>::inline-math::<delimiter-kind>::<body>`; repeated identical
+explicit containers append `::1`, `::2`, and so on. These IDs do not depend on byte
+offsets, while inferred plain-text candidates receive no ID. SciEqLint applies metadata
+at the orchestration boundary; it does not infer alternative text from surrounding
+prose. Keys must be non-empty strings and values must be strings; malformed mappings
+raise `ValueError` before analysis. An unknown ID or an ID that resolves to more than
+one fact is also rejected. A non-empty mapping is valid only with the
+`math-accessibility` profile; an empty mapping remains a no-op for compatibility.
+That profile currently lowers Markdown documents only. Markdown cells in notebooks and
+LaTeX documents are outside this contract and do not produce `PORT002` diagnostics or
+accessibility IDs.
 
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a
