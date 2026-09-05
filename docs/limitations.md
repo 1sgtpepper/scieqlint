@@ -103,6 +103,28 @@ Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
 Inline math spans cover the trimmed source body, so symbol and parser diagnostics
 point at the mathematical text rather than surrounding delimiter whitespace.
+Non-empty `$...$`, `{math}` roles, and `\(...\)` spans become inline facts; the
+fact also retains its surrounding source role (`heading`, `paragraph`,
+`list-item`, or `blockquote`), including inherited list and blockquote continuation
+ownership. A backslash-delimited span is active only when its backslash run is odd;
+even runs are escaped according to the shared lexical scanner. An active nested
+`\(` or `\)` inside a `\(...\)` candidate is retained as unsupported
+`ambiguous_delimiter` math instead of being treated as a valid formula. LaTeX
+parenthesis spans are confined to one normalized source line, and an active TeX
+comment cannot supply their closing delimiter. Plain-text equation candidates scan
+once around relation tokens and preserve integer and decimal operands with attached
+unary signs. An unsupported attached group or malformed continuation rejects the
+candidate instead of publishing a truncated prefix. Candidates remain unclassified until
+`MathHost` classifies them symmetrically as `text-leak` or `not-math`; bare numeric
+comparisons and signed prose remain excluded from math queries. Malformed or
+unsupported inline math remains an `UnknownMath` fact rather than a guessed formula.
+Unsupported TeX environment names,
+including names with hyphens, digits, or underscores, are classified as unknown rather
+than preserved. A candidate that overlaps code,
+HTML, link metadata, or another MyST role is rejected without hiding a later disjoint
+candidate, using the frontend's shared source-order ownership snapshot. Explicit math
+inside Markdown link text remains visible for every supported delimiter, while link
+destinations, titles, images, and inferred plain-text candidates in labels remain opaque.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text

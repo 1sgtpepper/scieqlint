@@ -37,6 +37,7 @@ from scieqlint.graph.model import Graph
 from scieqlint.io.discover import discover_files
 from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
 from scieqlint.scan.latex import LatexScanner
@@ -225,6 +226,14 @@ def check_documents(
     }
     if markdown_documents and config.scanner.markdown:
         snapshot = MySTFrontend().lower(markdown_documents)
+        classification_input = (
+            snapshot if config.scanner.inline_math else replace(snapshot, inline_math=())
+        )
+        snapshot = MathHost().classify(classification_input)
+        if not config.scanner.inline_math:
+            # Inline math is an opt-in fact surface; retain structural,
+            # display-math, and reference facts for the default path.
+            snapshot = replace(snapshot, inline_math=())
         if generated_provenance:
             snapshot = replace(snapshot, generated_provenance=generated_provenance)
         query = QueryHost(snapshot)

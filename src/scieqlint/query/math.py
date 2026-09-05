@@ -16,7 +16,9 @@ class MathContainerQueryView:
         return self.snapshot.display_math
 
     def inline_math(self) -> tuple[InlineMathFact, ...]:
-        return self.snapshot.inline_math
+        """Return candidates and classified math, excluding rejected prose."""
+
+        return tuple(fact for fact in self.snapshot.inline_math if fact.parse_status != "not-math")
 
     def unknown_math(self) -> tuple[UnknownMathFact, ...]:
         return self.snapshot.unknown_math
