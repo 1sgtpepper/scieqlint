@@ -223,7 +223,7 @@ def check_documents(
     )
     frontend_snapshot = FactSnapshot()
     raw_opaque_spans: tuple[SourceSpan, ...] = ()
-    if config.scanner.markdown:
+    if config.scanner.markdown or config.profile.name == "reference-display":
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
         frontend_snapshot = MySTFrontend(workspace=workspace).lower(

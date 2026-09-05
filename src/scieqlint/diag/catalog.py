@@ -344,7 +344,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF009",
         Severity.WARNING,
         "non-heading reference has missing or generic display text",
-        "v1.1.0",
+        "Unreleased",
         "A resolved non-heading target relies on missing or generic display text under "
         "the opt-in reference-display profile.",
     ),

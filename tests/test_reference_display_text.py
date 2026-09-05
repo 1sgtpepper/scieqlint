@@ -728,9 +728,18 @@ plot.png
 """,
         "target.md",
     )
-    reference = doc("See [fig-plot](#fig-plot).\n", "reference.md")
+    reference = doc("See [fig-plot](target.md#fig-plot).\n", "reference.md")
     first = MySTFrontend().lower((target, reference))
     second = MySTFrontend().lower((reference, target))
+
+    [display] = first.reference_display_text
+    assert display.target_type == "figure"
+    assert display.target_identity == (PurePosixPath("target.md"), "fig-plot")
+    assert len(display.target_fact_ids) == 1
+    assert [
+        diagnostic.code
+        for diagnostic in ReferenceEngine(profile="reference-display").run(QueryHost(first))
+    ] == ["REF009"]
 
     def contract(snapshot):
         return tuple(
