@@ -11,10 +11,10 @@ from scieqlint.facts.math import (
     InlineDelimiter,
     InlineMathFact,
 )
-from scieqlint.facts.reference import EquationLabelFact
+from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.structure import FenceFact
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import MarkdownReferenceSnapshot, is_escaped
+from scieqlint.markdown import MarkdownReferenceSnapshot, is_escaped, without_tex_comments
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import directive_option_prefix_lines
@@ -33,6 +33,7 @@ from .myst_shared import (
 _MYST_MATH_ROLE_RE = re.compile(r"\{math\}`(?P<body>[^`\r\n]+)`")
 _PLAIN_TEXT_RELATIONS = "=<>≤≥→"
 _PLAIN_TEXT_OPERATORS = "+-*/^"
+_TEX_REFERENCE_RE = re.compile(r"\\(?P<kind>eqref|ref)\{(?P<target>[^{}\r\n]+)\}")
 
 
 def math_occupied_ranges(
@@ -46,20 +47,29 @@ def scan_display_math(
     smap: SourceMap,
     fences: Sequence[FenceFact],
     dollar_ranges: Sequence[tuple[int, int, int, int]],
-) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
+) -> tuple[
+    tuple[DisplayMathFact, ...],
+    tuple[EquationLabelFact, ...],
+    tuple[EquationRefFact, ...],
+]:
     display: list[DisplayMathFact] = []
     labels: list[EquationLabelFact] = []
+    references: list[EquationRefFact] = []
     for fence in fences:
         if fence.kind != "math" or fence.body_span is None:
             continue
-        math_fact, label_facts = _math_fact_from_fence(document, smap, fence)
+        math_fact, label_facts, reference_facts = _math_fact_from_fence(document, smap, fence)
         display.append(math_fact)
         labels.extend(label_facts)
+        references.extend(reference_facts)
 
-    dollar_display, dollar_labels = _dollar_display_math(document, smap, dollar_ranges)
+    dollar_display, dollar_labels, dollar_references = _dollar_display_math(
+        document, smap, dollar_ranges
+    )
     display.extend(dollar_display)
     labels.extend(dollar_labels)
-    return tuple(display), tuple(labels)
+    references.extend(dollar_references)
+    return tuple(display), tuple(labels), tuple(references)
 
 
 def scan_inline_math(
@@ -470,7 +480,11 @@ def _math_fact_from_fence(
     document: SourceDocument,
     smap: SourceMap,
     fence: FenceFact,
-) -> tuple[DisplayMathFact, tuple[EquationLabelFact, ...]]:
+) -> tuple[
+    DisplayMathFact,
+    tuple[EquationLabelFact, ...],
+    tuple[EquationRefFact, ...],
+]:
     assert fence.body_span is not None
     body_text = document.text[fence.body_span.start : fence.body_span.end]
     body = body_text.strip()
@@ -481,9 +495,15 @@ def _math_fact_from_fence(
             if MYST_OPTION_RE.match(line) is None:
                 break
             option_prefix_length = line_end - fence.body_span.start
-    labels = list(_tex_label_facts(document, smap, fact_id, fence.body_span.start, body_text))
-    if fence.info_string == "{math}":
-        labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
+    labels: list[EquationLabelFact] = []
+    references: tuple[EquationRefFact, ...] = ()
+    if fence.is_closed:
+        tex_body_start = fence.body_span.start + option_prefix_length
+        tex_body = body_text[option_prefix_length:]
+        labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body))
+        references = tuple(_tex_reference_facts(document, smap, fact_id, tex_body_start, tex_body))
+        if fence.info_string == "{math}":
+            labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
     return (
         DisplayMathFact(
             fact_id=fact_id,
@@ -491,12 +511,13 @@ def _math_fact_from_fence(
             span=fence.body_span,
             raw=body,
             body=body,
-            container="myst-math-directive" if fence.info_string == "{math}" else "fenced-math",
+            container=("myst-math-directive" if fence.info_string == "{math}" else "fenced-math"),
             option_prefix_length=option_prefix_length,
             label_fact_ids=tuple(label.fact_id for label in labels),
             complete=fence.is_closed,
         ),
         tuple(labels),
+        references,
     )
 
 
@@ -504,9 +525,14 @@ def _dollar_display_math(
     document: SourceDocument,
     smap: SourceMap,
     dollar_ranges: Sequence[tuple[int, int, int, int]],
-) -> tuple[tuple[DisplayMathFact, ...], tuple[EquationLabelFact, ...]]:
+) -> tuple[
+    tuple[DisplayMathFact, ...],
+    tuple[EquationLabelFact, ...],
+    tuple[EquationRefFact, ...],
+]:
     display: list[DisplayMathFact] = []
     labels: list[EquationLabelFact] = []
+    references: list[EquationRefFact] = []
     for start, body_start, body_end, _close_end in dollar_ranges:
         fact_id = f"{document.path.as_posix()}::display-math::{start}"
         body_text = document.text[body_start:body_end]
@@ -517,7 +543,11 @@ def _dollar_display_math(
         span_end = body_start + len(body_text.rstrip())
         label_facts = list(_tex_label_facts(document, smap, fact_id, body_start, body_text))
         label_facts.extend(_dollar_tail_label_facts(document, smap, fact_id, body_end))
+        reference_facts = tuple(
+            _tex_reference_facts(document, smap, fact_id, body_start, body_text)
+        )
         labels.extend(label_facts)
+        references.extend(reference_facts)
         display.append(
             DisplayMathFact(
                 fact_id=fact_id,
@@ -529,7 +559,39 @@ def _dollar_display_math(
                 label_fact_ids=tuple(label.fact_id for label in label_facts),
             )
         )
-    return tuple(display), tuple(labels)
+    return tuple(display), tuple(labels), tuple(references)
+
+
+def _tex_reference_facts(
+    document: SourceDocument,
+    smap: SourceMap,
+    fact_id: str,
+    body_start: int,
+    body_text: str,
+) -> Iterable[EquationRefFact]:
+    for match in _TEX_REFERENCE_RE.finditer(without_tex_comments(body_text)):
+        if is_escaped(body_text, match.start()):
+            continue
+        target = match.group("target").strip()
+        if not target:
+            continue
+        raw_target = match.group("target")
+        leading = len(raw_target) - len(raw_target.lstrip())
+        target_start = body_start + match.start("target") + leading
+        role_start = body_start + match.start()
+        role_end = body_start + match.end()
+        yield EquationRefFact(
+            fact_id=f"{fact_id}::ref::{target_start}",
+            document_id=document.path.as_posix(),
+            span=smap.span(role_start, role_end),
+            raw=match.group(0),
+            ref_kind=f"tex-{match.group('kind')}",
+            target=target,
+            normalized_target=normalize_label(target),
+            source_block_id=fact_id,
+            role_span=smap.span(role_start, role_end),
+            target_span=smap.span(target_start, target_start + len(target)),
+        )
 
 
 def _tex_label_facts(
@@ -539,10 +601,12 @@ def _tex_label_facts(
     body_start: int,
     body_text: str,
 ) -> Iterable[EquationLabelFact]:
-    for match in TEX_LABEL_RE.finditer(body_text):
+    for match in TEX_LABEL_RE.finditer(without_tex_comments(body_text)):
         if is_escaped(body_text, match.start()):
             continue
         label = match.group("label")
+        if not label.strip():
+            continue
         label_start = body_start + match.start("label")
         yield EquationLabelFact(
             fact_id=f"{fact_id}::label::{label_start}",

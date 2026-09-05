@@ -1659,13 +1659,17 @@ References are core v0.1.0. Graph and symbols come later.
 | `REF001` | v0.1.0 | error | Duplicate equation label |
 | `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
+| `REF011` | Unreleased | warning | Ambiguous equation reference |
 
 Rules:
 
 - Duplicate labels emit `REF001`.
 - Missing supported reference targets emit `REF002`.
+- References resolving to more than one equation target emit `REF011`.
 - Strict mode may emit `REF003`.
 - Strict missing-label checks apply to display and fenced equation blocks, not inline math.
+- Labels and references inside a Markdown/MyST aligned display are owned by the
+  enclosing display fact; per-row equation-number identity is not modeled.
 - Reference checking must be deterministic and zero-config.
 - Natural-language references are not extracted in v0.x.
 
@@ -1717,6 +1721,7 @@ Diagnostic codes are stable API once introduced.
 | `REF001` | error | Duplicate equation label |
 | `REF002` | warning | Equation reference target not found |
 | `REF003` | info | Missing equation label in strict mode |
+| `REF011` | warning | Ambiguous equation reference |
 
 Later codes are added only when their release starts.
 

@@ -226,6 +226,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/source/__init__.py`
 - `src/scieqlint/source/maps.py`
 - `tests/fixtures/bad/.gitkeep`
+- `tests/fixtures/bad/ambiguous_equation_reference.md`
 - `tests/fixtures/bad/architecture_myst_bad.md`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/generated_myst_profile_bad.md`
@@ -245,6 +246,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/good/.gitkeep`
 - `tests/fixtures/good/algebra_good.md`
 - `tests/fixtures/good/alias_dimensions_good.md`
+- `tests/fixtures/good/aligned_equation_references.md`
 - `tests/fixtures/good/architecture_myst_good.md`
 - `tests/fixtures/good/graph_refs.md`
 - `tests/fixtures/good/markdown_lexical_precedence.md`
@@ -267,6 +269,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/text/.gitkeep`
+- `tests/golden/text/ambiguous_equation_reference.txt`
 - `tests/golden/text/famous_bad.txt`
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
@@ -277,6 +280,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`
 - `tests/test_algebra.py`
+- `tests/test_aligned_equation_references.py`
 - `tests/test_api.py`
 - `tests/test_architecture_contracts.py`
 - `tests/test_architecture_terminology_fences.py`

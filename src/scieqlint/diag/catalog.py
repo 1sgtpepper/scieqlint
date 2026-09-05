@@ -286,7 +286,8 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "equation reference target not found",
         "v0.1.0",
-        "A supported equation reference points to a missing target.",
+        "A supported equation reference points to a missing target. "
+        "Math directive option values are not TeX references.",
     ),
     "REF003": DiagnosticInfo(
         "REF003",
@@ -308,6 +309,13 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "ambiguous generic reference target",
         "v1.1.0",
         "A supported MyST generic reference points to more than one target.",
+    ),
+    "REF011": DiagnosticInfo(
+        "REF011",
+        Severity.WARNING,
+        "ambiguous equation reference",
+        "Unreleased",
+        "A supported equation reference points to more than one equation target.",
     ),
     "SUP001": DiagnosticInfo(
         "SUP001",
