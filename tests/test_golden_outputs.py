@@ -30,6 +30,7 @@ from scieqlint.report.text import TextReporter
 
 FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
 AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_reference.md")
+REFERENCE_DISPLAY_FIXTURE = Path("tests/fixtures/bad/reference_display_bad.md")
 SUPPRESSED_FIXTURE = Path("tests/fixtures/bad/suppressed_bad.md")
 GRAPH_FIXTURE = Path("tests/fixtures/good/graph_refs.md")
 CROSS_FORMAT_FIXTURE = Path("tests/fixtures/bad/cross_format_references.md")
@@ -369,6 +370,33 @@ def test_sarif_golden_output_matches_crossref_metadata_engine_path() -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_reference_display_text_golden_output_matches_fixture() -> None:
+    assert TextReporter().render(_reference_display_result()) == Path(
+        "tests/golden/text/reference_display_bad.txt"
+    ).read_text(encoding="utf-8")
+
+
+def test_reference_display_json_golden_output_matches_schema_and_fixture() -> None:
+    rendered = JsonReporter().render(_reference_display_result())
+    _validate_json_result(rendered, version="0.2")
+
+    assert rendered == Path("tests/golden/json/reference_display_bad.json").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_reference_display_github_golden_output_matches_fixture() -> None:
+    assert GitHubReporter().render(_reference_display_result()) == Path(
+        "tests/golden/github/reference_display_bad.txt"
+    ).read_text(encoding="utf-8")
+
+
+def test_reference_display_sarif_golden_output_matches_fixture() -> None:
+    assert SarifReporter().render(_reference_display_result()) == Path(
+        "tests/golden/sarif/reference_display_bad.sarif"
+    ).read_text(encoding="utf-8")
+
+
 def test_graph_golden_output_matches_schema_and_fixture() -> None:
     rendered = render_graph_json(graph_paths([GRAPH_FIXTURE]))
     schema = _schema("scieqlint-graph-0.3.schema.json")
@@ -403,6 +431,21 @@ def _validate_json_result(rendered: str, *, version: str = "0.1") -> None:
         ]
     )
     Draft202012Validator(schema, registry=registry).validate(json.loads(rendered))
+
+
+def _reference_display_result() -> CheckResult:
+    document = SourceDocument.from_text(
+        PurePosixPath(REFERENCE_DISPLAY_FIXTURE.as_posix()),
+        REFERENCE_DISPLAY_FIXTURE.read_text(encoding="utf-8"),
+        DocumentKind.MARKDOWN,
+    )
+    return check_documents(
+        (document,),
+        config=Config(
+            profile=ProfileConfig(name="reference-display"),
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+        ),
+    )
 
 
 def _check_documents_with_report(

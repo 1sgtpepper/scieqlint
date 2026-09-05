@@ -178,6 +178,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/frontend/notebook_json.py`
 - `src/scieqlint/frontend/notebook_markdown.py`
 - `src/scieqlint/frontend/notebook_outputs.py`
+- `src/scieqlint/frontend/reference_display.py`
 - `src/scieqlint/graph/__init__.py`
 - `src/scieqlint/graph/export.py`
 - `src/scieqlint/graph/json.py`
@@ -249,6 +250,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/myst_bad.md`
 - `tests/fixtures/bad/notebook_crossrefs_bad.ipynb`
 - `tests/fixtures/bad/preset_mechanics_bad.md`
+- `tests/fixtures/bad/reference_display_bad.md`
 - `tests/fixtures/bad/references_bad.md`
 - `tests/fixtures/bad/suppressed_bad.md`
 - `tests/fixtures/bad/symbol_directives_bad.md`
@@ -285,6 +287,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/github/notebook_crossrefs_bad.txt`
+- `tests/golden/github/reference_display_bad.txt`
 - `tests/golden/github/typst_portability_bad.txt`
 - `tests/golden/graph/graph_refs.json`
 - `tests/golden/json/.gitkeep`
@@ -296,6 +299,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/generated_formula_quality.json`
 - `tests/golden/json/inline_math_accessibility.json`
 - `tests/golden/json/notebook_crossrefs_bad.json`
+- `tests/golden/json/reference_display_bad.json`
 - `tests/golden/json/suppressed_hidden.json`
 - `tests/golden/json/suppressed_visible.json`
 - `tests/golden/json/typst_portability_bad.json`
@@ -305,6 +309,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/sarif/inline_math_accessibility.sarif`
 - `tests/golden/sarif/notebook_crossrefs_bad.sarif`
+- `tests/golden/sarif/reference_display_bad.sarif`
 - `tests/golden/sarif/typst_portability_bad.sarif`
 - `tests/golden/text/.gitkeep`
 - `tests/golden/text/ambiguous_equation_reference.txt`
@@ -317,6 +322,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/generated_formula_quality.txt`
 - `tests/golden/text/generated_formula_text.txt`
 - `tests/golden/text/notebook_crossrefs_bad.txt`
+- `tests/golden/text/reference_display_bad.txt`
 - `tests/golden/text/typst_portability_bad.txt`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
@@ -369,6 +375,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_pre_commit_metadata.py`
 - `tests/test_public_regression_replay.py`
 - `tests/test_raw_latex_equation_facts.py`
+- `tests/test_reference_display_text.py`
 - `tests/test_references.py`
 - `tests/test_release_fixtures.py`
 - `tests/test_release_metadata.py`

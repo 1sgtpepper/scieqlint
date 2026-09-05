@@ -741,6 +741,10 @@ each affected output retains its identity and exact JSON source span. Equivalent
 metadata and renderings without cross-reference options remain quiet. Full facts
 remain available while diagnostic rendering values use a 256-character preview.
 
+The unreleased `reference-display` profile resolves Markdown references against
+visible notebook headings, equations, code-cell labels and recorded-output labels.
+It preserves source spans and visibility and never executes or re-renders cells.
+
 ### 5.7 v0.1.5 — SARIF and thin GitHub Action
 
 Goal: support GitHub code scanning and copy-pasteable CI without changing analysis behavior.

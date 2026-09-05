@@ -731,6 +731,53 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert QueryHost(snapshot).references.target_identity_index()[identity] == (anchor,)
 
 
+@pytest.mark.parametrize(
+    ("caption_key", "expected_kind"),
+    [
+        ("fig-cap", "figure"),
+        ("fig-subcap", "figure"),
+        ("tbl-cap", "table"),
+        ("tbl-subcap", "table"),
+        ("lst-cap", "listing"),
+        ("cap", "block"),
+        ("caption", "block"),
+    ],
+)
+def test_notebook_output_caption_metadata_infers_kind_without_typed_label(
+    caption_key: str,
+    expected_kind: str,
+) -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={},
+                outputs=(
+                    display_output(
+                        output_metadata={"label": "plain-output", caption_key: "Caption"}
+                    ),
+                ),
+            ),
+            {"cell_type": "markdown", "metadata": {}, "source": "See [](#plain-output).\n"},
+        )
+    )
+    profile = Config(
+        profile=ProfileConfig(name="reference-display"),
+        checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+    [anchor] = snapshot.target_anchors
+    [metadata] = [
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
+    ]
+    result = public_check_documents((document,), config=profile)
+
+    assert anchor.target_kind == expected_kind
+    assert metadata.resolved_target_kind == expected_kind
+    [diagnostic] = [item for item in result.diagnostics if item.code == "REF009"]
+    assert dict(diagnostic.properties)["target_type"] == expected_kind
+
+
 def test_notebook_output_target_prefixes_remain_case_sensitive() -> None:
     document = notebook(
         notebook_payload(
@@ -1262,6 +1309,43 @@ def test_public_output_link_reports_only_the_missing_control() -> None:
     assert result.exit_code() == 0
 
 
+def test_notebook_display_resolution_aggregates_cross_cell_targets() -> None:
+    document = notebook(
+        notebook_payload(
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "See [](#fig-cell), [](#fig-output), and [](#missing-output).\n",
+            },
+            code_cell(
+                metadata={"label": "fig-cell", "fig-cap": "Cell plot"},
+                outputs=(
+                    display_output(output_metadata={"label": "fig-output", "fig-cap": "Plot"}),
+                ),
+            ),
+        )
+    )
+
+    snapshot = NotebookFrontend().lower((document,))
+
+    by_target = {fact.normalized_target: fact for fact in snapshot.reference_display_text}
+    [cell] = snapshot.code_cells
+    [output_anchor] = [
+        anchor for anchor in snapshot.target_anchors if anchor.normalized_label == "fig-output"
+    ]
+    resolved_cell = by_target["fig-cell"]
+    resolved = by_target["fig-output"]
+    unresolved = by_target["missing-output"]
+    assert resolved_cell.target_type == "figure"
+    assert resolved_cell.target_fact_ids == (cell.fact_id,)
+    assert resolved_cell.target_identity == (PurePosixPath("theme.ipynb"), "fig-cell")
+    assert resolved.target_type == "figure"
+    assert resolved.target_fact_ids == (output_anchor.fact_id,)
+    assert resolved.target_identity == (PurePosixPath("theme.ipynb"), "fig-output")
+    assert unresolved.target_fact_ids == ()
+    assert unresolved.target_identity is None
+
+
 def test_nested_notebook_equation_refs_keep_cell_owned_source_blocks() -> None:
     document = notebook(
         notebook_payload(
@@ -1592,10 +1676,21 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
         for fact in snapshot.crossref_metadata
         if fact.metadata_kind == "reference-use" and fact.logical_target == "fig-cell"
     )
+    assert generic_metadata.reference_role == "ref"
+    assert generic_metadata.resolved_target_kind is None
+    assert generic_metadata.target_metadata == ()
     assert generic_metadata.target_span is not None
     assert document.text[generic_metadata.target_span.start : generic_metadata.target_span.end] == (
         "fig-cell"
     )
+    [display] = [
+        fact for fact in snapshot.reference_display_text if fact.normalized_target == "fig-cell"
+    ]
+    assert display.source_fact_id == generic_ref.fact_id
+    assert display.target_fact_ids == (anchor.fact_id,)
+    assert display.target_identity == (PurePosixPath("theme.ipynb"), "fig-cell")
+    assert display.explicit_text == "Figure"
+    assert source_slice(display.display_text_span) == "Figure"
 
 
 def test_markdown_executable_cells_use_the_same_policy_surface() -> None:
@@ -1690,7 +1785,12 @@ def test_notebook_frontend_bounds_malformed_cell_and_output_metadata() -> None:
                 metadata={"cap": ["caption", {"unsupported": True}]},
                 outputs=(
                     display_output(output_metadata=[]),
-                    display_output(output_metadata={"label": ["fig-theme", {"unsupported": True}]}),
+                    display_output(
+                        output_metadata={
+                            "fig-cap": {"unsupported": True},
+                            "label": ["fig-theme", {"unsupported": True}],
+                        }
+                    ),
                     {"data": {}, "metadata": {}},
                 ),
                 source=["plot()", 7],

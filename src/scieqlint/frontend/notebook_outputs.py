@@ -80,9 +80,6 @@ def crossref_facts(
         label = output_label or cell.label
         if label is None:
             continue
-        kind = _crossref_target_kind(label)
-        if kind is None:
-            continue
         metadata = dict(cell_metadata)
         if output is not None:
             metadata.update(
@@ -92,6 +89,9 @@ def crossref_facts(
                     if key in _CROSSREF_DISPLAY_KEYS
                 }
             )
+        kind = _crossref_target_kind(label, metadata=metadata)
+        if kind is None:
+            continue
         boundary_metadata = tuple(sorted(metadata.items()))
         label_span = (
             cell.span
@@ -127,10 +127,15 @@ def output_target_anchors(
 ) -> tuple[TargetAnchorFact, ...]:
     anchors: list[TargetAnchorFact] = []
     for output in outputs:
-        label = _output_label(dict(output.metadata))
+        output_metadata = dict(output.metadata)
+        label = _output_label(output_metadata)
         if label is None:
             continue
         assert output.span is not None, "notebook output facts retain source spans"
+        metadata = dict(cell.option_dict())
+        metadata.update(
+            {key: value for key, value in output_metadata.items() if key in _CROSSREF_DISPLAY_KEYS}
+        )
         anchors.append(
             TargetAnchorFact(
                 fact_id=f"{output.fact_id}::target",
@@ -139,7 +144,7 @@ def output_target_anchors(
                 raw=output.raw,
                 label=label,
                 normalized_label=normalize_label(label),
-                target_kind=_crossref_target_kind(label),
+                target_kind=_crossref_target_kind(label, metadata=metadata),
                 attaches_to_fact_id=output.fact_id,
                 placement="standalone",
                 label_span=_output_label_span(output, output_label_spans),
@@ -165,7 +170,19 @@ def _output_label(metadata: Mapping[str, str]) -> str | None:
     return None
 
 
-def _crossref_target_kind(label: str) -> str | None:
+def _crossref_target_kind(
+    label: str,
+    *,
+    metadata: Mapping[str, str],
+) -> str | None:
+    if "fig-cap" in metadata or "fig-subcap" in metadata:
+        return "figure"
+    if "tbl-cap" in metadata or "tbl-subcap" in metadata:
+        return "table"
+    if "lst-cap" in metadata:
+        return "listing"
+    if "cap" in metadata or "caption" in metadata:
+        return "block"
     normalized = normalize_label(label)
     for prefix, kind in (
         ("eq-", "equation"),

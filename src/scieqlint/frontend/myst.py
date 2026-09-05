@@ -52,6 +52,7 @@ from .myst_math import (
 )
 from .myst_refs import scan_refs
 from .myst_shared import dollar_display_ranges, in_ranges, line_ranges
+from .reference_display import reference_display_text_facts
 
 _directive_option_prefix_lines = directive_option_prefix_lines
 _myst_options = myst_options
@@ -65,8 +66,18 @@ class MySTFrontend:
     def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
         self.workspace = workspace or WorkspaceHost()
 
-    def lower(self, documents: Sequence[SourceDocument]) -> FactSnapshot:
+    def lower(
+        self,
+        documents: Sequence[SourceDocument],
+        *,
+        _include_reference_display: bool = True,
+    ) -> FactSnapshot:
         parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
+        target_anchors = _flatten(parts, "target_anchors")
+        generic_refs = _flatten(parts, "generic_refs")
+        equation_labels = _flatten(parts, "equation_labels")
+        equation_refs = _flatten(parts, "equation_refs")
+        code_cells = _flatten(parts, "code_cells")
         return FactSnapshot(
             documents=tuple(documents),
             project_members=self.workspace.project_facts(documents)[0],
@@ -74,13 +85,25 @@ class MySTFrontend:
             sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),
             directives=_flatten(parts, "directives"),
-            code_cells=_flatten(parts, "code_cells"),
+            code_cells=code_cells,
             structure_syntax_issues=_flatten(parts, "structure_syntax_issues"),
-            target_anchors=_flatten(parts, "target_anchors"),
-            generic_refs=_flatten(parts, "generic_refs"),
-            equation_labels=_flatten(parts, "equation_labels"),
-            equation_refs=_flatten(parts, "equation_refs"),
+            target_anchors=target_anchors,
+            generic_refs=generic_refs,
+            equation_labels=equation_labels,
+            equation_refs=equation_refs,
             crossref_metadata=_flatten(parts, "crossref_metadata"),
+            reference_display_text=(
+                reference_display_text_facts(
+                    generic_refs,
+                    equation_refs,
+                    target_anchors,
+                    equation_labels,
+                    project_root=self.workspace.project_root,
+                    code_cells=code_cells,
+                )
+                if _include_reference_display
+                else ()
+            ),
             inline_math=_flatten(parts, "inline_math"),
             display_math=_flatten(parts, "display_math"),
             generated_formulas=_flatten(parts, "generated_formulas"),

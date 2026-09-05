@@ -34,6 +34,7 @@ codes before every code is emitted by the current analyzer.
 | `REF006` | warning | Local reference path changes resolution after normalization |
 | `REF007` | warning | Conflicting cross-reference metadata across output boundaries |
 | `REF008` | warning | Equation reference matches a hidden or excluded target |
+| `REF009` | warning | Non-heading reference has missing or generic display text |
 | `SUP001` | warning | Unknown suppression code |
 | `DIM001` | error | Equation sides have different dimensions |
 | `DIM002` | error | Addition or subtraction combines incompatible dimensions |
@@ -105,6 +106,23 @@ The diagnostic reports exact visible, hidden, and excluded target counts. To kee
 bounded when many sources define the same label, it includes at most one deterministic
 example document and provenance fact from each non-visible category.
 The rule does not read ignored files or change project include/exclude behavior.
+
+## REF009
+
+`REF009` is opt-in through `reference-display`. It reports resolved non-heading targets
+whose display text is absent or only repeats the target/type, including visible notebook
+code-cell and recorded-output targets. Heading targets and untitled/default-display
+typed `{eq}`/`{numref}` or TeX `\ref`/`\eqref` forms remain quiet; explicitly titled
+typed roles are checked like other explicit display text. Diagnostics retain the explicit display span when one exists, target type,
+reference kind, display intent, the selected canonical target identity, and originating fact
+IDs. The canonical identity is the normalized member path plus fragment; the requested
+display label remains a separate value. Unresolved and ambiguous matches stay quiet and do
+not attach candidate target IDs; only a unique selected target contributes target provenance.
+The rule does not render final prose or enforce a universal writing style. For explicit
+Markdown/MyST labels, the `display_text` property is the
+source label after surrounding whitespace is trimmed; inline markup, HTML entities, and
+backslash escapes remain unchanged. Its diagnostic span points to that source text rather than
+to rendered output.
 
 ## Generated-output engine
 
@@ -239,6 +257,8 @@ native Windows separators before normalization. Destinations that are malformed,
 external, have an empty decoded fragment, or escape the configured project root are
 ignored as unsupported links; fragment-only references remain in the source member
 and are not project paths.
+Diagnostic properties include the selected normalized path-and-fragment identity
+when a target is selected.
 
 ## REF007
 

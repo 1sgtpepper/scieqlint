@@ -49,6 +49,7 @@ from scieqlint.frontend.notebook_input import (
 from scieqlint.frontend.notebook_input import (
     input_diagnostic as _input_diagnostic,
 )
+from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph, GraphNode
 from scieqlint.io.discover import discover_files
@@ -222,10 +223,13 @@ def check_documents(
     )
     frontend_snapshot = FactSnapshot()
     raw_opaque_spans: tuple[SourceSpan, ...] = ()
-    if config.scanner.markdown:
+    if config.scanner.markdown or config.profile.name == "reference-display":
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
-        frontend_snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
+        frontend_snapshot = MySTFrontend(workspace=workspace).lower(
+            markdown_documents,
+            _include_reference_display=False,
+        )
         raw_opaque_spans = tuple(
             fact.span
             for fact in frontend_snapshot.display_math
@@ -247,7 +251,10 @@ def check_documents(
     profile_documents = tuple(
         document
         for document in documents
-        if (document.kind is DocumentKind.MARKDOWN and config.scanner.markdown)
+        if (
+            document.kind is DocumentKind.MARKDOWN
+            and (config.scanner.markdown or config.profile.name == "reference-display")
+        )
         or (
             document.kind is DocumentKind.LATEX
             and config.profile.name in {"cross-format-references", "typst-portability"}
@@ -261,6 +268,7 @@ def check_documents(
                     "cross-format-references",
                     "math-accessibility",
                     "notebook-crossrefs",
+                    "reference-display",
                 }
             )
         )
@@ -300,7 +308,10 @@ def check_documents(
             diagnostics.extend(check_dimensions(block, config))
 
     canonical_reference_path = bool(
-        (config.scanner.markdown and markdown_documents)
+        (
+            markdown_documents
+            and (config.scanner.markdown or config.profile.name == "reference-display")
+        )
         or non_markdown_labels
         or non_markdown_references
     )
@@ -417,7 +428,8 @@ def check_documents(
         )
         if config.checks.references.enabled:
             diagnostics.extend(
-                diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
+                diagnostic.to_diagnostic()
+                for diagnostic in ReferenceEngine(profile=config.profile.name).run(query)
             )
             if config.checks.references.missing_label_strict:
                 diagnostics.extend(_raw_missing_label_diagnostics(query, visible_document_ids))
@@ -683,7 +695,10 @@ def _generated_profile_snapshot(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     snapshot = (
-        MySTFrontend(workspace=workspace).lower(markdown_documents)
+        MySTFrontend(workspace=workspace).lower(
+            markdown_documents,
+            _include_reference_display=False,
+        )
         if frontend_snapshot is None
         else frontend_snapshot
     )
@@ -706,13 +721,17 @@ def _generated_profile_snapshot(
         "cross-format-references",
         "math-accessibility",
         "notebook-crossrefs",
+        "reference-display",
     }
     if notebook_documents and (config.checks.references.enabled or notebook_full_profile):
         notebook_snapshot = NotebookFrontend(workspace=workspace).lower(
             notebook_documents,
             parsed=parsed_notebooks,
             _source_location_errors=notebook_location_errors,
-            _include_markdown=config.scanner.markdown,
+            _include_markdown=(
+                config.scanner.markdown or config.profile.name == "reference-display"
+            ),
+            _include_reference_display=False,
         )
         if notebook_full_profile:
             snapshot = replace(
@@ -748,6 +767,9 @@ def _generated_profile_snapshot(
         documents=tuple(documents),
         equation_labels=(*snapshot.equation_labels, *source_label_facts),
         equation_refs=(*snapshot.equation_refs, *source_reference_facts),
+    )
+    snapshot = replace(
+        snapshot,
         inline_math=_apply_accessibility_metadata(
             snapshot.inline_math,
             accessibility_metadata,
@@ -789,6 +811,21 @@ def _generated_profile_snapshot(
             crossref_metadata=(*snapshot.crossref_metadata, *raw_crossref_metadata),
         )
     snapshot = workspace.apply_visibility(snapshot, profile_visibility)
+    snapshot = replace(
+        snapshot,
+        reference_display_text=(
+            reference_display_text_facts(
+                snapshot.generic_refs,
+                snapshot.equation_refs,
+                snapshot.target_anchors,
+                snapshot.equation_labels,
+                project_root=workspace.project_root,
+                code_cells=snapshot.code_cells,
+            )
+            if config.profile.name == "reference-display"
+            else ()
+        ),
+    )
     provenance = (
         _generated_provenance_facts(markdown_documents, config)
         if generated_provenance is None
@@ -1143,7 +1180,10 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(
+        documents,
+        _include_reference_display=False,
+    )
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math

@@ -41,6 +41,7 @@ from .notebook_outputs import (
 from .notebook_outputs import (
     output_target_anchors as _output_target_anchors,
 )
+from .reference_display import reference_display_text_facts
 
 
 class NotebookFrontend:
@@ -58,6 +59,7 @@ class NotebookFrontend:
             list[tuple[SourceDocument, NotebookSourceLocationError]] | None
         ) = None,
         _include_markdown: bool = True,
+        _include_reference_display: bool = True,
     ) -> FactSnapshot:
         parts = tuple(
             _lower_document(
@@ -74,6 +76,10 @@ class NotebookFrontend:
         all_unknown_math = tuple(fact for part in parts for fact in part.unknown_math)
         all_generated_formulas = tuple(fact for part in parts for fact in part.generated_formulas)
         all_code_cells = tuple(fact for part in parts for fact in part.code_cells)
+        all_target_anchors = tuple(fact for part in parts for fact in part.target_anchors)
+        all_generic_refs = tuple(fact for part in parts for fact in part.generic_refs)
+        all_equation_labels = tuple(fact for part in parts for fact in part.equation_labels)
+        all_equation_refs = tuple(fact for part in parts for fact in part.equation_refs)
         return FactSnapshot(
             documents=tuple(document for part in parts for document in part.documents),
             project_members=self.workspace.project_facts(documents)[0],
@@ -83,11 +89,23 @@ class NotebookFrontend:
             generated_formulas=all_generated_formulas,
             code_cells=all_code_cells,
             notebook_outputs=tuple(fact for part in parts for fact in part.notebook_outputs),
-            target_anchors=tuple(fact for part in parts for fact in part.target_anchors),
-            generic_refs=tuple(fact for part in parts for fact in part.generic_refs),
-            equation_labels=tuple(fact for part in parts for fact in part.equation_labels),
-            equation_refs=tuple(fact for part in parts for fact in part.equation_refs),
+            target_anchors=all_target_anchors,
+            generic_refs=all_generic_refs,
+            equation_labels=all_equation_labels,
+            equation_refs=all_equation_refs,
             crossref_metadata=tuple(fact for part in parts for fact in part.crossref_metadata),
+            reference_display_text=(
+                reference_display_text_facts(
+                    all_generic_refs,
+                    all_equation_refs,
+                    all_target_anchors,
+                    all_equation_labels,
+                    project_root=self.workspace.project_root,
+                    code_cells=all_code_cells,
+                )
+                if _include_reference_display
+                else ()
+            ),
         )
 
 
