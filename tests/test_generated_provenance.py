@@ -6,7 +6,11 @@ from pathlib import PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents
-from scieqlint.app import _generated_provenance_facts, _project_generated_diagnostic
+from scieqlint.app import (
+    _generated_profile_snapshot,
+    _generated_provenance_facts,
+    _project_generated_diagnostic,
+)
 from scieqlint.config.model import Config, ProfileConfig, ScannerConfig
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.facts.generated import GeneratedProvenanceFact
@@ -160,6 +164,37 @@ def test_profile_annotations_do_not_create_source_identity() -> None:
     assert origin.source_document_id == "source/original.xml"
     assert origin.source_kind == "profile-default"
     assert origin.conversion_stage == "profile-default"
+
+
+def test_generated_myst_provenance_excludes_auxiliary_notebook_inputs() -> None:
+    generated = SourceDocument.from_text(
+        PurePosixPath("out/generated.md"),
+        "# Generated\n",
+        DocumentKind.MARKDOWN,
+        origin=SourceOrigin(source_document_id="source/original.xml"),
+    )
+    notebook = SourceDocument.from_text(
+        PurePosixPath("auxiliary.ipynb"),
+        json.dumps(
+            {
+                "cells": [],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+        origin=SourceOrigin(source_document_id="source/auxiliary.ipynb"),
+    )
+
+    snapshot = _generated_profile_snapshot(
+        (generated, notebook),
+        Config(profile=ProfileConfig(name="generated-myst")),
+    )
+
+    assert tuple(fact.generated_document_id for fact in snapshot.generated_provenance) == (
+        "out/generated.md",
+    )
 
 
 def test_generated_profile_rejects_duplicate_markdown_document_paths() -> None:

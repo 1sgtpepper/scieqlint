@@ -41,6 +41,14 @@ from scieqlint.facts.reference import (
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.crossref import crossref_metadata_facts
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
+from scieqlint.frontend.notebook_input import (
+    NotebookInput,
+    NotebookSourceLocationError,
+)
+from scieqlint.frontend.notebook_input import (
+    input_diagnostic as _input_diagnostic,
+)
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph, GraphNode
 from scieqlint.io.discover import discover_files
@@ -219,6 +227,7 @@ def check_documents(
     scanner = MarkdownScanner(workspace=workspace)
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner(workspace=workspace)
+    parsed_notebooks: dict[str, NotebookInput] = {}
     path_order = {document.path.as_posix(): index for index, document in enumerate(documents)}
     blocks: list[MathBlock] = []
     labels: list[EquationLabel] = []
@@ -237,7 +246,14 @@ def check_documents(
         )
         or (
             document.kind is DocumentKind.NOTEBOOK
-            and config.profile.name == "cross-format-references"
+            and (
+                config.checks.references.enabled
+                or config.profile.name
+                in {
+                    "cross-format-references",
+                    "math-accessibility",
+                }
+            )
         )
     )
     if not profile_documents and normalized_accessibility_metadata is not None:
@@ -249,7 +265,9 @@ def check_documents(
         elif document.kind is DocumentKind.MARKDOWN:
             scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
-            scan = notebook_scanner.scan(document, config)
+            parsed = notebook_scanner.parse(document)
+            parsed_notebooks[document.path.as_posix()] = parsed
+            scan = notebook_scanner.scan(document, config, parsed=parsed)
         else:
             raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
@@ -337,6 +355,7 @@ def check_documents(
         )
     if canonical_reference_path or profile_documents:
         policy = PolicyHost(output_profile=config.profile.output_profile)
+        notebook_location_errors: list[tuple[SourceDocument, NotebookSourceLocationError]] = []
         snapshot = _profile_snapshot(
             profile_documents,
             config,
@@ -346,11 +365,17 @@ def check_documents(
             generated_provenance=generated_provenance,
             frontend_snapshot=frontend_snapshot,
             accessibility_metadata=normalized_accessibility_metadata,
+            parsed_notebooks=parsed_notebooks,
+            notebook_location_errors=notebook_location_errors,
         )
         # Profile facts may intentionally omit source kinds that the selected
         # profile does not inspect. Keep membership complete so path-bearing
         # references can still resolve to an included LaTeX or notebook target.
         snapshot = replace(snapshot, project_members=project_members)
+        for document, exc in notebook_location_errors:
+            diagnostic = _input_diagnostic(document, exc)
+            if diagnostic not in diagnostics:
+                diagnostics.append(diagnostic)
         query = QueryHost(snapshot)
         diagnostics = _without_profile_owned_legacy_reference_diagnostics(
             diagnostics,
@@ -567,6 +592,10 @@ def _profile_snapshot(
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
     accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    notebook_location_errors: (
+        list[tuple[SourceDocument, NotebookSourceLocationError]] | None
+    ) = None,
 ) -> FactSnapshot:
     snapshot = _generated_profile_snapshot(
         documents,
@@ -576,6 +605,8 @@ def _profile_snapshot(
         generated_provenance=generated_provenance,
         frontend_snapshot=frontend_snapshot,
         accessibility_metadata=accessibility_metadata,
+        parsed_notebooks=parsed_notebooks,
+        notebook_location_errors=notebook_location_errors,
     )
     if config.profile.name == "cross-format-references":
         return replace(
@@ -598,12 +629,19 @@ def _generated_profile_snapshot(
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
     accessibility_metadata: Mapping[str, str] | None = None,
+    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
+    notebook_location_errors: (
+        list[tuple[SourceDocument, NotebookSourceLocationError]] | None
+    ) = None,
 ) -> FactSnapshot:
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
     workspace = WorkspaceHost(project_root=config.project.root)
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    notebook_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     snapshot = (
         MySTFrontend(workspace=workspace).lower(markdown_documents)
@@ -625,7 +663,46 @@ def _generated_profile_snapshot(
         )
     source_label_facts = _source_label_facts(documents, source_labels, config)
     source_reference_facts = _source_reference_facts(documents, source_references, config)
-
+    notebook_full_profile = config.profile.name in {
+        "cross-format-references",
+        "math-accessibility",
+    }
+    if notebook_documents and (config.checks.references.enabled or notebook_full_profile):
+        notebook_snapshot = NotebookFrontend(workspace=workspace).lower(
+            notebook_documents,
+            parsed=parsed_notebooks,
+            _source_location_errors=notebook_location_errors,
+            _include_markdown=config.scanner.markdown,
+        )
+        if notebook_full_profile:
+            snapshot = replace(
+                snapshot,
+                documents=tuple(documents),
+                inline_math=(*snapshot.inline_math, *notebook_snapshot.inline_math),
+                display_math=(*snapshot.display_math, *notebook_snapshot.display_math),
+                unknown_math=(*snapshot.unknown_math, *notebook_snapshot.unknown_math),
+                generated_formulas=(
+                    *snapshot.generated_formulas,
+                    *notebook_snapshot.generated_formulas,
+                ),
+                code_cells=(*snapshot.code_cells, *notebook_snapshot.code_cells),
+                notebook_outputs=notebook_snapshot.notebook_outputs,
+                target_anchors=(*snapshot.target_anchors, *notebook_snapshot.target_anchors),
+                generic_refs=(*snapshot.generic_refs, *notebook_snapshot.generic_refs),
+                equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
+                equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
+                crossref_metadata=(
+                    *snapshot.crossref_metadata,
+                    *notebook_snapshot.crossref_metadata,
+                ),
+            )
+        elif config.checks.references.enabled:
+            snapshot = replace(
+                snapshot,
+                documents=tuple(documents),
+                equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
+                equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
+            )
     snapshot = replace(
         snapshot,
         documents=tuple(documents),
@@ -779,18 +856,15 @@ def _source_label_facts(
             for document in documents
             if document.kind is DocumentKind.LATEX
             for label in LatexScanner().scan(document, config).labels
-        ) + tuple(
-            label
-            for document in documents
-            if document.kind is DocumentKind.NOTEBOOK
-            for label in NotebookScanner().scan(document, config).labels
         )
     if config.profile.name != "cross-format-references":
-        return tuple(_legacy_equation_label_fact(label) for label in labels)
+        return tuple(
+            _legacy_equation_label_fact(label)
+            for label in labels
+            if label.source is LabelSource.LATEX_LABEL
+        )
     source_ids = {
-        document.path.as_posix()
-        for document in documents
-        if document.kind in (DocumentKind.LATEX, DocumentKind.NOTEBOOK)
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
     }
     if not source_ids:
         return ()
@@ -823,18 +897,15 @@ def _source_reference_facts(
             for document in documents
             if document.kind is DocumentKind.LATEX
             for reference in LatexScanner().scan(document, config).references
-        ) + tuple(
-            reference
-            for document in documents
-            if document.kind is DocumentKind.NOTEBOOK
-            for reference in NotebookScanner().scan(document, config).references
         )
     if config.profile.name != "cross-format-references":
-        return tuple(_legacy_equation_reference_fact(reference) for reference in references)
+        return tuple(
+            _legacy_equation_reference_fact(reference)
+            for reference in references
+            if reference.source in {ReferenceSource.LATEX_REF, ReferenceSource.LATEX_EQREF}
+        )
     source_ids = {
-        document.path.as_posix()
-        for document in documents
-        if document.kind in (DocumentKind.LATEX, DocumentKind.NOTEBOOK)
+        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
     }
     if not source_ids:
         return ()
@@ -842,9 +913,7 @@ def _source_reference_facts(
     for reference in references:
         if reference.span.path.as_posix() not in source_ids:
             continue
-        ref_kind = _SOURCE_REFERENCE_KINDS.get(reference.source)
-        if ref_kind is None:
-            continue
+        ref_kind = _SOURCE_REFERENCE_KINDS[reference.source]
         target = reference.target.strip()
         facts.append(
             EquationRefFact(

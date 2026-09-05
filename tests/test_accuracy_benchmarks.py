@@ -16,6 +16,7 @@ from scieqlint.config.model import (
     Config,
     OutputProfile,
     ProfileConfig,
+    ValidationProfile,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 
@@ -115,6 +116,20 @@ def test_unreleased_typst_accuracy_benchmark_fixtures_are_checked() -> None:
 
     for case in cases:
         result = _check_typst_case(case)
+
+        actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
+
+        assert actual_codes == case["expected_codes"], case["id"]
+        assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
+
+
+def test_unreleased_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
+    path = BENCHMARK_DIR / "notebook.yml"
+    cases = [case for case in _load_cases(path) if case.get("release") == "Unreleased"]
+    assert cases
+
+    for case in cases:
+        result = _check_notebook_case(case)
         actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
 
         assert actual_codes == case["expected_codes"], case["id"]
@@ -232,7 +247,13 @@ def _check_notebook_case(case: dict[str, object]):
         json.dumps(cast(dict[str, object], case["input"])),
         DocumentKind.NOTEBOOK,
     )
-    return check_documents([document], config=Config())
+    profile = case.get("profile")
+    config = (
+        Config(profile=ProfileConfig(name=cast(ValidationProfile, str(profile))))
+        if profile is not None
+        else Config()
+    )
+    return check_documents([document], config=config)
 
 
 def _check_portability_case(case: dict[str, object]):

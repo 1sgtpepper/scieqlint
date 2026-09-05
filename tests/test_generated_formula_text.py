@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
@@ -11,6 +12,7 @@ from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
+from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
@@ -94,6 +96,35 @@ def test_suspicious_formula_facts_are_source_spanned_and_limited_to_explicit_mat
         if fact.span is not None
     ] == [fact.text for fact in snapshot.generated_formulas]
     assert all(fact.source_math_fact_id is not None for fact in snapshot.generated_formulas)
+
+
+def test_notebook_suspicious_formula_spans_use_splitline_positions() -> None:
+    source = "$$\u2028\\A t t e n t { Q , K , V }\u2028/C0 apod\u2028$$\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("generated.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": source}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
+
+    snapshot = MathHost().classify(NotebookFrontend().lower((document,)))
+
+    assert [fact.kind for fact in snapshot.generated_formulas] == [
+        "spaced-token",
+        "garbled-marker",
+    ]
+    assert [fact.span.cell_line for fact in snapshot.generated_formulas if fact.span] == [2, 3]
+    assert [
+        document.text[fact.span.start : fact.span.end]
+        for fact in snapshot.generated_formulas
+        if fact.span is not None
+    ] == [json.dumps(fact.text)[1:-1] for fact in snapshot.generated_formulas]
 
 
 def test_generated_profile_emits_ordered_suspicious_formula_diagnostics_with_provenance() -> None:
@@ -505,6 +536,54 @@ def test_final_placeholder_facts_reject_contradictory_placeholder_kind(
     assert final.kind == kind
     with pytest.raises(ValueError, match="requires placeholder_kind"):
         replace(final, placeholder_kind=wrong_placeholder_kind)
+
+
+def test_notebook_source_list_generated_subspans_preserve_exact_segments() -> None:
+    payload = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [r"Use $\A t", " t e n t {Q}$.\r\n"],
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("generated-segments.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+
+    frontend_snapshot = NotebookFrontend().lower((document,))
+    snapshot = MathHost().classify(frontend_snapshot)
+
+    [fact] = snapshot.generated_formulas
+    assert fact.kind == "spaced-token"
+    assert fact.text == r"\A t t e n t"
+    assert fact.span is not None
+    assert fact.span.cell == 0
+    assert fact.span.cell_line == 1
+    assert len(fact.span.segments) == len(fact.text)
+    assert (
+        "".join(
+            json.loads(f'"{document.text[start:end]}"')
+            for segment in fact.span.segments
+            for start, end in segment.ranges
+        )
+        == fact.text
+    )
+
+    [candidate] = frontend_snapshot.generated_formulas
+    assert candidate.span is not None
+    malformed = replace(
+        candidate,
+        span=replace(candidate.span, segments=candidate.span.segments[:-1]),
+    )
+    with pytest.raises(ValueError, match="generated formula source mapping does not match"):
+        MathHost().classify(replace(frontend_snapshot, generated_formulas=(malformed,)))
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:
