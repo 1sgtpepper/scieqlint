@@ -170,6 +170,11 @@ Release notes must use these sections:
   the explicit profile.
 - Notebook code-cell lowering preserves malformed explicit language metadata with
   exact spans for `DIR013`.
+- Stable release publication now accepts only semver tag pushes, verifies source, wheel,
+  source-distribution, tag, and protected-`main` identity throughout the workflow, builds
+  exactly one wheel and one source distribution with pinned tooling, runs clean install,
+  CLI, generated-formula, accuracy, and performance gates against both members of one
+  immutable artifact, and publishes that artifact without rebuilding.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Malformed local URL destinations are now ignored safely, and project-reference
@@ -179,10 +184,6 @@ Release notes must use these sections:
   fragments are ignored without producing empty reference identities.
 - `check_paths(absolute_paths=True)` now changes diagnostic presentation only, so
   configured project-root reference resolution is stable across path display modes.
-- Stable-tag publication now fails closed unless source, wheel, and tag versions
-  agree, at least 100 independently labeled semantic equations execute through
-  the public analysis path with their expected diagnostics and exit status, and
-  the 100-document/500-equation/500-reference workload stays under three seconds.
 - Markdown math fences now follow the shared CommonMark opener and closer rules,
   including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct

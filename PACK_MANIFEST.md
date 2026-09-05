@@ -32,6 +32,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/dependabot.yml`
 - `.github/labels.yml`
+- `.github/release-constraints.txt`
 - `.github/workflows/ci.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/docs.yml`
