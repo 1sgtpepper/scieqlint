@@ -101,6 +101,7 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
             document,
             smap,
             (*math_occupied_ranges(display_math), *reference_snapshot.link_metadata_ranges),
+            reference_snapshot,
         )
     )
     return FactSnapshot(

@@ -16,7 +16,9 @@ Release notes must use these sections:
 
 ### Added
 
-- Nothing yet.
+- MyST inline-math facts now retain their delimiter kind, source span, surrounding
+  text role, and parse status, and `QueryHost.math.inline_math()` exposes the
+  candidates and classified facts to downstream engines.
 
 ### Changed
 
@@ -38,6 +40,20 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Plain-text inline-math candidates now scan relation-free input linearly, preserve
+  signed decimal operands, reject unsupported attached groups and malformed
+  continuations without publishing a truncated prefix, classify arithmetic
+  symmetrically around relations, and inherit list or blockquote continuation roles
+  from shared Markdown ownership.
+- Opaque inline syntax now terminates an unclosed `\(` candidate without hiding a later
+  disjoint `\(...\)` span.
+- LaTeX-parenthesis math no longer pairs across source lines or closes inside an active
+  TeX comment, and explicit math inside link text is delimiter-independent while link
+  metadata and inferred label text stay opaque.
+- Inline-math candidates now honor the frontend's complete link-aware ownership
+  snapshot and are rejected when any part crosses syntax owned by another construct.
+- Nested active `\(` or `\)` delimiters in a `\(...\)` candidate are now
+  classified as ambiguous unsupported math instead of a preserved formula.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Stable-tag publication now fails closed unless source, wheel, and tag versions

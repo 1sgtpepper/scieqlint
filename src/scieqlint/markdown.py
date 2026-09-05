@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from html import unescape
 from html.entities import html5
 from itertools import chain
+from typing import Literal
 
 OffsetRange = tuple[int, int]
 DollarRange = tuple[int, int, int, int]
+_MarkdownTextRole = Literal["paragraph", "heading", "list-item", "blockquote"]
 
 HTML_COMMENT_RE = re.compile(r"<!--(?:>|->|.*?-->)", re.DOTALL)
 HTML_DECLARATION_RE = re.compile(r"<![A-Za-z][^>]*>", re.DOTALL)
@@ -50,7 +53,7 @@ HTML_TYPE7_CLOSE_RE = re.compile(
     rf"^[ \t]{{0,3}}</(?P<tag>{_HTML_TAG_NAME}){_HTML_WHITESPACE}>[ \t]*$"
 )
 HTML_TYPE7_EXCLUDED_OPEN_TAGS = frozenset({"pre", "script", "style", "textarea"})
-_MYST_ROLE_RE = re.compile(r"\{(?:ref|eq|numref)\}`[^`\r\n]+`")
+_MYST_ROLE_RE = re.compile(r"\{(?:math|ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
 _MAX_LINK_DESTINATION_PAREN_DEPTH = 32
@@ -66,6 +69,8 @@ class _LexicalRanges:
     display: tuple[DollarRange, ...]
     inline: tuple[DollarRange, ...]
     display_openers: tuple[int, ...]
+    line_starts: tuple[int, ...]
+    line_roles: tuple[_MarkdownTextRole, ...]
 
 
 class _RangeCursor:
@@ -134,6 +139,7 @@ class _ContainerLine:
     content: str
     container_key: tuple[int, ...]
     block_start: bool
+    text_role: _MarkdownTextRole
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,9 +162,17 @@ class MarkdownReferenceSnapshot:
     """Immutable Markdown ownership decisions shared by reference consumers."""
 
     opaque_ranges: tuple[OffsetRange, ...]
+    non_math_opaque_ranges: tuple[OffsetRange, ...]
     links: tuple[MarkdownLinkToken, ...]
     link_metadata_ranges: tuple[OffsetRange, ...]
     attached_target_labels: frozenset[str]
+    _line_starts: tuple[int, ...]
+    _line_roles: tuple[_MarkdownTextRole, ...]
+
+    def text_role_at(self, offset: int) -> _MarkdownTextRole:
+        """Return the Markdown text role owning a valid source offset."""
+
+        return self._line_roles[bisect_right(self._line_starts, offset) - 1]
 
 
 _FENCE_OPENER_RE = re.compile(r"^ {0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$")
@@ -264,6 +278,24 @@ def is_escaped(text: str, index: int) -> bool:
     return slash_count % 2 == 1
 
 
+def without_tex_comments(text: str) -> str:
+    """Mask active TeX comments without changing source offsets."""
+
+    masked = list(text)
+    in_comment = False
+    for index, character in enumerate(text):
+        if in_comment:
+            if character == "\n":
+                in_comment = False
+            else:
+                masked[index] = " "
+            continue
+        if character == "%" and not is_escaped(text, index):
+            masked[index] = " "
+            in_comment = True
+    return "".join(masked)
+
+
 def range_contains(position: int, ranges: Sequence[OffsetRange]) -> bool:
     """Return membership in source-ordered, non-overlapping ranges."""
 
@@ -299,7 +331,7 @@ def _ordered_lexical_ranges(
 
     lines = _source_lines(text)
     if not lines:
-        return _LexicalRanges((), (), (), (), (), (), (), ())
+        return _LexicalRanges((), (), (), (), (), (), (), (), (), ())
 
     ownership = _markdown_line_ownership(lines)
     container_lines = ownership.container_lines
@@ -433,6 +465,8 @@ def _ordered_lexical_ranges(
         display=tuple(display),
         inline=tuple(inline),
         display_openers=tuple(display_openers),
+        line_starts=tuple(start for start, _end, _line in lines),
+        line_roles=_markdown_text_roles(lines, container_lines),
     )
 
 
@@ -486,6 +520,13 @@ def _markdown_line_ownership(
                             content=relative.text,
                             container_key=state.container_key,
                             block_start=False,
+                            text_role=(
+                                "blockquote"
+                                if state.quote_depth
+                                else "list-item"
+                                if state.list_content_column is not None
+                                else "paragraph"
+                            ),
                         )
                     )
                     if _html_block_line_terminates(relative.text, state.kind):
@@ -550,6 +591,7 @@ def _markdown_line_ownership(
                     _ColumnContent(0, block_content),
                     quote_paths[depth],
                     context,
+                    depth,
                     block_start=False,
                 )
             )
@@ -575,6 +617,7 @@ def _markdown_line_ownership(
                     relative,
                     quote_paths[depth],
                     context,
+                    depth,
                     block_start=False,
                 )
             )
@@ -599,6 +642,7 @@ def _markdown_line_ownership(
                     relative,
                     quote_paths[depth],
                     context,
+                    depth,
                     block_start=False,
                 )
             )
@@ -637,6 +681,7 @@ def _markdown_line_ownership(
                     item_content,
                     quote_paths[depth],
                     context,
+                    depth,
                     block_start=not item_is_code,
                 )
             )
@@ -667,6 +712,7 @@ def _markdown_line_ownership(
                     relative,
                     quote_paths[depth],
                     context,
+                    depth,
                     block_start=False,
                 )
             )
@@ -690,6 +736,7 @@ def _markdown_line_ownership(
                 relative,
                 quote_paths[depth],
                 context,
+                depth,
                 block_start=block_kind is not None,
             )
         )
@@ -721,6 +768,7 @@ def _make_container_line(
     content: _ColumnContent,
     quote_path: tuple[int, ...],
     context: _BlockContext,
+    quote_depth: int,
     *,
     block_start: bool,
 ) -> _ContainerLine:
@@ -731,7 +779,38 @@ def _make_container_line(
         content=content.text,
         container_key=(*quote_path, *context.list_container_ids),
         block_start=block_start,
+        text_role=(
+            "blockquote"
+            if quote_depth
+            else "list-item"
+            if context.list_container_ids
+            else "paragraph"
+        ),
     )
+
+
+def _markdown_text_roles(
+    lines: Sequence[tuple[int, int, str]],
+    container_lines: Sequence[_ContainerLine],
+) -> tuple[_MarkdownTextRole, ...]:
+    roles: list[_MarkdownTextRole] = []
+    for index, (_start, _end, raw_line) in enumerate(lines):
+        line = raw_line.rstrip("\r")
+        if _is_heading_line(line):
+            roles.append("heading")
+            continue
+        next_index = index + 1
+        if (
+            line.strip()
+            and next_index < len(lines)
+            and container_lines[next_index].container_key == container_lines[index].container_key
+        ):
+            next_line = lines[next_index][2].rstrip("\r")
+            if _indent_columns(next_line) <= 3 and _is_setext_underline(next_line):
+                roles.append("heading")
+                continue
+        roles.append(container_lines[index].text_role)
+    return tuple(roles)
 
 
 def _indent_columns(line: str) -> int:
@@ -1105,8 +1184,29 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     links = _markdown_link_tokens_from_lexical(text, protected)
     link_metadata = _metadata_ranges_from_tokens(links)
     opaque = _merge_ranges((*lexical_opaque, *link_metadata))
+    closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
+    non_math_opaque = _merge_ranges(
+        (
+            *lexical.fences,
+            *lexical.html,
+            *(
+                (start, end)
+                for start, end in lexical.roles
+                if not text.startswith("{math}`", start)
+            ),
+            *lexical.code,
+            *lexical.indented_code,
+            *link_metadata,
+            *(
+                (start, len(text))
+                for start in lexical.display_openers
+                if start not in closed_display_starts
+            ),
+        )
+    )
     return MarkdownReferenceSnapshot(
         opaque_ranges=opaque,
+        non_math_opaque_ranges=non_math_opaque,
         links=links,
         link_metadata_ranges=link_metadata,
         attached_target_labels=_attached_markdown_target_labels_from_opaque(
@@ -1114,6 +1214,8 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
             opaque,
             frozenset(start for start, _end in lexical.fences),
         ),
+        _line_starts=lexical.line_starts,
+        _line_roles=lexical.line_roles,
     )
 
 
