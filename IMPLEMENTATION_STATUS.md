@@ -1,6 +1,6 @@
 # Implementation Status
 
-This file describes the current development tree, including unreleased changes.
+The development tree uses package version v1.1.0 and includes unreleased changes.
 
 The analyzer can:
 
