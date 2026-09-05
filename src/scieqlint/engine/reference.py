@@ -18,7 +18,9 @@ _METADATA_PREVIEW_MAX_CHARS = 256
 
 class ReferenceEngine:
     name = "references"
-    rule_codes = frozenset({"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"})
+    rule_codes = frozenset(
+        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008", "REF011"}
+    )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -42,11 +44,19 @@ class ReferenceEngine:
                         false_positive_risk="low",
                     )
                 )
+        nonvisible_impacts = query.references.nonvisible_equation_target_impacts()
+        nonvisible_only_reference_ids = {
+            impact.reference.fact_id
+            for impact in nonvisible_impacts
+            if not impact.visible_targets and (impact.hidden_targets or impact.excluded_targets)
+        }
         missing_equation_info = CATALOG["REF002"]
         for ref in sorted(
             query.references.unresolved_equation_refs(),
             key=_fact_source_key,
         ):
+            if ref.fact_id in nonvisible_only_reference_ids:
+                continue
             diagnostics.append(
                 DiagnosticIR(
                     code=missing_equation_info.code,
@@ -72,6 +82,52 @@ class ReferenceEngine:
                     detail=f"reference text: {ref.raw}",
                     rule="references.equation_target_ambiguous",
                     false_positive_risk="low",
+                )
+            )
+        nonvisible_info = CATALOG["REF008"]
+        for impact in sorted(
+            nonvisible_impacts,
+            key=lambda item: _fact_source_key(item.reference),
+        ):
+            ref = impact.reference
+            hidden_example = impact.hidden_targets[0] if impact.hidden_targets else None
+            excluded_example = impact.excluded_targets[0] if impact.excluded_targets else None
+            hidden_suffix = f" (example={hidden_example.document_id!r})" if hidden_example else ""
+            excluded_suffix = (
+                f" (example={excluded_example.document_id!r})" if excluded_example else ""
+            )
+            provenance_ids = (ref.fact_id,)
+            properties = (
+                ("target", ref.normalized_target),
+                ("visible_target_count", str(len(impact.visible_targets))),
+                ("hidden_target_count", str(len(impact.hidden_targets))),
+                ("excluded_target_count", str(len(impact.excluded_targets))),
+            )
+            if hidden_example is not None:
+                provenance_ids += (hidden_example.fact_id,)
+                properties += (("hidden_example_document", hidden_example.document_id),)
+            if excluded_example is not None:
+                provenance_ids += (excluded_example.fact_id,)
+                properties += (("excluded_example_document", excluded_example.document_id),)
+            diagnostics.append(
+                DiagnosticIR(
+                    code=nonvisible_info.code,
+                    severity_default=nonvisible_info.severity,
+                    message=f"{nonvisible_info.message}: {ref.target}",
+                    span=ref.target_span or ref.span,
+                    detail=(
+                        f"visible targets={len(impact.visible_targets)}; "
+                        f"hidden targets={len(impact.hidden_targets)}{hidden_suffix}; "
+                        f"excluded targets={len(impact.excluded_targets)}{excluded_suffix}"
+                    ),
+                    hint=(
+                        "Rename the non-visible target or make its source visible in "
+                        "the rendered project."
+                    ),
+                    rule="references.nonvisible_equation_target",
+                    false_positive_risk="low",
+                    provenance_ids=provenance_ids,
+                    properties=properties,
                 )
             )
         missing_info = CATALOG["REF004"]

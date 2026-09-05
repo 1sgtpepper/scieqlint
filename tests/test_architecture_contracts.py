@@ -126,7 +126,16 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert reference_diagnostics
     assert structure_diagnostics
     assert engine_rule_codes(ReferenceEngine()) == frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF011"}
+        {
+            "REF001",
+            "REF002",
+            "REF004",
+            "REF005",
+            "REF006",
+            "REF007",
+            "REF008",
+            "REF011",
+        }
     )
     assert "STR005" in engine_rule_codes(StructureEngine())
     assert analysis_result.summary() == {
@@ -1722,6 +1731,9 @@ def test_query_host_views_expose_snapshot_contracts():
         orphaned_anchor,
     )
     assert query.references.equation_targets() == (equation,)
+    assert query.references.visible_equation_targets() == (equation,)
+    assert query.references.hidden_equation_targets() == ()
+    assert query.references.excluded_equation_targets() == ()
     assert query.references.equation_refs() == (equation_ref,)
     assert query.references.generic_refs() == (ref, unresolved_ref)
     assert query.references.target_index()["intro"] == (source_anchor, duplicate_anchor)

@@ -64,6 +64,12 @@ That profile lowers Markdown documents and notebook Markdown cells. LaTeX docume
 remain outside this contract and do not produce `PORT002` diagnostics or accessibility
 IDs.
 
+The `[project].visibility` configuration table uses each document's project-relative
+path as its key and accepts `"visible"`, `"hidden"`, or `"excluded"`. Omitted documents
+are visible, and an entry for a path not present in the analyzed project is rejected.
+Hidden and excluded equation targets remain queryable as non-visible facts, while
+ordinary reference resolution uses visible targets only.
+
 Generated-output validation never infers a source document from a filename, input order,
 or directory layout. A caller that wants the `generated-myst` profile to compare a
 generated document with its source attaches an explicit `SourceOrigin` to that
