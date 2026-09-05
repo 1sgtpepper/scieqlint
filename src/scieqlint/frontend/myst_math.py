@@ -200,14 +200,14 @@ def _latex_paren_facts(
         for match in re.finditer(r"\\[()]|%", line):
             delimiter = match.group(0)
             offset = line_start + match.start()
-            if delimiter == "%":
-                if opener is not None and not is_escaped(text, offset):
-                    break
-                continue
             if in_ranges(offset, occupied) or is_escaped(text, offset):
                 continue
             if opener is not None and _overlaps_occupied(opener, offset, occupied):
                 opener = None
+            if delimiter == "%":
+                if opener is not None:
+                    break
+                continue
             if delimiter == r"\(":
                 if opener is None:
                     opener = offset

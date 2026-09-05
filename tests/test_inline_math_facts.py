@@ -567,6 +567,12 @@ def test_myst_roles_own_overlapping_latex_parens_without_hiding_adjacent_math(
         r"\( broken `code` then \(x = 1\)",
         r"\( broken <span>opaque</span> then \(x = 1\)",
         r"\( broken {role}`opaque` then \(x = 1\)",
+        r"\( broken `100%` then \(x = 1\)",
+        r"\( broken <span>100%</span> then \(x = 1\)",
+        r"\( broken {role}`100%` then \(x = 1\)",
+        r"\( broken `code` % then \(x = 1\)",
+        r"\( broken <span>opaque</span> % then \(x = 1\)",
+        r"\( broken {role}`opaque` % then \(x = 1\)",
     ],
 )
 def test_opaque_ranges_reset_unclosed_latex_parens_without_hiding_later_math(
@@ -580,6 +586,8 @@ def test_opaque_ranges_reset_unclosed_latex_parens_without_hiding_later_math(
     fact = snapshot.inline_math[0]
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == "x = 1"
+    assert fact.raw == r"\(x = 1\)"
+    assert fact.fact_id == f"generated.md::inline-math::{source.index(fact.raw)}"
 
 
 @pytest.mark.parametrize(
