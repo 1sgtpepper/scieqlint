@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
+
+import pytest
 
 from scieqlint.app import check_documents
 from scieqlint.config.model import Config, ProfileConfig, ScannerConfig
@@ -171,6 +174,40 @@ def test_generated_formula_engine_keeps_provenance_as_ids_and_rule_properties() 
     assert diagnostics[0].properties == (("formula_artifact_kind", "spaced-token"),)
 
 
+def test_generated_bracketed_diagnostic_uses_fact_delimiter_kind() -> None:
+    cases = (
+        (
+            "literal",
+            r"\[ x = y \]",
+            "standalone [...] display delimiters are not portable generated Markdown",
+        ),
+        (
+            "escaped",
+            "[\nx = y\n]",
+            r"standalone \[...\] display delimiters are not portable generated Markdown",
+        ),
+    )
+
+    for delimiter_kind, text, expected_detail in cases:
+        formula = GeneratedFormulaFact(
+            fact_id="generated.md::formula::bracketed",
+            document_id="generated.md",
+            span=None,
+            raw=text,
+            confidence="source",
+            kind="bracketed-block",
+            text=text,
+            complete=True,
+            delimiter_kind=delimiter_kind,
+        )
+        [diagnostic] = GeneratedOutputEngine(profile="generated-myst").run(
+            QueryHost(FactSnapshot(generated_formulas=(formula,)))
+        )
+
+        assert diagnostic.detail == expected_detail
+        assert dict(diagnostic.properties)["delimiter_kind"] == delimiter_kind
+
+
 def test_default_profile_and_valid_formula_text_keep_generated_diagnostic_branch_unchanged() -> (
     None
 ):
@@ -264,6 +301,53 @@ def test_suspicious_formula_classifier_ignores_active_tex_comments() -> None:
     snapshot = MathHost().classify(MySTFrontend().lower((doc(r"$x % \A t t e n t {x}$"),)))
 
     assert snapshot.generated_formulas == ()
+
+
+def test_generated_formula_fact_rejects_mixed_candidate_and_final_states() -> None:
+    frontend = MySTFrontend().lower((doc("$/C0 apod$"),))
+    candidate = frontend.generated_formulas[0]
+    assert candidate.kind == "candidate"
+    assert candidate.candidate_kind == "formula-text"
+
+    with pytest.raises(ValueError, match="candidate_kind"):
+        replace(candidate, kind="garbled-marker")
+
+    final = MathHost().classify(frontend).generated_formulas[0]
+    assert final.kind == "garbled-marker"
+    assert final.candidate_kind is None
+
+    with pytest.raises(ValueError, match="candidate_kind"):
+        replace(final, kind="candidate")
+
+
+def test_generated_formula_fact_requires_bracketed_completeness_metadata() -> None:
+    candidate = MySTFrontend().lower((doc("\\[x = y\\]"),)).generated_formulas[0]
+
+    assert candidate.candidate_kind == "bracketed-block"
+    assert candidate.delimiter_kind == "escaped"
+    with pytest.raises(ValueError, match="completeness metadata"):
+        replace(candidate, complete=None)
+
+    with pytest.raises(ValueError, match="delimiter kind"):
+        replace(candidate, delimiter_kind=None)
+
+    final = MathHost().classify(MySTFrontend().lower((doc("[\nx = y\n]\n"),))).generated_formulas[0]
+    assert final.kind == "bracketed-block"
+    assert final.delimiter_kind == "literal"
+    with pytest.raises(ValueError, match="delimiter kind"):
+        replace(final, delimiter_kind=None)
+
+    suspicious = GeneratedFormulaFact(
+        fact_id="generated.md::formula::suspicious",
+        document_id="generated.md",
+        span=None,
+        raw="/C0 apod",
+        confidence="inferred",
+        kind="garbled-marker",
+        text="/C0 apod",
+    )
+    with pytest.raises(ValueError, match="delimiter kind"):
+        replace(suspicious, delimiter_kind="literal")
 
 
 def test_suspicious_formula_facts_are_deterministic_after_newline_normalization() -> None:

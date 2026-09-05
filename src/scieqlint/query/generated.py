@@ -33,6 +33,11 @@ class GeneratedOutputQueryView:
             if fact.kind in {"spaced-token", "garbled-marker"}
         )
 
+    def bracketed_latex_blocks(self) -> tuple[GeneratedFormulaFact, ...]:
+        return tuple(
+            fact for fact in self.snapshot.generated_formulas if fact.kind == "bracketed-block"
+        )
+
     def dropped_targets(self) -> tuple[tuple[GeneratedProvenanceFact, TargetAnchorFact], ...]:
         anchors_by_doc: dict[str, set[str]] = {}
         facts_by_doc: dict[str, dict[str, TargetAnchorFact]] = {}
