@@ -340,25 +340,35 @@ def scan_tex_lexically(
     Outside a live verbatim environment, an unescaped percent starts a comment
     and environment controls require an unescaped backslash. Inside verbatim,
     only the exact matching closer is active; all other characters remain
-    literal until that closer or end of file. Markdown-owned ranges are skipped
-    before TeX controls are considered.
+    literal until that closer or end of file. Markdown ranges are adopted only
+    when they open outside an already-open TeX environment.
     """
 
     masked = list(text)
     tokens: list[tuple[str, str, int, int]] = []
-    occupied_cursor = _RangeCursor(occupied)
-    verbatim_environment: str | None = None
+    occupied_ranges = iter(_merge_ranges(occupied))
+    next_occupied = next(occupied_ranges, None)
+    environment_stack: list[str] = []
     verbatim_body_start: int | None = None
     index = 0
     while index < len(text):
-        if verbatim_environment is not None:
+        # A range opened inside a TeX owner cannot claim text after its closer.
+        while next_occupied is not None and next_occupied[0] < index:
+            next_occupied = next(occupied_ranges, None)
+        if next_occupied is not None and next_occupied[0] == index:
+            _, occupied_end = next_occupied
+            next_occupied = next(occupied_ranges, None)
+            if not environment_stack:
+                index = occupied_end
+                continue
+        if environment_stack and environment_stack[-1] in {"verbatim", "verbatim*"}:
             match = _TEX_ENVIRONMENT_RE.search(text, index)
             if match is None:
                 assert verbatim_body_start is not None
                 masked[verbatim_body_start:] = [" "] * (len(text) - verbatim_body_start)
                 break
             index = match.end()
-            if match.group("kind") == "end" and match.group("environment") == verbatim_environment:
+            if match.group("kind") == "end" and match.group("environment") == environment_stack[-1]:
                 assert verbatim_body_start is not None
                 masked[verbatim_body_start : match.start()] = [" "] * (
                     match.start() - verbatim_body_start
@@ -371,12 +381,8 @@ def scan_tex_lexically(
                         match.end(),
                     )
                 )
-                verbatim_environment = None
+                environment_stack.pop()
                 verbatim_body_start = None
-            continue
-        occupied_end = occupied_cursor.end_at(index)
-        if occupied_end is not None:
-            index = occupied_end
             continue
         if text[index] == "%" and not is_escaped(text, index):
             comment_end = text.find("\n", index)
@@ -393,9 +399,12 @@ def scan_tex_lexically(
             kind = match.group("kind")
             environment = match.group("environment")
             tokens.append((kind, environment, match.start(), match.end()))
-            if kind == "begin" and environment in {"verbatim", "verbatim*"}:
-                verbatim_environment = environment
-                verbatim_body_start = match.end()
+            if kind == "begin":
+                environment_stack.append(environment)
+                if environment in {"verbatim", "verbatim*"}:
+                    verbatim_body_start = match.end()
+            elif environment_stack and environment_stack[-1] == environment:
+                environment_stack.pop()
         index = match.end()
     return TexLexicalScan(
         "".join(masked),

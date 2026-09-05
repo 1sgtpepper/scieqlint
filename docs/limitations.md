@@ -60,8 +60,9 @@ produce `\label{...}`, `\ref{...}`, and `\eqref{...}` facts. Known non-math
 containers such as `figure`/`figure*`, `table`/`table*`, `itemize`, and
 `document` remain opaque.
 Ownership is source ordered: a raw environment opened first makes later Markdown
-links and MyST reference roles in its candidate opaque, while a Markdown link
-opened first keeps ownership of its complete token.
+backticks, links, and MyST reference roles in its candidate literal. They cannot
+hide the raw closer or claim later source. Markdown code or a link opened first
+keeps ownership of its complete token, including any TeX-like controls inside it.
 Other raw environment candidates, including unsupported or incomplete forms, are
 preserved as `UnknownMathFact` candidates. Complete unsupported environments
 still preserve parseable equation label and reference facts; incomplete forms
@@ -235,12 +236,13 @@ closers require the matching marker, at least the opener length, and no more tha
 three leading spaces. A shorter, different-marker, or over-indented closer leaves
 the math container unterminated and emits `SCAN001`; non-math fences remain opaque.
 TeX `\label{...}` inside Markdown math creates a label only when its backslash
-begins an active control sequence.
+begins an active control sequence. In a math directive, TeX labels and references
+are read from the formula body; option values remain metadata.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
-Only parsed Markdown links and MyST roles create reference facts; escaped role
+Outside math, only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
 references, math, structure facts, or structure diagnostics. MyST roles do not
 cross source-line boundaries. The reference lexer supports inline links with balanced
@@ -297,7 +299,8 @@ reference/structure analysis are skipped as well.
 ## Generated-document formula checks
 
 The `generated-myst` profile emits `GEN002` only for high-confidence artifacts
-inside explicit inline or display math containers. It recognizes spaced TeX
+inside explicit inline or display math containers. Math directive options are
+metadata and are excluded from formula checks. It recognizes spaced TeX
 commands such as `\A t t e n t { ... }` and spaced tokens that begin with an
 uppercase letter and are followed by a parenthesized list of at least three
 single-letter identifiers (for example,
