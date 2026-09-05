@@ -1,0 +1,7 @@
+tests/fixtures/bad/cross_format_references.md:5:1: warning PORT001 equation reference syntax may not survive configured output profile
+  detail: eq reference to 'eq-one' is not in the commonmark portability baseline
+  profile: cross-format-references
+  output_profile: commonmark
+  ref_kind: eq
+  target: eq-one
+  subject_fact_id: tests/fixtures/bad/cross_format_references.md::eq-ref::28

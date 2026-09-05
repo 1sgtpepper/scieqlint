@@ -316,6 +316,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Unreleased",
         "A supported equation reference points to more than one equation target.",
     ),
+    "PORT001": DiagnosticInfo(
+        "PORT001",
+        Severity.WARNING,
+        "equation reference syntax may not survive configured output profile",
+        "Unreleased",
+        "An equation reference uses source syntax outside the configured output "
+        "profile's conservative portability baseline.",
+    ),
     "SUP001": DiagnosticInfo(
         "SUP001",
         Severity.WARNING,

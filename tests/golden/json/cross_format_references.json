@@ -1,0 +1,37 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT001",
+      "col": 1,
+      "detail": "eq reference to 'eq-one' is not in the commonmark portability baseline",
+      "end_col": 12,
+      "end_line": 5,
+      "equation": null,
+      "hint": "Use reference syntax supported by the configured publishing target.",
+      "line": 5,
+      "message": "equation reference syntax may not survive configured output profile",
+      "path": "tests/fixtures/bad/cross_format_references.md",
+      "profile": "cross-format-references",
+      "properties": {
+        "output_profile": "commonmark",
+        "ref_kind": "eq",
+        "subject_fact_id": "tests/fixtures/bad/cross_format_references.md::eq-ref::28",
+        "target": "eq-one"
+      },
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 1,
+    "warnings": 1
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

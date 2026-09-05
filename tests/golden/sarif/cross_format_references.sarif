@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/cross_format_references.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 13,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "equation reference syntax may not survive configured output profile: eq reference to 'eq-one' is not in the commonmark portability baseline"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5540920273cca90af1923ad2883e7577fb5555cee2d3a53eebf4fcfdd72a74da"
+          },
+          "properties": {
+            "output_profile": "commonmark",
+            "profile": "cross-format-references",
+            "ref_kind": "eq",
+            "subject_fact_id": "tests/fixtures/bad/cross_format_references.md::eq-ref::28",
+            "target": "eq-one"
+          },
+          "ruleId": "PORT001"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "An equation reference uses source syntax outside the configured output profile's conservative portability baseline."
+              },
+              "id": "PORT001",
+              "name": "PORT001",
+              "shortDescription": {
+                "text": "equation reference syntax may not survive configured output profile"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}
