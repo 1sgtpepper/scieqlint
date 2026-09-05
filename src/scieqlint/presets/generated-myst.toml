@@ -1,3 +1,6 @@
+[profile]
+name = "generated-myst"
+
 [scanner]
 markdown = true
 inline_math = true

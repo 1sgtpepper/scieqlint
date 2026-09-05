@@ -225,15 +225,22 @@ def check_documents(
         provenance.generated_document_id: provenance for provenance in generated_provenance
     }
     if markdown_documents and config.scanner.markdown:
-        snapshot = MySTFrontend().lower(markdown_documents)
-        classification_input = (
-            snapshot if config.scanner.inline_math else replace(snapshot, inline_math=())
-        )
-        snapshot = MathHost().classify(classification_input)
+        frontend_snapshot = MySTFrontend().lower(markdown_documents)
         if not config.scanner.inline_math:
-            # Inline math is an opt-in fact surface; retain structural,
-            # display-math, and reference facts for the default path.
-            snapshot = replace(snapshot, inline_math=())
+            # Inline math is opt-in, and candidate facts are lowered before
+            # scanner options are applied. Retain display facts and candidates
+            # while excluding only the inline-owned surfaces.
+            inline_math_ids = {fact.fact_id for fact in frontend_snapshot.inline_math}
+            frontend_snapshot = replace(
+                frontend_snapshot,
+                inline_math=(),
+                generated_formulas=tuple(
+                    fact
+                    for fact in frontend_snapshot.generated_formulas
+                    if fact.source_math_fact_id not in inline_math_ids
+                ),
+            )
+        snapshot = MathHost().classify(frontend_snapshot)
         if generated_provenance:
             snapshot = replace(snapshot, generated_provenance=generated_provenance)
         query = QueryHost(snapshot)

@@ -39,7 +39,8 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml
 ```
 
-The preset supplies the generated-document scanner/parser policy. Provenance-backed
+The preset selects the generated-document profile and supplies its scanner/parser
+policy, including source-only suspicious-formula checks. Provenance-backed
 comparisons require caller-supplied source identity through the Python API.
 
 ## Read next
