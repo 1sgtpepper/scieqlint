@@ -43,6 +43,18 @@ def in_ranges(position: int, ranges: Sequence[OffsetRange]) -> bool:
     return range_contains(position, ranges)
 
 
+def merge_occupied(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
+    merged: list[OffsetRange] = []
+    for start, end in sorted(ranges):
+        if start >= end:
+            continue
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    return tuple(merged)
+
+
 def dollar_display_ranges(
     text: str,
     occupied: Sequence[OffsetRange],

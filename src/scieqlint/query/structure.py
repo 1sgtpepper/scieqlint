@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from scieqlint.facts.snapshot import FactSnapshot
@@ -35,6 +36,9 @@ class StructureQueryView:
     def code_cells(self) -> tuple[CodeCellFact, ...]:
         return self.snapshot.code_cells
 
+    def visible_code_cells(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.snapshot.code_cells if cell.visibility == "visible")
+
     def notebook_outputs(self) -> tuple[NotebookOutputFact, ...]:
         return self.snapshot.notebook_outputs
 
@@ -43,3 +47,22 @@ class StructureQueryView:
 
     def unclosed_fences(self) -> tuple[FenceFact, ...]:
         return tuple(fence for fence in self.snapshot.fences if not fence.is_closed)
+
+    def missing_code_cell_languages(self) -> tuple[CodeCellFact, ...]:
+        return tuple(cell for cell in self.visible_code_cells() if not cell.language)
+
+    def invalid_code_cell_languages(self) -> tuple[CodeCellFact, ...]:
+        """Return code-cell languages that are not syntactically valid identifiers.
+
+        PolicyHost separately classifies syntactically valid values against the
+        configured supported-language policy.
+        """
+
+        return tuple(
+            cell
+            for cell in self.visible_code_cells()
+            if cell.language is not None and _CODE_CELL_LANGUAGE_RE.fullmatch(cell.language) is None
+        )
+
+
+_CODE_CELL_LANGUAGE_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.+\-]*")

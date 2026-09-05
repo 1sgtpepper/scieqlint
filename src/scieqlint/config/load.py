@@ -94,6 +94,7 @@ def _load_config_with_inputs(
             root=_posix_path(project_data, "root", PurePosixPath(".")),
             order=_str_tuple(project_data, "order"),
             visibility=_project_visibility(project_data.get("visibility", {})),
+            code_cell_languages=_nonempty_str_tuple(project_data, "code_cell_languages"),
         ),
         baseline=BaselineConfig(files=_str_tuple(baseline_data, "files")),
         scanner=ScannerConfig(
@@ -227,6 +228,13 @@ def _str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
             raise ValueError(f"{key} must be a list of strings")
         items.append(item)
     return tuple(items)
+
+
+def _nonempty_str_tuple(data: dict[str, Any], key: str) -> tuple[str, ...]:
+    items = _str_tuple(data, key)
+    if any(not item.strip() for item in items):
+        raise ValueError(f"{key} must be a list of non-empty strings")
+    return tuple(item.strip() for item in items)
 
 
 def _project_visibility(value: object) -> tuple[tuple[str, ProjectVisibility], ...]:

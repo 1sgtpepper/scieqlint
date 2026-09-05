@@ -265,6 +265,7 @@ def check_documents(
                 config.checks.references.enabled
                 or config.profile.name
                 in {
+                    "code-cell-metadata",
                     "cross-format-references",
                     "math-accessibility",
                     "notebook-crossrefs",
@@ -399,7 +400,11 @@ def check_documents(
             ),
         )
     if canonical_reference_path or profile_documents:
-        policy = PolicyHost(output_profile=config.profile.output_profile)
+        policy = PolicyHost(
+            profile=config.profile.name,
+            output_profile=config.profile.output_profile,
+            code_cell_languages=config.project.code_cell_languages,
+        )
         notebook_location_errors: list[tuple[SourceDocument, NotebookSourceLocationError]] = []
         snapshot = _profile_snapshot(
             profile_documents,
@@ -434,7 +439,7 @@ def check_documents(
             if config.checks.references.missing_label_strict:
                 diagnostics.extend(_raw_missing_label_diagnostics(query, visible_document_ids))
         diagnostics.extend(
-            diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
+            diagnostic.to_diagnostic() for diagnostic in StructureEngine(policy=policy).run(query)
         )
         # This compatibility path is the current shared owner for loaded and
         # path-based checks. Keep profile dispatch here until the planned
@@ -722,6 +727,7 @@ def _generated_profile_snapshot(
         "math-accessibility",
         "notebook-crossrefs",
         "reference-display",
+        "code-cell-metadata",
     }
     if notebook_documents and (config.checks.references.enabled or notebook_full_profile):
         notebook_snapshot = NotebookFrontend(workspace=workspace).lower(

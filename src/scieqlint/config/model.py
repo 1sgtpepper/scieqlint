@@ -16,6 +16,7 @@ ValidationProfile = Literal[
     "notebook-crossrefs",
     "reference-display",
     "typst-portability",
+    "code-cell-metadata",
 ]
 OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 
@@ -92,6 +93,7 @@ class ProjectConfig:
     root: PurePosixPath = PurePosixPath(".")
     order: tuple[str, ...] = ()
     visibility: tuple[tuple[str, ProjectVisibility], ...] = ()
+    code_cell_languages: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -215,6 +215,26 @@ def test_math_host_rejects_invalid_notebook_macro_source_mappings() -> None:
     assert source_segments
     invalid_span = replace(first.span, segments=source_segments[:1])
     invalid = replace(first, span=invalid_span)
+    shortened = replace(
+        first,
+        fact_id=f"{first.fact_id}::short-source",
+        span=replace(first.span, segments=(source_segments[0], source_segments[-1])),
+    )
+    slash_segment = source_segments[0]
+    assert len(slash_segment.ranges) == 1
+    slash_start, slash_end = slash_segment.ranges[0]
+    assert document.text[slash_start:slash_end] == r"\\"
+    malformed_escape = replace(
+        first,
+        fact_id=f"{first.fact_id}::malformed-escape",
+        span=replace(
+            first.span,
+            segments=(
+                replace(slash_segment, ranges=((slash_start, slash_start + 1),)),
+                *source_segments[1:],
+            ),
+        ),
+    )
     overlapping_span = replace(
         first.span,
         segments=(source_segments[0], source_segments[0], *source_segments[2:]),
@@ -235,11 +255,11 @@ def test_math_host_rejects_invalid_notebook_macro_source_mappings() -> None:
     classified = MathHost().classify(
         FactSnapshot(
             documents=(document,),
-            inline_math=(invalid, overlapping, stale, second),
+            inline_math=(invalid, shortened, malformed_escape, overlapping, stale, second),
         )
     )
 
-    assert len(classified.inline_math) == 4
+    assert len(classified.inline_math) == 6
     assert [fact.macro_name for fact in classified.math_macro_declarations] == [r"\good"]
     assert classified.math_macro_uses == ()
 
