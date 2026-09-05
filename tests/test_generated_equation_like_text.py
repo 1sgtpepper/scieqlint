@@ -102,6 +102,16 @@ def test_equation_like_text_uses_canonical_markdown_item_boundaries() -> None:
     assert source[facts[0].span.start : facts[0].span.end] == "c = d"
 
 
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [("F(x = y", []), ("F(g(x)) = y", []), ("F(x) = y", ["F(x) = y"])],
+)
+def test_equation_like_text_requires_complete_supported_function_suffixes(
+    source: str, expected: list[str]
+) -> None:
+    assert [fact.text for fact in equation_text_facts(source)] == expected
+
+
 def test_equation_like_text_preserves_tab_nested_list_source_offsets() -> None:
     source = "- outer\n\t- x = y\n"
 
