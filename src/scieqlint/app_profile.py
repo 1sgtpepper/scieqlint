@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from pathlib import Path, PurePosixPath
 
 from scieqlint.config.model import Config, ProjectVisibility
 from scieqlint.facts.generated import GeneratedProvenanceFact
@@ -84,7 +85,13 @@ def generated_profile_snapshot(
     """Build one profile snapshot from caller-owned source-to-generated mappings."""
 
     if workspace is None:
-        workspace = WorkspaceHost(project_root=config.project.root)
+        project_root = config.project.root
+        if any(document.path.is_absolute() for document in documents):
+            root = Path(project_root.as_posix())
+            if not root.is_absolute() and config.path is not None:
+                root = Path(config.path.as_posix()).parent / root
+            project_root = PurePosixPath(root.absolute().as_posix())
+        workspace = WorkspaceHost(project_root=project_root)
     markdown_documents = tuple(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
@@ -297,4 +304,3 @@ def apply_accessibility_metadata(
         )
         for fact in inline_math
     )
-

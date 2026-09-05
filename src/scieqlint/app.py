@@ -67,17 +67,12 @@ from scieqlint.scan.notebook import NotebookScanner
 _apply_accessibility_metadata = _app_profile.apply_accessibility_metadata
 _generated_profile_snapshot = _app_profile.generated_profile_snapshot
 _generated_provenance_facts = _app_profile_generated.generated_provenance_facts
-_latex_display_facts = _app_profile.latex_display_facts
 _legacy_equation_label_fact = _app_profile_crossref.legacy_equation_label_fact
-_legacy_equation_reference_fact = _app_profile_crossref.legacy_equation_reference_fact
 _profile_snapshot = _app_profile.profile_snapshot
 _project_generated_diagnostic = _app_profile_generated.project_generated_diagnostic
 _raw_missing_label_diagnostics = _app_profile_crossref.raw_missing_label_diagnostics
-_SOURCE_REFERENCE_KINDS = _app_profile_crossref.SOURCE_REFERENCE_KINDS
-_source_label_facts = _app_profile_crossref.source_label_facts
 _source_reference_facts = _app_profile_crossref.source_reference_facts
 _source_role_fact_id = _app_profile_crossref.source_role_fact_id
-_span_is_within_any = _app_profile_crossref.span_is_within_any
 _without_profile_owned_legacy_reference_diagnostics = (
     _app_profile_crossref.without_profile_owned_legacy_reference_diagnostics
 )
@@ -509,7 +504,6 @@ def _legacy_markdown_document(
     if not ranges:
         return document
     return replace(document, text=_mask_ranges(document.text, ranges))
-
 
 
 def _normalize_accessibility_metadata(metadata: object) -> dict[str, str] | None:

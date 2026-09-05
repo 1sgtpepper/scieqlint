@@ -58,7 +58,6 @@ def without_profile_owned_legacy_reference_diagnostics(
     ]
 
 
-
 def span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
     """Return whether a fact span belongs to one of the source-owned ranges."""
 

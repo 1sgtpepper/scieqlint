@@ -9,13 +9,15 @@ from scieqlint.api import check_documents
 from scieqlint.app import (
     _generated_profile_snapshot,
     _generated_provenance_facts,
+    _profile_snapshot,
     _project_generated_diagnostic,
 )
-from scieqlint.config.model import Config, ProfileConfig, ScannerConfig
+from scieqlint.config.model import Config, ProfileConfig, ProjectConfig, ScannerConfig
 from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
@@ -26,6 +28,42 @@ from scieqlint.schema import DIAGNOSTIC_PROJECTION_VERSION, SchemaHost
 
 def doc(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+@pytest.mark.parametrize("operation", [_profile_snapshot, _generated_profile_snapshot])
+@pytest.mark.parametrize("config_location", [None, "relative", "absolute"])
+@pytest.mark.parametrize("absolute_source", [False, True])
+def test_profile_compatibility_preserves_project_identity_and_visibility(
+    tmp_path, monkeypatch, operation, config_location: str | None, absolute_source: bool
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / ("config/book" if config_location else "book")
+    config_path = (
+        None
+        if config_location is None
+        else PurePosixPath("config/scieqlint.toml")
+        if config_location == "relative"
+        else PurePosixPath((tmp_path / "config/scieqlint.toml").as_posix())
+    )
+    config = Config(
+        path=config_path,
+        project=ProjectConfig(root=PurePosixPath("book"), visibility=(("member.md", "hidden"),)),
+    )
+    source = doc(
+        (root / "member.md").as_posix() if absolute_source else "book/member.md",
+        "(target)=\n# Target\n",
+    )
+    workspace = WorkspaceHost(
+        project_root=PurePosixPath(root.as_posix()) if absolute_source else PurePosixPath("book")
+    )
+
+    automatic = operation((source,), config)
+    supplied = operation((source,), config, workspace=workspace)
+
+    assert automatic == supplied
+    [member] = automatic.project_members
+    assert member.normalized_path == PurePosixPath("member.md")
+    assert member.visibility == "hidden"
 
 
 def test_source_origin_normalizes_programmatic_projection_metadata() -> None:
