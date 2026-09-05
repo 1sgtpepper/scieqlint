@@ -8,9 +8,19 @@ from typing import Literal, get_args
 
 DimensionMode = Literal["auto", "on", "off"]
 UnknownVariablePolicy = Literal["warn", "ignore"]
-ValidationProfile = Literal["generated-myst"]
+ValidationProfile = Literal["generated-myst", "cross-format-references"]
+OutputProfile = Literal["commonmark", "myst", "notebook", "typst"]
 
 _VALIDATION_PROFILE_NAMES = frozenset(get_args(ValidationProfile))
+_OUTPUT_PROFILE_NAMES = frozenset(get_args(OutputProfile))
+
+
+def _validate_choice(value: object, field_name: str, choices: frozenset[str]) -> None:
+    if value is None:
+        return
+    if not isinstance(value, str) or value not in choices:
+        formatted_choices = ", ".join(sorted(choices))
+        raise ValueError(f"{field_name} must be one of: {formatted_choices}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +47,7 @@ class ProfileConfig:
     name: ValidationProfile | None = None
     source_kind: str | None = None
     conversion_stage: str | None = None
+    output_profile: OutputProfile | None = None
 
     def __post_init__(self) -> None:
         for field_name in ("source_kind", "conversion_stage"):
@@ -46,9 +57,8 @@ class ProfileConfig:
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} must be a non-empty string")
             object.__setattr__(self, field_name, value.strip())
-        if self.name is not None and self.name not in _VALIDATION_PROFILE_NAMES:
-            choices = ", ".join(sorted(_VALIDATION_PROFILE_NAMES))
-            raise ValueError(f"name must be one of: {choices}")
+        _validate_choice(self.name, "name", _VALIDATION_PROFILE_NAMES)
+        _validate_choice(self.output_profile, "output_profile", _OUTPUT_PROFILE_NAMES)
         if self.name != "generated-myst" and (
             self.source_kind is not None or self.conversion_stage is not None
         ):
@@ -56,6 +66,10 @@ class ProfileConfig:
                 "profile.source_kind and profile.conversion_stage require "
                 'profile.name = "generated-myst"'
             )
+        if self.name == "cross-format-references" and self.output_profile is None:
+            raise ValueError("profile.output_profile is required for cross-format-references")
+        if self.name != "cross-format-references" and self.output_profile is not None:
+            raise ValueError("profile.output_profile is only valid for cross-format-references")
 
 
 @dataclass(frozen=True, slots=True)

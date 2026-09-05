@@ -123,6 +123,13 @@ later `{ref}` to that anchor.
 
 Strict missing-label checks apply to display and fenced equation blocks, not
 inline math spans.
+The opt-in `cross-format-references` profile reports `PORT001` when an equation
+reference role is outside the conservative syntax baseline for the configured
+`commonmark`, `myst`, `notebook`, or `typst` output profile. It materializes
+reference facts from Markdown/MyST, LaTeX, and notebook source documents but does
+not invoke an external renderer or guarantee output parity. Named profiles require
+unique supplied document paths so fact and diagnostic identities remain stable.
+
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
 AMS classification. Incomplete fences and mismatched environment pairs retain

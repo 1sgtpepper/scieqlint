@@ -182,15 +182,34 @@ conversion_stage = "xml-to-markdown"
 ```
 
 The named profile is policy metadata consumed by the normal fact/query/engine
-pipeline. `generated-myst` enables generated-output engines, including source-only
-formula checks and provenance-backed comparisons, in addition to the ordinary
-scanner, parser, algebra, reference, and structure checks configured below. Unknown
-profile names are rejected rather than silently running a different rule set.
-`source_kind` and `conversion_stage` are optional annotations
-used when an explicit `SourceOrigin` omits those fields; they do not identify the
-source document or prove a producer relationship. SciEqLint never reconstructs
-missing origin metadata. The profile table does not enable scanner or parser defaults
-by itself; those defaults come from the packaged preset.
+pipeline. Unknown profile names and output targets are rejected rather than
+silently running a different rule set.
+
+- `generated-myst` enables source-only formula checks and provenance-backed
+  generated-output diagnostics in addition to the ordinary scanner, parser,
+  algebra, reference, and structure checks. `source_kind` and `conversion_stage`
+  are optional annotations used when an explicit `SourceOrigin` omits those
+  fields; they do not identify the source document or prove a producer
+  relationship. SciEqLint never reconstructs missing origin metadata.
+- `cross-format-references` enables equation-reference portability diagnostics
+  and requires `output_profile`. The accepted conservative targets are
+  `commonmark`, `myst`, `notebook`, and `typst`. The profile does not run an
+  external renderer or claim output parity.
+
+The profile table does not enable scanner or parser defaults by itself; those
+defaults come from the packaged preset.
+
+For example, to check reference syntax against plain CommonMark:
+
+```toml
+[profile]
+name = "cross-format-references"
+output_profile = "commonmark"
+```
+
+The packaged `generated-myst` preset selects that named profile and supplies its
+path-based scanner and parser defaults. A hand-written profile table selects policy
+metadata only; it does not otherwise change scanner or parser defaults.
 
 The profile consumes caller-owned source mappings when the already-loaded-document
 API is used. Attach `SourceOrigin(source_document_id=..., source_kind=...,
