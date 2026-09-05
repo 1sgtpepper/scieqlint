@@ -243,10 +243,22 @@ def test_import_linter_contracts_encode_release_boundary_map():
         "scieqlint.engine",
     }
 
-    frontend_contract = contract_by_suffix("FrontendHost owns notebook input mapping")
+    notebook_owner_contract = contract_by_suffix("FrontendHost owns notebook input mapping")
+    assert notebook_owner_contract["type"] == "forbidden"
+    assert notebook_owner_contract["source_modules"] == ["scieqlint.frontend"]
+    assert notebook_owner_contract["forbidden_modules"] == ["scieqlint.scan"]
+
+    frontend_contract = contract_by_suffix("Frontends preserve candidates for MathHost")
     assert frontend_contract["type"] == "forbidden"
     assert frontend_contract["source_modules"] == ["scieqlint.frontend"]
-    assert frontend_contract["forbidden_modules"] == ["scieqlint.scan"]
+    assert frontend_contract["forbidden_modules"] == ["scieqlint.parse"]
+    assert frontend_contract["allow_indirect_imports"] is True
+
+    math_contract = contract_by_suffix("MathHost consumes facts without frontend imports")
+    assert math_contract["type"] == "forbidden"
+    assert math_contract["source_modules"] == ["scieqlint.parse"]
+    assert math_contract["forbidden_modules"] == ["scieqlint.frontend"]
+    assert math_contract["allow_indirect_imports"] is True
 
 
 def test_frontend_notebook_mapping_does_not_reenter_transitional_scanner():

@@ -185,3 +185,17 @@ name = "Owner: architecture boundary map - FrontendHost owns notebook input mapp
 type = "forbidden"
 source_modules = ["scieqlint.frontend"]
 forbidden_modules = ["scieqlint.scan"]
+
+[[tool.importlinter.contracts]]
+name = "Owner: architecture boundary map - Frontends preserve candidates for MathHost"
+type = "forbidden"
+source_modules = ["scieqlint.frontend"]
+forbidden_modules = ["scieqlint.parse"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Owner: architecture boundary map - MathHost consumes facts without frontend imports"
+type = "forbidden"
+source_modules = ["scieqlint.parse"]
+forbidden_modules = ["scieqlint.frontend"]
+allow_indirect_imports = true
