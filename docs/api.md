@@ -111,8 +111,9 @@ project-relative reference resolution. `graph_paths()` always uses the default
 presentation.
 When an absolute input and the current directory have different native roots,
 default presentation raises `ValueError` rather than leak an absolute path or
-collapse distinct roots. Checks may opt into absolute paths; graph inputs must be
-expressed on the current root.
+collapse distinct roots. Checks may opt into absolute paths. Graph inputs may be
+absolute when they share the current native root; graph presentation has no
+absolute-path opt-in for cross-native-root inputs.
 
 `CheckResult` exposes `diagnostics`, `files_checked`, `math_blocks_checked`,
 `config_path`, `version`, `show_suppressed`, and `exit_code()`. `exit_code()`
