@@ -54,8 +54,9 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-The preset enables deterministic generated-document checks while keeping the scope
-source-based: math containers, supported equation and generic references, MyST
+The preset selects the generated-myst profile and enables deterministic
+generated-document checks while keeping the scope source-based: math containers,
+suspicious generated formula text, supported equation and generic references, MyST
 anchors and directives, heading hierarchy, and parse-unknown diagnostics.
 
 Source-to-generated provenance checks require caller-supplied `SourceOrigin`

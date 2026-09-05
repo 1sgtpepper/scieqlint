@@ -207,6 +207,24 @@ before headings are treated as anchors, not headings or malformed prose.
 When the Markdown scanner is disabled, Markdown frontend and document-level
 reference/structure analysis are skipped as well.
 
+## Generated-document formula checks
+
+The `generated-myst` profile emits `GEN002` only for high-confidence artifacts
+inside explicit inline or display math containers. Math directive options are
+metadata and are excluded from formula checks. It recognizes spaced TeX
+commands such as `\A t t e n t { ... }` and spaced tokens that begin with an
+uppercase letter and are followed by a parenthesized list of at least three
+single-letter identifiers (for example,
+`A t t e n t (Q, K, V)`) when the spaced token has at least four letters,
+including at least two lowercase letters, plus the bounded garbled marker
+`/C0 apod`. Valid spaced products, ordinary prose, code, escaped commands, TeX
+comments, and other low-confidence text stay quiet; unsupported forms are not
+guessed, and the default profile does not emit `GEN002`. The repeated-token scan is
+bounded to 64 spaced segments; longer runs remain unsupported and quiet.
+
+Formula placeholders such as `formula-not-decoded`, empty display math, and formula
+image placeholders are deliberately deferred and outside `GEN002`.
+
 ## Suppression comments
 
 SciEqLint supports narrow source suppressions for Markdown and LaTeX:

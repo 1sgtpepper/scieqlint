@@ -5,7 +5,7 @@ from pathlib import PurePosixPath
 
 from scieqlint.app import check_documents, check_paths
 from scieqlint.config.load import load_config
-from scieqlint.config.model import Config, ProfileConfig
+from scieqlint.config.model import Config, ProfileConfig, ScannerConfig
 from scieqlint.config.presets import read_preset_text
 from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
@@ -155,3 +155,108 @@ def test_documented_generated_workflow_runs_preset_checks_through_paths(tmp_path
     assert config.parser.strict_unknowns is True
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["PARSE021"]
     assert default_result.diagnostics == ()
+
+
+def test_documented_generated_workflow_emits_formula_diagnostics_through_paths(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.generated-myst.toml"
+    config_path.write_text(read_preset_text("generated-myst"), encoding="utf-8")
+    generated = tmp_path / "generated.md"
+    source = "Generated formula: $\\A t t e n t {Q}$.\n"
+    generated.write_text(source, encoding="utf-8")
+
+    config = load_config(config_path)
+    result = check_paths((generated,), config_path=config_path)
+
+    assert config.profile.name == "generated-myst"
+    diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code == "GEN002"
+    )
+    assert len(diagnostics) == 1
+    [diagnostic] = diagnostics
+    assert diagnostic.profile == "generated-myst"
+    assert diagnostic.span is not None
+    assert source[diagnostic.span.start : diagnostic.span.end] == r"\A t t e n t"
+
+
+def test_generated_profile_respects_inline_math_scanner_for_formula_candidates() -> None:
+    source = "$\\A t t e n t {Q}$\n\n$$\n\\B l l l {Q}\n$$\n"
+
+    enabled = check_documents(
+        (doc("generated.md", source),),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            scanner=ScannerConfig(inline_math=True),
+        ),
+    )
+    disabled = check_documents(
+        (doc("generated.md", source),),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            scanner=ScannerConfig(inline_math=False),
+        ),
+    )
+
+    enabled_diagnostics = tuple(
+        diagnostic for diagnostic in enabled.diagnostics if diagnostic.code == "GEN002"
+    )
+    disabled_diagnostics = tuple(
+        diagnostic for diagnostic in disabled.diagnostics if diagnostic.code == "GEN002"
+    )
+
+    assert len(enabled_diagnostics) == 2
+    assert len(disabled_diagnostics) == 1
+    assert disabled_diagnostics[0].span is not None
+    assert source[disabled_diagnostics[0].span.start : disabled_diagnostics[0].span.end] == (
+        r"\B l l l"
+    )
+
+
+def test_generated_myst_preset_leaves_placeholder_forms_outside_gen002(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.generated-myst.toml"
+    config_path.write_text(read_preset_text("generated-myst"), encoding="utf-8")
+    generated = tmp_path / "generated.md"
+    generated.write_text(
+        "<!-- formula-not-decoded -->\n"
+        "$formula-not-decoded$\n"
+        "$$   $$\n"
+        "![formula](assets/equation-placeholder.svg)\n",
+        encoding="utf-8",
+    )
+
+    result = check_paths((generated,), config_path=config_path)
+
+    assert all(diagnostic.code != "GEN002" for diagnostic in result.diagnostics)
+
+
+def test_generated_myst_profile_bounds_spaced_token_repetition() -> None:
+    within_bound = "$A " + ("t " * 63) + "t (Q, K, V)$"
+    over_bound = (
+        "$A " + ("t " * 65) + "t (Q, K, V)$",
+        "$A " + ("t " * 60) + "B t t e n t (Q, K, V)$",
+        "$A\t" + ("t\t" * 60) + "B\tt\tt\te\tn\tt (Q, K, V)$",
+    )
+
+    config = Config(
+        profile=ProfileConfig(name="generated-myst"),
+        scanner=ScannerConfig(inline_math=True),
+    )
+
+    within_result = check_documents((doc("generated.md", within_bound),), config=config)
+    assert [diagnostic.code for diagnostic in within_result.diagnostics] == ["GEN002"]
+    for source in over_bound:
+        over_result = check_documents((doc("generated.md", source),), config=config)
+        assert all(diagnostic.code != "GEN002" for diagnostic in over_result.diagnostics)
+
+
+def test_generated_myst_profile_handles_long_unterminated_spaced_token_run() -> None:
+    source = "$A t t e n t (Q, K, V)$ and $" + ("A " * 8_000) + "x$"
+
+    result = check_documents(
+        (doc("generated.md", source),),
+        config=Config(
+            profile=ProfileConfig(name="generated-myst"),
+            scanner=ScannerConfig(inline_math=True),
+        ),
+    )
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["GEN002"]

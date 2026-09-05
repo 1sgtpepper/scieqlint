@@ -242,6 +242,14 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "A source MyST target anchor expected by generated-output provenance is absent "
         "from the generated document.",
     ),
+    "GEN002": DiagnosticInfo(
+        "GEN002",
+        Severity.WARNING,
+        "generated math contains suspicious formula text",
+        "Unreleased",
+        "An explicit generated-math container contains a high-confidence spaced-token "
+        "or garbled-marker artifact in its formula content, excluding directive options.",
+    ),
     "REF001": DiagnosticInfo(
         "REF001",
         Severity.ERROR,

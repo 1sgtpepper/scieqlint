@@ -122,7 +122,7 @@ and diagnostic schemas. The 0.1 schemas remain unchanged.
 `load_config(path, preset="generated-myst")` or
 `load_config(path, preset="mechanics")` loads packaged preset defaults before
 the user config file, so user config values override preset values. The
-`generated-myst` preset supplies the path-based generated-document validation
-policy. The separate `[profile]` setting enables provenance-backed checks only
-when already-loaded `SourceDocument` values carry explicit `SourceOrigin`
-metadata.
+`generated-myst` preset supplies the path-based generated-document validation policy,
+including source-only generated-output diagnostics. Provenance-backed checks still
+require already-loaded `SourceDocument` values with explicit `SourceOrigin` metadata;
+the path-based CLI does not manufacture that relationship.

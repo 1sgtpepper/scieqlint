@@ -43,12 +43,22 @@ are skipped; analysis continues with later expressions and documents.
 
 ## Generated-output engine
 
-`GEN001` is emitted by the generated-output engine when callers provide
-source-to-generated provenance facts. The generated profile records caller-supplied source kind and conversion stage and does not infer absent origin metadata.
+`GEN001` is emitted when callers provide source-to-generated provenance facts
+and a preserved source anchor is missing from the generated document. `GEN002`
+is emitted for suspicious generated math and does not require provenance;
+caller-supplied provenance enriches it when available. Source kind and
+conversion stage are retained per generated document when supplied on its
+`SourceOrigin`; an explicit profile value is only a fallback for an origin
+field that the caller left unspecified. Missing origin metadata is never
+inferred. If a diagnostic has more than one provenance fact, `provenance_ids`
+retains every fact ID and the serialized metadata uses deterministic
+`provenance_1_*`, `provenance_2_*`, and later keys instead of discarding all but
+the first fact.
 
 | Code | Default | Meaning |
 |---|---|---|
 | `GEN001` | warning | Generated output is missing a preserved source anchor |
+| `GEN002` | warning | Generated math contains suspicious formula text |
 
 ## Reserved in catalog
 

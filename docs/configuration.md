@@ -181,10 +181,11 @@ conversion_stage = "xml-to-markdown"
 ```
 
 The named profile is policy metadata consumed by the normal fact/query/engine
-pipeline. `generated-myst` enables provenance-backed generated-output engines in
-addition to the ordinary scanner, parser, algebra, reference, and structure
-checks configured below. Unknown profile names are rejected rather than silently running a
-different rule set. `source_kind` and `conversion_stage` are optional annotations
+pipeline. `generated-myst` enables generated-output engines, including source-only
+formula checks and provenance-backed comparisons, in addition to the ordinary
+scanner, parser, algebra, reference, and structure checks configured below. Unknown
+profile names are rejected rather than silently running a different rule set.
+`source_kind` and `conversion_stage` are optional annotations
 used when an explicit `SourceOrigin` omits those fields; they do not identify the
 source document or prove a producer relationship. SciEqLint never reconstructs
 missing origin metadata. The profile table does not enable scanner or parser defaults
@@ -208,9 +209,10 @@ override preset values.
 
 Available presets:
 
-- `generated-myst`: enables the deterministic Markdown/MyST scanner, inline
-  math, algebra, reference, and strict parser checks used by generated-document
-  CLI workflows. It does not manufacture source provenance.
+- `generated-myst`: selects the generated-document profile and enables the
+  deterministic Markdown/MyST scanner, inline math, algebra, reference, strict
+  parser, and generated-output checks used by generated-document CLI workflows.
+  It does not manufacture source provenance.
   Dimension checks stay in `auto` mode and run only when the project adds
   `[vars]`.
 - `mechanics`: enables mechanics dimension checks for common variables such as
@@ -238,9 +240,11 @@ scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
 scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
 ```
 
-The preset is the CLI validation profile: it supplies the existing deterministic
-scanner, parser, algebra, and reference policy. Use `[profile]` with the
-already-loaded-document API when explicit source provenance is available.
+The preset selects the `generated-myst` profile for path-based checks, so source-only
+generated-output diagnostics such as `GEN002` run through this CLI workflow. It
+supplies the existing deterministic scanner, parser, algebra, and reference policy,
+but does not manufacture source provenance. Use `[profile]` with the already-loaded-
+document API when explicit source provenance is available.
 
 ## Config schema
 

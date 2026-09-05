@@ -19,6 +19,9 @@ Release notes must use these sections:
 - MyST inline-math facts now retain their delimiter kind, source span, surrounding
   text role, and parse status, and `QueryHost.math.inline_math()` exposes the
   candidates and classified facts to downstream engines.
+- Generated-document validation now reports high-confidence suspicious formula
+  text as source-spanned `GEN002` diagnostics when the `generated-myst` profile is
+  selected, including through the packaged preset.
 
 ### Changed
 
@@ -40,6 +43,8 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Generated formula-text checks now exclude math directive options while retaining
+  the exact source locations of artifacts in the formula body.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic
