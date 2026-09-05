@@ -122,11 +122,20 @@ comparisons and signed prose remain excluded from math queries. Malformed or
 unsupported inline math remains an `UnknownMath` fact rather than a guessed formula.
 Unsupported TeX environment names,
 including names with hyphens, digits, or underscores, are classified as unknown rather
-than preserved. A candidate that overlaps code,
+than preserved. Only complete Markdown block items become generated equation-like
+artifacts, so lazy container continuations remain non-artifacts. A candidate that overlaps code,
 HTML, link metadata, or another MyST role is rejected without hiding a later disjoint
 candidate, using the frontend's shared source-order ownership snapshot. Explicit math
 inside Markdown link text remains visible for every supported delimiter, while link
 destinations, titles, images, and inferred plain-text candidates in labels remain opaque.
+Equation-like text detection is deliberately conservative and lexical rather than a
+semantic parse. It only reports signals recognized by the current plain-text
+classifier; non-ASCII or Greek identifiers, bare numeric comparisons, nested function
+calls, trailing punctuation, and compact multi-word expressions without spaced
+operators may remain ordinary text. Use a supported explicit math container when a
+formula must be checked. `GEN005` is a suspicion about generated text, not a claim
+that the text is a valid or mathematically correct equation, and SciEqLint does not
+rewrite it.
 The legacy scanner and architecture frontend resolve Markdown regions in source
 order: a code span, block/raw-text HTML region, or fence opened first owns later
 dollar markers, while math opened first owns later backticks and fence-like text

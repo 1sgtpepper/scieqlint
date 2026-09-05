@@ -65,8 +65,9 @@ show_suppressed = false
 ```
 
 `scanner.inline_math` is opt-in for both path-based checks and the public
-`check_documents` API. When it is false, inline-math facts are not classified or
-passed to query engines; display and structural Markdown analysis remains active.
+`check_documents` API. When it is false, explicit inline-math facts are not classified
+or passed to query engines. Standalone equation-like text remains available to
+`GEN005` under `generated-myst`; display and structural Markdown analysis remains active.
 
 `ignore.files` accepts POSIX-style glob patterns. Discovered files are matched
 against both their path relative to `project.root`, when possible, and their

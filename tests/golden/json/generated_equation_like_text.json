@@ -1,0 +1,41 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "GEN005",
+      "col": 1,
+      "detail": "equation-like text was emitted outside a math container: 'F(x) = x + 1'",
+      "end_col": 12,
+      "end_line": 5,
+      "equation": null,
+      "hint": "Emit the source expression as supported math; SciEqLint will not rewrite it.",
+      "line": 5,
+      "message": "standalone text block looks like an equation",
+      "path": "tests/fixtures/generated/equation_like_text.md",
+      "profile": "generated-myst",
+      "properties": {
+        "conversion_stage": "pdf-to-markdown",
+        "formula_artifact_kind": "equation-like-text",
+        "generated_document": "tests/fixtures/generated/equation_like_text.md",
+        "source_document": "source/equation_like_text.pdf",
+        "source_kind": "pdf"
+      },
+      "provenance_ids": [
+        "tests/fixtures/generated/equation_like_text.md::generated-provenance"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 1
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

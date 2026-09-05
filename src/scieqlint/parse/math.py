@@ -48,11 +48,14 @@ class MathHost:
             inline_math.append(replace(fact, parse_status=status))
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
-        return replace(
+        classified = replace(
             snapshot,
             inline_math=tuple(inline_math),
             unknown_math=(*snapshot.unknown_math, *unknown_math),
-            generated_formulas=_classify_generated_formulas(snapshot),
+        )
+        return replace(
+            classified,
+            generated_formulas=_classify_generated_formulas(classified),
         )
 
 
@@ -236,6 +239,7 @@ def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormu
         document.path.as_posix(): SourceMap.for_document(document)
         for document in snapshot.documents
     }
+    inline_math = {fact.fact_id: fact for fact in snapshot.inline_math}
     facts: list[GeneratedFormulaFact] = []
     for candidate in snapshot.generated_formulas:
         if candidate.kind != "candidate":
@@ -244,7 +248,7 @@ def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormu
         source_map = source_maps.get(candidate.document_id)
         assert source_map is not None
         assert candidate.span is not None
-        facts.extend(_classify_generated_candidate(candidate, source_map))
+        facts.extend(_classify_generated_candidate(candidate, source_map, inline_math))
     return tuple(
         sorted(
             facts,
@@ -256,6 +260,7 @@ def _classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormu
 def _classify_generated_candidate(
     candidate: GeneratedFormulaFact,
     source_map: SourceMap,
+    inline_math: dict[str, InlineMathFact],
 ) -> tuple[GeneratedFormulaFact, ...]:
     if candidate.candidate_kind == "formula-text":
         return _suspicious_formula_facts(candidate, source_map)
@@ -269,14 +274,27 @@ def _classify_generated_candidate(
                 delimiter_kind=candidate.delimiter_kind,
             ),
         )
-    assert candidate.candidate_kind == "placeholder"
-    if candidate.placeholder_kind == "empty-display-math":
-        kind: GeneratedFormulaKind = "empty-display"
-    elif candidate.placeholder_kind == "formula-image":
-        kind = "image-placeholder"
-    else:
-        kind = "placeholder"
-    return (replace(candidate, kind=kind, candidate_kind=None),)
+    if candidate.candidate_kind == "placeholder":
+        if candidate.placeholder_kind == "empty-display-math":
+            kind: GeneratedFormulaKind = "empty-display"
+        elif candidate.placeholder_kind == "formula-image":
+            kind = "image-placeholder"
+        else:
+            kind = "placeholder"
+        return (replace(candidate, kind=kind, candidate_kind=None),)
+    assert candidate.candidate_kind == "equation-like-text"
+    assert candidate.source_math_fact_id is not None
+    source_math = inline_math.get(candidate.source_math_fact_id)
+    if source_math is None or source_math.parse_status != "text-leak":
+        return ()
+    return (
+        replace(
+            candidate,
+            kind="equation-like-text",
+            candidate_kind=None,
+            confidence="inferred",
+        ),
+    )
 
 
 def _suspicious_formula_facts(
