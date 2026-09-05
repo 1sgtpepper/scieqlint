@@ -155,14 +155,16 @@ Release notes must use these sections:
   references, and duplicate code-cell diagnostics serialize complete member-path
   identities and exact collision counts with bounded representative provenance.
 - Notebook lowering scopes nested equation-reference owners by cell, and notebook
-  cross-reference label prefixes are matched case-insensitively.
+  cross-reference labels recognize documented lowercase prefixes after an optional
+  leading `#` marker.
 - Notebook output targets now retain complete member-path identity and exact JSON
   output and label locations; unavailable source locations fail closed with `INP001`.
 - Notebook rendering conflicts now preserve one diagnostic per recorded output and
   recognize Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases; recorded
   output aliases retain the exact JSON option span used for their target.
 - Notebook reference-display facts are resolved after notebook-wide target aggregation,
-  and the profile admits notebook documents through the public API.
+  and the profile admits notebook documents through the public API. Application analysis
+  derives these facts only for the opt-in profile, and ambiguous matches retain no target IDs.
 - Reference-display target typing now honors notebook caption metadata for untyped
   recorded-output labels and remains active when Markdown scanning is disabled for
   the explicit profile.
