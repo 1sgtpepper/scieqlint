@@ -102,6 +102,12 @@
       "additionalProperties": {
         "type": "string"
       },
+      "properties": {
+        "accessibility_id": {
+          "description": "Source-owned inline-math identity accepted by check_documents accessibility_metadata.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "provenance_ids": {

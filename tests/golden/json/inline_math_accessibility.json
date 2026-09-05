@@ -1,0 +1,89 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT002",
+      "col": 16,
+      "detail": "dollar inline math in heading content has no configured accessible text",
+      "end_col": 16,
+      "end_line": 1,
+      "equation": null,
+      "hint": "Provide accessible text through the publishing workflow, or use a display equation form that supports it.",
+      "line": 1,
+      "message": "inline math lacks accessible text metadata",
+      "path": "tests/fixtures/good/inline_math_accessibility.md",
+      "profile": "math-accessibility",
+      "properties": {
+        "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::dollar::x",
+        "accessibility_requirement": "accessible-text",
+        "delimiter_kind": "dollar",
+        "parse_status": "preserved",
+        "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::14",
+        "surrounding_text_role": "heading"
+      },
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT002",
+      "col": 22,
+      "detail": "myst-role inline math in paragraph content has no configured accessible text",
+      "end_col": 26,
+      "end_line": 3,
+      "equation": null,
+      "hint": "Provide accessible text through the publishing workflow, or use a display equation form that supports it.",
+      "line": 3,
+      "message": "inline math lacks accessible text metadata",
+      "path": "tests/fixtures/good/inline_math_accessibility.md",
+      "profile": "math-accessibility",
+      "properties": {
+        "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::myst-role::y%20%2B%201",
+        "accessibility_requirement": "accessible-text",
+        "delimiter_kind": "myst-role",
+        "parse_status": "preserved",
+        "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::33",
+        "surrounding_text_role": "paragraph"
+      },
+      "severity": "warning",
+      "suppressed": false
+    },
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "PORT002",
+      "col": 50,
+      "detail": "latex-paren inline math in paragraph content has no configured accessible text",
+      "end_col": 50,
+      "end_line": 3,
+      "equation": null,
+      "hint": "Provide accessible text through the publishing workflow, or use a display equation form that supports it.",
+      "line": 3,
+      "message": "inline math lacks accessible text metadata",
+      "path": "tests/fixtures/good/inline_math_accessibility.md",
+      "profile": "math-accessibility",
+      "properties": {
+        "accessibility_id": "tests%2Ffixtures%2Fgood%2Finline_math_accessibility.md::inline-math::latex-paren::z",
+        "accessibility_requirement": "accessible-text",
+        "delimiter_kind": "latex-paren",
+        "parse_status": "preserved",
+        "subject_fact_id": "tests/fixtures/good/inline_math_accessibility.md::inline-math::66",
+        "surrounding_text_role": "paragraph"
+      },
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 3
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}
