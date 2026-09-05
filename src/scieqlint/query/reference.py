@@ -12,15 +12,17 @@ from scieqlint.facts.reference import (
     EquationRefFact,
     GenericRefFact,
     NormalizedReferenceTarget,
+    ReferenceDisplayTextFact,
     TargetAnchorFact,
     crossref_target_identity,
     generic_reference_identity,
     normalized_reference_target,
 )
 from scieqlint.facts.snapshot import FactSnapshot
+from scieqlint.facts.structure import CodeCellFact
 from scieqlint.io.workspace import normalize_project_path
 
-TargetFact = TargetAnchorFact | EquationLabelFact
+TargetFact = TargetAnchorFact | EquationLabelFact | CodeCellFact
 TargetT = TypeVar("TargetT", bound=TargetFact)
 
 
@@ -36,6 +38,12 @@ class NonvisibleEquationTargetImpact:
     visible_targets: tuple[EquationLabelFact, ...]
     hidden_targets: tuple[EquationLabelFact, ...]
     excluded_targets: tuple[EquationLabelFact, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UnclearReferenceDisplayText:
+    fact: ReferenceDisplayTextFact
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +97,38 @@ class ReferenceQueryView:
             if fact.document_id in visible_document_ids
         )
 
+    def display_text_facts(self) -> tuple[ReferenceDisplayTextFact, ...]:
+        if not self.snapshot.project_members:
+            return self.snapshot.reference_display_text
+        visible_document_ids = frozenset(
+            member.document_id
+            for member in self.snapshot.project_members
+            if member.visibility == "visible"
+        )
+        return tuple(
+            fact
+            for fact in self.snapshot.reference_display_text
+            if fact.document_id in visible_document_ids
+        )
+
+    def unclear_nonheading_display_text(
+        self,
+    ) -> tuple[UnclearReferenceDisplayText, ...]:
+        """Return resolved non-heading references with missing or generic labels."""
+
+        unclear: list[UnclearReferenceDisplayText] = []
+        for fact in sorted(self.display_text_facts(), key=_display_source_key):
+            if (
+                fact.target_type in {None, "heading"}
+                or fact.target_identity is None
+                or fact.display_intent == "typed-number"
+            ):
+                continue
+            reason = _unclear_display_reason(fact)
+            if reason is not None:
+                unclear.append(UnclearReferenceDisplayText(fact=fact, reason=reason))
+        return tuple(unclear)
+
     def conflicting_metadata(
         self,
     ) -> tuple[tuple[NormalizedReferenceTarget, tuple[CrossrefMetadataFact, ...]], ...]:
@@ -116,12 +156,8 @@ class ReferenceQueryView:
         """Return the label-only namespace used by pathless reference roles."""
 
         index: dict[str, list[TargetFact]] = defaultdict(list)
-        for anchor in self.snapshot.target_anchors:
-            if anchor.visibility != "visible" or anchor.placement == "orphaned":
-                continue
-            index[anchor.normalized_label].append(anchor)
-        for label in self.visible_equation_targets():
-            index[label.normalized_label].append(label)
+        for target in self._target_facts():
+            index[_target_label(target)].append(target)
         return {key: tuple(value) for key, value in index.items()}
 
     def target_identity_index(
@@ -248,7 +284,7 @@ class ReferenceQueryView:
         target_index = self._target_identity_index(target_facts)
         raw_target_index: dict[tuple[str, str], list[tuple[int, TargetFact]]] = defaultdict(list)
         for order, fact in enumerate(target_facts):
-            raw_target_index[(fact.document_id, fact.normalized_label)].append((order, fact))
+            raw_target_index[(fact.document_id, _target_label(fact))].append((order, fact))
         normalized_target_cache: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]] = {}
         mismatch_cache: dict[tuple[str, NormalizedReferenceTarget], bool] = {}
         for ref in self.visible_generic_refs():
@@ -303,6 +339,11 @@ class ReferenceQueryView:
                 if anchor.visibility == "visible" and anchor.placement != "orphaned"
             ),
             *self.visible_equation_targets(),
+            *tuple(
+                cell
+                for cell in self.snapshot.code_cells
+                if cell.visibility == "visible" and cell.normalized_label is not None
+            ),
         )
 
     def _target_identity_index(
@@ -318,7 +359,7 @@ class ReferenceQueryView:
             member_path = member_paths.get(target.document_id)
             if member_path is None:
                 member_path = normalize_project_path(target.document_id)
-            identity = (member_path, target.normalized_label)
+            identity = (member_path, _target_label(target))
             index[identity].append(target)
         return {key: tuple(value) for key, value in index.items()}
 
@@ -335,6 +376,13 @@ def _equation_index(
     for label in labels:
         index[label.normalized_label].append(label)
     return {key: tuple(value) for key, value in index.items()}
+
+
+def _target_label(fact: TargetFact) -> str:
+    if isinstance(fact, CodeCellFact):
+        assert fact.normalized_label is not None
+        return fact.normalized_label
+    return fact.normalized_label
 
 
 def _equation_label_source_key(
@@ -378,4 +426,37 @@ def _producer_signature(
     return (
         fact.resolved_target_kind,
         tuple(sorted(fact.target_metadata)),
+    )
+
+
+def _unclear_display_reason(fact: ReferenceDisplayTextFact) -> str | None:
+    text = fact.explicit_text
+    if text is None or not text.strip():
+        return "missing"
+    normalized = " ".join(text.casefold().split()).strip(" .:#-_[]()")
+    target = " ".join(fact.normalized_target.casefold().split()).strip(" .:#-_[]()")
+    target_type = (fact.target_type or "").casefold()
+    generic = {
+        target,
+        target_type,
+        "reference",
+        "link",
+        "this",
+        "here",
+        f"{target_type} reference",
+    }
+    if target_type == "block":
+        generic.add("paragraph")
+    return "generic" if normalized in generic else None
+
+
+def _display_source_key(
+    fact: ReferenceDisplayTextFact,
+) -> tuple[str, int, int, str]:
+    span = fact.display_text_span or fact.span
+    return (
+        fact.document_id,
+        span.start if span is not None else -1,
+        span.end if span is not None else -1,
+        fact.fact_id,
     )

@@ -134,6 +134,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
             "REF006",
             "REF007",
             "REF008",
+            "REF009",
             "REF011",
         }
     )
@@ -1510,6 +1511,7 @@ def test_query_host_views_expose_snapshot_contracts():
         engine="jupyter",
         options=directive.options,
         label="plot",
+        normalized_label="plot",
     )
     unlabeled_cell = CodeCellFact(
         fact_id="cell-unlabeled",
@@ -1521,6 +1523,7 @@ def test_query_host_views_expose_snapshot_contracts():
         engine="jupyter",
         options=(),
         label=None,
+        normalized_label=None,
     )
     non_crossref_cell = CodeCellFact(
         fact_id="cell-non-crossref",
@@ -1532,6 +1535,7 @@ def test_query_host_views_expose_snapshot_contracts():
         engine="jupyter",
         options=(),
         label="plot-plain",
+        normalized_label="plot-plain",
     )
     prefixed_cell = CodeCellFact(
         fact_id="cell-prefixed",
@@ -1543,6 +1547,7 @@ def test_query_host_views_expose_snapshot_contracts():
         engine="jupyter",
         options=(),
         label="fig-plot",
+        normalized_label="fig-plot",
     )
     source_anchor = TargetAnchorFact(
         fact_id="target-source",

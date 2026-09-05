@@ -292,7 +292,9 @@ This is a conservative lint subset, not a full MyST parser. Unknown custom
 directive names remain allowed. Valid MyST target anchors such as `(label)=`
 before headings are treated as anchors, not headings or malformed prose.
 When the Markdown scanner is disabled, Markdown frontend and document-level
-reference/structure analysis are skipped as well.
+reference/structure analysis are skipped as well. The `reference-display` profile is
+the exception: it retains profile-owned Markdown lowering while disabling the legacy
+scanner path, so it can still validate reference display text without duplicate owners.
 
 ## Generated-document formula checks
 
@@ -435,16 +437,19 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 Notebooks are never executed. v0.1.4 scans Markdown cells, joins valid string
 lists according to the Jupyter format, preserves notebook cell metadata in
 diagnostics, and keeps code-cell math silent. The
-`cross-format-references`, `math-accessibility`, and `notebook-crossrefs` profiles
-additionally lower code-cell metadata and recorded outputs into immutable facts;
-this metadata pass does not evaluate source or re-render outputs.
+`cross-format-references`, `math-accessibility`, `notebook-crossrefs`, and
+`reference-display` profiles additionally lower code-cell
+metadata and recorded outputs into immutable facts; this metadata pass does not evaluate
+source or re-render outputs. Except for `reference-display`, disabling the Markdown
+scanner excludes notebook Markdown facts while retaining those code/output facts.
 
 Code-cell facts retain the cell index, language/engine, supported scalar options,
 labels or tags, raw source, and the exact JSON cell span. Output facts retain the
 cell/output indexes, output type, MIME keys, supported scalar metadata, raw output,
 and exact JSON output span. Typed output labels (`eq-`, `fig-`, `tbl-`, and `lst-`)
 are case-sensitive, may include one leading `#` marker, and provide target metadata;
-labels are not inferred from output order.
+caption metadata (`fig-cap`, `fig-subcap`, `tbl-cap`, `tbl-subcap`, `lst-cap`,
+`cap`, and `caption`) provide target metadata; labels are not inferred from output order.
 
 Markdown-cell math and reference facts retain the notebook path, cell, and
 cell-relative line while remapping logical offsets to the original JSON source.
@@ -466,6 +471,31 @@ as cross-reference metadata; unrelated presentation options such as `fig-alt` an
 `fig-align` remain quiet. Code-cell variable analysis, notebook execution, and
 full Jupyter schema validation are deferred.
 
-Hidden and excluded equation-label checks consume the `[project].visibility` mapping.
-Visibility is applied before legacy and profile reference resolution; SciEqLint does
-not read ignored files or infer table-of-contents visibility from filenames.
+The opt-in `reference-display` profile admits notebook documents and resolves
+visible Markdown references after notebook-wide target aggregation.
+Display labels from notebook Markdown cells use the same source contract as Markdown documents:
+the trimmed source Markdown/MyST label is retained without rendering or entity/escape decoding.
+
+- Project reference paths are normalized lexically and retain their fragment for
+  cross-document target identity; SciEqLint does not resolve symlinks or fetch
+  external URLs. Fragment-only links remain local to their source member when a
+  complete target identity is required.
+- Notebook output facts use recorded JSON output locations, logical cell locations,
+  output indexes, and exact output-label value spans. Output labels are ordinary visible
+  targets for reference resolution and duplicate checks. If an exact JSON location cannot
+  be recovered, SciEqLint emits `INP001` rather than guessing a whole-cell or whole-output
+  span; it does not execute notebooks, inspect runtime objects, or re-render outputs.
+
+- The built-in MyST and notebook frontends emit complete, source-neutral
+  cross-reference metadata facts with target-definition member paths and
+  source/output-boundary provenance. `REF007` compares complete facts from distinct
+  supplied output boundaries when they describe the same target identity with
+  incompatible metadata; MyST-only input does not produce that cross-boundary case,
+  while notebook outputs can supply distinct boundaries. Arbitrary custom producers
+  are not a public input surface and are not inferred. Explicit display titles remain
+  attached to reference-use facts, while pathless reference roles remain label-only
+  uses and do not supply a target-definition path.
+
+- Hidden/excluded equation-label checks consume the `[project].visibility` mapping.
+  Visibility is applied before legacy and profile reference resolution; SciEqLint does
+  not read ignored files or infer table-of-contents visibility from filenames.

@@ -59,6 +59,8 @@ Release notes must use these sections:
   facts, with an opt-in warning for incompatible renderings/crossref combinations.
 - Keep visible, hidden, and excluded equation-label facts separate and warn when
   non-visible targets affect a rendered equation reference.
+- Track cross-reference display text, target type, and rendered-label intent, with an
+  opt-in warning for missing or generic labels on resolved non-heading targets.
 
 ### Changed
 
@@ -68,6 +70,10 @@ Release notes must use these sections:
 - Reference targets now use normalized member-path-plus-label identity for path-bearing and
   fragment-only links, while genuinely pathless roles retain an explicit label-only namespace.
 - Cross-reference metadata no longer groups incomplete target definitions by label alone.
+- Display and path-normalization diagnostics now retain the selected canonical target identity
+  separately from the requested display label.
+- Reference-display diagnostics preserve explicit display labels as trimmed source Markdown/MyST
+  text, including inline markup, entities, and escapes; they do not render final prose.
 - Project visibility is now configured through `[project].visibility` and is applied
   before legacy and profile reference observations.
 - Generated diagnostic metadata now crosses a post-policy, versioned SchemaHost
@@ -139,6 +145,12 @@ Release notes must use these sections:
 - Notebook rendering conflicts now preserve one diagnostic per recorded output and
   recognize Quarto `lst-label`, `fig-subcap`, and `tbl-subcap` aliases; recorded
   output aliases retain the exact JSON option span used for their target.
+- Notebook reference-display facts are resolved after notebook-wide target aggregation,
+  and the profile admits notebook documents through the public API. Application analysis
+  derives these facts only for the opt-in profile, and ambiguous matches retain no target IDs.
+- Reference-display target typing now honors notebook caption metadata for untyped
+  recorded-output labels and remains active when Markdown scanning is disabled for
+  the explicit profile.
 - Architecture terminology scans now recognize longer matching fenced-code closers
   instead of treating the remaining document as fence content.
 - Malformed local URL destinations are now ignored safely, and project-reference

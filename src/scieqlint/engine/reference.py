@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
     GenericRefFact,
+    NormalizedReferenceTarget,
     format_member_target_identity,
     normalized_reference_target,
 )
@@ -18,8 +21,22 @@ _METADATA_PREVIEW_MAX_CHARS = 256
 
 class ReferenceEngine:
     name = "references"
+
+    def __init__(self, *, profile: str | None = None) -> None:
+        self.profile = profile
+
     rule_codes = frozenset(
-        {"REF001", "REF002", "REF004", "REF005", "REF006", "REF007", "REF008", "REF011"}
+        {
+            "REF001",
+            "REF002",
+            "REF004",
+            "REF005",
+            "REF006",
+            "REF007",
+            "REF008",
+            "REF009",
+            "REF011",
+        }
     )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
@@ -130,6 +147,42 @@ class ReferenceEngine:
                     properties=properties,
                 )
             )
+        if self.profile == "reference-display":
+            display_info = CATALOG["REF009"]
+            for issue in query.references.unclear_nonheading_display_text():
+                fact = issue.fact
+                rendered = fact.explicit_text if fact.explicit_text is not None else ""
+                target_identity = format_member_target_identity(
+                    cast(NormalizedReferenceTarget, fact.target_identity)
+                )
+                target_type = cast(str, fact.target_type)
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=display_info.code,
+                        severity_default=display_info.severity,
+                        message=f"{display_info.message}: {fact.normalized_target}",
+                        span=fact.display_text_span or fact.span,
+                        detail=(
+                            f"target_type={target_type!r}; "
+                            f"reference_kind={fact.reference_kind!r}; "
+                            f"display_text={rendered!r}; reason={issue.reason!r}"
+                        ),
+                        hint="Provide descriptive display text for this non-heading target.",
+                        rule="references.display_text",
+                        profile_gated=True,
+                        false_positive_risk="medium",
+                        profile=self.profile,
+                        provenance_ids=(fact.source_fact_id, fact.fact_id, *fact.target_fact_ids),
+                        properties=(
+                            ("target", target_identity),
+                            ("target_type", target_type),
+                            ("reference_kind", fact.reference_kind),
+                            ("display_intent", fact.display_intent),
+                            ("display_text", rendered),
+                            ("reason", issue.reason),
+                        ),
+                    )
+                )
         missing_info = CATALOG["REF004"]
         equation_missing_info = CATALOG["REF002"]
         for ref in sorted(
@@ -230,7 +283,7 @@ class ReferenceEngine:
                     rule="references.project_path_normalization",
                     false_positive_risk="low",
                     properties=(
-                        ("target", f"{identity[0].as_posix()}#{identity[1]}"),
+                        ("target", format_member_target_identity(identity)),
                         ("raw_path", ref.resolved_raw_target_path),
                         ("normalized_path", ref.normalized_target_path.as_posix()),
                         ("raw_match_count", str(len(raw_matches))),

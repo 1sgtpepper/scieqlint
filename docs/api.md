@@ -139,6 +139,9 @@ Property names are unique after projection: later rule values replace earlier va
 and SchemaHost-owned profile and provenance values take precedence over colliding rule
 properties.
 These optional fields are omitted from JSON output when unset or empty.
+For `REF009`, the `display_text` property is the explicit Markdown/MyST label from source after
+surrounding whitespace is trimmed. Inline markup, HTML entities, and backslash escapes are kept
+as source text; the value is not renderer output.
 JSON output without projection metadata retains schema version `0.1`. If any
 emitted diagnostic contains `profile`, `provenance_ids`, or `properties`, the
 result identifies itself as `0.2` and validates against the packaged 0.2 result
@@ -161,10 +164,11 @@ where the format supports it.
 The opt-in `notebook-crossrefs` profile inspects only declarative code-cell and
 recorded-output metadata. Quarto `lst-label` is an alias of output `label` for
 target resolution; when both are present, `label` takes precedence. `fig-subcap`
-and `tbl-subcap` are cross-reference display options. Typed labels use the lowercase
-`eq-`, `fig-`, `lst-`, or `tbl-` prefixes after an optional leading `#`. Each affected
-recorded output retains its own fact identity and exact JSON label-value span; notebook
-code is never executed or re-rendered.
+and `tbl-subcap` are cross-reference display options. Caption metadata also supplies
+the target type for an otherwise untyped recorded-output label. Typed labels use the
+lowercase `eq-`, `fig-`, `lst-`, or `tbl-` prefixes after an optional leading `#`.
+Each affected recorded output retains its own fact identity and exact JSON label-value
+span; notebook code is never executed or re-rendered.
 
 Notebook parsing applies fixed safety bounds at the already-loaded
 `SourceDocument` boundary: the UTF-8 byte length of normalized `SourceDocument.text`
