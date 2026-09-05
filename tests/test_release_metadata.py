@@ -84,18 +84,6 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
     )
 
 
-def test_stable_release_accuracy_gate_counts_executed_equation_fixtures() -> None:
-    accuracy_gate = Path("tests/test_accuracy_benchmarks.py").read_text(encoding="utf-8")
-
-    assert "result.math_blocks_checked > 0" in accuracy_gate
-    assert 'equation_fixture_ids.append(str(case["id"]))' in accuracy_gate
-    assert "assert len(equation_fixture_ids) >= 100" in accuracy_gate
-    assert "assert len(case_ids) >= 100" not in accuracy_gate
-    assert accuracy_gate.index("equation_fixture_ids.append") < accuracy_gate.index(
-        "assert len(equation_fixture_ids) >= 100"
-    )
-
-
 def test_ci_test_matrix_covers_declared_python_versions() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")

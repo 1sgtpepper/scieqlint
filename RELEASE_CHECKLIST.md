@@ -14,9 +14,14 @@ Every release must include:
 - wheel install smoke test,
 - package-data verification,
 - source, wheel, and stable-tag version identity,
-- at least 100 unique documented equation fixtures executed through their public behavior,
+- at least 100 independently labeled semantic equations executed through the public
+  analysis path with their expected diagnostics and exit status,
 - the 100-document/500-equation/500-reference representative workload completing within three seconds,
 - release notes with migration notes.
+
+The checked-in accuracy corpus currently contains 2 independently labeled semantic
+equations (one positive and one negative), so stable publication remains blocked at
+2/100 until 100 independently labeled semantic equations are available.
 
 ## Release sequence
 

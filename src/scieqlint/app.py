@@ -9,6 +9,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePath, PurePosixPath
 from typing import Generic, TypeVar, cast
 
+import scieqlint.app_profile as _app_profile
+import scieqlint.app_profile_crossref as _app_profile_crossref
+import scieqlint.app_profile_generated as _app_profile_generated
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
 from scieqlint.check.dimensions import check_dimensions
@@ -16,7 +19,7 @@ from scieqlint.check.references import check_missing_labels, check_references
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
-from scieqlint.config.model import AlgebraConfig, Config, ParserConfig, ProjectVisibility
+from scieqlint.config.model import AlgebraConfig, Config, ParserConfig
 from scieqlint.diag.baseline import (
     BaselineIdentity,
     apply_baseline,
@@ -28,20 +31,8 @@ from scieqlint.engine.generated import GeneratedOutputEngine
 from scieqlint.engine.portability import PortabilityEngine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
-from scieqlint.facts.generated import (
-    GENERATED_PROVENANCE_FACT_SUFFIX,
-    GeneratedProvenanceFact,
-)
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact
-from scieqlint.facts.reference import (
-    CrossrefMetadataFact,
-    EquationLabelFact,
-    EquationRefFact,
-)
 from scieqlint.facts.snapshot import FactSnapshot
-from scieqlint.frontend.crossref import crossref_metadata_facts
 from scieqlint.frontend.myst import MySTFrontend
-from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.frontend.notebook_input import (
     NotebookInput,
     NotebookSourceLocationError,
@@ -49,7 +40,6 @@ from scieqlint.frontend.notebook_input import (
 from scieqlint.frontend.notebook_input import (
     input_diagnostic as _input_diagnostic,
 )
-from scieqlint.frontend.reference_display import reference_display_text_facts
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph, GraphNode
 from scieqlint.io.discover import discover_files
@@ -64,7 +54,6 @@ from scieqlint.scan.base import (
     EquationReference,
     LabelSource,
     MathBlock,
-    MathContainer,
     ReferenceSource,
     SymbolDirective,
 )
@@ -74,7 +63,19 @@ from scieqlint.scan.markdown import (
     _mask_ranges,  # pyright: ignore[reportPrivateUsage]
 )
 from scieqlint.scan.notebook import NotebookScanner
-from scieqlint.schema import SchemaHost
+
+_apply_accessibility_metadata = _app_profile.apply_accessibility_metadata
+_generated_profile_snapshot = _app_profile.generated_profile_snapshot
+_generated_provenance_facts = _app_profile_generated.generated_provenance_facts
+_legacy_equation_label_fact = _app_profile_crossref.legacy_equation_label_fact
+_profile_snapshot = _app_profile.profile_snapshot
+_project_generated_diagnostic = _app_profile_generated.project_generated_diagnostic
+_raw_missing_label_diagnostics = _app_profile_crossref.raw_missing_label_diagnostics
+_source_reference_facts = _app_profile_crossref.source_reference_facts
+_source_role_fact_id = _app_profile_crossref.source_role_fact_id
+_without_profile_owned_legacy_reference_diagnostics = (
+    _app_profile_crossref.without_profile_owned_legacy_reference_diagnostics
+)
 
 _ResultT = TypeVar("_ResultT")
 
@@ -417,6 +418,7 @@ def check_documents(
             accessibility_metadata=normalized_accessibility_metadata,
             parsed_notebooks=parsed_notebooks,
             notebook_location_errors=notebook_location_errors,
+            workspace=workspace,
         )
         # Profile facts may intentionally omit source kinds that the selected
         # profile does not inspect. Keep membership complete so path-bearing
@@ -502,572 +504,6 @@ def _legacy_markdown_document(
     if not ranges:
         return document
     return replace(document, text=_mask_ranges(document.text, ranges))
-
-
-def _span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
-    """Return whether a fact span belongs to one of the source-owned ranges."""
-
-    return any(
-        container.path == span.path
-        and container.cell == span.cell
-        and container.start <= span.start
-        and span.end <= container.end
-        for container in containers
-    )
-
-
-def _without_profile_owned_legacy_reference_diagnostics(
-    diagnostics: list[Diagnostic],
-    query: QueryHost,
-) -> list[Diagnostic]:
-    profile_owned_spans = {
-        span
-        for fact in query.references.equation_refs()
-        if (span := fact.target_span or fact.span) is not None
-    }
-    unresolved_generic_ids = {fact.fact_id for fact in query.references.unresolved_generic_refs()}
-    profile_owned_spans.update(
-        span
-        for fact in query.references.generic_refs()
-        if not (
-            fact.fact_id in unresolved_generic_ids
-            and fact.role_kind == "markdown-link"
-            and fact.raw_target_path is None
-        )
-        if (span := fact.target_span or fact.span) is not None
-    )
-    owned_spans = tuple(profile_owned_spans)
-    return [
-        diagnostic
-        for diagnostic in diagnostics
-        if not (
-            diagnostic.code == "REF002"
-            and diagnostic.span is not None
-            and _span_is_within_any(diagnostic.span, owned_spans)
-        )
-    ]
-
-
-def _raw_missing_label_diagnostics(
-    query: QueryHost,
-    visible_document_ids: set[str],
-) -> tuple[Diagnostic, ...]:
-    info = CATALOG["REF003"]
-    diagnostics: list[Diagnostic] = []
-    for fact in query.math.display_math():
-        if (
-            fact.document_id not in visible_document_ids
-            or fact.source_syntax != "raw-latex"
-            or fact.container != "ams"
-            or not fact.complete
-            or fact.label_fact_ids
-        ):
-            continue
-        assert fact.span is not None, "raw-LaTeX display facts retain source spans"
-        diagnostics.append(
-            Diagnostic(
-                code=info.code,
-                severity=info.severity,
-                message=info.message,
-                span=fact.span,
-                equation=fact.body,
-                rule="references",
-            )
-        )
-    return tuple(diagnostics)
-
-
-def _generated_provenance_facts(
-    documents: Sequence[SourceDocument],
-    config: Config,
-) -> tuple[GeneratedProvenanceFact, ...]:
-    """Build caller-owned source-to-generated mappings independently of scanning."""
-
-    if config.profile.name != "generated-myst":
-        return ()
-    return tuple(
-        GeneratedProvenanceFact(
-            fact_id=f"{document.path.as_posix()}{GENERATED_PROVENANCE_FACT_SUFFIX}",
-            document_id=document.path.as_posix(),
-            span=None,
-            raw=None,
-            confidence="generated",
-            generated_document_id=document.path.as_posix(),
-            source_document_id=document.origin.source_document_id,
-            source_kind=(
-                document.origin.source_kind
-                if document.origin.source_kind is not None
-                else config.profile.source_kind
-            ),
-            conversion_stage=(
-                document.origin.conversion_stage
-                if document.origin.conversion_stage is not None
-                else config.profile.conversion_stage
-            ),
-            source_sha=document.origin.source_sha,
-            tool=document.origin.tool,
-            tool_version=document.origin.tool_version,
-            preserved_anchor_inventory=document.origin.preserved_anchor_inventory,
-        )
-        for document in documents
-        if document.origin is not None
-    )
-
-
-def _legacy_span_identity(span: SourceSpan) -> str:
-    cell = "" if span.cell is None else f"::cell-{span.cell}"
-    return f"{span.start}:{span.end}{cell}"
-
-
-def _legacy_equation_label_fact(label: EquationLabel) -> EquationLabelFact:
-    path = label.span.path.as_posix()
-    return EquationLabelFact(
-        fact_id=(
-            f"{path}::legacy-equation-label::{label.source.value}::"
-            f"{_legacy_span_identity(label.span)}"
-        ),
-        document_id=path,
-        span=label.span,
-        raw=label.label,
-        confidence="source",
-        label=label.label,
-        normalized_label=label.label,
-        label_syntax_kind=f"legacy-{label.source.value}",
-        source_block_id=label.block_id,
-        label_span=label.span,
-    )
-
-
-def _profile_snapshot(
-    documents: Sequence[SourceDocument],
-    config: Config,
-    *,
-    source_references: Sequence[EquationReference] | None = None,
-    source_labels: Sequence[EquationLabel] | None = None,
-    policy: PolicyHost | None = None,
-    generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
-    frontend_snapshot: FactSnapshot | None = None,
-    accessibility_metadata: Mapping[str, str] | None = None,
-    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
-    notebook_location_errors: (
-        list[tuple[SourceDocument, NotebookSourceLocationError]] | None
-    ) = None,
-) -> FactSnapshot:
-    snapshot = _generated_profile_snapshot(
-        documents,
-        config,
-        source_references=source_references,
-        source_labels=source_labels,
-        generated_provenance=generated_provenance,
-        frontend_snapshot=frontend_snapshot,
-        accessibility_metadata=accessibility_metadata,
-        parsed_notebooks=parsed_notebooks,
-        notebook_location_errors=notebook_location_errors,
-    )
-    if config.profile.name == "cross-format-references":
-        return replace(
-            snapshot,
-            portability=(
-                policy or PolicyHost(config.profile.output_profile)
-            ).cross_format_reference_risks(snapshot),
-        )
-    if config.profile.name == "typst-portability":
-        return replace(snapshot, portability=MathHost().typst_portability(snapshot))
-    return snapshot
-
-
-def _generated_profile_snapshot(
-    documents: Sequence[SourceDocument],
-    config: Config,
-    *,
-    source_references: Sequence[EquationReference] | None = None,
-    source_labels: Sequence[EquationLabel] | None = None,
-    generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
-    frontend_snapshot: FactSnapshot | None = None,
-    accessibility_metadata: Mapping[str, str] | None = None,
-    parsed_notebooks: Mapping[str, NotebookInput] | None = None,
-    notebook_location_errors: (
-        list[tuple[SourceDocument, NotebookSourceLocationError]] | None
-    ) = None,
-) -> FactSnapshot:
-    """Build one profile snapshot from caller-owned source-to-generated mappings."""
-
-    workspace = WorkspaceHost(project_root=_workspace_root(config, documents))
-    markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
-    )
-    notebook_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.NOTEBOOK
-    )
-    snapshot = (
-        MySTFrontend(workspace=workspace).lower(
-            markdown_documents,
-            _include_reference_display=False,
-        )
-        if frontend_snapshot is None
-        else frontend_snapshot
-    )
-    latex_math_documents = tuple(
-        document
-        for document in documents
-        if document.kind is DocumentKind.LATEX and config.profile.name == "typst-portability"
-    )
-    if latex_math_documents:
-        snapshot = replace(
-            snapshot,
-            display_math=(
-                *snapshot.display_math,
-                *_latex_display_facts(latex_math_documents, config),
-            ),
-        )
-    source_label_facts = _source_label_facts(documents, source_labels, config)
-    source_reference_facts = _source_reference_facts(documents, source_references, config)
-    notebook_full_profile = config.profile.name in {
-        "cross-format-references",
-        "math-accessibility",
-        "notebook-crossrefs",
-        "reference-display",
-        "code-cell-metadata",
-    }
-    if notebook_documents and (config.checks.references.enabled or notebook_full_profile):
-        notebook_snapshot = NotebookFrontend(workspace=workspace).lower(
-            notebook_documents,
-            parsed=parsed_notebooks,
-            _source_location_errors=notebook_location_errors,
-            _include_markdown=(
-                config.scanner.markdown or config.profile.name == "reference-display"
-            ),
-            _include_reference_display=False,
-        )
-        if notebook_full_profile:
-            snapshot = replace(
-                snapshot,
-                documents=tuple(documents),
-                inline_math=(*snapshot.inline_math, *notebook_snapshot.inline_math),
-                display_math=(*snapshot.display_math, *notebook_snapshot.display_math),
-                unknown_math=(*snapshot.unknown_math, *notebook_snapshot.unknown_math),
-                generated_formulas=(
-                    *snapshot.generated_formulas,
-                    *notebook_snapshot.generated_formulas,
-                ),
-                code_cells=(*snapshot.code_cells, *notebook_snapshot.code_cells),
-                notebook_outputs=notebook_snapshot.notebook_outputs,
-                target_anchors=(*snapshot.target_anchors, *notebook_snapshot.target_anchors),
-                generic_refs=(*snapshot.generic_refs, *notebook_snapshot.generic_refs),
-                equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
-                equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
-                crossref_metadata=(
-                    *snapshot.crossref_metadata,
-                    *notebook_snapshot.crossref_metadata,
-                ),
-            )
-        elif config.checks.references.enabled:
-            snapshot = replace(
-                snapshot,
-                documents=tuple(documents),
-                equation_labels=(*snapshot.equation_labels, *notebook_snapshot.equation_labels),
-                equation_refs=(*snapshot.equation_refs, *notebook_snapshot.equation_refs),
-            )
-    snapshot = replace(
-        snapshot,
-        documents=tuple(documents),
-        equation_labels=(*snapshot.equation_labels, *source_label_facts),
-        equation_refs=(*snapshot.equation_refs, *source_reference_facts),
-    )
-    snapshot = replace(
-        snapshot,
-        inline_math=_apply_accessibility_metadata(
-            snapshot.inline_math,
-            accessibility_metadata,
-        ),
-    )
-    profile_visibility: tuple[tuple[str, ProjectVisibility], ...] = workspace.project_visibility(
-        documents,
-        config.project.visibility,
-    )
-    raw_math_fact_ids = frozenset(
-        fact.fact_id for fact in snapshot.display_math if fact.container == "raw-latex"
-    )
-    snapshot = MathHost().classify(snapshot)
-    raw_labels_by_document: dict[str, list[EquationLabelFact]] = {}
-    raw_refs_by_document: dict[str, list[EquationRefFact]] = {}
-    for label in snapshot.equation_labels:
-        if label.source_block_id in raw_math_fact_ids:
-            raw_labels_by_document.setdefault(label.document_id, []).append(label)
-    for reference in snapshot.equation_refs:
-        if reference.source_block_id in raw_math_fact_ids:
-            raw_refs_by_document.setdefault(reference.document_id, []).append(reference)
-    raw_crossref_metadata: list[CrossrefMetadataFact] = []
-    documents_by_id = {document.path.as_posix(): document for document in documents}
-    raw_document_ids = tuple(dict.fromkeys((*raw_labels_by_document, *raw_refs_by_document)))
-    for document_id in raw_document_ids:
-        document = documents_by_id[document_id]
-        raw_crossref_metadata.extend(
-            crossref_metadata_facts(
-                document,
-                (),
-                raw_refs_by_document.get(document_id, ()),
-                workspace=workspace,
-                equation_labels=raw_labels_by_document.get(document_id, ()),
-            )
-        )
-    if raw_crossref_metadata:
-        snapshot = replace(
-            snapshot,
-            crossref_metadata=(*snapshot.crossref_metadata, *raw_crossref_metadata),
-        )
-    snapshot = workspace.apply_visibility(snapshot, profile_visibility)
-    snapshot = replace(
-        snapshot,
-        reference_display_text=(
-            reference_display_text_facts(
-                snapshot.generic_refs,
-                snapshot.equation_refs,
-                snapshot.target_anchors,
-                snapshot.equation_labels,
-                project_root=workspace.project_root,
-                code_cells=snapshot.code_cells,
-            )
-            if config.profile.name == "reference-display"
-            else ()
-        ),
-    )
-    provenance = (
-        _generated_provenance_facts(markdown_documents, config)
-        if generated_provenance is None
-        else tuple(generated_provenance)
-    )
-    if provenance:
-        return replace(snapshot, generated_provenance=provenance)
-    return snapshot
-
-
-def _legacy_equation_reference_fact(reference: EquationReference) -> EquationRefFact:
-    path = reference.span.path.as_posix()
-    target = reference.target
-    return EquationRefFact(
-        fact_id=(
-            f"{path}::legacy-equation-reference::{reference.source.value}::"
-            f"{_legacy_span_identity(reference.span)}"
-        ),
-        document_id=path,
-        span=reference.span,
-        raw=reference.raw,
-        confidence="source",
-        ref_kind=f"legacy-{reference.source.value}",
-        target=target,
-        normalized_target=target,
-        role_span=reference.span,
-        target_span=reference.span,
-    )
-
-
-def _latex_display_facts(
-    documents: Sequence[SourceDocument],
-    config: Config,
-) -> tuple[DisplayMathFact, ...]:
-    """Adapt complete LatexScanner blocks for source-owned Typst analysis."""
-
-    scanner = LatexScanner()
-    facts: list[DisplayMathFact] = []
-    for document in documents:
-        scan = scanner.scan(document, config)
-        for block in scan.blocks:
-            environment = {
-                MathContainer.LATEX_EQUATION: "equation",
-                MathContainer.LATEX_ALIGN: "align",
-            }.get(block.container)
-            facts.append(
-                DisplayMathFact(
-                    fact_id=f"{document.path.as_posix()}::latex-display::{block.span.start}",
-                    document_id=document.path.as_posix(),
-                    span=block.span,
-                    raw=document.text[block.span.start : block.span.end],
-                    body=block.text,
-                    container="latex-display",
-                    environment=environment,
-                )
-            )
-    return tuple(facts)
-
-
-def _project_generated_diagnostic(
-    diagnostic: Diagnostic,
-    *,
-    profile: str,
-    generated_provenance_by_id: dict[str, GeneratedProvenanceFact],
-    generated_provenance_by_document: dict[str, GeneratedProvenanceFact],
-) -> Diagnostic:
-    """Attach only caller-owned generated origins to a public diagnostic."""
-    provenances: list[GeneratedProvenanceFact] = []
-    for fact_id in dict.fromkeys(diagnostic.provenance_ids):
-        provenance = generated_provenance_by_id.get(fact_id)
-        if provenance is not None:
-            provenances.append(provenance)
-    if not provenances and diagnostic.span is not None:
-        provenance = generated_provenance_by_document.get(diagnostic.span.path.as_posix())
-        if provenance is not None:
-            provenances.append(provenance)
-    if not provenances:
-        return diagnostic
-    projection = SchemaHost.project_diagnostic(
-        diagnostic,
-        profile=profile,
-        provenances=tuple(provenances),
-    )
-    return replace(
-        diagnostic,
-        profile=projection.profile,
-        provenance_ids=projection.provenance_ids,
-        properties=projection.properties,
-    )
-
-
-_SOURCE_REFERENCE_KINDS = {
-    ReferenceSource.MYST_EQ_ROLE: "eq",
-    ReferenceSource.MYST_NUMREF_ROLE: "numref",
-    ReferenceSource.LATEX_REF: "tex-ref",
-    ReferenceSource.LATEX_EQREF: "tex-eqref",
-}
-
-
-def _source_label_facts(
-    documents: Sequence[SourceDocument],
-    source_labels: Sequence[EquationLabel] | None,
-    config: Config,
-) -> tuple[EquationLabelFact, ...]:
-    labels = source_labels
-    if labels is None:
-        labels = tuple(
-            label
-            for document in documents
-            if document.kind is DocumentKind.LATEX
-            for label in LatexScanner().scan(document, config).labels
-        )
-    if config.profile.name != "cross-format-references":
-        return tuple(
-            _legacy_equation_label_fact(label)
-            for label in labels
-            if label.source is LabelSource.LATEX_LABEL
-        )
-    source_ids = {
-        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
-    }
-    if not source_ids:
-        return ()
-    return tuple(
-        EquationLabelFact(
-            fact_id=_source_role_fact_id(label.span, "source-label"),
-            document_id=label.span.path.as_posix(),
-            span=label.span,
-            raw=label.label,
-            label=label.label,
-            normalized_label=label.label.removeprefix("#").strip(),
-            label_syntax_kind=label.source.value,
-            source_block_id=label.block_id,
-            label_span=label.span,
-        )
-        for label in labels
-        if label.span.path.as_posix() in source_ids
-    )
-
-
-def _source_reference_facts(
-    documents: Sequence[SourceDocument],
-    source_references: Sequence[EquationReference] | None,
-    config: Config,
-) -> tuple[EquationRefFact, ...]:
-    references = source_references
-    if references is None:
-        references = tuple(
-            reference
-            for document in documents
-            if document.kind is DocumentKind.LATEX
-            for reference in LatexScanner().scan(document, config).references
-        )
-    if config.profile.name != "cross-format-references":
-        return tuple(
-            _legacy_equation_reference_fact(reference)
-            for reference in references
-            if reference.source in {ReferenceSource.LATEX_REF, ReferenceSource.LATEX_EQREF}
-        )
-    source_ids = {
-        document.path.as_posix() for document in documents if document.kind is DocumentKind.LATEX
-    }
-    if not source_ids:
-        return ()
-    facts: list[EquationRefFact] = []
-    for reference in references:
-        if reference.span.path.as_posix() not in source_ids:
-            continue
-        ref_kind = _SOURCE_REFERENCE_KINDS[reference.source]
-        target = reference.target.strip()
-        facts.append(
-            EquationRefFact(
-                fact_id=_source_role_fact_id(reference.span, "source-reference"),
-                document_id=reference.span.path.as_posix(),
-                span=reference.span,
-                raw=reference.raw,
-                ref_kind=ref_kind,
-                target=target,
-                normalized_target=target.removeprefix("#"),
-                role_span=reference.span,
-            )
-        )
-    return tuple(facts)
-
-
-def _source_role_fact_id(span: SourceSpan, role: str) -> str:
-    """Encode the source path, cell, role, and start as a collision-safe ID."""
-
-    def encode(value: str) -> str:
-        return f"{len(value)}:{value}"
-
-    cell = "" if span.cell is None else str(span.cell)
-    return "::".join(
-        (
-            f"path={encode(span.path.as_posix())}",
-            f"cell={encode(cell)}",
-            f"role={encode(role)}",
-            f"start={encode(str(span.start))}",
-        )
-    )
-
-
-def _apply_accessibility_metadata(
-    inline_math: Sequence[InlineMathFact],
-    metadata: Mapping[str, str] | None,
-) -> tuple[InlineMathFact, ...]:
-    if metadata is None:
-        return tuple(inline_math)
-    known_id_counts: dict[str, int] = {}
-    for fact in inline_math:
-        if fact.accessibility_id is None:
-            continue
-        known_id_counts[fact.accessibility_id] = known_id_counts.get(fact.accessibility_id, 0) + 1
-    unknown_ids = sorted(set(metadata) - set(known_id_counts))
-    if unknown_ids:
-        raise ValueError(
-            "accessibility metadata references unknown inline math fact(s): "
-            + ", ".join(unknown_ids)
-        )
-    ambiguous_ids = sorted(
-        accessibility_id for accessibility_id in metadata if known_id_counts[accessibility_id] > 1
-    )
-    if ambiguous_ids:
-        raise ValueError(
-            "accessibility metadata references ambiguous inline math fact(s): "
-            + ", ".join(ambiguous_ids)
-        )
-    return tuple(
-        replace(
-            fact,
-            alt=(metadata[fact.accessibility_id].strip() or None)
-            if fact.accessibility_id is not None and fact.accessibility_id in metadata
-            else fact.alt,
-        )
-        for fact in inline_math
-    )
 
 
 def _normalize_accessibility_metadata(metadata: object) -> dict[str, str] | None:

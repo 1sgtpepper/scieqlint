@@ -60,16 +60,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `SPEC.md`
 - `SUPPORT.md`
 - `action.yml`
-- `benchmarks/accuracy/algebra.yml`
-- `benchmarks/accuracy/dimensions.yml`
-- `benchmarks/accuracy/generated.yml`
-- `benchmarks/accuracy/latex.yml`
-- `benchmarks/accuracy/markdown.yml`
-- `benchmarks/accuracy/notebook.yml`
-- `benchmarks/accuracy/parse_unknown.yml`
-- `benchmarks/accuracy/portability.yml`
-- `benchmarks/accuracy/references.yml`
-- `benchmarks/accuracy/typst.yml`
+- `benchmarks/accuracy/corpus-v1.json`
 - `docs/api.md`
 - `docs/architecture.md`
 - `docs/architecture/deterministic-snapshot-kernel-adr.md`
@@ -126,6 +117,9 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`
 - `src/scieqlint/app.py`
+- `src/scieqlint/app_profile.py`
+- `src/scieqlint/app_profile_crossref.py`
+- `src/scieqlint/app_profile_generated.py`
 - `src/scieqlint/check/__init__.py`
 - `src/scieqlint/check/algebra.py`
 - `src/scieqlint/check/dimensions.py`
@@ -362,6 +356,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_cross_format_references.py`
 - `tests/test_crossref_metadata_facts.py`
 - `tests/test_crossref_path_normalization.py`
+- `tests/test_deterministic_properties.py`
 - `tests/test_diagnostic_catalog.py`
 - `tests/test_dimension_parser_budgets.py`
 - `tests/test_dimensions.py`

@@ -52,6 +52,11 @@ Release notes must use these sections:
   this portability profile despite retaining exact frontend source mapping.
 - The opt-in `code-cell-metadata` profile now admits notebook-derived code cells and
   reports malformed or project-unknown language metadata without executing cells.
+- Add bounded deterministic Hypothesis properties for source-token span integrity, raw
+  newline ingress, and Markdown code-cell fence lowering.
+- Replace the permissive YAML-like accuracy fixtures with a strict versioned JSON
+  corpus of labeled positive and negative cases and expanded rule coverage; synthetic
+  wrappers do not count as independent accuracy evidence.
 - Warn when local cross-document references resolve differently after lexical
   project-path normalization.
 - Model source-neutral cross-reference metadata as fact, query, and engine contracts
@@ -181,8 +186,9 @@ Release notes must use these sections:
 - `check_paths(absolute_paths=True)` now changes diagnostic presentation only, so
   configured project-root reference resolution is stable across path display modes.
 - Stable-tag publication now fails closed unless source, wheel, and tag versions
-  agree, at least 100 documented equation fixtures execute successfully, and the
-  100-document/500-equation/500-reference workload stays under three seconds.
+  agree, at least 100 independently labeled semantic equations execute through
+  the public analysis path with their expected diagnostics and exit status, and
+  the 100-document/500-equation/500-reference workload stays under three seconds.
 - Markdown math fences now follow the shared CommonMark opener and closer rules,
   including tilde markers, longer fences, and up to three spaces of indentation.
 - Terminology-gate detection now counts only canonical gate wiring with direct
@@ -321,7 +327,9 @@ Release notes must use these sections:
 
 ### Known limitations
 
-- Nothing yet.
+- The checked-in accuracy corpus currently contains 2 independently labeled semantic
+  equations (one positive and one negative), so the stable release gate remains blocked
+  at 2/100 until 100 independently labeled semantic equations are available.
 
 ## v1.1.0 - 2026-06-15
 
