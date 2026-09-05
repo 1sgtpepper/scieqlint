@@ -215,7 +215,6 @@ def _math_fact_from_fence(
     )
 
 
-
 def _dollar_display_math(
     document: SourceDocument,
     smap: SourceMap,

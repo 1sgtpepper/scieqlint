@@ -59,7 +59,6 @@ def typst_math_risks(
     )
 
 
-
 def _mask_non_math_tex_ranges(
     text: str,
     ranges: Sequence[tuple[int, int]],

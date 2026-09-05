@@ -213,7 +213,6 @@ def _latex_paren_facts(
             opener = None
 
 
-
 def overlaps_occupied(
     start: int,
     end: int,
