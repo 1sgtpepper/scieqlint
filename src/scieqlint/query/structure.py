@@ -10,6 +10,7 @@ from scieqlint.facts.structure import (
     DirectiveFact,
     FenceFact,
     HeadingFact,
+    NotebookOutputFact,
     SectionFact,
     StructureSyntaxIssueFact,
 )
@@ -33,6 +34,9 @@ class StructureQueryView:
 
     def code_cells(self) -> tuple[CodeCellFact, ...]:
         return self.snapshot.code_cells
+
+    def notebook_outputs(self) -> tuple[NotebookOutputFact, ...]:
+        return self.snapshot.notebook_outputs
 
     def syntax_issues(self) -> tuple[StructureSyntaxIssueFact, ...]:
         return self.snapshot.structure_syntax_issues

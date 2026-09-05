@@ -16,8 +16,7 @@ The analyzer can:
 - report duplicate labels, missing equation and generic references, and undefined
   symbols from explicit directives,
 - preserve source-neutral cross-reference metadata facts and the `REF007` conflict
-  contract; built-in standalone cross-boundary producer inputs remain deferred to
-  #372/#356,
+  contract, including built-in recorded notebook-output boundaries,
 - apply suppressions and diagnostic baselines,
 - export a deterministic equation label/reference graph,
 - provide package resources, docs, schemas, examples, and CI templates.

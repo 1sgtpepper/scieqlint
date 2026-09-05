@@ -237,10 +237,10 @@ def test_public_api_rejects_unknown_accessibility_ids_for_unsupported_documents(
         )
 
 
-def test_math_accessibility_profile_is_limited_to_markdown_documents() -> None:
+def test_math_accessibility_profile_covers_notebook_markdown_but_not_latex() -> None:
     result = public_check_documents(
         (
-            notebook_doc("Notebook $x$ is intentionally outside this profile.\n"),
+            notebook_doc("Notebook $x$ is covered by this profile.\n"),
             SourceDocument.from_text(
                 PurePosixPath("accessible-math.tex"),
                 r"LaTeX $x$ is intentionally outside this profile.",
@@ -251,7 +251,10 @@ def test_math_accessibility_profile_is_limited_to_markdown_documents() -> None:
     )
 
     assert result.files_checked == 2
-    assert not any(item.code == "PORT002" for item in result.diagnostics)
+    [diagnostic] = [item for item in result.diagnostics if item.code == "PORT002"]
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath("accessible-math.ipynb")
+    assert diagnostic.span.cell == 0
 
 
 def test_cross_format_profile_does_not_enable_accessibility_rule() -> None:

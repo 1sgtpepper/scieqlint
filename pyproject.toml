@@ -100,6 +100,7 @@ include = [
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+extend-exclude = ["tests/fixtures/**/*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "DTZ", "ISC", "PIE", "PT", "RET", "SIM", "T20"]
@@ -178,3 +179,9 @@ forbidden_modules = [
   "scieqlint.api",
 ]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Owner: architecture boundary map - FrontendHost owns notebook input mapping"
+type = "forbidden"
+source_modules = ["scieqlint.frontend"]
+forbidden_modules = ["scieqlint.scan"]

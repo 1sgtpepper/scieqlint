@@ -3,14 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
-from scieqlint.app import _profile_snapshot, check_documents
-from scieqlint.config.model import (
-    AlgebraConfig,
-    ChecksConfig,
-    Config,
-    ProfileConfig,
-)
-from scieqlint.diag.model import CheckResult, Severity, SourceSpan
+import pytest
+
+from scieqlint.api import check_documents
+from scieqlint.app import _profile_snapshot
+from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
+from scieqlint.diag.model import CheckResult, Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import CrossrefMetadataFact
 from scieqlint.facts.snapshot import FactSnapshot
@@ -22,6 +20,37 @@ from scieqlint.report.json import JsonReporter
 
 def doc(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+def notebook(path: str, *cells: tuple[str, str | None]) -> SourceDocument:
+    payload = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "metadata": {
+                    "label": label,
+                    **({"fig-cap": caption} if caption is not None else {}),
+                },
+                "source": ["plot()\n"],
+                "outputs": [
+                    {
+                        "output_type": "display_data",
+                        "data": {"image/png": "encoded"},
+                        "metadata": {},
+                    }
+                ],
+            }
+            for label, caption in cells
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    return SourceDocument.from_text(
+        PurePosixPath(path),
+        json.dumps(payload),
+        DocumentKind.NOTEBOOK,
+    )
 
 
 def cross_format_config() -> Config:
@@ -418,6 +447,220 @@ def test_same_metadata_in_distinct_boundaries_is_not_conflicting() -> None:
 
     assert query.references.conflicting_metadata() == ()
     assert ReferenceEngine().run(query) == ()
+
+
+def test_reference_use_titles_do_not_become_target_metadata_conflicts() -> None:
+    documents = (
+        doc("a.md", "See {ref}`Overview <fig-energy>` and {eq}`eq-energy`."),
+        doc("b.md", "See {ref}`Energy balance <fig-energy>` and {eq}`eq-energy`."),
+        notebook("producer.ipynb", ("fig-energy", "Energy"), ("eq-energy", None)),
+    )
+
+    result = check_documents(documents, config=cross_format_config())
+    snapshot = _profile_snapshot(documents, cross_format_config())
+
+    assert not any(item.code == "REF007" for item in result.diagnostics)
+    assert [
+        (
+            fact.logical_target,
+            fact.reference_role,
+            fact.display_title,
+            fact.normalized_target_path,
+            fact.target_metadata,
+        )
+        for fact in snapshot.crossref_metadata
+        if fact.metadata_kind == "reference-use"
+    ] == [
+        ("fig-energy", "ref", "Overview", None, ()),
+        ("eq-energy", "eq", None, None, ()),
+        ("fig-energy", "ref", "Energy balance", None, ()),
+        ("eq-energy", "eq", None, None, ()),
+    ]
+    assert [
+        (
+            fact.logical_target,
+            fact.resolved_target_kind,
+            fact.normalized_target_path,
+            fact.target_metadata,
+        )
+        for fact in snapshot.crossref_metadata
+        if fact.metadata_kind == "target-definition"
+    ] == [
+        (
+            "fig-energy",
+            "figure",
+            PurePosixPath("producer.ipynb"),
+            (("fig-cap", "Energy"),),
+        ),
+        (
+            "eq-energy",
+            "equation",
+            PurePosixPath("producer.ipynb"),
+            (),
+        ),
+    ]
+
+
+def test_notebook_member_paths_keep_equal_labels_separate() -> None:
+    equivalent_documents = (
+        notebook("a.ipynb", ("fig-shared", "Shared plot")),
+        notebook("b.ipynb", ("fig-shared", "Shared plot")),
+    )
+    conflicting_documents = (
+        notebook("a.ipynb", ("fig-shared", "Shared plot")),
+        notebook("b.ipynb", ("fig-shared", "Different plot")),
+    )
+    equivalent = check_documents(equivalent_documents, config=cross_format_config())
+    conflicting = check_documents(conflicting_documents, config=cross_format_config())
+    equivalent_snapshot = _profile_snapshot(equivalent_documents, cross_format_config())
+    conflicting_snapshot = _profile_snapshot(conflicting_documents, cross_format_config())
+
+    assert not any(item.code == "REF007" for item in equivalent.diagnostics)
+    assert not any(item.code == "REF007" for item in conflicting.diagnostics)
+    assert [
+        (
+            fact.normalized_target_path,
+            fact.logical_target,
+            fact.resolved_target_kind,
+            fact.target_metadata,
+        )
+        for fact in equivalent_snapshot.crossref_metadata
+        if fact.metadata_kind == "target-definition"
+    ] == [
+        (
+            PurePosixPath("a.ipynb"),
+            "fig-shared",
+            "figure",
+            (("fig-cap", "Shared plot"),),
+        ),
+        (
+            PurePosixPath("b.ipynb"),
+            "fig-shared",
+            "figure",
+            (("fig-cap", "Shared plot"),),
+        ),
+    ]
+    assert QueryHost(equivalent_snapshot).references.conflicting_metadata() == ()
+    assert [
+        (
+            fact.normalized_target_path,
+            fact.logical_target,
+            fact.resolved_target_kind,
+            fact.target_metadata,
+        )
+        for fact in conflicting_snapshot.crossref_metadata
+        if fact.metadata_kind == "target-definition"
+    ] == [
+        (
+            PurePosixPath("a.ipynb"),
+            "fig-shared",
+            "figure",
+            (("fig-cap", "Shared plot"),),
+        ),
+        (
+            PurePosixPath("b.ipynb"),
+            "fig-shared",
+            "figure",
+            (("fig-cap", "Different plot"),),
+        ),
+    ]
+    assert QueryHost(conflicting_snapshot).references.conflicting_metadata() == ()
+
+
+@pytest.mark.public_regression
+def test_public_check_documents_reports_notebook_output_metadata_conflict() -> None:
+    def document(second_caption: str) -> SourceDocument:
+        payload = {
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {"label": "fig-shared"},
+                    "outputs": [
+                        {
+                            "data": {"image/png": "payload"},
+                            "metadata": {"fig-cap": "Shared plot"},
+                            "output_type": "display_data",
+                        },
+                        {
+                            "data": {"image/png": "payload"},
+                            "metadata": {"fig-cap": second_caption},
+                            "output_type": "display_data",
+                        },
+                    ],
+                    "source": [],
+                }
+            ],
+            "metadata": {"language_info": {"name": "python"}},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+        return SourceDocument.from_text(
+            PurePosixPath("reachable.ipynb"),
+            json.dumps(payload, sort_keys=True),
+            DocumentKind.NOTEBOOK,
+        )
+
+    conflicting = document("Different plot")
+    result = check_documents((conflicting,), config=cross_format_config())
+
+    cell_start = conflicting.text.index('{"cell_type": "code"')
+    cell_length = json.JSONDecoder().raw_decode(conflicting.text[cell_start:])[1]
+    cell_end = cell_start + cell_length
+    line, col = conflicting.line_index.position(cell_start)
+    end_line, end_col = conflicting.line_index.position(cell_end - 1)
+    expected_span = SourceSpan(
+        path=conflicting.path,
+        start=cell_start,
+        end=cell_end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+        cell=0,
+        cell_line=1,
+    )
+    canonical_boundary = "reachable.ipynb::notebook-cell::0::output::0"
+    conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF007",
+            severity=Severity.WARNING,
+            message="conflicting cross-reference metadata: reachable.ipynb#fig-shared",
+            span=expected_span,
+            detail=(
+                f"{conflict_boundary!r} reports kind='figure', format='notebook', "
+                "metadata={'fig-cap': 'Different plot'}; canonical boundary "
+                f"{canonical_boundary!r} reports kind='figure', format='notebook', "
+                "metadata={'fig-cap': 'Shared plot'}"
+            ),
+            hint="Use consistent cross-reference metadata for this target.",
+            rule="references.crossref_metadata_conflict",
+            provenance_ids=(
+                f"{canonical_boundary}::crossref-metadata",
+                f"{conflict_boundary}::crossref-metadata",
+            ),
+            properties=(
+                ("target", "reachable.ipynb#fig-shared"),
+                ("output_boundary", conflict_boundary),
+                ("resolved_target_kind", "figure"),
+                ("source_format", "notebook"),
+                ("canonical_boundary", canonical_boundary),
+                ("canonical_resolved_target_kind", "figure"),
+                ("canonical_source_format", "notebook"),
+            ),
+        ),
+    )
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+
+    equivalent = document("Shared plot")
+    equivalent_result = check_documents((equivalent,), config=cross_format_config())
+    assert equivalent_result.diagnostics == ()
+    assert equivalent_result.files_checked == 1
+    assert equivalent_result.math_blocks_checked == 0
+    assert equivalent_result.exit_code() == 0
 
 
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:
