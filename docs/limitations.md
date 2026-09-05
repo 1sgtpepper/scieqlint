@@ -86,6 +86,10 @@ cannot close or hide a math container or reference outside that source range.
 | non-integer powers and symbolic square roots | deferred |
 | user TeX macro declarations/use sites | recorded in internal snapshots for explicit inline math; no public consumer; expansion deferred |
 
+Inline macro replacement text balances braces; interval brackets remain data.
+Optional defaults end at an unescaped closing bracket outside braces. These finite
+boundaries do not expand macros or implement general TeX argument processing.
+
 Configured dimension aliases match complete surface tokens and do not split a
 longer identifier. This boundary also applies when an alias ends in punctuation,
 so `v.` does not match the prefix of `v.foo`; numeric coefficients may be

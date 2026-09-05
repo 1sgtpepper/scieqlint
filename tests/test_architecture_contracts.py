@@ -248,28 +248,17 @@ def test_import_linter_contracts_encode_release_boundary_map():
     assert notebook_owner_contract["source_modules"] == ["scieqlint.frontend"]
     assert notebook_owner_contract["forbidden_modules"] == ["scieqlint.scan"]
 
-    frontend_contract = contract_by_suffix("Frontends preserve candidates for semantic hosts")
+    frontend_contract = contract_by_suffix("Frontends preserve candidates for MathHost")
     assert frontend_contract["type"] == "forbidden"
     assert frontend_contract["source_modules"] == ["scieqlint.frontend"]
-    assert set(frontend_contract["forbidden_modules"]) >= {
-        "scieqlint.parse",
-        "scieqlint.policy",
-        "scieqlint.engine",
-        "scieqlint.check",
-        "scieqlint.report",
-    }
+    assert frontend_contract["forbidden_modules"] == ["scieqlint.parse"]
     assert frontend_contract["allow_indirect_imports"] is True
 
-    math_policy_contract = contract_by_suffix("MathHost and policy do not import frontends")
-    assert math_policy_contract["type"] == "forbidden"
-    assert math_policy_contract["source_modules"] == ["scieqlint.parse", "scieqlint.policy"]
-    assert set(math_policy_contract["forbidden_modules"]) >= {
-        "scieqlint.frontend",
-        "scieqlint.engine",
-        "scieqlint.check",
-        "scieqlint.report",
-    }
-    assert math_policy_contract["allow_indirect_imports"] is True
+    math_contract = contract_by_suffix("MathHost consumes facts without frontend imports")
+    assert math_contract["type"] == "forbidden"
+    assert math_contract["source_modules"] == ["scieqlint.parse"]
+    assert math_contract["forbidden_modules"] == ["scieqlint.frontend"]
+    assert math_contract["allow_indirect_imports"] is True
 
 
 def test_frontend_notebook_mapping_does_not_reenter_transitional_scanner():

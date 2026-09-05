@@ -486,6 +486,39 @@ def test_parser_preserves_legal_mixed_delimiter_nesting() -> None:
     assert [(item.name, item.start) for item in syntax.uses] == [(r"\x", 31)]
 
 
+@pytest.mark.parametrize("replacement", ["[0,1)", "(0,1]", "[0,1]", "{[0,1)}", r"\{[\}"])
+@pytest.mark.parametrize("command", ["newcommand", "renewcommand", "providecommand", "def"])
+def test_macro_replacements_balance_braces_without_pairing_interval_brackets(
+    replacement: str, command: str
+) -> None:
+    target = r"\interval" if command == "def" else r"{\interval}"
+    declaration_text = "\\" + command + target + "{" + replacement + "}"
+    source = "$" + declaration_text + r" \interval$"
+
+    snapshot = lower((doc(source),))
+
+    [declaration] = snapshot.math_macro_declarations
+    [use] = snapshot.math_macro_uses
+    assert declaration.replacement == replacement
+    assert declaration.raw == declaration_text
+    assert use.active_declaration_fact_id == declaration.fact_id
+    assert use.span is not None
+    assert source[use.span.start : use.span.end] == r"\interval"
+
+
+@pytest.mark.parametrize("default", ["{]}", "{[0,1)}", "[", "{a{]}b}"])
+def test_optional_macro_defaults_end_at_an_unprotected_closing_bracket(default: str) -> None:
+    source = r"$\newcommand{\interval}[1][" + default + r"]{#1} \interval$"
+
+    snapshot = lower((doc(source),))
+
+    [declaration] = snapshot.math_macro_declarations
+    [use] = snapshot.math_macro_uses
+    assert declaration.parameter_count == 1
+    assert declaration.replacement == "#1"
+    assert use.active_declaration_fact_id == declaration.fact_id
+
+
 def test_crossing_malformed_recovery_preserves_later_declarations() -> None:
     syntax = scan_inline_macro_syntax(
         r"\newcommand{\bad}[1][x{y]z}] "
@@ -498,28 +531,27 @@ def test_crossing_malformed_recovery_preserves_later_declarations() -> None:
     assert [item.name for item in syntax.uses] == [r"\later"]
 
 
-def test_crossing_recovery_keeps_nested_commands_opaque_until_boundary() -> None:
+def test_bracket_data_in_replacements_keeps_nested_commands_opaque() -> None:
     syntax = scan_inline_macro_syntax(
         r"\newcommand{\bad}{x] \newcommand{\inner}{x}} "
         r"\newcommand{\later}{z} \later"
     )
 
     assert [(item.name, item.replacement) for item in syntax.declarations] == [
+        (r"\bad", r"x] \newcommand{\inner}{x}"),
         (r"\later", "z"),
     ]
     assert [item.name for item in syntax.uses] == [r"\later"]
 
 
-def test_symmetric_crossing_recovery_keeps_nested_commands_opaque_until_boundary() -> None:
+def test_unclosed_optional_default_keeps_later_commands_opaque() -> None:
     syntax = scan_inline_macro_syntax(
         r"\newcommand{\bad}[1][x{y] \newcommand{\inner}{x}} "
         r"\newcommand{\later}{z} \later"
     )
 
-    assert [(item.name, item.replacement) for item in syntax.declarations] == [
-        (r"\later", "z"),
-    ]
-    assert [item.name for item in syntax.uses] == [r"\later"]
+    assert syntax.declarations == ()
+    assert syntax.uses == ()
 
 
 def test_unclosed_crossing_recovery_keeps_nested_commands_opaque_to_eof() -> None:
@@ -602,7 +634,7 @@ def test_macro_facts_preserve_active_declaration_across_many_inline_facts() -> N
     }
 
 
-def test_math_host_rejects_nested_declaration_after_crossing_closer() -> None:
+def test_math_host_preserves_replacement_with_bracket_data() -> None:
     source = (
         r"$\newcommand{\bad}{x] \newcommand{\inner}{x}}$ "
         r"$\newcommand{\later}{z}$ $\later$"
@@ -610,10 +642,10 @@ def test_math_host_rejects_nested_declaration_after_crossing_closer() -> None:
 
     snapshot = lower((doc(source),))
 
-    assert [fact.macro_name for fact in snapshot.math_macro_declarations] == [r"\later"]
+    assert [fact.macro_name for fact in snapshot.math_macro_declarations] == [r"\bad", r"\later"]
     [use] = snapshot.math_macro_uses
     assert use.macro_name == r"\later"
-    declaration = snapshot.math_macro_declarations[0]
+    declaration = snapshot.math_macro_declarations[1]
     assert use.active_declaration_fact_id == declaration.fact_id
     assert declaration.span is not None
     assert source[declaration.span.start : declaration.span.end] == r"\later"

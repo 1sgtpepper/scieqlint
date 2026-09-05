@@ -23,7 +23,6 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
   portability facts. It does not call SymPy. Inline-math macro declarations and use sites are
   currently a facts-only snapshot slice: QueryHost, engines, diagnostics, and public APIs do not
   expose or consume them, and full TeX expansion remains deferred.
-- PolicyHost owns output-profile support policy and diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
 - Cross-reference metadata is preserved in `FactSnapshot`, compared by the reference
   query view, and diagnosed by the reference engine. Built-in notebook metadata supplies

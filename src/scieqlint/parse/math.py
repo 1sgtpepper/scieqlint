@@ -131,7 +131,7 @@ class MathHost:
             display_math.append(display)
             if unknown is not None and fact.fact_id not in existing_unknown_ids:
                 unknown_math.append(unknown)
-        macro_declarations, macro_uses = inline_math_macro_facts(
+        macro_declarations, macro_uses = _inline_math_macro_facts(
             snapshot.documents,
             tuple(inline_math),
         )
@@ -677,7 +677,7 @@ def _high_confidence_spaced_command(artifact: str) -> bool:
     return len(letters) >= 4 and sum(letter.islower() for letter in letters) >= 2
 
 
-def inline_math_macro_facts(
+def _inline_math_macro_facts(
     documents: Sequence[SourceDocument],
     inline_math: Sequence[InlineMathFact],
 ) -> tuple[tuple[MathMacroDeclarationFact, ...], tuple[MathMacroUseFact, ...]]:

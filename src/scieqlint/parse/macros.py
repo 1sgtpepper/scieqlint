@@ -198,7 +198,7 @@ def _parse_declaration(
     kind: MacroDeclarationSyntaxKind,
     *,
     source_text: str,
-    group_ends: dict[int, tuple[int, int, bool]],
+    group_ends: dict[int, int],
 ) -> MacroDeclarationSyntax | None:
     if kind == "def":
         return _parse_def_declaration(
@@ -261,7 +261,7 @@ def _parse_def_declaration(
     command_end: int,
     *,
     source_text: str,
-    group_ends: dict[int, tuple[int, int, bool]],
+    group_ends: dict[int, int],
 ) -> MacroDeclarationSyntax | None:
     cursor = _skip_space(text, command_end)
     target = _parse_direct_macro_target(text, cursor)
@@ -307,7 +307,7 @@ def _parse_macro_target(
     text: str,
     cursor: int,
     *,
-    group_ends: dict[int, tuple[int, int, bool]],
+    group_ends: dict[int, int],
 ) -> tuple[str, int, int, int] | None:
     if cursor < len(text) and text[cursor] == "{":
         group = _read_group(text, cursor, "{", group_ends=group_ends)
@@ -411,12 +411,12 @@ def _recover_malformed_declaration(text: str, start: int) -> int:
         if not escaped:
             if character == "{":
                 brace_depth += 1
-            elif character == "[":
-                bracket_depth += 1
+            elif character == "[" and brace_depth == 0:
+                bracket_depth = 1
             elif character == "}" and brace_depth:
                 brace_depth -= 1
-            elif character == "]" and bracket_depth:
-                bracket_depth -= 1
+            elif character == "]" and brace_depth == 0:
+                bracket_depth = 0
         if character == "\\":
             backslash_count += 1
         else:
@@ -439,31 +439,29 @@ def _read_control(text: str, start: int) -> tuple[str, int] | None:
     return text[cursor], cursor + 1
 
 
-def _group_ends(text: str) -> dict[int, tuple[int, int, bool]]:
-    """Index typed group extents and whether a crossing occurs inside each group."""
+def _group_ends(text: str) -> dict[int, int]:
+    """Index braces and optional arguments without treating bracket data as groups."""
 
-    group_stack: list[tuple[str, int]] = []
-    ends: dict[int, tuple[int, int, bool]] = {}
-    last_crossing = -1
+    braces: list[int] = []
+    brackets: dict[int, list[int]] = {}
+    ends: dict[int, int] = {}
     backslash_count = 0
     for index, character in enumerate(text):
         escaped = backslash_count % 2 == 1
         if not escaped:
-            if character in "{[":
-                group_stack.append((character, index))
-            elif character in "}]":
-                expected_opener = "{" if character == "}" else "["
-                if group_stack and group_stack[-1][0] == expected_opener:
-                    _, opener_index = group_stack.pop()
-                    ends[opener_index] = (
-                        index,
-                        index + 1,
-                        last_crossing < opener_index,
-                    )
-                elif group_stack:
-                    # Keep the typed frames so a later matching closer remains
-                    # available as the enclosing boundary for recovery.
-                    last_crossing = index
+            if character == "{":
+                braces.append(index)
+            elif character == "}":
+                brackets.pop(len(braces), None)
+                if braces:
+                    ends[braces.pop()] = index
+            elif character == "[":
+                brackets.setdefault(len(braces), []).append(index)
+            elif character == "]":
+                # Braces protect a closing bracket; another opening bracket
+                # at the same depth is ordinary optional-argument content.
+                for opener_index in brackets.pop(len(braces), ()):
+                    ends[opener_index] = index
         if character == "\\":
             backslash_count += 1
         else:
@@ -476,15 +474,14 @@ def _read_group(
     start: int,
     opener: str,
     *,
-    group_ends: dict[int, tuple[int, int, bool]],
+    group_ends: dict[int, int],
 ) -> tuple[int, int, int] | None:
     if start >= len(text) or text[start] != opener:
         return None
     group = group_ends.get(start)
-    if group is None or not group[2]:
+    if group is None:
         return None
-    content_end, end, _ = group
-    return start + 1, content_end, end
+    return start + 1, group, group + 1
 
 
 def _skip_space(text: str, cursor: int) -> int:
