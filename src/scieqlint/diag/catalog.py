@@ -313,7 +313,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF011",
         Severity.WARNING,
         "ambiguous equation reference",
-        "v1.1.0",
+        "Unreleased",
         "A supported equation reference points to more than one equation target.",
     ),
     "SUP001": DiagnosticInfo(

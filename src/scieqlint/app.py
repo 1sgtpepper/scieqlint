@@ -205,8 +205,9 @@ def check_documents(
         document for document in documents if document.kind is DocumentKind.MARKDOWN
     )
     canonical_reference_path = bool(
-        config.scanner.markdown
-        and (markdown_documents or non_markdown_labels or non_markdown_references)
+        (config.scanner.markdown and markdown_documents)
+        or non_markdown_labels
+        or non_markdown_references
     )
     if config.parser.strict_unknowns:
         diagnostics = [_strict_unknown(diagnostic) for diagnostic in diagnostics]
@@ -245,7 +246,9 @@ def check_documents(
         legacy_equation_references = tuple(
             _legacy_equation_reference_fact(reference) for reference in non_markdown_references
         )
-        frontend_snapshot = MySTFrontend().lower(markdown_documents)
+        frontend_snapshot = MySTFrontend().lower(
+            markdown_documents if config.scanner.markdown else ()
+        )
         if not config.scanner.inline_math:
             # Inline math is opt-in, and candidate facts are lowered before scanner
             # options are applied. Standalone equation-like candidates are generated

@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from scieqlint.api import check_documents
-from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config
+from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ScannerConfig
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -162,6 +162,48 @@ $$
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF001") == 1
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF011") == 1
     assert query.references.ambiguous_equation_refs() == (snapshot.equation_refs[0],)
+
+
+def test_latex_reference_diagnostics_do_not_depend_on_markdown_scanning() -> None:
+    source = (
+        "\\begin{equation}\nx = 1 \\label{dup}\n\\end{equation}\n"
+        "\\begin{equation}\ny = 2 \\label{dup}\n\\end{equation}\n"
+        "See \\eqref{dup} and \\eqref{absent}.\n"
+    )
+    document = SourceDocument.from_text(PurePosixPath("aligned.tex"), source, DocumentKind.LATEX)
+    expected_starts = [
+        source.index("dup", source.index("dup") + 1),
+        source.rindex("dup"),
+        source.index("absent"),
+    ]
+
+    for markdown in (True, False):
+        config = Config(scanner=ScannerConfig(markdown=markdown))
+        result = check_documents((document,), config=config)
+
+        assert [diagnostic.code for diagnostic in result.diagnostics] == [
+            "REF001",
+            "REF011",
+            "REF002",
+        ]
+        assert [
+            diagnostic.span.start for diagnostic in result.diagnostics if diagnostic.span
+        ] == expected_starts
+        assert [
+            source[diagnostic.span.start : diagnostic.span.end]
+            for diagnostic in result.diagnostics
+            if diagnostic.span
+        ] == ["dup", "dup", "absent"]
+        assert (result.files_checked, result.math_blocks_checked) == (1, 2)
+        if not markdown:
+            with_disabled_markdown = check_documents(
+                (document, doc("See {eq}`markdown-only`.\n")), config=config
+            )
+            assert with_disabled_markdown.diagnostics == result.diagnostics
+            assert (
+                with_disabled_markdown.files_checked,
+                with_disabled_markdown.math_blocks_checked,
+            ) == (2, 2)
 
 
 def test_aligned_rows_retain_the_enclosing_display_as_the_owner() -> None:
