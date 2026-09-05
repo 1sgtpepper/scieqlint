@@ -125,10 +125,6 @@ def _raw_math_environment_ranges(
     candidate_malformed = False
     lexical = scan_tex_lexically(text, occupied=(*occupied, *bracketed_occupied))
     for kind, environment, token_start, token_end in lexical.environment_tokens:
-        if not stack and (
-            in_ranges(token_start, occupied) or in_ranges(token_start, bracketed_occupied)
-        ):
-            continue
         if kind == "begin":
             if not stack:
                 candidate_malformed = False
@@ -192,10 +188,10 @@ def _math_fact_from_fence(
     labels: list[EquationLabelFact] = []
     references: tuple[EquationRefFact, ...] = ()
     if fence.is_closed:
-        labels.extend(_tex_label_facts(document, smap, fact_id, fence.body_span.start, body_text))
-        references = tuple(
-            _tex_reference_facts(document, smap, fact_id, fence.body_span.start, body_text)
-        )
+        tex_body_start = fence.body_span.start + option_prefix_length
+        tex_body = body_text[option_prefix_length:]
+        labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body))
+        references = tuple(_tex_reference_facts(document, smap, fact_id, tex_body_start, tex_body))
         if fence.info_string == "{math}":
             labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
     return (
