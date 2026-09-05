@@ -24,7 +24,7 @@ cases:
     expected_pass: true
 
   - id: notebook-code-output-facts
-    release: v1.1.0
+    release: Unreleased
     profile: math-accessibility
     input: {"cells": [{"cell_type": "markdown", "metadata": {}, "source": "Inline $x$.\n"}, {"cell_type": "code", "metadata": {"quarto": {"label": "fig-facts", "fig-cap": "Fact output", "renderings": ["light", "dark"]}, "tags": ["hide-input"]}, "outputs": [{"data": {"image/png": "payload"}, "metadata": {"label": "fig-output"}, "output_type": "display_data"}], "source": "raise RuntimeError('not executed')\n"}], "metadata": {"kernelspec": {"language": "python", "name": "python3"}}, "nbformat": 4, "nbformat_minor": 5}
     expected_codes: ["PORT002"]

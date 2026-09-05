@@ -123,9 +123,9 @@ def test_unreleased_typst_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
-def test_v110_notebook_fact_accuracy_benchmark_fixture_is_checked() -> None:
+def test_unreleased_notebook_accuracy_benchmark_fixtures_are_checked() -> None:
     path = BENCHMARK_DIR / "notebook.yml"
-    cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
+    cases = [case for case in _load_cases(path) if case.get("release") == "Unreleased"]
     assert cases
 
     for case in cases:
