@@ -328,7 +328,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF007",
         Severity.WARNING,
         "conflicting cross-reference metadata",
-        "v1.1.0",
+        "Unreleased",
         "Two source or engine-output boundaries describe the same logical target "
         "with different reference kind or display metadata.",
     ),

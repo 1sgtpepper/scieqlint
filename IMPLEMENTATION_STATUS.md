@@ -1,8 +1,8 @@
 # Implementation Status
 
-This repository contains the current v1.1.0 analyzer and its implementation status.
+This file describes the current development tree, including unreleased changes.
 
-The included Python package is a v1.1.0 implementation. It can:
+The analyzer can:
 
 - install as a Python package,
 - expose `scieqlint` and `python -m scieqlint`,
