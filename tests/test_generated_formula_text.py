@@ -47,9 +47,7 @@ def test_directive_options_are_not_generated_formula_content() -> None:
 
 def test_formula_artifact_after_directive_options_keeps_its_source_span() -> None:
     for newline in ("\n", "\r\n"):
-        source = newline.join(
-            ("```{math}", ':typst: "/C0 apod"', "", "/C0 apod", "```", "")
-        )
+        source = newline.join(("```{math}", ':typst: "/C0 apod"', "", "/C0 apod", "```", ""))
         result = check_documents(
             (doc(source),), config=Config(profile=ProfileConfig(name="generated-myst"))
         )
