@@ -169,12 +169,13 @@ closers require the matching marker, at least the opener length, and no more tha
 three leading spaces. A shorter, different-marker, or over-indented closer leaves
 the math container unterminated and emits `SCAN001`; non-math fences remain opaque.
 TeX `\label{...}` inside Markdown math creates a label only when its backslash
-begins an active control sequence.
+begins an active control sequence. In a math directive, TeX labels and references
+are read from the formula body; option values remain metadata.
 MyST math labels are read only from the directive's leading option prefix.
 An empty MyST role target is reported as malformed syntax.
 Blank lines in that prefix are ignored; the prefix ends at the first nonblank
 line that is not a directive option.
-Only parsed Markdown links and MyST roles create reference facts; escaped role
+Outside math, only parsed Markdown links and MyST roles create reference facts; escaped role
 markers, images, and link destinations or titles remain metadata rather than
 references, math, structure facts, or structure diagnostics. MyST roles do not
 cross source-line boundaries. The reference lexer supports inline links with balanced

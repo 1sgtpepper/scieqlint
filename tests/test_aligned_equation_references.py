@@ -41,6 +41,54 @@ def fixture_doc(path: Path) -> SourceDocument:
     )
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_math_directive_options_do_not_create_tex_references(newline: str) -> None:
+    source = newline.join(
+        (
+            "```{math}",
+            ":label: actual",
+            r":alt: The literal \ref{example} or \eqref{example}.",
+            "",
+            "x = x",
+            "```",
+            "",
+            "See {eq}`actual`.",
+            "",
+        )
+    )
+
+    result = check_documents((doc(source),), config=Config())
+
+    assert result.diagnostics == ()
+    assert result.math_blocks_checked == 1
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_math_directive_option_labels_are_not_equation_targets(newline: str) -> None:
+    source = newline.join(
+        (
+            "```{math}",
+            ":label: explicit",
+            r":alt: The literal \label{example}.",
+            r"x = x \label{body}",
+            "```",
+            "",
+            "See {eq}`example`, {eq}`explicit`, and {eq}`body`.",
+            "",
+        )
+    )
+
+    result = check_documents((doc(source),), config=Config())
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.message == "equation reference target not found: example"
+    assert diagnostic.span is not None
+    start = source.replace("\r\n", "\n").rindex("example")
+    assert (diagnostic.span.start, diagnostic.span.end) == (start, start + len("example"))
+    assert result.math_blocks_checked == 1
+
+
 def test_aligned_display_models_labels_internal_refs_and_paragraph_start_refs() -> None:
     source = """\
 $$

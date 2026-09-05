@@ -63,6 +63,8 @@ Release notes must use these sections:
   duplicate legacy diagnostics and retaining notebook cell identity.
 - Generated formula-text checks now exclude math directive options while retaining
   the exact source locations of artifacts in the formula body.
+- TeX equation labels and references in math directive options no longer create
+  targets or missing-reference diagnostics; explicit MyST label options remain active.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic

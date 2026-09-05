@@ -286,7 +286,8 @@ CATALOG: dict[str, DiagnosticInfo] = {
         Severity.WARNING,
         "equation reference target not found",
         "v0.1.0",
-        "A supported equation reference points to a missing target.",
+        "A supported equation reference points to a missing target. "
+        "Math directive option values are not TeX references.",
     ),
     "REF003": DiagnosticInfo(
         "REF003",
