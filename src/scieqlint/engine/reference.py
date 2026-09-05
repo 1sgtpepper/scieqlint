@@ -35,6 +35,7 @@ class ReferenceEngine:
             "REF007",
             "REF008",
             "REF009",
+            "REF010",
             "REF011",
         }
     )
@@ -59,6 +60,36 @@ class ReferenceEngine:
                         span=duplicate.label_span or duplicate.span,
                         rule="references",
                         false_positive_risk="low",
+                    )
+                )
+        duplicate_cell_info = CATALOG["REF010"]
+        target_index = query.references.target_identity_index()
+        for target, duplicates in sorted(
+            query.references.duplicate_code_cell_targets().items(),
+            key=lambda item: (item[0][0].as_posix(), item[0][1]),
+        ):
+            facts = target_index[target]
+            duplicate_ids = {duplicate.fact_id for duplicate in duplicates}
+            # The query leaves the first cell, or a colliding non-cell target,
+            # as the canonical counterpart for every reported duplicate.
+            canonical_fact_id = min(
+                fact.fact_id for fact in facts if fact.fact_id not in duplicate_ids
+            )
+            target_label = target[1]
+            for duplicate in duplicates:
+                diagnostics.append(
+                    DiagnosticIR(
+                        code=duplicate_cell_info.code,
+                        severity_default=duplicate_cell_info.severity,
+                        message=f"{duplicate_cell_info.message}: {target_label}",
+                        span=duplicate.label_span or duplicate.span,
+                        rule="references.code_cell_target",
+                        false_positive_risk="low",
+                        provenance_ids=tuple(sorted((canonical_fact_id, duplicate.fact_id))),
+                        properties=(
+                            ("target", format_member_target_identity(target)),
+                            ("target_count", str(len(facts))),
+                        ),
                     )
                 )
         nonvisible_impacts = query.references.nonvisible_equation_target_impacts()

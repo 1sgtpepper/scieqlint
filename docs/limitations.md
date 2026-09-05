@@ -288,6 +288,8 @@ non-math fences, skipped heading levels, repeated top-level headings, generic
 fences without an info string, malformed MyST directive openers,
 malformed MyST directive options, malformed `{ref}`/`{eq}`/`{numref}` role
 syntax, missing code-cell language arguments, and malformed code-cell tag lists.
+Recognized executable Quarto fences and directives use `python`, `r`, `julia`, or
+`bash`; other bare fenced languages remain generic fences.
 Malformed ATX candidates are syntax issues only and do not enter heading, section,
 slug, anchor, reference, or graph facts; a bare `#` and closing-hash-only forms
 such as `# #` are valid empty headings.

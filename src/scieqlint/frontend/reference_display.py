@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import PurePosixPath
+from typing import cast
 
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.reference import (
@@ -202,7 +203,7 @@ def _explicit_code_cell_target_type(cell: CodeCellFact) -> str | None:
 
 
 def _target_key(fact: TargetFact) -> tuple[str, int, int, str]:
-    span = fact.span if isinstance(fact, CodeCellFact) else fact.label_span or fact.span
+    span = fact.label_span or fact.span
     return (
         fact.document_id,
         span.start if span is not None else -1,
@@ -220,10 +221,7 @@ def _retain_resolution_candidates(bucket: list[TargetFact], target: TargetFact) 
 
 
 def _target_label(fact: TargetFact) -> str:
-    if isinstance(fact, CodeCellFact):
-        assert fact.normalized_label is not None
-        return fact.normalized_label
-    return fact.normalized_label
+    return cast(str, fact.normalized_label)
 
 
 def _display_fact_key(fact: ReferenceDisplayTextFact) -> tuple[str, int, int, str]:

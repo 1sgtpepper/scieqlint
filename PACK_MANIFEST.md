@@ -246,6 +246,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/bad/ambiguous_equation_reference.md`
 - `tests/fixtures/bad/architecture_myst_bad.md`
 - `tests/fixtures/bad/cross_format_references.md`
+- `tests/fixtures/bad/duplicate_code_cell_label.md`
 - `tests/fixtures/bad/famous_bad.md`
 - `tests/fixtures/bad/generated_myst_profile_bad.md`
 - `tests/fixtures/bad/myst_bad.md`
@@ -285,6 +286,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/fixtures/project/hidden_equation_references/source.md`
 - `tests/golden/github/cross_format_references.txt`
 - `tests/golden/github/crossref_metadata.txt`
+- `tests/golden/github/duplicate_code_cell_label.txt`
 - `tests/golden/github/famous_bad.txt`
 - `tests/golden/github/generated_equation_like_text.txt`
 - `tests/golden/github/notebook_crossrefs_bad.txt`
@@ -294,6 +296,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/.gitkeep`
 - `tests/golden/json/cross_format_references.json`
 - `tests/golden/json/crossref_metadata.json`
+- `tests/golden/json/duplicate_code_cell_label.json`
 - `tests/golden/json/famous_bad.json`
 - `tests/golden/json/generated_equation_like_text.json`
 - `tests/golden/json/generated_formula_placeholders.json`
@@ -306,6 +309,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/json/typst_portability_bad.json`
 - `tests/golden/sarif/cross_format_references.sarif`
 - `tests/golden/sarif/crossref_metadata.sarif`
+- `tests/golden/sarif/duplicate_code_cell_label.sarif`
 - `tests/golden/sarif/famous_bad.sarif`
 - `tests/golden/sarif/generated_equation_like_text.sarif`
 - `tests/golden/sarif/inline_math_accessibility.sarif`
@@ -316,6 +320,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/ambiguous_equation_reference.txt`
 - `tests/golden/text/cross_format_references.txt`
 - `tests/golden/text/crossref_metadata.txt`
+- `tests/golden/text/duplicate_code_cell_label.txt`
 - `tests/golden/text/famous_bad.txt`
 - `tests/golden/text/generated_bracketed_latex.txt`
 - `tests/golden/text/generated_bracketed_latex_fixture.txt`
@@ -337,6 +342,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/test_baseline.py`
 - `tests/test_ci_workflow.py`
 - `tests/test_cli.py`
+- `tests/test_code_cell_metadata.py`
 - `tests/test_config.py`
 - `tests/test_contract_readiness.py`
 - `tests/test_cross_format_references.py`
