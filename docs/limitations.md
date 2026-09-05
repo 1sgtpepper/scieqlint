@@ -326,8 +326,8 @@ SciEqLint supports narrow source suppressions for Markdown and LaTeX:
 <!-- scieqlint-disable-next-line ALG001 -->
 ```
 
-The Markdown next-line form applies only to math syntax on the immediately
-following source line.
+The Markdown next-line form applies to the complete math container whose opener is
+on the immediately following source line, including accepted raw LaTeX displays.
 
 ```tex
 % scieqlint-disable-current-block ALG001
@@ -372,6 +372,21 @@ live verbatim range, every character is literal and the range ends at the first 
 matching `\end{verbatim}` or `\end{verbatim*}` sequence, regardless of line position,
 percent signs, or preceding backslashes; mismatched starred forms remain literal
 content. An unclosed range stays protected through end of file.
+
+## Typst portability profile
+
+The opt-in `typst-portability` profile performs focused, source-spanned checks on
+display math; it does not invoke a Typst renderer or claim complete LaTeX-to-Typst
+translation. Recognized MyST math-directive option prefixes are metadata and are
+excluded from these TeX checks; commands in the formula body remain active.
+For `.tex` inputs, complete `\[ ... \]`, `$$ ... $$`, `equation`,
+`equation*`, `align`, and `align*` blocks are lowered by the LaTeX scanner. Malformed
+or unterminated forms remain scanner diagnostics or unlowered source rather than being
+reconstructed by the portability check. The profile reports only the documented
+unsupported commands and fragile environments in lowered display spans. Notebook
+Markdown cells are intentionally excluded: the notebook scanner retains cell-local
+spans, but the structured portability snapshot does not yet preserve the corresponding
+cell source mapping.
 
 ## Dimensions
 

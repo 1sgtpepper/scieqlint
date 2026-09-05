@@ -202,6 +202,14 @@ silently running a different rule set.
   metadata from surrounding prose, or apply the policy by default. The profile
   currently lowers Markdown documents only; notebook Markdown cells and LaTeX
   documents are outside its scope.
+- `typst-portability` checks a focused set of display-math forms known to be
+  unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
+  and `aligned`, `array`, or `matrix` environments combined with TeX
+  `\left`/`\right` sizing in Markdown and LaTeX documents. Notebook Markdown
+  cells are intentionally outside this profile until their cell-local source
+  mapping is part of the structured frontend contract. Active TeX comments are
+  ignored while source spans remain source-accurate. It does not invoke Typst
+  or translate equations.
 
 The profile table does not enable scanner or parser defaults by itself; those
 defaults come from the packaged preset.

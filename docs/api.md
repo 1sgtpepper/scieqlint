@@ -97,10 +97,10 @@ Programmatic provenance identifiers, source kinds, and conversion stages are
 trimmed when constructed; blank values raise `ValueError` before analysis.
 
 An absent origin means that source-to-generated identity is unknown, so the generated
-profile does not manufacture a provenance relationship. The `generated-myst` and
-`cross-format-references` profiles require each supplied `SourceDocument.path` to be
-unique; duplicate paths raise `ValueError` before analysis. Other profiles retain the
-ordinary document-lowering behavior.
+profile does not manufacture a provenance relationship. `check_documents()` with the
+`generated-myst`, `cross-format-references`, or `typst-portability` profiles requires
+each supplied `SourceDocument.path` to be unique; duplicate paths raise `ValueError`.
+Other profiles retain the ordinary document-lowering behavior.
 
 Path-based diagnostics and graph spans retain the caller-visible lexical input
 spelling. Relative inputs keep that spelling; absolute inputs are rendered

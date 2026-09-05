@@ -33,9 +33,14 @@ def apply_suppressions(
     *,
     documents: Sequence[SourceDocument],
     blocks: Sequence[MathBlock],
+    raw_display_spans: Sequence[SourceSpan] = (),
 ) -> tuple[Diagnostic, ...]:
     """Mark diagnostics suppressed by supported source comments."""
-    suppressions, warnings = _collect_suppressions(documents, blocks)
+    suppressions, warnings = _collect_suppressions(
+        documents,
+        blocks,
+        raw_display_spans=raw_display_spans,
+    )
     marked = tuple(_apply_to_diagnostic(diagnostic, suppressions) for diagnostic in diagnostics)
     return (*marked, *warnings)
 
@@ -43,17 +48,26 @@ def apply_suppressions(
 def _collect_suppressions(
     documents: Sequence[SourceDocument],
     blocks: Sequence[MathBlock],
+    *,
+    raw_display_spans: Sequence[SourceSpan],
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
     blocks_by_path: dict[str, list[MathBlock]] = {}
     for block in blocks:
         blocks_by_path.setdefault(block.span.path.as_posix(), []).append(block)
+    raw_display_spans_by_path: dict[str, list[SourceSpan]] = {}
+    for span in raw_display_spans:
+        raw_display_spans_by_path.setdefault(span.path.as_posix(), []).append(span)
 
     for document in documents:
         document_blocks = blocks_by_path.get(document.path.as_posix(), [])
         if document.kind is DocumentKind.MARKDOWN:
-            parsed, unknown = _markdown_suppressions(document, document_blocks)
+            parsed, unknown = _markdown_suppressions(
+                document,
+                document_blocks,
+                raw_display_spans_by_path.get(document.path.as_posix(), ()),
+            )
         elif document.kind is DocumentKind.LATEX:
             parsed, unknown = _latex_suppressions(document, document_blocks)
         else:
@@ -66,6 +80,7 @@ def _collect_suppressions(
 def _markdown_suppressions(
     document: SourceDocument,
     blocks: Sequence[MathBlock],
+    raw_display_spans: Sequence[SourceSpan],
 ) -> tuple[tuple[_Suppression, ...], tuple[Diagnostic, ...]]:
     suppressions: list[_Suppression] = []
     warnings: list[Diagnostic] = []
@@ -84,6 +99,7 @@ def _markdown_suppressions(
                 blocks,
                 opener_lines,
                 line_number + 1,
+                raw_display_spans,
             )
             suppressions.extend(
                 _Suppression(
@@ -101,10 +117,15 @@ def _markdown_target_lines(
     blocks: Sequence[MathBlock],
     opener_lines: dict[str, int],
     target_line: int,
+    raw_display_spans: Sequence[SourceSpan],
 ) -> tuple[int, int]:
     for block in blocks:
         if target_line in {block.span.line, opener_lines.get(block.block_id)}:
             return block.span.line, block.span.end_line
+    # Raw Markdown displays bypass MathBlock, but still own their complete source span.
+    for span in raw_display_spans:
+        if target_line == span.line:
+            return span.line, span.end_line
     return target_line, target_line
 
 

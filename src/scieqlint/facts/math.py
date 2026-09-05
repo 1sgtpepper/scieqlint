@@ -28,6 +28,7 @@ DisplayContainer = Literal[
     "dollar-dollar",
     "myst-math-directive",
     "fenced-math",
+    "latex-display",
     "ams",
     "quarto-equation",
     "raw-latex",
