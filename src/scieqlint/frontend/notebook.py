@@ -20,9 +20,6 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 
 from .notebook_cells import (
-    cell_source as _cell_source,
-)
-from .notebook_cells import (
     code_cell_fact as _code_cell_fact,
 )
 from .notebook_cells import (
@@ -33,6 +30,7 @@ from .notebook_input import (
     NotebookSourceLocationError,
     parse_notebook_input,
 )
+from .notebook_input import cell_source as _cell_source
 from .notebook_markdown import markdown_cell_references as _markdown_cell_references
 from .notebook_outputs import (
     crossref_facts as _crossref_facts,
@@ -161,7 +159,6 @@ def _lower_document(
             continue
         if cell.get("cell_type") != "code":
             continue
-        source = _cell_source(cell.get("source"))
         cell_fact = _code_cell_fact(
             document,
             cell_index,

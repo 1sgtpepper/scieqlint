@@ -11,6 +11,7 @@ from scieqlint.facts.structure import CodeCellFact
 from scieqlint.io.source import SourceDocument
 
 from .myst_blocks import quarto_option_prefix
+from .notebook_input import cell_source
 
 _CELL_OPTION_KEYS = frozenset(
     {
@@ -108,16 +109,6 @@ def _tags(value: object) -> tuple[str, ...]:
     if isinstance(value, list):
         return tuple(item for item in cast(list[object], value) if isinstance(item, str) and item)
     return ()
-
-
-def cell_source(value: object) -> str | None:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        items = cast(list[object], value)
-        if all(isinstance(item, str) for item in items):
-            return "".join(cast(list[str], items))
-    return None
 
 
 def _mapping(value: object) -> Mapping[str, object]:
