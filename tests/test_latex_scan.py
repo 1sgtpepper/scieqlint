@@ -672,6 +672,22 @@ def test_latex_labels_and_references_are_extracted() -> None:
     ]
 
 
+def test_latex_rejects_blank_and_multiline_label_and_reference_targets() -> None:
+    source = (
+        "\\begin{equation}\n"
+        "\\label{valid}\n"
+        "\\label{ }\n"
+        "\\label{bad\nlabel}\n"
+        "\\end{equation}\n"
+        "See \\ref{valid} \\ref{ } \\ref{bad\nlabel}.\n"
+    )
+
+    result = LatexScanner().scan(_document(source), Config())
+
+    assert [label.label for label in result.labels] == ["valid"]
+    assert [source[ref.span.start : ref.span.end] for ref in result.references] == ["valid"]
+
+
 def test_latex_labels_in_comments_are_ignored() -> None:
     result = LatexScanner().scan(
         _document(

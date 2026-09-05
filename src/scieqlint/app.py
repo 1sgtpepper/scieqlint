@@ -32,6 +32,7 @@ from scieqlint.facts.generated import (
     GeneratedProvenanceFact,
 )
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
+from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.graph.export import build_graph
 from scieqlint.graph.model import Graph
@@ -40,9 +41,19 @@ from scieqlint.io.identity import ConsumedInput, open_text
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
-from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, SymbolDirective
+from scieqlint.scan.base import (
+    EquationLabel,
+    EquationReference,
+    LabelSource,
+    MathBlock,
+    ReferenceSource,
+    SymbolDirective,
+)
 from scieqlint.scan.latex import LatexScanner
-from scieqlint.scan.markdown import MarkdownScanner
+from scieqlint.scan.markdown import (
+    MarkdownScanner,
+    _mask_ranges,  # pyright: ignore[reportPrivateUsage]
+)
 from scieqlint.scan.notebook import NotebookScanner
 from scieqlint.schema import SchemaHost
 
@@ -161,6 +172,21 @@ def check_documents(
             )
             raise ValueError(f"duplicate document path(s): {paths}")
 
+    markdown_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    frontend_snapshot = FactSnapshot()
+    raw_opaque_spans: tuple[SourceSpan, ...] = ()
+    if config.scanner.markdown:
+        # Capture candidates before MathHost drops non-math and incomplete forms;
+        # the legacy scanner must not reinterpret any raw candidate's contents.
+        frontend_snapshot = MySTFrontend().lower(markdown_documents)
+        raw_opaque_spans = tuple(
+            fact.span
+            for fact in frontend_snapshot.display_math
+            if fact.source_syntax == "raw-latex" and fact.span is not None
+        )
+
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -176,7 +202,7 @@ def check_documents(
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
-            scan = scanner.scan(document, config)
+            scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
@@ -201,9 +227,6 @@ def check_documents(
                 )
             diagnostics.extend(check_dimensions(block, config))
 
-    markdown_documents = tuple(
-        document for document in documents if document.kind is DocumentKind.MARKDOWN
-    )
     canonical_reference_path = bool(
         (config.scanner.markdown and markdown_documents)
         or non_markdown_labels
@@ -246,9 +269,6 @@ def check_documents(
         legacy_equation_references = tuple(
             _legacy_equation_reference_fact(reference) for reference in non_markdown_references
         )
-        frontend_snapshot = MySTFrontend().lower(
-            markdown_documents if config.scanner.markdown else ()
-        )
         if not config.scanner.inline_math:
             # Inline math is opt-in, and candidate facts are lowered before scanner
             # options are applied. Standalone equation-like candidates are generated
@@ -287,10 +307,16 @@ def check_documents(
         if generated_provenance:
             snapshot = replace(snapshot, generated_provenance=generated_provenance)
         query = QueryHost(snapshot)
+        diagnostics = _without_profile_owned_legacy_reference_diagnostics(
+            diagnostics,
+            query,
+        )
         if config.checks.references.enabled:
             diagnostics.extend(
                 diagnostic.to_diagnostic() for diagnostic in ReferenceEngine().run(query)
             )
+            if config.checks.references.missing_label_strict:
+                diagnostics.extend(_raw_missing_label_diagnostics(query))
         diagnostics.extend(
             diagnostic.to_diagnostic() for diagnostic in StructureEngine().run(query)
         )
@@ -321,6 +347,85 @@ def check_documents(
         version=__version__,
         show_suppressed=config.report.show_suppressed,
     )
+
+
+def _legacy_markdown_document(
+    document: SourceDocument, raw_spans: Sequence[SourceSpan]
+) -> SourceDocument:
+    """Preserve source coordinates while hiding raw owners before delimiter pairing."""
+    ranges = tuple(
+        (span.start, span.end)
+        for span in raw_spans
+        if span.path == document.path and span.cell is None
+    )
+    if not ranges:
+        return document
+    return replace(document, text=_mask_ranges(document.text, ranges))
+
+
+def _span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
+    """Return whether a fact span belongs to one of the source-owned ranges."""
+
+    return any(
+        container.path == span.path
+        and container.cell == span.cell
+        and container.start <= span.start
+        and span.end <= container.end
+        for container in containers
+    )
+
+
+def _without_profile_owned_legacy_reference_diagnostics(
+    diagnostics: list[Diagnostic],
+    query: QueryHost,
+) -> list[Diagnostic]:
+    profile_owned_spans = {
+        span
+        for fact in query.references.equation_refs()
+        if (span := fact.target_span or fact.span) is not None
+    }
+    unresolved_generic_ids = {fact.fact_id for fact in query.references.unresolved_generic_refs()}
+    profile_owned_spans.update(
+        span
+        for fact in query.references.generic_refs()
+        if not (fact.fact_id in unresolved_generic_ids and fact.role_kind == "markdown-link")
+        if (span := fact.target_span or fact.span) is not None
+    )
+    owned_spans = tuple(profile_owned_spans)
+    return [
+        diagnostic
+        for diagnostic in diagnostics
+        if not (
+            diagnostic.code == "REF002"
+            and diagnostic.span is not None
+            and _span_is_within_any(diagnostic.span, owned_spans)
+        )
+    ]
+
+
+def _raw_missing_label_diagnostics(query: QueryHost) -> tuple[Diagnostic, ...]:
+    info = CATALOG["REF003"]
+    diagnostics: list[Diagnostic] = []
+    for fact in query.math.display_math():
+        if (
+            fact.source_syntax != "raw-latex"
+            or fact.container != "ams"
+            or not fact.complete
+            or fact.label_fact_ids
+        ):
+            continue
+        assert fact.span is not None, "raw-LaTeX display facts retain source spans"
+        diagnostics.append(
+            Diagnostic(
+                code=info.code,
+                severity=info.severity,
+                message=info.message,
+                span=fact.span,
+                equation=fact.body,
+                rule="references",
+            )
+        )
+    return tuple(diagnostics)
 
 
 def _generated_provenance_facts(
@@ -480,6 +585,13 @@ def graph_documents(
     config: Config,
 ) -> Graph:
     """Build graph data from already-loaded documents."""
+    markdown_documents = tuple(
+        document for document in documents if document.kind is DocumentKind.MARKDOWN
+    )
+    if config.scanner.markdown:
+        raw_labels, raw_references, raw_opaque_spans = _raw_graph_facts(markdown_documents)
+    else:
+        raw_labels, raw_references, raw_opaque_spans = (), (), ()
     scanner = MarkdownScanner()
     latex_scanner = LatexScanner()
     notebook_scanner = NotebookScanner()
@@ -489,14 +601,73 @@ def graph_documents(
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
-            scan = scanner.scan(document, config)
+            scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
             raise _unsupported_source_kind(document.path)
         labels.extend(scan.labels)
         references.extend(scan.references)
+    labels.extend(raw_labels)
+    references.extend(raw_references)
     return build_graph(tuple(labels), tuple(references))
+
+
+def _raw_graph_facts(
+    documents: Sequence[SourceDocument],
+) -> tuple[
+    tuple[EquationLabel, ...],
+    tuple[EquationReference, ...],
+    tuple[SourceSpan, ...],
+]:
+    """Return raw graph facts and candidate spans for legacy ownership filtering."""
+
+    frontend_snapshot = MySTFrontend().lower(documents)
+    raw_opaque_spans = tuple(
+        fact.span
+        for fact in frontend_snapshot.display_math
+        if fact.source_syntax == "raw-latex" and fact.span is not None
+    )
+    snapshot = MathHost().classify(frontend_snapshot)
+    raw_display_ids = {
+        fact.fact_id
+        for fact in snapshot.display_math
+        if fact.source_syntax == "raw-latex" and fact.container == "ams"
+    }
+    labels: list[EquationLabel] = []
+    for fact in snapshot.equation_labels:
+        if fact.source_block_id not in raw_display_ids:
+            continue
+        span = fact.label_span or fact.span
+        assert span is not None, "raw-LaTeX equation labels retain source spans"
+        labels.append(
+            EquationLabel(
+                label=fact.normalized_label,
+                span=span,
+                block_id=fact.source_block_id,
+                source=LabelSource.LATEX_LABEL,
+            )
+        )
+    reference_sources = {
+        "tex-ref": ReferenceSource.LATEX_REF,
+        "tex-eqref": ReferenceSource.LATEX_EQREF,
+    }
+    references: list[EquationReference] = []
+    for fact in snapshot.equation_refs:
+        if fact.source_block_id not in raw_display_ids:
+            continue
+        span = fact.target_span or fact.span
+        assert span is not None, "raw-LaTeX equation references retain source spans"
+        assert fact.raw is not None, "raw-LaTeX equation references retain source text"
+        references.append(
+            EquationReference(
+                target=fact.normalized_target,
+                span=span,
+                raw=fact.raw,
+                source=reference_sources[fact.ref_kind],
+            )
+        )
+    return tuple(labels), tuple(references), raw_opaque_spans
 
 
 def _apply_overrides(

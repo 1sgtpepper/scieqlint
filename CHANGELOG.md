@@ -26,13 +26,17 @@ Release notes must use these sections:
   LaTeX display blocks (`\[...\]` and the literal `[...]` artifact), including
   complete and incomplete forms at source or Markdown-container boundaries;
   diagnostic metadata preserves whether the delimiter was escaped or literal.
-- Generated-document validation now reports `GEN004` for formula-not-decoded
-  markers, empty dollar or fenced displays, and explicit formula image placeholders.
+- Generated-document validation now reports `GEN004` for standalone
+  formula-not-decoded markers, empty dollar or fenced displays, accepted complete
+  raw displays, and explicit formula image placeholders.
 - Generated-document validation now reports `GEN005` only for isolated text
   items that MathHost classifies as text-leaked math, leaving numeric prose such as
   `1 < 2` quiet.
 - Equation reference validation now reports `REF011` when a reference resolves to
   more than one equation target.
+- Markdown validation now extracts equation facts from recognized complete raw
+  LaTeX environments, including `flalign`; complete unsupported candidates
+  preserve parseable facts while remaining unknown math.
 
 ### Changed
 
@@ -65,6 +69,8 @@ Release notes must use these sections:
   the exact source locations of artifacts in the formula body.
 - TeX equation labels and references in math directive options no longer create
   targets or missing-reference diagnostics; explicit MyST label options remain active.
+- Backtick quotes inside raw TeX environments no longer hide their closing
+  delimiters or later equation targets. Markdown code opened first stays opaque.
 - Plain-text inline-math candidates now scan relation-free input linearly, preserve
   signed decimal operands, reject unsupported attached groups and malformed
   continuations without publishing a truncated prefix, classify arithmetic
@@ -168,6 +174,10 @@ Release notes must use these sections:
 - Compact rational factors adjacent to implicit products are now parsed
   consistently with explicit division, with zero denominators and oversized
   literals reported as unsupported syntax.
+- Raw-LaTeX ownership now suppresses compatibility references from opaque
+  Markdown candidates, preserves later equations after opaque inline markers,
+  keeps unmatched dollar displays from exposing later raw environments, and
+  makes unsupported-environment classification idempotent.
 - Source distributions now include the files required by their shipped test suite,
   and CI executes that suite from an extracted archive.
 - Dollar math now honors escaped delimiters, block placement, and complete label

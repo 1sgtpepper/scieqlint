@@ -1,4 +1,8 @@
 cases:
+  - id: raw-latex-equation-reference
+    input: "\\begin{equation}\n[hidden](#hidden) {eq}`hidden`\n\\eqref{missing}\n\\end{equation}\n"
+    expected_codes: ["REF002"]
+    expected_pass: true
   - id: missing-myst-ref
     input: "See {eq}`missing`."
     expected_codes: ["REF002"]

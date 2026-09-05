@@ -56,6 +56,19 @@ HTML_TYPE7_EXCLUDED_OPEN_TAGS = frozenset({"pre", "script", "style", "textarea"}
 _MYST_ROLE_RE = re.compile(r"\{(?:math|ref|eq|numref)\}`[^`\r\n]+`")
 _MARKDOWN_ANCHOR_RE = re.compile(r"^[ \t]*\((?P<label>[^()\s]+)\)=[ \t]*$")
 _MARKDOWN_HEADING_RE = re.compile(r"^[ \t]{0,3}#{1,6}(?!#)(?P<space>[ \t]+)?(?P<body>.*)$")
+_TEX_ENVIRONMENT_RE = re.compile(r"\\(?P<kind>begin|end)\{(?P<environment>[^{}\s]+)\}")
+_NON_MATH_TEX_ENVIRONMENTS = frozenset(
+    {
+        "document",
+        "figure",
+        "figure*",
+        "itemize",
+        "table",
+        "table*",
+        "verbatim",
+        "verbatim*",
+    }
+)
 _MAX_LINK_DESTINATION_PAREN_DEPTH = 32
 
 
@@ -71,6 +84,15 @@ class _LexicalRanges:
     display_openers: tuple[int, ...]
     line_starts: tuple[int, ...]
     line_roles: tuple[_MarkdownTextRole, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TexLexicalScan:
+    """Offset-preserving TeX comments, environment tokens, and opacity ranges."""
+
+    active_text: str
+    environment_tokens: tuple[tuple[str, str, int, int], ...]
+    non_math_ranges: tuple[OffsetRange, ...]
 
 
 class _RangeCursor:
@@ -305,6 +327,117 @@ def without_tex_comments(text: str) -> str:
             masked[index] = " "
             in_comment = True
     return "".join(masked)
+
+
+def scan_tex_lexically(
+    text: str,
+    occupied: Sequence[OffsetRange] = (),
+) -> TexLexicalScan:
+    """Apply TeX comments and verbatim delimiters in source order.
+
+    Outside a live verbatim environment, an unescaped percent starts a comment
+    and environment controls require an unescaped backslash. Inside verbatim,
+    only the exact matching closer is active; all other characters remain
+    literal until that closer or end of file. Markdown ranges are adopted only
+    when they open outside an already-open TeX environment.
+    """
+
+    masked = list(text)
+    tokens: list[tuple[str, str, int, int]] = []
+    occupied_ranges = iter(_merge_ranges(occupied))
+    next_occupied = next(occupied_ranges, None)
+    environment_stack: list[str] = []
+    verbatim_body_start: int | None = None
+    index = 0
+    while index < len(text):
+        # A range opened inside a TeX owner cannot claim text after its closer.
+        while next_occupied is not None and next_occupied[0] < index:
+            next_occupied = next(occupied_ranges, None)
+        if next_occupied is not None and next_occupied[0] == index:
+            _, occupied_end = next_occupied
+            next_occupied = next(occupied_ranges, None)
+            if not environment_stack:
+                index = occupied_end
+                continue
+        if environment_stack and environment_stack[-1] in {"verbatim", "verbatim*"}:
+            match = _TEX_ENVIRONMENT_RE.search(text, index)
+            if match is None:
+                assert verbatim_body_start is not None
+                masked[verbatim_body_start:] = [" "] * (len(text) - verbatim_body_start)
+                break
+            index = match.end()
+            if match.group("kind") == "end" and match.group("environment") == environment_stack[-1]:
+                assert verbatim_body_start is not None
+                masked[verbatim_body_start : match.start()] = [" "] * (
+                    match.start() - verbatim_body_start
+                )
+                tokens.append(
+                    (
+                        match.group("kind"),
+                        match.group("environment"),
+                        match.start(),
+                        match.end(),
+                    )
+                )
+                environment_stack.pop()
+                verbatim_body_start = None
+            continue
+        if text[index] == "%" and not is_escaped(text, index):
+            comment_end = text.find("\n", index)
+            if comment_end == -1:
+                comment_end = len(text)
+            masked[index:comment_end] = [" "] * (comment_end - index)
+            index = comment_end
+            continue
+        match = _TEX_ENVIRONMENT_RE.match(text, index)
+        if match is None:
+            index += 1
+            continue
+        if not is_escaped(text, index):
+            kind = match.group("kind")
+            environment = match.group("environment")
+            tokens.append((kind, environment, match.start(), match.end()))
+            if kind == "begin":
+                environment_stack.append(environment)
+                if environment in {"verbatim", "verbatim*"}:
+                    verbatim_body_start = match.end()
+            elif environment_stack and environment_stack[-1] == environment:
+                environment_stack.pop()
+        index = match.end()
+    return TexLexicalScan(
+        "".join(masked),
+        tuple(tokens),
+        _non_math_tex_ranges(tokens, len(text)),
+    )
+
+
+def is_non_math_tex_environment(environment: str | None) -> bool:
+    """Return whether a TeX environment is opaque to equation facts."""
+
+    return environment in _NON_MATH_TEX_ENVIRONMENTS
+
+
+def _non_math_tex_ranges(
+    tokens: Sequence[tuple[str, str, int, int]],
+    text_length: int,
+) -> tuple[OffsetRange, ...]:
+    stack: list[tuple[str, int]] = []
+    ranges: list[OffsetRange] = []
+    for kind, environment, start, end in tokens:
+        if kind == "begin":
+            stack.append((environment, start))
+            continue
+        if not stack or stack[-1][0] != environment:
+            continue
+        opened_environment, start = stack.pop()
+        if is_non_math_tex_environment(opened_environment):
+            ranges.append((start, end))
+    ranges.extend(
+        (start, text_length)
+        for environment, start in stack
+        if is_non_math_tex_environment(environment)
+    )
+    return _merge_ranges(ranges)
 
 
 def range_contains(position: int, ranges: Sequence[OffsetRange]) -> bool:
@@ -1195,14 +1328,18 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
     return -1
 
 
-def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
+def markdown_reference_snapshot(
+    text: str, *, occupied: Sequence[OffsetRange] = ()
+) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
-    baseline_lexical = _ordered_lexical_ranges(text, ())
-    baseline_opaque = _opaque_ranges_from_lexical(baseline_lexical, len(text))
+    baseline_lexical = _ordered_lexical_ranges(text, occupied)
+    baseline_opaque = _merge_ranges(
+        (*occupied, *_opaque_ranges_from_lexical(baseline_lexical, len(text)))
+    )
     baseline_cursor = _RangeCursor((*baseline_opaque, *baseline_lexical.roles))
     candidate_metadata_ranges: list[OffsetRange] = []
-    for token in _markdown_link_tokens_from_lexical(text, ()):
+    for token in _markdown_link_tokens_from_lexical(text, occupied):
         if baseline_cursor.end_at(token.start) is not None:
             continue
         for start, end in token.metadata_ranges:
@@ -1212,9 +1349,9 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     # Metadata that starts before a lexical opener owns that opener. Conversely,
     # a link-like candidate cannot escape an owner that started before the link
     # or its metadata.
-    candidate_metadata = _merge_ranges(candidate_metadata_ranges)
+    candidate_metadata = _merge_ranges((*occupied, *candidate_metadata_ranges))
     lexical = _ordered_lexical_ranges(text, candidate_metadata)
-    lexical_opaque = _opaque_ranges_from_lexical(lexical, len(text))
+    lexical_opaque = _merge_ranges((*occupied, *_opaque_ranges_from_lexical(lexical, len(text))))
     protected = (*lexical_opaque, *lexical.roles)
     links = _markdown_link_tokens_from_lexical(text, protected)
     link_metadata = _metadata_ranges_from_tokens(links)
@@ -1222,6 +1359,7 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
     non_math_opaque = _merge_ranges(
         (
+            *occupied,
             *lexical.fences,
             *lexical.html,
             *(
