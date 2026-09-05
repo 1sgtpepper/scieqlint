@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/bad/duplicate_code_cell_label.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 22,
+                  "endLine": 7,
+                  "startColumn": 9,
+                  "startLine": 7
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "duplicate code-cell target label: repeated-cell"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "65672d0f8adbb9366f481af1bdb983a553dedfbc95e07f37d274b360e454d272"
+          },
+          "properties": {
+            "provenanceIds": [
+              "tests/fixtures/bad/duplicate_code_cell_label.md::fence::0::cell",
+              "tests/fixtures/bad/duplicate_code_cell_label.md::fence::54::cell"
+            ],
+            "target": "tests/fixtures/bad/duplicate_code_cell_label.md#repeated-cell",
+            "target_count": "2"
+          },
+          "ruleId": "REF010"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "SciEqLint",
+          "rules": [
+            {
+              "help": {
+                "text": "A code-cell label collides with another visible reference target."
+              },
+              "id": "REF010",
+              "name": "REF010",
+              "shortDescription": {
+                "text": "duplicate code-cell target label"
+              }
+            }
+          ],
+          "semanticVersion": "1.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

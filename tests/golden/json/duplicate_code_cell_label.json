@@ -1,0 +1,38 @@
+{
+  "diagnostics": [
+    {
+      "cell": null,
+      "cell_line": null,
+      "code": "REF010",
+      "col": 9,
+      "detail": null,
+      "end_col": 21,
+      "end_line": 7,
+      "equation": null,
+      "hint": null,
+      "line": 7,
+      "message": "duplicate code-cell target label: repeated-cell",
+      "path": "tests/fixtures/bad/duplicate_code_cell_label.md",
+      "properties": {
+        "target": "tests/fixtures/bad/duplicate_code_cell_label.md#repeated-cell",
+        "target_count": "2"
+      },
+      "provenance_ids": [
+        "tests/fixtures/bad/duplicate_code_cell_label.md::fence::0::cell",
+        "tests/fixtures/bad/duplicate_code_cell_label.md::fence::54::cell"
+      ],
+      "severity": "warning",
+      "suppressed": false
+    }
+  ],
+  "schema_version": "0.2",
+  "summary": {
+    "errors": 0,
+    "files_checked": 1,
+    "info": 0,
+    "math_blocks_checked": 0,
+    "warnings": 1
+  },
+  "tool": "scieqlint",
+  "version": "1.1.0"
+}

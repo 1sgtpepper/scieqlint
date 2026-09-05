@@ -39,6 +39,8 @@ Release notes must use these sections:
   preserve parseable facts while remaining unknown math.
 - Cross-format reference profiles now materialize equation labels and references
   from Markdown, LaTeX, and notebook source documents.
+- Labeled Markdown and notebook code cells now participate in ordinary reference
+  resolution and duplicate-target diagnostics.
 - Notebook frontends now lower code-cell and recorded-output metadata into immutable
   facts with stable cell/output identities and exact JSON source spans; profile
   lowering never executes notebook code or re-renders outputs.
@@ -144,7 +146,8 @@ Release notes must use these sections:
 - Cross-format profile inputs now reject duplicate document paths before fact lowering so
   reference identities and diagnostics remain deterministic.
 - Ambiguous generic-reference diagnostics now retain supported local Markdown-link
-  references.
+  references, and duplicate code-cell diagnostics serialize complete member-path
+  identities and exact collision counts with bounded representative provenance.
 - Notebook lowering scopes nested equation-reference owners by cell, and notebook
   cross-reference labels recognize documented lowercase prefixes after an optional
   leading `#` marker.

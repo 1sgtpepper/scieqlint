@@ -177,6 +177,12 @@ def _lower_document(
             continue
         if cell.get("cell_type") != "code":
             continue
+        raw_option_spans = (
+            notebook_input.cell_option_spans[cell_index]
+            if cell_index < len(notebook_input.cell_option_spans)
+            else None
+        )
+        option_spans = dict(raw_option_spans) if raw_option_spans is not None else {}
         cell_fact = _code_cell_fact(
             document,
             cell_index,
@@ -187,6 +193,7 @@ def _lower_document(
                 if cell_index < len(notebook_input.cell_spans)
                 else None
             ),
+            option_spans=option_spans,
         )
         cell_outputs = _notebook_output_facts(
             document,

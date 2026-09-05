@@ -168,10 +168,14 @@ def _make_fence_fact(
 
 
 def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCellFact | None:
-    if fence.language not in {"python", "r", "julia"}:
+    if fence.language not in {"python", "r", "julia", "bash"}:
         return None
     options = quarto_options(document, fence)
     label = dict(options).get("label") or None
+    normalized_label = normalize_label(label) if label is not None else None
+    if not normalized_label:
+        label = None
+        normalized_label = None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -183,7 +187,12 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         engine=fence.language,
         options=options,
         label=label,
-        normalized_label=normalize_label(label) if label is not None else None,
+        normalized_label=normalized_label,
+        label_span=(
+            _option_value_span(document, fence, QUARTO_OPTION_RE, "label")
+            if label is not None
+            else None
+        ),
     )
 
 
@@ -220,7 +229,12 @@ def _directive_code_cell_fact(
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
     tags = _parse_code_cell_tags(option_map.get("tags", ""))
-    label = option_map.get("label") or option_map.get("name") or None
+    label_key = "label" if option_map.get("label") else "name"
+    label = option_map.get(label_key) or None
+    normalized_label = normalize_label(label) if label is not None else None
+    if not normalized_label:
+        label = None
+        normalized_label = None
     return CodeCellFact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
@@ -232,7 +246,14 @@ def _directive_code_cell_fact(
         engine=language,
         options=options,
         label=label,
-        normalized_label=normalize_label(label) if label is not None else None,
+        normalized_label=normalized_label,
+        label_span=(
+            _option_value_span(document, fence, MYST_OPTION_RE, label_key)
+            if is_myst_code_cell and label is not None
+            else _option_value_span(document, fence, QUARTO_OPTION_RE, label_key)
+            if label is not None
+            else None
+        ),
         tags=tags,
     )
 
@@ -381,6 +402,47 @@ def _strip_bracketed_tag_list(value: str) -> str | None:
 
 def _clean_tag(value: str) -> str:
     return value.strip().strip("\"'")
+
+
+def _option_value_span(
+    document: SourceDocument,
+    fence: FenceFact,
+    pattern: re.Pattern[str],
+    key: str,
+) -> SourceSpan | None:
+    """Return the source span of the selected code-cell option value."""
+
+    # ``scan_fences`` gives every emitted fence a body span, including empty
+    # bodies.  Keep the value span anchored to the owning option rather than
+    # widening a duplicate-target diagnostic to the whole cell.
+    assert fence.body_span is not None
+    body_span = fence.body_span
+    body = document.text[body_span.start : body_span.end]
+    offset = body_span.start
+    selected: SourceSpan | None = None
+    for line in body.splitlines(keepends=True):
+        source_line = line.rstrip("\r\n")
+        stripped = source_line.strip()
+        if pattern is QUARTO_OPTION_RE and (
+            not stripped or (stripped.startswith("#") and not stripped.startswith("#|"))
+        ):
+            offset += len(line)
+            continue
+        match = pattern.match(source_line)
+        if match is None:
+            if stripped:
+                break
+            offset += len(line)
+            continue
+        if match.group("key") == key:
+            raw_value = match.group("value")
+            value = raw_value.strip()
+            if value:
+                leading = len(raw_value) - len(raw_value.lstrip())
+                start = offset + match.start("value") + leading
+                selected = SourceMap.for_document(document).span(start, start + len(value))
+        offset += len(line)
+    return selected
 
 
 def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:

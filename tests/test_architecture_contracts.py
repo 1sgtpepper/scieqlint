@@ -135,6 +135,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
             "REF007",
             "REF008",
             "REF009",
+            "REF010",
             "REF011",
         }
     )
