@@ -1919,7 +1919,7 @@ files = ["build/**", "dist/**", ".venv/**"]
 ```
 
 This is a future schema sketch, not a complete current configuration file. The
-v1.1.0 loader accepts only the documented fixed schema: `[project]`,
+current development loader accepts only the documented fixed schema: `[project]`,
 `[project.visibility]`, `[baseline]`, `[scanner]`, `[parser]`, `[checks.algebra]`,
 `[checks.references]`, `[checks.dimension]`, `[checks.symbols]`, `[vars]`,
 `[aliases]`, `[ignore]`, and `[report]`. Unknown tables and keys are rejected;

@@ -336,7 +336,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "REF008",
         Severity.WARNING,
         "equation reference matches a hidden or excluded target",
-        "v1.1.0",
+        "Unreleased",
         "A rendered equation reference has matching target identity in a hidden or "
         "excluded source, which can change project-level resolution.",
     ),
