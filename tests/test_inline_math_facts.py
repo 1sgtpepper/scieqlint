@@ -383,17 +383,6 @@ def test_latex_paren_math_survives_percent_in_prose() -> None:
     ] == [("latex-paren", "x", "preserved")]
 
 
-def test_math_host_does_not_apply_required_arity_to_escaped_commands() -> None:
-    body = r"\\frac{1}"
-
-    snapshot = _classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
-
-    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
-        (body, "preserved")
-    ]
-    assert snapshot.unknown_math == ()
-
-
 def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
     prose = InlineMathFact(
         fact_id="prose",
@@ -937,6 +926,17 @@ def test_required_arity_validation_has_linear_index_work_for_nested_arguments() 
 
     assert not _has_missing_required_argument(body)
     assert body.accesses <= len(body) + 10 * depth
+
+
+def test_math_host_does_not_apply_required_arity_to_escaped_commands() -> None:
+    body = r"\\frac{1}"
+
+    snapshot = _classify(MySTFrontend().lower((doc(f"Inline ${body}$"),)))
+
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
+        (body, "preserved")
+    ]
+    assert snapshot.unknown_math == ()
 
 
 def test_without_tex_comments_preserves_offsets_and_escaped_percent() -> None:

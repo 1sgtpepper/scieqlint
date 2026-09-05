@@ -420,13 +420,11 @@ def scan_formula_placeholders(
     for math_fact in source_math:
         assert math_fact.document_id == document.path.as_posix()
         assert math_fact.span is not None
-        source_text = document.text[math_fact.span.start : math_fact.span.end]
-        active_text = _active_math_body(
-            source_text,
-            math_fact.container if isinstance(math_fact, DisplayMathFact) else "",
-        )
-        if active_text.strip() != _FORMULA_MARKER:
+        container = math_fact.container if isinstance(math_fact, DisplayMathFact) else ""
+        if _active_math_body(math_fact.body, container).strip() != _FORMULA_MARKER:
             continue
+        source_text = document.text[math_fact.span.start : math_fact.span.end]
+        active_text = _active_math_body(source_text, container)
         marker_offset = active_text.index(_FORMULA_MARKER)
         start = math_fact.span.start + marker_offset
         facts.append(

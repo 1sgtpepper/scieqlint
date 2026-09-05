@@ -50,7 +50,10 @@ from scieqlint.scan.base import (
     SymbolDirective,
 )
 from scieqlint.scan.latex import LatexScanner
-from scieqlint.scan.markdown import MarkdownScanner
+from scieqlint.scan.markdown import (  # pyright: ignore[reportPrivateUsage]
+    MarkdownScanner,
+    _mask_ranges,
+)
 from scieqlint.scan.notebook import NotebookScanner
 from scieqlint.schema import SchemaHost
 
@@ -199,44 +202,20 @@ def check_documents(
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
-            scan = scanner.scan(document, config)
+            scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
             raise _unsupported_source_kind(document.path)
-        scan_blocks = tuple(
-            block
-            for block in scan.blocks
-            if not (
-                document.kind is DocumentKind.MARKDOWN
-                and _span_is_within_any(block.span, raw_opaque_spans)
-            )
-        )
-        # Raw-LaTeX candidates own their complete source span; do not let the
-        # compatibility scanner reinterpret nested Markdown math as legacy.
-        blocks.extend(scan_blocks)
-        labels.extend(
-            label
-            for label in scan.labels
-            if not (
-                document.kind is DocumentKind.MARKDOWN
-                and _span_is_within_any(label.span, raw_opaque_spans)
-            )
-        )
+        blocks.extend(scan.blocks)
+        labels.extend(scan.labels)
         if document.kind is not DocumentKind.MARKDOWN:
             non_markdown_labels.extend(scan.labels)
             non_markdown_references.extend(scan.references)
-        references.extend(
-            reference
-            for reference in scan.references
-            if not (
-                document.kind is DocumentKind.MARKDOWN
-                and _span_is_within_any(reference.span, raw_opaque_spans)
-            )
-        )
+        references.extend(scan.references)
         symbol_directives.extend(scan.symbol_directives)
         diagnostics.extend(scan.diagnostics)
-        for block in scan_blocks:
+        for block in scan.blocks:
             block_diagnostics = check_algebra(block)
             if config.checks.algebra.enabled:
                 diagnostics.extend(block_diagnostics)
@@ -331,7 +310,6 @@ def check_documents(
         diagnostics = _without_profile_owned_legacy_reference_diagnostics(
             diagnostics,
             query,
-            raw_opaque_spans=raw_opaque_spans,
         )
         if config.checks.references.enabled:
             diagnostics.extend(
@@ -371,6 +349,20 @@ def check_documents(
     )
 
 
+def _legacy_markdown_document(
+    document: SourceDocument, raw_spans: Sequence[SourceSpan]
+) -> SourceDocument:
+    """Preserve source coordinates while hiding raw owners before delimiter pairing."""
+    ranges = tuple(
+        (span.start, span.end)
+        for span in raw_spans
+        if span.path == document.path and span.cell is None
+    )
+    if not ranges:
+        return document
+    return replace(document, text=_mask_ranges(document.text, ranges))
+
+
 def _span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
     """Return whether a fact span belongs to one of the source-owned ranges."""
 
@@ -386,8 +378,6 @@ def _span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> b
 def _without_profile_owned_legacy_reference_diagnostics(
     diagnostics: list[Diagnostic],
     query: QueryHost,
-    *,
-    raw_opaque_spans: Sequence[SourceSpan] = (),
 ) -> list[Diagnostic]:
     profile_owned_spans = {
         span
@@ -401,7 +391,7 @@ def _without_profile_owned_legacy_reference_diagnostics(
         if not (fact.fact_id in unresolved_generic_ids and fact.role_kind == "markdown-link")
         if (span := fact.target_span or fact.span) is not None
     )
-    owned_spans = (*profile_owned_spans, *raw_opaque_spans)
+    owned_spans = tuple(profile_owned_spans)
     return [
         diagnostic
         for diagnostic in diagnostics
@@ -611,27 +601,13 @@ def graph_documents(
         if document.kind is DocumentKind.LATEX:
             scan = latex_scanner.scan(document, config)
         elif document.kind is DocumentKind.MARKDOWN:
-            scan = scanner.scan(document, config)
+            scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
             scan = notebook_scanner.scan(document, config)
         else:
             raise _unsupported_source_kind(document.path)
-        labels.extend(
-            label
-            for label in scan.labels
-            if not (
-                document.kind is DocumentKind.MARKDOWN
-                and _span_is_within_any(label.span, raw_opaque_spans)
-            )
-        )
-        references.extend(
-            reference
-            for reference in scan.references
-            if not (
-                document.kind is DocumentKind.MARKDOWN
-                and _span_is_within_any(reference.span, raw_opaque_spans)
-            )
-        )
+        labels.extend(scan.labels)
+        references.extend(scan.references)
     labels.extend(raw_labels)
     references.extend(raw_references)
     return build_graph(tuple(labels), tuple(references))

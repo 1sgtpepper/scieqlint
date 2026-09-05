@@ -1319,14 +1319,18 @@ def _find_ordered_inline_close(text: str, start: int, line_end: int) -> int:
     return -1
 
 
-def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
+def markdown_reference_snapshot(
+    text: str, *, occupied: Sequence[OffsetRange] = ()
+) -> MarkdownReferenceSnapshot:
     """Return one immutable lexical/reference snapshot for ``text``."""
 
-    baseline_lexical = _ordered_lexical_ranges(text, ())
-    baseline_opaque = _opaque_ranges_from_lexical(baseline_lexical, len(text))
+    baseline_lexical = _ordered_lexical_ranges(text, occupied)
+    baseline_opaque = _merge_ranges(
+        (*occupied, *_opaque_ranges_from_lexical(baseline_lexical, len(text)))
+    )
     baseline_cursor = _RangeCursor((*baseline_opaque, *baseline_lexical.roles))
     candidate_metadata_ranges: list[OffsetRange] = []
-    for token in _markdown_link_tokens_from_lexical(text, ()):
+    for token in _markdown_link_tokens_from_lexical(text, occupied):
         if baseline_cursor.end_at(token.start) is not None:
             continue
         for start, end in token.metadata_ranges:
@@ -1336,9 +1340,9 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     # Metadata that starts before a lexical opener owns that opener. Conversely,
     # a link-like candidate cannot escape an owner that started before the link
     # or its metadata.
-    candidate_metadata = _merge_ranges(candidate_metadata_ranges)
+    candidate_metadata = _merge_ranges((*occupied, *candidate_metadata_ranges))
     lexical = _ordered_lexical_ranges(text, candidate_metadata)
-    lexical_opaque = _opaque_ranges_from_lexical(lexical, len(text))
+    lexical_opaque = _merge_ranges((*occupied, *_opaque_ranges_from_lexical(lexical, len(text))))
     protected = (*lexical_opaque, *lexical.roles)
     links = _markdown_link_tokens_from_lexical(text, protected)
     link_metadata = _metadata_ranges_from_tokens(links)
@@ -1346,6 +1350,7 @@ def markdown_reference_snapshot(text: str) -> MarkdownReferenceSnapshot:
     closed_display_starts = {start for start, _body_start, _body_end, _end in lexical.display}
     non_math_opaque = _merge_ranges(
         (
+            *occupied,
             *lexical.fences,
             *lexical.html,
             *(

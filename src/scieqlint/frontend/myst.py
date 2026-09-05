@@ -95,17 +95,6 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         document.text,
         reference_snapshot.link_metadata_ranges,
     )
-    fences = scan_fences(document, smap, lines, live_fence_ranges)
-    occupied_structure_ranges = reference_snapshot.opaque_ranges
-    directives, code_cells = directive_and_code_cell_facts(document, fences)
-    structure_syntax_issues = (
-        *scan_structure_syntax_issues(document, smap, occupied_structure_ranges, fences),
-        *scan_heading_syntax_issues(document, smap, lines, occupied_structure_ranges),
-    )
-    headings = tuple(scan_headings(document, smap, lines, occupied_structure_ranges))
-    anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
-    target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
-    sections = tuple(sections_for_headings(headings))
     link_occupied = tuple((token.start, token.end) for token in reference_snapshot.links)
     dollar_scan_occupied = (*reference_snapshot.link_metadata_ranges, *link_occupied)
     dollar_displays = dollar_display_ranges(
@@ -164,6 +153,35 @@ def _lower_document(document: SourceDocument) -> FactSnapshot:
         if fact.span is None or not in_ranges(fact.span.start, unmatched_dollar_occupied)
     )
     raw_occupied = math_occupied_ranges(raw_display_math)
+    if raw_occupied:
+        # Raw owners invalidate Markdown openers inside their source ranges.
+        reference_snapshot = markdown_reference_snapshot(document.text, occupied=raw_occupied)
+        live_fence_ranges = code_fence_ranges(
+            document.text, (*reference_snapshot.link_metadata_ranges, *raw_occupied)
+        )
+        link_occupied = tuple((token.start, token.end) for token in reference_snapshot.links)
+        dollar_displays = dollar_display_ranges(
+            document.text, (*reference_snapshot.link_metadata_ranges, *link_occupied, *raw_occupied)
+        )
+        dollar_occupied = tuple(
+            (start, close_end) for start, _body_start, _body_end, close_end in dollar_displays
+        )
+        math_ownership_occupied = (
+            *reference_snapshot.non_math_opaque_ranges,
+            *link_occupied,
+            *live_fence_ranges,
+        )
+    fences = scan_fences(document, smap, lines, live_fence_ranges)
+    occupied_structure_ranges = reference_snapshot.opaque_ranges
+    directives, code_cells = directive_and_code_cell_facts(document, fences)
+    structure_syntax_issues = (
+        *scan_structure_syntax_issues(document, smap, occupied_structure_ranges, fences),
+        *scan_heading_syntax_issues(document, smap, lines, occupied_structure_ranges),
+    )
+    headings = tuple(scan_headings(document, smap, lines, occupied_structure_ranges))
+    anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
+    target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
+    sections = tuple(sections_for_headings(headings))
     display_math, equation_labels, display_equation_refs = scan_display_math(
         document,
         smap,

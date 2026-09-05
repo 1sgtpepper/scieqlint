@@ -388,6 +388,7 @@ def test_public_api_reports_empty_myst_math_directive_and_keeps_content_active()
 )
 def test_setext_heading_text_is_not_a_formula_placeholder(heading_text: str) -> None:
     source = f"{heading_text}\n---\n\nformula-not-decoded\n"
+
     facts = placeholder_facts(source)
 
     assert len(facts) == 1

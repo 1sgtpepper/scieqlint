@@ -66,7 +66,8 @@ Other raw environment candidates, including unsupported or incomplete forms, are
 preserved as `UnknownMathFact` candidates. Complete unsupported environments
 still preserve parseable equation label and reference facts; incomplete forms
 do not. Explicit non-math and verbatim environments remain opaque and produce
-neither math nor equation-reference facts.
+neither math nor equation-reference facts. Markdown delimiters inside raw owners
+cannot close or hide a math container or reference outside that source range.
 
 ## Core grammar subset
 

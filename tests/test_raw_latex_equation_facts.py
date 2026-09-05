@@ -25,6 +25,48 @@ def lower(document: SourceDocument):
     return MathHost().classify(MySTFrontend().lower((document,)))
 
 
+@pytest.mark.parametrize("environment", ["verbatim", "verbatim*"])
+@pytest.mark.parametrize("literal", ["$$", "```math"])
+@pytest.mark.parametrize("outside", ["", "$$", "```math"])
+def test_raw_verbatim_delimiters_do_not_consume_outside_math(
+    environment: str, literal: str, outside: str
+) -> None:
+    prefix = f"\\begin{{{environment}}}\n{literal}\n\\end{{{environment}}}\n\n"
+    source = prefix + outside + "\n"
+
+    result = check_documents((doc(source),), config=Config())
+
+    assert result.math_blocks_checked == 0
+    assert [
+        (item.code, item.span.start, item.span.end)
+        for item in result.diagnostics
+        if item.span is not None
+    ] == ([("SCAN001", len(prefix), len(prefix) + len(outside))] if outside else [])
+    assert len(result.diagnostics) == bool(outside)
+
+
+@pytest.mark.parametrize("literal", ["$$", "```math"])
+def test_raw_verbatim_keeps_outside_equation_and_reference_consumers_active(literal: str) -> None:
+    source = (
+        f"\\begin{{verbatim}}\n{literal}\n\\end{{verbatim}}\n\n"
+        "$$\nx = 1 \\label{live}\n$$\nSee {eq}`live` and {eq}`absent`.\n"
+    )
+    document = doc(source)
+
+    result = check_documents((document,), config=Config())
+    graph = graph_documents((document,), config=Config())
+
+    assert result.math_blocks_checked == 1
+    assert [item.code for item in result.diagnostics] == ["REF002"]
+    assert result.diagnostics[0].span is not None
+    assert source[result.diagnostics[0].span.start : result.diagnostics[0].span.end] == "absent"
+    assert [(node.kind, node.label) for node in graph.nodes] == [
+        ("equation", "live"),
+        ("reference", "live"),
+        ("reference", "absent"),
+    ]
+
+
 def test_raw_equation_environment_preserves_label_and_adjacent_reference_facts() -> None:
     source = r"""\begin{equation}
 E = mc^2
