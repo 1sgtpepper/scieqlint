@@ -141,6 +141,15 @@ resolution, including fragment-only links. Malformed URL destinations, external 
 empty decoded fragments, and paths that escape the configured project root are ignored
 safely, and symlinks are never resolved.
 
+The built-in MyST frontend emits complete, source-neutral cross-reference metadata
+facts with target-definition member paths and source/output-boundary provenance.
+`REF007` is fact-backed and compares complete facts from distinct boundaries when
+they describe the same target identity with incompatible metadata. The current
+standalone built-in inputs do not produce that cross-boundary case; notebook and
+engine-output producer integration is deferred to #372/#356. Explicit display titles
+remain attached to reference-use facts, while pathless reference roles remain
+label-only uses and do not supply a target-definition path.
+
 Markdown/MyST displays recognize only complete, properly nested
 `align`, `align*`, `aligned`, `alignedat`, and `split` environment pairs for
 AMS classification. Incomplete fences and mismatched environment pairs retain
@@ -418,8 +427,18 @@ the opt-in undefined-symbol check. SciEqLint does not infer symbols from prose.
 
 ## Notebooks
 
-Notebooks are never executed. v0.1.4 scans Markdown cells, preserves notebook
-cell metadata in diagnostics, ignores code cells, and emits deterministic `INP001`
-or `INP002` input diagnostics for malformed notebook inputs. JSON integers over
-4096 decimal digits are rejected with `INP001`. Code-cell variable
-analysis, notebook execution, and full Jupyter schema validation are deferred.
+Notebooks are never executed. v0.1.4 scans Markdown cells, joins valid string
+lists according to the Jupyter format, preserves notebook cell metadata in
+diagnostics, and ignores code cells. Notebook physical offsets and line/column
+values refer to the normalized raw JSON document; `cell_line` remains the
+one-based line in the decoded Markdown cell. Non-empty notebook spans expose one
+`segments` entry per logical character covered by the span, whose `ranges` retain exact raw JSON
+locations for escapes, normalized CRLF, and source-list items. A span envelope may
+include the JSON separator between source-list items, so exact source reconstruction
+uses `segments`. At this normalized `SourceDocument` boundary, notebook parsing
+also applies fixed safety bounds of 1048576 UTF-8 bytes for the normalized document
+and 100000 normalized logical characters across Markdown-cell sources. These bounds
+are not current configuration settings. Exceeding either emits `INP003`. Malformed
+inputs emit deterministic `INP001` or `INP002` diagnostics; JSON integers over 4096
+decimal digits and excessive JSON nesting are rejected with `INP001`. Code-cell
+variable analysis, notebook execution, and full Jupyter schema validation are deferred.

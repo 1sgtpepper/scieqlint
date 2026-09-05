@@ -14,6 +14,34 @@ class Severity(Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class SourceSegment:
+    """Raw source ranges for one logical source character."""
+
+    ranges: tuple[tuple[int, int], ...]
+    line: int
+    col: int
+    end_line: int
+    end_col: int
+
+    def __post_init__(self) -> None:
+        if not self.ranges:
+            raise ValueError("source segment requires at least one raw range")
+        previous_end = 0
+        for start, end in self.ranges:
+            if start < 0 or end <= start or start < previous_end:
+                raise ValueError("source segment raw ranges must be ordered and non-empty")
+            previous_end = end
+
+    @property
+    def start(self) -> int:
+        return self.ranges[0][0]
+
+    @property
+    def end(self) -> int:
+        return self.ranges[-1][1]
+
+
+@dataclass(frozen=True, slots=True)
 class SourceSpan:
     path: PurePosixPath
     start: int
@@ -24,6 +52,7 @@ class SourceSpan:
     end_col: int
     cell: int | None = None
     cell_line: int | None = None
+    segments: tuple[SourceSegment, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

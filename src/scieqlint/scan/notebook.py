@@ -1,16 +1,14 @@
-"""Notebook scanner for Markdown cells."""
+"""Notebook scanner adapter for Markdown cells."""
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import cast
 
 from scieqlint.config.model import Config
-from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
-from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.io.source import DocumentKind, LineIndex, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.scan.base import (
     EquationLabel,
@@ -21,40 +19,58 @@ from scieqlint.scan.base import (
 )
 from scieqlint.scan.markdown import MarkdownScanner
 
-_MAX_JSON_INTEGER_DIGITS = 4096
+from .notebook_input import (
+    NotebookInput,
+    NotebookSourceLocationError,
+    map_notebook_span,
+    parse_notebook_input,
+)
+from .notebook_input import (
+    cell_source as _cell_source,
+)
+from .notebook_input import (
+    input_diagnostic as _input_diagnostic,
+)
+from .notebook_input import (
+    schema_diagnostic as _schema_diagnostic,
+)
+
+_MARKDOWN_LINE_BOUNDARIES = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 class NotebookScanner:
     def __init__(self, *, workspace: WorkspaceHost | None = None) -> None:
         self._markdown = MarkdownScanner(workspace=workspace)
 
-    def scan(self, document: SourceDocument, config: Config) -> ScanResult:
-        try:
-            notebook_data: object = json.loads(document.text, parse_int=_parse_json_integer)
-        except ValueError as exc:
-            return ScanResult(blocks=(), diagnostics=(_input_diagnostic(document, exc),))
-        if not isinstance(notebook_data, Mapping):
-            return ScanResult(
-                blocks=(),
-                diagnostics=(_schema_diagnostic(document, "notebook root must be a JSON object"),),
-            )
+    def parse(self, document: SourceDocument) -> NotebookInput:
+        """Decode one notebook and retain its exact JSON source ranges."""
 
-        notebook = cast(Mapping[str, object], notebook_data)
-        raw_cells = notebook.get("cells")
-        if not isinstance(raw_cells, list):
-            return ScanResult(
-                blocks=(),
-                diagnostics=(_schema_diagnostic(document, "notebook cells must be a list"),),
-            )
+        return parse_notebook_input(document)
 
-        cells = cast(list[object], raw_cells)
+    def scan(
+        self,
+        document: SourceDocument,
+        config: Config,
+        *,
+        parsed: NotebookInput | None = None,
+    ) -> ScanResult:
+        if parsed is None:
+            notebook_input = self.parse(document)
+        else:
+            if parsed.document is not document:
+                raise ValueError("parsed notebook input belongs to a different SourceDocument")
+            notebook_input = parsed
+        if not notebook_input.valid:
+            return ScanResult(blocks=(), diagnostics=notebook_input.diagnostics)
+        assert notebook_input.root is not None
+
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         references: list[EquationReference] = []
         symbol_directives: list[SymbolDirective] = []
-        diagnostics = list(_notebook_schema_diagnostics(document, notebook))
+        diagnostics = list(notebook_input.diagnostics)
 
-        for cell_index, raw_cell in enumerate(cells):
+        for cell_index, raw_cell in enumerate(notebook_input.cells):
             if not isinstance(raw_cell, Mapping):
                 diagnostics.append(
                     _schema_diagnostic(
@@ -77,19 +93,43 @@ class NotebookScanner:
                     )
                 )
                 continue
-            scan = self._markdown.scan(_cell_document(document, cell_index, source), config)
-            blocks.extend(_with_cell_block(block, cell_index) for block in scan.blocks)
-            labels.extend(_with_cell_label(label, cell_index) for label in scan.labels)
-            references.extend(
-                _with_cell_reference(reference, cell_index) for reference in scan.references
+            # Parsed notebook input retains one raw range tuple for every
+            # logical character in each readable cell source.
+            source_ranges = cast(
+                tuple[tuple[tuple[int, int], ...], ...],
+                notebook_input.cell_source_ranges[cell_index],
             )
-            symbol_directives.extend(
-                _with_cell_symbol_directive(directive, cell_index)
-                for directive in scan.symbol_directives
-            )
-            diagnostics.extend(
-                _with_cell_diagnostic(diagnostic, cell_index) for diagnostic in scan.diagnostics
-            )
+            cell_document = _cell_document(document, cell_index, source)
+            scan = self._markdown.scan(cell_document, config)
+            try:
+                mapped_blocks = tuple(
+                    _with_cell_block(block, document, cell_index, source_ranges)
+                    for block in scan.blocks
+                )
+                mapped_labels = tuple(
+                    _with_cell_label(label, document, cell_index, source_ranges)
+                    for label in scan.labels
+                )
+                mapped_references = tuple(
+                    _with_cell_reference(reference, document, cell_index, source_ranges)
+                    for reference in scan.references
+                )
+                mapped_symbol_directives = tuple(
+                    _with_cell_symbol_directive(directive, document, cell_index, source_ranges)
+                    for directive in scan.symbol_directives
+                )
+                mapped_diagnostics = tuple(
+                    _with_cell_diagnostic(diagnostic, document, cell_index, source_ranges)
+                    for diagnostic in scan.diagnostics
+                )
+            except NotebookSourceLocationError as exc:
+                diagnostics.append(_input_diagnostic(document, exc))
+                continue
+            blocks.extend(mapped_blocks)
+            labels.extend(mapped_labels)
+            references.extend(mapped_references)
+            symbol_directives.extend(mapped_symbol_directives)
+            diagnostics.extend(mapped_diagnostics)
 
         return ScanResult(
             blocks=tuple(blocks),
@@ -100,132 +140,119 @@ class NotebookScanner:
         )
 
 
-def _cell_source(source: object) -> str | None:
-    if isinstance(source, str):
-        return source
-    if isinstance(source, list):
-        parts = cast(list[object], source)
-        if all(isinstance(part, str) for part in parts):
-            return "".join(cast(list[str], parts))
-    return None
-
-
-def _parse_json_integer(text: str) -> int:
-    digits = text[1:] if text.startswith("-") else text
-    if len(digits) > _MAX_JSON_INTEGER_DIGITS:
-        raise ValueError(f"JSON integer exceeds {_MAX_JSON_INTEGER_DIGITS} digits")
-    value = 0
-    for digit in digits:
-        value = value * 10 + ord(digit) - ord("0")
-    return -value if text.startswith("-") else value
-
-
-def _notebook_schema_diagnostics(
-    document: SourceDocument,
-    notebook: Mapping[str, object],
-) -> tuple[Diagnostic, ...]:
-    diagnostics: list[Diagnostic] = []
-    if not _is_json_integer(notebook.get("nbformat")):
-        diagnostics.append(_schema_diagnostic(document, "notebook nbformat must be an integer"))
-    if not _is_json_integer(notebook.get("nbformat_minor")):
-        diagnostics.append(
-            _schema_diagnostic(document, "notebook nbformat_minor must be an integer")
-        )
-    if not isinstance(notebook.get("metadata"), Mapping):
-        diagnostics.append(_schema_diagnostic(document, "notebook metadata must be an object"))
-    return tuple(diagnostics)
-
-
-def _is_json_integer(value: object) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
 def _cell_document(document: SourceDocument, cell_index: int, source: str) -> SourceDocument:
     cell_document = SourceDocument.from_text(document.path, source, DocumentKind.MARKDOWN)
     return replace(
         cell_document,
         display_path=f"{document.display_path}#cell-{cell_index}",
+        line_index=LineIndex(
+            (
+                0,
+                *(
+                    index + 1
+                    for index, character in enumerate(cell_document.text)
+                    if character in _MARKDOWN_LINE_BOUNDARIES
+                ),
+            )
+        ),
     )
 
 
-def _with_cell_block(block: MathBlock, cell_index: int) -> MathBlock:
-    return replace(block, span=_with_cell_span(block.span, cell_index))
+def _with_cell_block(
+    block: MathBlock,
+    document: SourceDocument,
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> MathBlock:
+    return replace(
+        block,
+        span=_with_cell_span(
+            block.span,
+            document,
+            cell_index,
+            source_ranges,
+        ),
+    )
 
 
-def _with_cell_label(label: EquationLabel, cell_index: int) -> EquationLabel:
-    return replace(label, span=_with_cell_span(label.span, cell_index))
+def _with_cell_label(
+    label: EquationLabel,
+    document: SourceDocument,
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> EquationLabel:
+    return replace(
+        label,
+        span=_with_cell_span(
+            label.span,
+            document,
+            cell_index,
+            source_ranges,
+        ),
+    )
 
 
-def _with_cell_reference(reference: EquationReference, cell_index: int) -> EquationReference:
-    return replace(reference, span=_with_cell_span(reference.span, cell_index))
+def _with_cell_reference(
+    reference: EquationReference,
+    document: SourceDocument,
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> EquationReference:
+    return replace(
+        reference,
+        span=_with_cell_span(
+            reference.span,
+            document,
+            cell_index,
+            source_ranges,
+        ),
+    )
 
 
 def _with_cell_symbol_directive(
     directive: SymbolDirective,
-    cell_index: int,
-) -> SymbolDirective:
-    return replace(directive, span=_with_cell_span(directive.span, cell_index))
-
-
-def _with_cell_diagnostic(diagnostic: Diagnostic, cell_index: int) -> Diagnostic:
-    if diagnostic.span is None:
-        return diagnostic
-    return replace(diagnostic, span=_with_cell_span(diagnostic.span, cell_index))
-
-
-def _with_cell_span(span: SourceSpan, cell_index: int) -> SourceSpan:
-    return replace(span, cell=cell_index, cell_line=span.line)
-
-
-def _input_diagnostic(document: SourceDocument, exc: ValueError) -> Diagnostic:
-    info = CATALOG["INP001"]
-    if isinstance(exc, json.JSONDecodeError):
-        span = SourceSpan(
-            path=document.path,
-            start=exc.pos,
-            end=exc.pos,
-            line=exc.lineno,
-            col=exc.colno,
-            end_line=exc.lineno,
-            end_col=exc.colno,
-        )
-    else:
-        span = _file_start_span(document)
-    return Diagnostic(
-        code=info.code,
-        severity=info.severity,
-        message=info.message,
-        span=span,
-        detail=exc.msg if isinstance(exc, json.JSONDecodeError) else str(exc),
-        rule="input",
-    )
-
-
-def _schema_diagnostic(
     document: SourceDocument,
-    detail: str,
-    *,
-    cell: int | None = None,
-) -> Diagnostic:
-    info = CATALOG["INP002"]
-    return Diagnostic(
-        code=info.code,
-        severity=info.severity,
-        message=info.message,
-        span=_file_start_span(document, cell=cell),
-        detail=detail,
-        rule="input",
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> SymbolDirective:
+    return replace(
+        directive,
+        span=_with_cell_span(
+            directive.span,
+            document,
+            cell_index,
+            source_ranges,
+        ),
     )
 
 
-def _file_start_span(document: SourceDocument, *, cell: int | None = None) -> SourceSpan:
-    return SourceSpan(
-        path=document.path,
-        start=0,
-        end=0,
-        line=1,
-        col=1,
-        end_line=1,
-        end_col=1,
-        cell=cell,
+def _with_cell_diagnostic(
+    diagnostic: Diagnostic,
+    document: SourceDocument,
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> Diagnostic:
+    assert diagnostic.span is not None, "Markdown scanner diagnostics retain source spans"
+    return replace(
+        diagnostic,
+        span=map_notebook_span(
+            document,
+            diagnostic.span,
+            cell_index=cell_index,
+            source_ranges=source_ranges,
+        ),
+    )
+
+
+def _with_cell_span(
+    span: SourceSpan,
+    document: SourceDocument,
+    cell_index: int,
+    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+) -> SourceSpan:
+    return map_notebook_span(
+        document,
+        span,
+        cell_index=cell_index,
+        source_ranges=source_ranges,
     )

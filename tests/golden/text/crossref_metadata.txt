@@ -1,0 +1,10 @@
+z-rendered.ipynb:1:1: warning REF007 conflicting cross-reference metadata: energy.md#energy
+  detail: 'rendered.ipynb#output-0' reports kind='figure', format='notebook', metadata={'placement': 'before_block'}; canonical boundary 'source.md' reports kind='heading', format='markdown', metadata={'placement': 'before_heading'}
+  provenance: source-metadata, output-metadata
+  target: energy.md#energy
+  output_boundary: rendered.ipynb#output-0
+  resolved_target_kind: figure
+  source_format: notebook
+  canonical_boundary: source.md
+  canonical_resolved_target_kind: heading
+  canonical_source_format: markdown

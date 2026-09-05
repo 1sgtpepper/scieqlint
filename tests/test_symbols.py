@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
 from click.testing import CliRunner
 
 from scieqlint.api import check_documents
+from scieqlint.check.symbols import check_symbols
 from scieqlint.cli import main
 from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.scan.notebook import NotebookScanner
 
 
 def test_symbol_check_reports_use_before_explicit_definition() -> None:
@@ -188,6 +191,61 @@ def test_symbol_check_reports_multiline_symbol_columns() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    "separator", ["\v", "\f", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"]
+)
+def test_notebook_symbol_spans_follow_splitlines(separator: str) -> None:
+    document = _notebook_document(f"$$\nP = P{separator}A = B\n$$\n")
+
+    result = check_documents((document,), config=_symbols_config(enabled=True))
+
+    assert [diagnostic.detail for diagnostic in result.diagnostics] == ["P", "A", "B"]
+    assert [diagnostic.span.cell_line for diagnostic in result.diagnostics if diagnostic.span] == [
+        2,
+        3,
+        3,
+    ]
+
+
+def test_notebook_symbol_mapping_rejects_incomplete_source_segments() -> None:
+    document = _notebook_document("$$\nA = B\n$$\n")
+    [block] = NotebookScanner().scan(document, Config()).blocks
+    assert block.span.segments
+    malformed_span = replace(block.span, segments=block.span.segments[:-1])
+
+    with pytest.raises(
+        ValueError,
+        match="block logical range does not match its source segments",
+    ):
+        check_symbols((replace(block, span=malformed_span),), ())
+
+
+def test_notebook_symbol_span_work_is_linear_in_symbol_count() -> None:
+    equation_count = 128
+    document = _notebook_document(
+        "$$\n" + "\n".join(f"A{index} = B{index}" for index in range(equation_count)) + "\n$$\n"
+    )
+    [block] = NotebookScanner().scan(document, Config()).blocks
+    slice_work = 0
+
+    class SliceCountingText(str):
+        def __getitem__(self, key):
+            nonlocal slice_work
+            value = super().__getitem__(key)
+            if isinstance(key, slice):
+                slice_work += len(value)
+            return value
+
+    diagnostics = check_symbols(
+        (replace(block, source_aligned_text=SliceCountingText(block.source_aligned_text)),),
+        (),
+    )
+
+    assert len(diagnostics) == equation_count * 2
+    assert all(diagnostic.code == "SYM001" for diagnostic in diagnostics)
+    assert slice_work <= len(block.source_aligned_text)
+
+
 def test_cli_json_exposes_undefined_symbol_diagnostic(tmp_path) -> None:
     doc = tmp_path / "paper.md"
     config = tmp_path / "scieqlint.toml"
@@ -211,6 +269,21 @@ def test_cli_json_exposes_undefined_symbol_diagnostic(tmp_path) -> None:
 
 def _document(path: str, text: str) -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+def _notebook_document(text: str) -> SourceDocument:
+    return SourceDocument.from_text(
+        PurePosixPath("paper.ipynb"),
+        json.dumps(
+            {
+                "cells": [{"cell_type": "markdown", "metadata": {}, "source": text}],
+                "metadata": {},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            }
+        ),
+        DocumentKind.NOTEBOOK,
+    )
 
 
 def _symbols_config(*, enabled: bool) -> Config:

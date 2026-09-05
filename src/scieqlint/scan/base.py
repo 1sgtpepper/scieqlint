@@ -45,7 +45,7 @@ class SymbolDirectiveSource(Enum):
 @dataclass(frozen=True, slots=True)
 class MathBlock:
     text: str
-    # One character per position in span; retained newlines keep their source indices.
+    # One character per logical source position; notebook spans use segments for raw JSON.
     source_aligned_text: str
     span: SourceSpan
     block_id: str

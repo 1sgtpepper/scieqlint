@@ -245,7 +245,7 @@ def test_cross_format_profile_rejects_duplicate_paths_across_document_kinds() ->
         check_documents((markdown, latex), config=config("commonmark"))
 
 
-def test_check_documents_keeps_same_offset_notebook_reference_identities() -> None:
+def test_check_documents_maps_same_notebook_targets_to_exact_source_spans_and_ids() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("same.ipynb"),
         json.dumps(
@@ -268,14 +268,17 @@ def test_check_documents_keeps_same_offset_notebook_reference_identities() -> No
     spans = tuple(item.span for item in portability)
     assert all(span is not None for span in spans)
     assert [(span.cell, span.start, span.end) for span in spans if span is not None] == [
-        (0, 5, 9),
-        (1, 5, 9),
+        (0, 69, 73),
+        (1, 136, 140),
+    ]
+    assert [document.text[span.start : span.end] for span in spans if span is not None] == [
+        "same",
+        "same",
     ]
     assert [dict(item.properties)["subject_fact_id"] for item in portability] == [
-        "path=10:same.ipynb::cell=1:0::role=16:source-reference::start=1:5",
-        "path=10:same.ipynb::cell=1:1::role=16:source-reference::start=1:5",
+        "path=10:same.ipynb::cell=1:0::role=16:source-reference::start=2:69",
+        "path=10:same.ipynb::cell=1:1::role=16:source-reference::start=3:136",
     ]
-    assert len({dict(item.properties)["subject_fact_id"] for item in portability}) == 2
 
 
 def test_public_loaded_documents_keep_source_role_fact_ids_collision_free() -> None:

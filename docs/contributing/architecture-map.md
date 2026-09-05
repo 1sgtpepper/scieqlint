@@ -8,7 +8,7 @@
 | Markdown extraction | `src/scieqlint/scan/markdown.py` | parser/checkers |
 | Grammar | `src/scieqlint/parse/grammar.lark` | reporters |
 | Algebra | `src/scieqlint/check/algebra.py` | scanner |
-| References | `src/scieqlint/check/references.py` | algebra |
+| References and fact-backed cross-reference metadata | `src/scieqlint/check/references.py`, `src/scieqlint/facts/reference.py`, `src/scieqlint/frontend/crossref.py`, `src/scieqlint/query/reference.py`, `src/scieqlint/engine/reference.py` | algebra |
 | Generated-output anchor audits | `src/scieqlint/facts/generated.py`, `src/scieqlint/query/generated.py`, `src/scieqlint/engine/generated.py` | CLI/config provenance inference |
 | JSON output | `src/scieqlint/report/json.py` | scanner/parser/checker behavior |
 | Docs | `docs/` | code unless examples are being corrected |

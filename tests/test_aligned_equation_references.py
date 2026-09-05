@@ -416,6 +416,12 @@ def test_notebook_reference_path_reports_duplicate_and_ambiguous_targets_by_cell
     )
 
     result = check_documents((document,), config=without_algebra())
+    first_label_start = document.text.index("same")
+    duplicate_label_start = document.text.index("same", first_label_start + 1)
+    reference_start = document.text.index("same", duplicate_label_start + 1)
+    reference_diagnostics = tuple(
+        diagnostic for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
+    )
 
     assert [
         (
@@ -425,12 +431,32 @@ def test_notebook_reference_path_reports_duplicate_and_ambiguous_targets_by_cell
             diagnostic.span.start if diagnostic.span else None,
             diagnostic.span.end if diagnostic.span else None,
         )
-        for diagnostic in result.diagnostics
-        if diagnostic.code.startswith("REF")
+        for diagnostic in reference_diagnostics
     ] == [
-        ("REF001", "duplicate equation label: same", 1, 16, 20),
-        ("REF011", "ambiguous equation reference: same", 2, 9, 13),
+        (
+            "REF001",
+            "duplicate equation label: same",
+            1,
+            duplicate_label_start,
+            duplicate_label_start + len("same"),
+        ),
+        (
+            "REF011",
+            "ambiguous equation reference: same",
+            2,
+            reference_start,
+            reference_start + len("same"),
+        ),
     ]
+    for diagnostic in reference_diagnostics:
+        assert diagnostic.span is not None
+        assert diagnostic.span.segments
+        assert (
+            "".join(
+                document.text[segment.start : segment.end] for segment in diagnostic.span.segments
+            )
+            == "same"
+        )
 
 
 def test_reference_engine_output_is_independent_of_document_input_order() -> None:

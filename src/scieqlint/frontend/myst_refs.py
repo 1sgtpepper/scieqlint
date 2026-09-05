@@ -71,7 +71,15 @@ def scan_refs(
             )
         else:
             equation.append(
-                _equation_role_ref_fact(document, smap, match, role, target, target_start)
+                _equation_role_ref_fact(
+                    document,
+                    smap,
+                    match,
+                    role,
+                    target,
+                    title,
+                    target_start,
+                )
             )
     return tuple(generic), tuple(equation)
 
@@ -154,6 +162,7 @@ def _equation_role_ref_fact(
     match: re.Match[str],
     role: str,
     target: str,
+    title: str | None,
     target_start: int,
 ) -> EquationRefFact:
     return EquationRefFact(
@@ -164,6 +173,7 @@ def _equation_role_ref_fact(
         ref_kind=role,
         target=target,
         normalized_target=normalize_label(target),
+        title=title,
         role_span=smap.span(match.start(), match.end()),
         target_span=smap.span(target_start, target_start + len(target)),
     )
