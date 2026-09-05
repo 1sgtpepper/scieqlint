@@ -1659,7 +1659,7 @@ References are core v0.1.0. Graph and symbols come later.
 | `REF001` | v0.1.0 | error | Duplicate equation label |
 | `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
-| `REF011` | v1.1.0 | warning | Ambiguous equation reference |
+| `REF011` | Unreleased | warning | Ambiguous equation reference |
 
 Rules:
 
