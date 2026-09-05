@@ -31,7 +31,7 @@ cases:
     expected_pass: true
 
   - id: code-cell-metadata-notebook-language-policy
-    release: v1.1.0
+    release: Unreleased
     profile: code-cell-metadata
     code_cell_languages: ["python", "bash"]
     input: {"cells": [{"cell_type": "code", "metadata": {}, "outputs": [], "source": "pass\n"}, {"cell_type": "code", "metadata": {"language": "python"}, "outputs": [], "source": "pass\n"}, {"cell_type": "code", "metadata": {"language": "python shell"}, "outputs": [], "source": "pass\n"}, {"cell_type": "code", "metadata": {"language": "brainfuck"}, "outputs": [], "source": "pass\n"}, {"cell_type": "code", "metadata": {"language": "bash"}, "outputs": [], "source": "pass\n"}], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}

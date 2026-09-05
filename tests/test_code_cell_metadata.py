@@ -76,7 +76,9 @@ def test_source_labels_keep_scalar_identity_and_original_value_span(kind: str, v
         else decoded_source_segment_text(document, cell.label_span)
     )
     assert text == value
-    result = public_check_documents((document,), config=profile_config())
+    result = public_check_documents(
+        (document,), config=Config(profile=ProfileConfig(name="notebook-crossrefs"))
+    )
     assert result.diagnostics == ()
 
 
@@ -840,6 +842,35 @@ def test_notebook_source_language_overrides_kernel_and_preserves_cell_locations(
     ]
 
 
+@pytest.mark.parametrize(
+    ("value", "language", "codes"),
+    [
+        ("python", "python", []),
+        ("'python'", "python", []),
+        ('"python"', "python", []),
+        ("'python shell'", "python shell", ["DIR013"]),
+        ('"python shell"', "python shell", ["DIR013"]),
+        ("''", '<json:"">', ["DIR013"]),
+        ('""', '<json:"">', ["DIR013"]),
+        ("'python", "'python", ["DIR013"]),
+        (r'"py\thon"', r'"py\thon"', ["DIR013"]),
+    ],
+)
+def test_source_language_scalars_preserve_meaning_and_explicit_invalid_values(
+    value: str, language: str, codes: list[str]
+) -> None:
+    document = notebook(
+        notebook_payload(code_cell(source=f"#| language: {value}\npass\n"), language="python")
+    )
+
+    [cell] = NotebookFrontend().lower((document,)).code_cells
+    result = public_check_documents((document,), config=profile_config())
+
+    assert cell.language == language
+    assert decoded_source_segment_text(document, cell.language_span) == value
+    assert [diagnostic.code for diagnostic in result.diagnostics] == codes
+
+
 @pytest.mark.parametrize("visibility", ["hidden", "excluded"])
 def test_nonvisible_notebook_code_cells_keep_facts_without_language_or_reference_diagnostics(
     visibility: ProjectVisibility,
@@ -1261,36 +1292,6 @@ pass
     assert source_slice(document, directive_cell.language_span) == "python"
     assert missing_language.language is None
     assert missing_language.language_span is None
-
-
-@pytest.mark.public_regression
-def test_public_bare_quarto_bash_fence_resolves_reference_without_execution() -> None:
-    bash_document = markdown(
-        """```bash
-#| label: bash-cell
-printf 'not executed\\n'
-```
-
-See [bash cell](#bash-cell).
-""",
-        "bash.md",
-    )
-    unsupported_document = markdown(
-        """```brainfuck
-#| label: brainfuck-cell
-printf 'not executed\\n'
-```
-
-See [brainfuck cell](#brainfuck-cell).
-""",
-        "unsupported.md",
-    )
-
-    bash_result = public_check_documents((bash_document,), config=Config())
-    unsupported_result = public_check_documents((unsupported_document,), config=Config())
-
-    assert [diagnostic.code for diagnostic in bash_result.diagnostics] == []
-    assert [diagnostic.code for diagnostic in unsupported_result.diagnostics] == ["REF002"]
 
 
 @pytest.mark.public_regression

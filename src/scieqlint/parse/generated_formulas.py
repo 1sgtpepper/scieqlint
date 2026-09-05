@@ -157,7 +157,6 @@ def _suspicious_formula_facts(
     return tuple(facts)
 
 
-
 def _starts_spaced_token_run(text: str, start: int) -> bool:
     # A bounded regex match must not restart inside a longer continuous run.
     end = start
@@ -167,7 +166,6 @@ def _starts_spaced_token_run(text: str, start: int) -> bool:
         return True
     previous = text[max(0, end - 2) : end]
     return re.fullmatch(r"(?:[^A-Za-z0-9_])?[A-Za-z]", previous) is None
-
 
 
 def _high_confidence_spaced_command(artifact: str) -> bool:
