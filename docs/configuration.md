@@ -214,6 +214,16 @@ silently running a different rule set.
   without executing code, including when Markdown scanning is disabled. It
   does not generate alternative text, infer metadata from surrounding prose, or
   apply the policy by default.
+- `notebook-crossrefs` lowers notebook code-cell labels, `renderings`, caption
+  options, and output-boundary metadata. It warns when renderings are combined
+  with options that create a cross-reference, including Quarto's `lst-label`,
+  `fig-subcap`, and `tbl-subcap` aliases, without executing the notebook. A
+  conflict confined to cell metadata is reported at the cell; output-level metadata
+  produces one diagnostic per affected recorded output and includes the relevant
+  cell options. Recorded-output `label` and Quarto
+  `lst-label` are normalized to the same target identity; `label` takes precedence
+  when both are present, and the source span remains attached to the selected JSON
+  option.
 - `typst-portability` checks a focused set of display-math forms known to be
   unsupported or fragile in Typst publishing paths: `\dfrac`, `\argmin`,
   and `aligned`, `array`, or `matrix` environments combined with TeX

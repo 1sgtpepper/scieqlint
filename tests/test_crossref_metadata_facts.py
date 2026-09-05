@@ -663,6 +663,200 @@ def test_public_check_documents_reports_notebook_output_metadata_conflict() -> N
     assert equivalent_result.exit_code() == 0
 
 
+@pytest.mark.public_regression
+@pytest.mark.parametrize(
+    ("caption", "caption_preview"),
+    [
+        pytest.param("x" * 4096, "<4096 chars>", id="large"),
+        pytest.param("\\" * 128, "<128 chars>", id="escape-heavy"),
+    ],
+)
+def test_public_notebook_metadata_conflict_details_are_bounded(
+    caption: str,
+    caption_preview: str,
+) -> None:
+    output_count = 32
+    outputs = [
+        {
+            "data": {"image/png": "payload"},
+            "metadata": {},
+            "output_type": "display_data",
+        }
+    ]
+    outputs.extend(
+        {
+            "data": {"image/png": "payload"},
+            "metadata": {"fig-cap": "different"},
+            "output_type": "display_data",
+        }
+        for _ in range(output_count - 1)
+    )
+    payload = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {"fig-cap": caption, "label": "fig-shared"},
+                "outputs": outputs,
+                "source": [],
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    document = SourceDocument.from_text(
+        PurePosixPath("bounded-conflicts.ipynb"),
+        json.dumps(payload, sort_keys=True),
+        DocumentKind.NOTEBOOK,
+    )
+
+    conflicts = tuple(
+        diagnostic
+        for diagnostic in check_documents((document,), config=cross_format_config()).diagnostics
+        if diagnostic.code == "REF007"
+    )
+
+    assert len(conflicts) == output_count - 1
+    assert all(
+        diagnostic.span is not None
+        and diagnostic.span.path == document.path
+        and diagnostic.span.cell == 0
+        for diagnostic in conflicts
+    )
+    assert all(
+        diagnostic.detail is not None
+        and "metadata={'fig-cap': 'different'}" in diagnostic.detail
+        and f"metadata={{'fig-cap': {caption_preview}}}" in diagnostic.detail
+        and len(diagnostic.detail) < 512
+        for diagnostic in conflicts
+    )
+
+
+@pytest.mark.public_regression
+def test_public_check_documents_reports_listing_alias_output_metadata_conflict() -> None:
+    def document(second_caption: str) -> SourceDocument:
+        payload = {
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [
+                        {
+                            "data": {"text/plain": "first"},
+                            "metadata": {
+                                "lst-cap": "Shared listing",
+                                "lst-label": "lst-shared",
+                            },
+                            "output_type": "display_data",
+                        },
+                        {
+                            "data": {"text/plain": "second"},
+                            "metadata": {
+                                "lst-cap": second_caption,
+                                "lst-label": "lst-shared",
+                            },
+                            "output_type": "display_data",
+                        },
+                    ],
+                    "source": [],
+                }
+            ],
+            "metadata": {"language_info": {"name": "python"}},
+            "nbformat": 4,
+            "nbformat_minor": 5,
+        }
+        return SourceDocument.from_text(
+            PurePosixPath("reachable.ipynb"),
+            json.dumps(payload, sort_keys=True),
+            DocumentKind.NOTEBOOK,
+        )
+
+    conflicting = document("Different listing")
+    result = check_documents((conflicting,), config=cross_format_config())
+    snapshot = _profile_snapshot((conflicting,), cross_format_config())
+    definitions = tuple(
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
+    )
+    anchors = snapshot.target_anchors
+
+    assert len(definitions) == 2
+    assert len(anchors) == 2
+    assert [fact.logical_target for fact in definitions] == ["lst-shared", "lst-shared"]
+    assert [fact.target_metadata for fact in definitions] == [
+        (("lst-cap", "Shared listing"),),
+        (("lst-cap", "Different listing"),),
+    ]
+    assert [fact.target_span for fact in definitions] == [anchor.label_span for anchor in anchors]
+    assert all(fact.target_span is not None for fact in definitions)
+    assert all(
+        conflicting.text[fact.target_span.start : fact.target_span.end] == "lst-shared"
+        for fact in definitions
+        if fact.target_span is not None
+    )
+
+    canonical_boundary = "reachable.ipynb::notebook-cell::0::output::0"
+    conflict_boundary = "reachable.ipynb::notebook-cell::0::output::1"
+    label_marker = '"lst-label": "lst-shared"'
+    first_marker = conflicting.text.index(label_marker)
+    second_marker = conflicting.text.index(label_marker, first_marker + len(label_marker))
+    label_start = second_marker + len('"lst-label": "')
+    label_end = label_start + len("lst-shared")
+    line, col = conflicting.line_index.position(label_start)
+    end_line, end_col = conflicting.line_index.position(label_end - 1)
+    expected_span = SourceSpan(
+        path=conflicting.path,
+        start=label_start,
+        end=label_end,
+        line=line,
+        col=col,
+        end_line=end_line,
+        end_col=end_col,
+        cell=0,
+        cell_line=1,
+    )
+    assert result.diagnostics == (
+        Diagnostic(
+            code="REF007",
+            severity=Severity.WARNING,
+            message="conflicting cross-reference metadata: reachable.ipynb#lst-shared",
+            span=expected_span,
+            detail=(
+                f"{conflict_boundary!r} reports kind='listing', format='notebook', "
+                "metadata={'lst-cap': 'Different listing'}; canonical boundary "
+                f"{canonical_boundary!r} reports kind='listing', format='notebook', "
+                "metadata={'lst-cap': 'Shared listing'}"
+            ),
+            hint="Use consistent cross-reference metadata for this target.",
+            rule="references.crossref_metadata_conflict",
+            provenance_ids=(
+                f"{canonical_boundary}::crossref-metadata",
+                f"{conflict_boundary}::crossref-metadata",
+            ),
+            properties=(
+                ("target", "reachable.ipynb#lst-shared"),
+                ("output_boundary", conflict_boundary),
+                ("resolved_target_kind", "listing"),
+                ("source_format", "notebook"),
+                ("canonical_boundary", canonical_boundary),
+                ("canonical_resolved_target_kind", "listing"),
+                ("canonical_source_format", "notebook"),
+            ),
+        ),
+    )
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 0
+    assert result.exit_code() == 0
+
+    equivalent = document("Shared listing")
+    equivalent_result = check_documents((equivalent,), config=cross_format_config())
+    assert equivalent_result.diagnostics == ()
+    assert equivalent_result.files_checked == 1
+    assert equivalent_result.math_blocks_checked == 0
+    assert equivalent_result.exit_code() == 0
+
+
 def test_json_report_projects_crossref_conflict_metadata_without_rescanning() -> None:
     canonical = metadata(
         "m1",
