@@ -320,7 +320,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "PORT001",
         Severity.WARNING,
         "equation reference syntax may not survive configured output profile",
-        "v1.1.0",
+        "Unreleased",
         "An equation reference uses source syntax outside the configured output "
         "profile's conservative portability baseline.",
     ),

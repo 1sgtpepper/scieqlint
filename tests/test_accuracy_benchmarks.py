@@ -95,9 +95,9 @@ def test_unreleased_generated_accuracy_benchmark_fixtures_are_checked() -> None:
         assert (result.exit_code() == 0) is case["expected_pass"], case["id"]
 
 
-def test_v110_cross_format_reference_accuracy_benchmark_fixtures_are_checked() -> None:
+def test_unreleased_cross_format_reference_accuracy_benchmark_fixtures_are_checked() -> None:
     path = BENCHMARK_DIR / "portability.yml"
-    cases = [case for case in _load_cases(path) if case.get("release") == "v1.1.0"]
+    cases = [case for case in _load_cases(path) if case.get("release") == "Unreleased"]
     assert cases
 
     for case in cases:
