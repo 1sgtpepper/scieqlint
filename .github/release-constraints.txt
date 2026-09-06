@@ -1,0 +1,9 @@
+# Release workflow dependency constraints. Update these pins intentionally and
+# review the dependency-resolution summary emitted by every release run.
+pip==25.2
+build==1.3.0
+twine==6.1.0
+hatchling==1.27.0
+click==8.2.1
+pytest==8.4.2
+jsonschema==4.25.1
