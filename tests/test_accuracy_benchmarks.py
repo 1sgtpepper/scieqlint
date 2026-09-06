@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path, PurePosixPath
 from typing import cast
@@ -138,14 +137,18 @@ def test_corpus_includes_independent_positive_and_negative_equations() -> None:
     independent_cases = [case for case in cases if case.get("independent_equation_id") is not None]
     independent_equation_ids = _independent_equation_ids(cases)
 
-    assert len(independent_equation_ids) == 2
-    assert len(independent_equation_ids) < _INDEPENDENT_EQUATION_THRESHOLD
+    assert len(independent_equation_ids) == 102
+    assert len(independent_equation_ids) >= _INDEPENDENT_EQUATION_THRESHOLD
     assert {cast(str, case["label"]) for case in independent_cases} >= {
         "positive",
         "negative",
     }
     assert all(cast(str, case["provenance"]).startswith("https://") for case in independent_cases)
-    assert all(cast(str, case["license"]).startswith("CC-") for case in independent_cases)
+    assert {cast(str, case["license"]) for case in independent_cases} == {
+        "CC-BY-4.0",
+        "CC-BY-NC-SA-4.0",
+        "LicenseRef-Public-Domain-US",
+    }
 
 
 def test_independent_equation_ids_deduplicate_labeled_wrappers_across_paths(
@@ -762,10 +765,6 @@ def test_stable_release_evidence_gate_executes_each_independent_case(
         _require_stable_release_evidence(tmp_path, path)
 
 
-@pytest.mark.skipif(
-    os.environ.get("SCIEQLINT_RELEASE_GATE") != "1",
-    reason="stable-release evidence is enforced by the release workflow",
-)
 def test_stable_release_requires_100_independently_labeled_equations(tmp_path: Path) -> None:
     _require_stable_release_evidence(tmp_path, CORPUS_PATH)
 

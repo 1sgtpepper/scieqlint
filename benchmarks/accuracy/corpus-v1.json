@@ -2253,6 +2253,3721 @@
       },
       "expected_codes": [],
       "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-eac710922068",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-eac710922068",
+      "documents": [
+        {
+          "path": "boyden-algebra-eac710922068.tex",
+          "format": "latex",
+          "content": "\\[\na+(b-c-x)=a+b-c-x\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-46163c57dfa7",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-46163c57dfa7",
+      "documents": [
+        {
+          "path": "boyden-algebra-46163c57dfa7.md",
+          "format": "markdown",
+          "content": "$$\n2*a*m+2*a*x+b*m+b*x=2*a*(m+x)+b*(m+x)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-bb2652b6cbea",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-bb2652b6cbea",
+      "documents": [
+        {
+          "path": "boyden-algebra-bb2652b6cbea.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n((5*a^2*b)/(5*a*b))/((10*a*b^2)/(5*a*b))=a/(2*b)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-17f167238d27",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-17f167238d27",
+      "documents": [
+        {
+          "path": "boyden-algebra-17f167238d27.tex",
+          "format": "latex",
+          "content": "\\[\na+c-d+e=a+(c-d+e)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-6b1a20d51f8f",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-6b1a20d51f8f",
+      "documents": [
+        {
+          "path": "boyden-algebra-6b1a20d51f8f.md",
+          "format": "markdown",
+          "content": "$$\na^8+a^6-a^5-a^3+a^2+1=a^6*(a^2+1)-a^3*(a^2+1)+(a^2+1)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-ed91d866058d",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-ed91d866058d",
+      "documents": [
+        {
+          "path": "boyden-algebra-ed91d866058d.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n(a*c-b*c-d)/c=a-b-d/c\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-d23e379903b0",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-d23e379903b0",
+      "documents": [
+        {
+          "path": "boyden-algebra-d23e379903b0.tex",
+          "format": "latex",
+          "content": "\\[\nx-(y+z-c)=x-y-z+c\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-5b370b2a0d9d",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-5b370b2a0d9d",
+      "documents": [
+        {
+          "path": "boyden-algebra-5b370b2a0d9d.md",
+          "format": "markdown",
+          "content": "$$\n(5*a^2*b^3)^2=25*a^4*b^6\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-9d6952962b13",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-9d6952962b13",
+      "documents": [
+        {
+          "path": "boyden-algebra-9d6952962b13.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n(3*x*y^2*z)^3=27*x^3*y^6*z^3\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-f3d96f99cd4d",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-f3d96f99cd4d",
+      "documents": [
+        {
+          "path": "boyden-algebra-f3d96f99cd4d.tex",
+          "format": "latex",
+          "content": "\\[\n(6*a^4*b^4*c^6)/(2*a^3*b^2*c^3)=3*a*b^2*c^3\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-81c8eb19f02a",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-81c8eb19f02a",
+      "documents": [
+        {
+          "path": "boyden-algebra-81c8eb19f02a.md",
+          "format": "markdown",
+          "content": "$$\n(a^2+a*b+b^2)^2-(a^2-a*b+b^2)^2=4*a*b*(a^2+b^2)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-347940d55a04",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-347940d55a04",
+      "documents": [
+        {
+          "path": "thompson-calculus-347940d55a04.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n200/4=50/1\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-3f5ae3dd6195",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-3f5ae3dd6195",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-3f5ae3dd6195.tex",
+          "format": "latex",
+          "content": "\\[\n((alpha-1)*beta+2)-(alpha*(beta-1))=alpha-beta+2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "boyden-algebra-95df0b53cc95",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-95df0b53cc95",
+      "documents": [
+        {
+          "path": "boyden-algebra-95df0b53cc95.md",
+          "format": "markdown",
+          "content": "$$\n27+10*x=13*x+23\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-a80c67d3233f",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-a80c67d3233f",
+      "documents": [
+        {
+          "path": "boyden-algebra-a80c67d3233f.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n5*x-4=10*x+11\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-e33e63b4e4e1",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-e33e63b4e4e1",
+      "documents": [
+        {
+          "path": "boyden-algebra-e33e63b4e4e1.tex",
+          "format": "latex",
+          "content": "\\[\n9*x-(2*x-5)=4*x+(13+x)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-323315f39c0e",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-323315f39c0e",
+      "documents": [
+        {
+          "path": "boyden-algebra-323315f39c0e.md",
+          "format": "markdown",
+          "content": "$$\n12*x-18*x+17=8*x+3\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-c8da5ef690a8",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-c8da5ef690a8",
+      "documents": [
+        {
+          "path": "boyden-algebra-c8da5ef690a8.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n5*x-27-11*x+16=98-40*x-41\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-f4b614224291",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-f4b614224291",
+      "documents": [
+        {
+          "path": "boyden-algebra-f4b614224291.tex",
+          "format": "latex",
+          "content": "\\[\n(x+4)*(x+7)=(x+2)*(x+11)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-8c67e8ee4da2",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-8c67e8ee4da2",
+      "documents": [
+        {
+          "path": "boyden-algebra-8c67e8ee4da2.md",
+          "format": "markdown",
+          "content": "$$\n(x-1)*(x+4)*(x-2)=x*(x-2)*(x+2)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-731e321f476b",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-731e321f476b",
+      "documents": [
+        {
+          "path": "boyden-algebra-731e321f476b.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n(x+1)^2+(x-5)^2=2*(x+5)^2\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-b1da1f903c38",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-b1da1f903c38",
+      "documents": [
+        {
+          "path": "boyden-algebra-b1da1f903c38.tex",
+          "format": "latex",
+          "content": "\\[\n7*x-15+4*x-6=4*x-9-9*x\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-e864b5a765cb",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-e864b5a765cb",
+      "documents": [
+        {
+          "path": "boyden-algebra-e864b5a765cb.md",
+          "format": "markdown",
+          "content": "$$\nb*(2*x-a)-a^2=2*x*(a+b)-3*a*b\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-fd6be419b186",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-fd6be419b186",
+      "documents": [
+        {
+          "path": "boyden-algebra-fd6be419b186.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nb^4-x^2+2*b*x=(b^2+x)*(b^2-x)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-a98e964dc0f8",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-a98e964dc0f8",
+      "documents": [
+        {
+          "path": "boyden-algebra-a98e964dc0f8.tex",
+          "format": "latex",
+          "content": "\\[\nx^2+4*a^2+a^4=(x+a^2)^2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-22c07cbe35a6",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-22c07cbe35a6",
+      "documents": [
+        {
+          "path": "boyden-algebra-22c07cbe35a6.md",
+          "format": "markdown",
+          "content": "$$\nb^2*(x-b)+a^2*(x-a)=a*b*x\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-f5ebbe012059",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-f5ebbe012059",
+      "documents": [
+        {
+          "path": "boyden-algebra-f5ebbe012059.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nx^2-(x^2-10)/3=35-(x^2+50)/5\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-63b7ba5014f2",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-63b7ba5014f2",
+      "documents": [
+        {
+          "path": "boyden-algebra-63b7ba5014f2.tex",
+          "format": "latex",
+          "content": "\\[\n5*(3*x^2-1)=11*(x^2+1)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-2bea3b58b652",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-2bea3b58b652",
+      "documents": [
+        {
+          "path": "boyden-algebra-2bea3b58b652.md",
+          "format": "markdown",
+          "content": "$$\n(x+3)^2=6*x+58\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-2a8eef9d7185",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-2a8eef9d7185",
+      "documents": [
+        {
+          "path": "boyden-algebra-2a8eef9d7185.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nx^2=10*x-21\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-2b02e56aa179",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-2b02e56aa179",
+      "documents": [
+        {
+          "path": "boyden-algebra-2b02e56aa179.tex",
+          "format": "latex",
+          "content": "\\[\n23*x=120+x^2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-4cacf3408049",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-4cacf3408049",
+      "documents": [
+        {
+          "path": "boyden-algebra-4cacf3408049.md",
+          "format": "markdown",
+          "content": "$$\n(x+3)*(x-3)=8*(x+3)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-4e1612159403",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-4e1612159403",
+      "documents": [
+        {
+          "path": "boyden-algebra-4e1612159403.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n7*x^2-10=5+2*x^3\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-4d32ba97cc86",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-4d32ba97cc86",
+      "documents": [
+        {
+          "path": "boyden-algebra-4d32ba97cc86.tex",
+          "format": "latex",
+          "content": "\\[\nb*x-b^2=3*b^2-4*b*x\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "boyden-algebra-4f280d1762c4",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "ALG001",
+      "source_format": "markdown",
+      "scientific_domain": "algebra",
+      "provenance": "https://www.gutenberg.org/files/13309/13309-t/13309-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "boyden-algebra-4f280d1762c4",
+      "documents": [
+        {
+          "path": "boyden-algebra-4f280d1762c4.md",
+          "format": "markdown",
+          "content": "$$\nx*(a-x)+x*(b-x)=2*(x-a)*(b-x)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "ALG001"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "thompson-calculus-3a1242da97bb",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-3a1242da97bb",
+      "documents": [
+        {
+          "path": "thompson-calculus-3a1242da97bb.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ny+n*(y/n)=2*y\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-5d6f62ea4051",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "ALG001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-5d6f62ea4051",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-5d6f62ea4051.tex",
+          "format": "latex",
+          "content": "\\[\ndp/(dp/p)=p\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-4df852c54f75",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-4df852c54f75",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-4df852c54f75.md",
+          "format": "markdown",
+          "content": "$$\nV/M=v\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "V": "L^3",
+          "M": "M",
+          "v": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-10e304d1cb67",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-10e304d1cb67",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-10e304d1cb67.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nQ/dTheta=c_m\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "Q": "L^2 T^-2",
+          "dTheta": "Theta",
+          "c_m": "L^2 T^-2 Theta^-1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-a010c1544a6d",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-a010c1544a6d",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-a010c1544a6d.tex",
+          "format": "latex",
+          "content": "\\[\nU_2-U_1=Q+W\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "U_2": "M L^2 T^-2",
+          "U_1": "M L^2 T^-2",
+          "Q": "M L^2 T^-2",
+          "W": "M L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-ba5f1f2be795",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-ba5f1f2be795",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-ba5f1f2be795.md",
+          "format": "markdown",
+          "content": "$$\nq=du+p*dv\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "q": "L^2 T^-2",
+          "du": "L^2 T^-2",
+          "p": "M L^-1 T^-2",
+          "dv": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-42f682eb814a",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-42f682eb814a",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-42f682eb814a.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nM_1+M_2+M_3=M\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "M_1": "M",
+          "M_2": "M",
+          "M_3": "M",
+          "M": "M"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-3a68529243b0",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-3a68529243b0",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-3a68529243b0.tex",
+          "format": "latex",
+          "content": "\\[\nPsi=Phi-(U+p*V)/theta\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "Psi": "M L^2 T^-2 Theta^-1",
+          "Phi": "M L^2 T^-2 Theta^-1",
+          "U": "M L^2 T^-2",
+          "p": "M L^-1 T^-2",
+          "V": "L^3",
+          "theta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-d4695d579997",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-d4695d579997",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-d4695d579997.md",
+          "format": "markdown",
+          "content": "$$\nT=T_0*(1+alpha*t)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "T": "L^2 T^-2",
+          "T_0": "L^2 T^-2",
+          "alpha": "Theta^-1",
+          "t": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-6f20e62f73c5",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-6f20e62f73c5",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-6f20e62f73c5.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\np=C_0*theta/v_0\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "p": "M L^-1 T^-2",
+          "C_0": "L^2 T^-2 Theta^-1",
+          "theta": "Theta",
+          "v_0": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-4d33dc530033",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-4d33dc530033",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-4d33dc530033.tex",
+          "format": "latex",
+          "content": "\\[\nU_2-U_1=Q+p_0*(V_1-V_2)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "U_2": "M L^2 T^-2",
+          "U_1": "M L^2 T^-2",
+          "Q": "M L^2 T^-2",
+          "p_0": "M L^-1 T^-2",
+          "V_1": "L^3",
+          "V_2": "L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-80963961a677",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-80963961a677",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-80963961a677.md",
+          "format": "markdown",
+          "content": "$$\nM_1*v_1+M_2*v_2+M_3*v_3=V\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "M_1": "M",
+          "M_2": "M",
+          "M_3": "M",
+          "v_1": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "v_3": "M^-1 L^3",
+          "V": "L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-37f9ef604145",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-37f9ef604145",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-37f9ef604145.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ndPhi=(dU+p*dV)/theta\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dPhi": "M L^2 T^-2 Theta^-1",
+          "dU": "M L^2 T^-2",
+          "p": "M L^-1 T^-2",
+          "dV": "L^3",
+          "theta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-430cb929aa22",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-430cb929aa22",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-430cb929aa22.tex",
+          "format": "latex",
+          "content": "\\[\np=(T_0/v)*(1+alpha*t)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "p": "M L^-1 T^-2",
+          "T_0": "L^2 T^-2",
+          "v": "M^-1 L^3",
+          "alpha": "Theta^-1",
+          "t": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-827bba70f280",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-827bba70f280",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-827bba70f280.md",
+          "format": "markdown",
+          "content": "$$\nQ_1p*(theta_2-theta_1)=theta_1*Wp\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "Q_1p": "M L^2 T^-2",
+          "Wp": "M L^2 T^-2",
+          "theta_1": "Theta",
+          "theta_2": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-2d719e31387e",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-2d719e31387e",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-2d719e31387e.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nt+1/alpha=theta\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "t": "Theta",
+          "theta": "Theta",
+          "alpha": "Theta^-1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-c1a44ebeee0a",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-c1a44ebeee0a",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-c1a44ebeee0a.tex",
+          "format": "latex",
+          "content": "\\[\ndPhi_1=Q_1/theta_1\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dPhi_1": "M L^2 T^-2 Theta^-1",
+          "Q_1": "M L^2 T^-2",
+          "theta_1": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-3439a6971adb",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-3439a6971adb",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-3439a6971adb.md",
+          "format": "markdown",
+          "content": "$$\n-dV/V=dp/p\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dV": "L^3",
+          "V": "L^3",
+          "dp": "M L^-1 T^-2",
+          "p": "M L^-1 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-943dcd169270",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-943dcd169270",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-943dcd169270.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nc_p/c_v=gamma\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "c_p": "L^2 T^-2 Theta^-1",
+          "c_v": "L^2 T^-2 Theta^-1",
+          "gamma": "1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-92d4856c4122",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-92d4856c4122",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-92d4856c4122.tex",
+          "format": "latex",
+          "content": "\\[\ndPhi_0=-Q/theta\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dPhi_0": "M L^2 T^-2 Theta^-1",
+          "Q": "M L^2 T^-2",
+          "theta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-529196ccfdec",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-529196ccfdec",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-529196ccfdec.md",
+          "format": "markdown",
+          "content": "$$\nC*(M_1+M_2)=C_1*M_1+C_2*M_2\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "C": "L^2 T^-2 Theta^-1",
+          "C_1": "L^2 T^-2 Theta^-1",
+          "C_2": "L^2 T^-2 Theta^-1",
+          "M_1": "M",
+          "M_2": "M"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-c5b75ec7231e",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-c5b75ec7231e",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-c5b75ec7231e.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\np*(v-b)*v^2=R*theta*v^2-a*(v-b)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "p": "M L^-1 T^-2",
+          "R": "L^2 T^-2 Theta^-1",
+          "theta": "Theta",
+          "v": "M^-1 L^3",
+          "b": "M^-1 L^3",
+          "a": "M^-1 L^5 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-6d212b87b1ba",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-6d212b87b1ba",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-6d212b87b1ba.tex",
+          "format": "latex",
+          "content": "\\[\np*theta*(v-a)*(v+b)^2=R*theta^2*(v+b)^2-c*(v-a)\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "p": "M L^-1 T^-2",
+          "R": "L^2 T^-2 Theta^-1",
+          "theta": "Theta",
+          "v": "M^-1 L^3",
+          "a": "M^-1 L^3",
+          "b": "M^-1 L^3",
+          "c": "M^-1 L^5 T^-2 Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-94ffa269abce",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-94ffa269abce",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-94ffa269abce.md",
+          "format": "markdown",
+          "content": "$$\ndu=c_v*dTheta\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "du": "L^2 T^-2",
+          "c_v": "L^2 T^-2 Theta^-1",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-daf616be1910",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-daf616be1910",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-daf616be1910.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ndf_2/dTheta-df_1/dTheta=(v_1-v_2)*dp_1/dTheta+p_1*(dv_1/dTheta-dv_2/dTheta)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "df_1": "L^2 T^-2",
+          "df_2": "L^2 T^-2",
+          "v_1": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "dv_1": "M^-1 L^3",
+          "dv_2": "M^-1 L^3",
+          "dp_1": "M L^-1 T^-2",
+          "p_1": "M L^-1 T^-2",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-969b2159364a",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-969b2159364a",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-969b2159364a.tex",
+          "format": "latex",
+          "content": "\\[\nphi_1-phi_2=(v_1-v_2)*dp_1/dTheta\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "phi_1": "L^2 T^-2 Theta^-1",
+          "phi_2": "L^2 T^-2 Theta^-1",
+          "v_1": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "dp_1": "M L^-1 T^-2",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-03e000f6654b",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-03e000f6654b",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-03e000f6654b.md",
+          "format": "markdown",
+          "content": "$$\n(u_1-u_2)+p_1*(v_1-v_2)=theta*(v_1-v_2)*dp_1/dTheta\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "u_1": "L^2 T^-2",
+          "u_2": "L^2 T^-2",
+          "p_1": "M L^-1 T^-2",
+          "dp_1": "M L^-1 T^-2",
+          "v_1": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "theta": "Theta",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-14dc1d1fb72e",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-14dc1d1fb72e",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-14dc1d1fb72e.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nL=theta*(dp/dTheta)*(v_pp-v_p)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "L": "L^2 T^-2",
+          "theta": "Theta",
+          "dTheta": "Theta",
+          "dp": "M L^-1 T^-2",
+          "v_pp": "M^-1 L^3",
+          "v_p": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-c240af04554a",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-c240af04554a",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-c240af04554a.tex",
+          "format": "latex",
+          "content": "\\[\np_1*(v_1-v_2)/L=p_1/(theta*(dp_1/dTheta))\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "p_1": "M L^-1 T^-2",
+          "dp_1": "M L^-1 T^-2",
+          "v_1": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "L": "L^2 T^-2",
+          "theta": "Theta",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-4540035eaa7d",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-4540035eaa7d",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-4540035eaa7d.md",
+          "format": "markdown",
+          "content": "$$\nV=v_p*(M_1p+M_2p)+v_pp*M_1pp+v_ppp*M_2ppp\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "V": "L^3",
+          "v_p": "M^-1 L^3",
+          "v_pp": "M^-1 L^3",
+          "v_ppp": "M^-1 L^3",
+          "M_1p": "M",
+          "M_2p": "M",
+          "M_1pp": "M",
+          "M_2ppp": "M"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-8fe652c61061",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-8fe652c61061",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-8fe652c61061.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nL=theta*(dp/dTheta)*(v_pp+c*v_ppp-(1+c)*v_p)\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "L": "L^2 T^-2",
+          "theta": "Theta",
+          "dTheta": "Theta",
+          "dp": "M L^-1 T^-2",
+          "v_pp": "M^-1 L^3",
+          "v_ppp": "M^-1 L^3",
+          "v_p": "M^-1 L^3",
+          "c": "1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-10f2b97c8313",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-10f2b97c8313",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-10f2b97c8313.tex",
+          "format": "latex",
+          "content": "\\[\nL/theta=phi_1-phi_2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "L": "L^2 T^-2",
+          "theta": "Theta",
+          "phi_1": "L^2 T^-2 Theta^-1",
+          "phi_2": "L^2 T^-2 Theta^-1"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-5a6f4ec90fc0",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-5a6f4ec90fc0",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-5a6f4ec90fc0.md",
+          "format": "markdown",
+          "content": "$$\nc_p1-c_p2=dL/dTheta\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "c_p1": "L^2 T^-2 Theta^-1",
+          "c_p2": "L^2 T^-2 Theta^-1",
+          "dL": "L^2 T^-2",
+          "dTheta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-27d1b346276b",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-27d1b346276b",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-27d1b346276b.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nc=du/dTheta+p*dv/dTheta\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "c": "L^2 T^-2 Theta^-1",
+          "du": "L^2 T^-2",
+          "dTheta": "Theta",
+          "p": "M L^-1 T^-2",
+          "dv": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-ee1e469a97a2",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-ee1e469a97a2",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-ee1e469a97a2.tex",
+          "format": "latex",
+          "content": "\\[\nv_2p/v_2=v_1p/v_1\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "v_2p": "M^-1 L^3",
+          "v_2": "M^-1 L^3",
+          "v_1p": "M^-1 L^3",
+          "v_1": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-701735c0cd36",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-701735c0cd36",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-701735c0cd36.md",
+          "format": "markdown",
+          "content": "$$\nh_1=c_p2+dL/dTheta-L/theta\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "h_1": "L^2 T^-2 Theta^-1",
+          "c_p2": "L^2 T^-2 Theta^-1",
+          "dL": "L^2 T^-2",
+          "L": "L^2 T^-2",
+          "dTheta": "Theta",
+          "theta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-0bd100064dff",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-0bd100064dff",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-0bd100064dff.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ntheta-theta_0=c*theta^2*varphi/L\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "theta": "Theta",
+          "theta_0": "Theta",
+          "c": "1",
+          "varphi": "L^2 T^-2 Theta^-1",
+          "L": "L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-01423e0201db",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-01423e0201db",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-01423e0201db.tex",
+          "format": "latex",
+          "content": "\\[\nP=c*theta*varphi/v\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "P": "M L^-1 T^-2",
+          "c": "1",
+          "theta": "Theta",
+          "varphi": "L^2 T^-2 Theta^-1",
+          "v": "M^-1 L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-5b3e17f5dba3",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-5b3e17f5dba3",
+      "documents": [
+        {
+          "path": "thompson-calculus-5b3e17f5dba3.md",
+          "format": "markdown",
+          "content": "$$\nv=dy/dt\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "v": "L T^-1",
+          "dy": "L",
+          "dt": "T"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-04404005bc21",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-04404005bc21",
+      "documents": [
+        {
+          "path": "thompson-calculus-04404005bc21.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nx^2+y^2=l^2\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "x": "L",
+          "y": "L",
+          "l": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-79ec7d2af9e2",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-79ec7d2af9e2",
+      "documents": [
+        {
+          "path": "thompson-calculus-79ec7d2af9e2.tex",
+          "format": "latex",
+          "content": "\\[\nV=(1/3)*pi*r^2*h\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "V": "L^3",
+          "pi": "1",
+          "r": "L",
+          "h": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-53ccb9dfbef3",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "DIM002",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-53ccb9dfbef3",
+      "documents": [
+        {
+          "path": "thompson-calculus-53ccb9dfbef3.md",
+          "format": "markdown",
+          "content": "$$\ndV=(2*pi/3)*r*h*dV+(pi/3)*r^2*dh\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dV": "L^3",
+          "pi": "1",
+          "r": "L",
+          "h": "L",
+          "dh": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [
+        "DIM002"
+      ],
+      "expected_pass": false
+    },
+    {
+      "id": "thompson-calculus-5cc9a8b86e21",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-5cc9a8b86e21",
+      "documents": [
+        {
+          "path": "thompson-calculus-5cc9a8b86e21.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nS=x*y+2*V/x+2*V/y\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "S": "L^2",
+          "x": "L",
+          "y": "L",
+          "V": "L^3"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-f81c17612fb7",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-f81c17612fb7",
+      "documents": [
+        {
+          "path": "thompson-calculus-f81c17612fb7.tex",
+          "format": "latex",
+          "content": "\\[\ny^2=r^2-x^2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "y": "L",
+          "r": "L",
+          "x": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-972b7b334413",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-972b7b334413",
+      "documents": [
+        {
+          "path": "thompson-calculus-972b7b334413.md",
+          "format": "markdown",
+          "content": "$$\ndy/dx=u*(dv/dx)+v*(du/dx)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dy": "L^2",
+          "dx": "L",
+          "u": "L",
+          "v": "L",
+          "du": "L",
+          "dv": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-00742805093f",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-00742805093f",
+      "documents": [
+        {
+          "path": "thompson-calculus-00742805093f.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ndy=u*dv+v*du\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dy": "L^2",
+          "u": "L",
+          "v": "L",
+          "du": "L",
+          "dv": "L"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-ac0b77c564ba",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-ac0b77c564ba",
+      "documents": [
+        {
+          "path": "thompson-calculus-ac0b77c564ba.tex",
+          "format": "latex",
+          "content": "\\[\ny=b+(1/2)*a*t^2\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "y": "L",
+          "b": "L",
+          "a": "L T^-2",
+          "t": "T"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-768e03e2c4b1",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-768e03e2c4b1",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-768e03e2c4b1.md",
+          "format": "markdown",
+          "content": "$$\ndPhi_0=-(dU-W)/theta\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "dPhi_0": "M L^2 T^-2 Theta^-1",
+          "dU": "M L^2 T^-2",
+          "W": "M L^2 T^-2",
+          "theta": "Theta"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-0de5b452c9f5",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-0de5b452c9f5",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-0de5b452c9f5.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\nQ_2=Wp+Q_1p\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "Q_2": "M L^2 T^-2",
+          "Wp": "M L^2 T^-2",
+          "Q_1p": "M L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-a5fa2d8533f6",
+      "release": "v1.1.0",
+      "label": "negative",
+      "rule": "DIM001",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-a5fa2d8533f6",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-a5fa2d8533f6.tex",
+          "format": "latex",
+          "content": "\\[\nQ+W=dU\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {
+          "Q": "M L^2 T^-2",
+          "W": "M L^2 T^-2",
+          "dU": "M L^2 T^-2"
+        },
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": false
+      },
+      "expected_codes": [],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-8450a4bfe64e",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-8450a4bfe64e",
+      "documents": [
+        {
+          "path": "thompson-calculus-8450a4bfe64e.md",
+          "format": "markdown",
+          "content": "$$\n\\int u\\, dx = ux - \\int x\\, du + C\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-75f3dbb34ee1",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-75f3dbb34ee1",
+      "documents": [
+        {
+          "path": "thompson-calculus-75f3dbb34ee1.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ndy = \\frac{\\partial y}{\\partial u}\\, du + \\dfrac{\\partial y}{\\partial v}\\, dv\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-9f1d1909d114",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-9f1d1909d114",
+      "documents": [
+        {
+          "path": "thompson-calculus-9f1d1909d114.tex",
+          "format": "latex",
+          "content": "\\[\nz = x^y\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-3a02c1f501c1",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-3a02c1f501c1",
+      "documents": [
+        {
+          "path": "thompson-calculus-3a02c1f501c1.md",
+          "format": "markdown",
+          "content": "$$\n\\frac{dy}{dx} = \\frac{1}{1.73}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-713f14ee5e2e",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE021",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-713f14ee5e2e",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-713f14ee5e2e.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n\\log K = 0\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE021"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-121f8a5849ee",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-121f8a5849ee",
+      "documents": [
+        {
+          "path": "thompson-calculus-121f8a5849ee.tex",
+          "format": "latex",
+          "content": "\\[\n\\frac{dx}{dy} = \\epsilon^y\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-fcf0619fd27b",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-fcf0619fd27b",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-fcf0619fd27b.md",
+          "format": "markdown",
+          "content": "$$\nv = \\frac{c_{p}^{(0)} \\theta}{3p} \\left(\\sqrt[3]{1 - \\frac{3\\alpha p}{\\theta^{3}}} + \\beta\\right)\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-7ddcf7d688ed",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-7ddcf7d688ed",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-7ddcf7d688ed.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n423.55 × 1.007 = 427\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-7c6ec8406e52",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE021",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-7c6ec8406e52",
+      "documents": [
+        {
+          "path": "thompson-calculus-7c6ec8406e52.tex",
+          "format": "latex",
+          "content": "\\[\ny= \\sin \\theta\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE021"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-de630763755d",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-de630763755d",
+      "documents": [
+        {
+          "path": "thompson-calculus-de630763755d.md",
+          "format": "markdown",
+          "content": "$$\ny = \\sqrt{a+x}\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-4494c4ff821c",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "notebook",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-4494c4ff821c",
+      "documents": [
+        {
+          "path": "thompson-calculus-4494c4ff821c.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\ny = \\frac{1}{n + 1} x^{n+1} + C\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-6206efcc63da",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "latex",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-6206efcc63da",
+      "documents": [
+        {
+          "path": "thompson-calculus-6206efcc63da.tex",
+          "format": "latex",
+          "content": "\\[\nP = ±\\sqrt{\\dfrac{b}{a}} - c\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "thompson-calculus-699bc3932853",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "markdown",
+      "scientific_domain": "calculus",
+      "provenance": "https://www.gutenberg.org/files/33283/33283-t/33283-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "thompson-calculus-699bc3932853",
+      "documents": [
+        {
+          "path": "thompson-calculus-699bc3932853.md",
+          "format": "markdown",
+          "content": "$$\n\\dfrac{y}{x} = \\tan 30°\n$$\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-d43a1fd24828",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "notebook",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-d43a1fd24828",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-d43a1fd24828.ipynb",
+          "format": "notebook",
+          "content": {
+            "cells": [
+              {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": "$$\n28 : 14 : 9\\tfrac{1}{3} : 7 : 5\\tfrac{3}{5} = 60 : 30 : 20 : 15 : 12\n$$\n"
+              }
+            ],
+            "metadata": {},
+            "nbformat": 4,
+            "nbformat_minor": 5
+          }
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
+    },
+    {
+      "id": "planck-thermodynamics-3020cee46caf",
+      "release": "v1.1.0",
+      "label": "positive",
+      "rule": "PARSE020",
+      "source_format": "latex",
+      "scientific_domain": "thermodynamics",
+      "provenance": "https://www.gutenberg.org/files/50880/50880-t/50880-t.tex",
+      "license": "LicenseRef-Public-Domain-US",
+      "synthetic": false,
+      "independent_equation_id": "planck-thermodynamics-3020cee46caf",
+      "documents": [
+        {
+          "path": "planck-thermodynamics-3020cee46caf.tex",
+          "format": "latex",
+          "content": "\\[\nV' = (n_{0} + 1) v_{0} + n_{1} v_{1} + n_{2} v_{2} + \\dots\n\\]\n"
+        }
+      ],
+      "config": {
+        "dimension_variables": {},
+        "unknown_variables": "warn",
+        "profile": null,
+        "missing_label_strict": false,
+        "inline_math": false,
+        "symbols": false,
+        "algebra_enabled": true
+      },
+      "expected_codes": [
+        "PARSE020"
+      ],
+      "expected_pass": true
     }
   ]
 }

@@ -16,6 +16,9 @@ Release notes must use these sections:
 
 ### Added
 
+- Expand the accuracy corpus to 169 fixtures, including 102 source equations with
+  independently justified expectations and source provenance.
+  Enforce the 100-equation accuracy gate in ordinary PR CI as well as release checks.
 - MyST inline-math facts now retain their delimiter kind, source span, surrounding
   text role, and parse status, and `QueryHost.math.inline_math()` exposes the
   candidates and classified facts to downstream engines.
@@ -328,9 +331,9 @@ Release notes must use these sections:
 
 ### Known limitations
 
-- The checked-in accuracy corpus currently contains 2 independently labeled semantic
-  equations (one positive and one negative), so the stable release gate remains blocked
-  at 2/100 until 100 independently labeled semantic equations are available.
+- The accuracy corpus meets the 100-equation evidence threshold, but its source and
+  domain coverage is limited. Real-world precision/recall, a family-disjoint holdout
+  and the other stable-release gates remain to be established.
 
 ## v1.1.0 - 2026-06-15
 

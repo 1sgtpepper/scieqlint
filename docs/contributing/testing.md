@@ -55,14 +55,30 @@ that identity; literal Markdown ampersands and identifier boundaries do. Equival
 identities must reuse one ID, and repeated IDs must keep the same equation and label/rule
 metadata. Non-equation display math, multiple-equation wrappers, format wrappers, and
 synthetic fixtures cannot inflate the stable accuracy threshold.
-Keep expected diagnostics human-authored and execute cases through
-`scieqlint.api.check_documents`; do not derive expectations from the implementation
-under test. Profile-specific cases record the source provenance, conversion settings,
+Expected diagnostics require independent mathematical evidence or documented
+behavior. Execute cases through `scieqlint.api.check_documents`; do not derive
+expectations from the implementation under test. Profile-specific cases record the
+source provenance, conversion settings,
 output target, and project policy needed to reproduce their public behavior. Unknown,
-missing, and duplicate fields are errors. The checked-in corpus currently has 2
-independently labeled equations (one positive and one negative), so the stable gate
-remains blocked at 2/100. Canary comparisons and precision/recall release gates remain
-out of scope until the corpus is larger and baseline variance has been measured.
+missing, and duplicate fields are errors. The checked-in corpus contains 169
+fixtures: 102 source equations with independently justified expectations (39 positive
+and 63 negative) and 67 synthetic cases. The 100-equation accuracy gate runs in ordinary PR CI as
+well as release validation. Canary comparisons and precision/recall release gates
+remain out of scope until corpus diversity and baseline variance have been assessed.
+
+The [source review packet](https://github.com/1sgtpepper/scieqlint/blob/main/benchmarks/accuracy/source-review-v1.md)
+records original expressions, source hashes and locations, notation changes,
+assumptions, dimensional declarations and independent algebraic counterexamples
+for the 100 additional cases. Keep proposals without independent evidence outside
+the release corpus; passing CI alone does not establish correct expectations.
+Preserve source and family identities when adding cases, and update the count and
+review evidence together.
+
+An algebraic non-identity from a textbook exercise is not necessarily an error in
+that exercise. Dimensional homogeneity does not prove a physical law, and an
+unsupported-syntax diagnostic does not establish mathematical truth. The supplied
+Markdown and notebook wrappers exercise input formats; their equations originated
+in TeX and must not be presented as naturally occurring documents in those formats.
 
 ## Bounded property checks
 

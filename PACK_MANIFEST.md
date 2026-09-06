@@ -62,6 +62,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `SUPPORT.md`
 - `action.yml`
 - `benchmarks/accuracy/corpus-v1.json`
+- `benchmarks/accuracy/source-review-v1.md`
 - `docs/api.md`
 - `docs/architecture.md`
 - `docs/architecture/deterministic-snapshot-kernel-adr.md`
