@@ -16,6 +16,8 @@ Release notes must use these sections:
 
 ### Added
 
+- Manual release validation now runs the accuracy, generated-formula golden and
+  performance gates against both installed release artifacts.
 - Expand the accuracy corpus to 169 fixtures, including 102 source equations with
   independently justified expectations and source provenance.
   Enforce the 100-equation accuracy gate in ordinary PR CI as well as release checks.

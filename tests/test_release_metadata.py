@@ -154,6 +154,7 @@ def test_release_workflow_uses_tag_gated_trusted_publishing() -> None:
     }
     triggers = workflow["on"]
     assert isinstance(triggers, dict)
+    assert "workflow_dispatch" in triggers
     push = triggers["push"]
     assert isinstance(push, dict)
     assert push["tags"] == ["v*"]
@@ -218,7 +219,7 @@ def test_release_workflow_enforces_version_and_behavioral_evidence() -> None:
         smoke,
         name="Enforce stable-release behavioral evidence",
     )
-    assert release_gate["if"] == "github.event_name == 'push'"
+    assert "if" not in release_gate
     release_gate_run = _step_run(release_gate)
     wheel_dir = "/tmp/scieqlint-release-wheel-smoke"
     sdist_dir = "/tmp/scieqlint-release-sdist-smoke"

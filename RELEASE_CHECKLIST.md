@@ -26,6 +26,11 @@ Every release must include:
 
 ## Release sequence
 
+Before tagging, run `gh workflow run release.yml --ref main` for validation only.
+It checks clean wheel and source-distribution installs, version agreement,
+accuracy, generated-formula goldens, and the three-second performance budget.
+Publication requires a stable tag push and the protected environment approval.
+
 1. Scope lock: update release checks.
 2. Data contracts: update models, diagnostics, and schemas first.
 3. Core implementation: scanner/parser/checker/reporter changes in separate PRs.
