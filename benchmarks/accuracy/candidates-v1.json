@@ -1773,7 +1773,7 @@
         {
           "path": "planck-thermodynamics-827bba70f280.md",
           "format": "markdown",
-          "content": "$$\nQ_1p=(theta_1/(theta_2-theta_1))*Wp\n$$\n"
+          "content": "$$\nQ_1p*(theta_2-theta_1)=theta_1*Wp\n$$\n"
         }
       ],
       "config": {
@@ -2001,7 +2001,7 @@
         {
           "path": "planck-thermodynamics-529196ccfdec.md",
           "format": "markdown",
-          "content": "$$\nC=(C_1*M_1+C_2*M_2)/(M_1+M_2)\n$$\n"
+          "content": "$$\nC*(M_1+M_2)=C_1*M_1+C_2*M_2\n$$\n"
         }
       ],
       "config": {
@@ -2042,7 +2042,7 @@
               {
                 "cell_type": "markdown",
                 "metadata": {},
-                "source": "$$\np=R*theta/(v-b)-a/v^2\n$$\n"
+                "source": "$$\np*(v-b)*v^2=R*theta*v^2-a*(v-b)\n$$\n"
               }
             ],
             "metadata": {},
@@ -2085,7 +2085,7 @@
         {
           "path": "planck-thermodynamics-6d212b87b1ba.tex",
           "format": "latex",
-          "content": "\\[\np=R*theta/(v-a)-c/(theta*(v+b)^2)\n\\]\n"
+          "content": "\\[\np*theta*(v-a)*(v+b)^2=R*theta^2*(v+b)^2-c*(v-a)\n\\]\n"
         }
       ],
       "config": {

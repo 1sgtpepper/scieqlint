@@ -569,12 +569,12 @@ def test_accuracy_corpus_rejects_blank_evidence_metadata(
 
 
 @pytest.mark.parametrize(
-    "corpus_path",
+    "path",
     [CORPUS_PATH, Path("benchmarks/accuracy/candidates-v1.json")],
     ids=["approved", "candidates"],
 )
-def test_every_accuracy_case_runs_through_public_analysis(tmp_path: Path, corpus_path: Path) -> None:
-    for case in _load_corpus(corpus_path):
+def test_every_accuracy_case_runs_through_public_analysis(tmp_path: Path, path: Path) -> None:
+    for case in _load_corpus(path):
         result = _check_case(tmp_path, case)
         actual_codes = [diagnostic.code for diagnostic in result.diagnostics]
 

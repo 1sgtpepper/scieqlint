@@ -20,12 +20,12 @@ these wrappers do not claim naturally occurring Markdown or notebook coverage.
   contain different variable sets and the checker remains quiet.
 - Dimensional cases use the quantity meanings and declared dimensions below.
   Homogeneity does not prove a physical law, numerical coefficient, sign,
-  approximation, temperature origin or derivative. Algebra is disabled for
-  these cases so unsupported calculus is not silently counted as verified.
+  approximation, temperature origin or derivative. Algebra error reporting is
+  disabled for these cases; parser skip diagnostics remain active.
 - `PARSE020` and `PARSE021` assert a documented informational skip. The
   corresponding formulas receive no mathematical truth judgment.
 - Labels are proposed from exact arithmetic, dimensional exponent arithmetic
-  and the documented grammar before analyzer execution. They are not captured
+  and the documented grammar independently of analyzer execution. They are not captured
   analyzer output and have not been approved by a human reviewer.
 
 The frozen collection contains 500 structurally distinct expressions, not 500
@@ -56,6 +56,10 @@ is shown separately. Scalar transcriptions make multiplication explicit, replace
 fraction layout by `/`, flatten static subscripts, spell Greek symbols in ASCII
 and preserve prime-indexed quantities with `p`/`pp`/`ppp` suffixes. `dX` names a
 differential quantity with X's dimensions; it does not add calculus support.
+Four dimensional cases clear sums in denominators to stay inside the current
+scalar grammar. Their original nonzero-domain restrictions and exact
+equivalence certificates are retained below. These test the rearranged
+expressions, not support for the original denominator syntax.
 Tag macros, trailing sentence punctuation and line wrapping are presentation
 only. Unsupported cases preserve the substantive notation that causes a skip.
 Review the transcription and its assumptions as well as the proposed codes.
@@ -645,12 +649,13 @@ Source lines 1208–1209; family `gas-temperature-scale`; human review **pending
 Source lines 5494–5495; family `carnot-heat-work`; human review **pending**.
 
 - Original: `Q_{1}' = \frac{\theta_{1}}{\theta_{2} - \theta_{1}} W'`
-- Test: `Q_1p=(theta_1/(theta_2-theta_1))*Wp`
+- Test: `Q_1p*(theta_2-theta_1)=theta_1*Wp`
 - Proposed codes: `[]`; exit status: `0`.
-- Meaning: Prime symbols become suffix p, preserving distinct quantities; the temperature difference is nonzero.
-- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness.
+- Meaning: Prime symbols become suffix p. Multiply both sides by the nonzero temperature difference; retain that source-domain restriction.
+- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness. The original denominator product theta_2-theta_1 must remain nonzero.
+- Rearrangement: multiply original scalar relation `Q_1p=(theta_1/(theta_2-theta_1))*Wp` by nonzero `theta_2-theta_1`. Exact residual `(old_left-old_right)*multiplier-(new_left-new_right)` is `0`.
 - Dimensions: `Q_1p: M L^2 T^-2`; `Wp: M L^2 T^-2`; `theta_1: Theta`; `theta_2: Theta`.
-- Both sides have exponent vector `[1, 2, -2, 0]`; all additions/subtractions combine matching vectors.
+- Both sides have exponent vector `[1, 2, -2, 1]`; all additions/subtractions combine matching vectors.
 
 ### planck-thermodynamics-2d719e31387e
 
@@ -717,36 +722,39 @@ Source lines 5633–5634; family `reservoir-entropy`; human review **pending**.
 Source lines 1481–1482; family `mixture-gas-constant`; human review **pending**.
 
 - Original: `C = \frac{C_{1}M_{1} + C_{2}M_{2}}{M_{1} + M_{2}},`
-- Test: `C=(C_1*M_1+C_2*M_2)/(M_1+M_2)`
+- Test: `C*(M_1+M_2)=C_1*M_1+C_2*M_2`
 - Proposed codes: `[]`; exit status: `0`.
-- Meaning: C quantities are specific gas constants; this is their mass-weighted mixture value (section 20).
-- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness.
+- Meaning: C quantities are specific gas constants (section 20). Multiply the original relation by nonzero total mass.
+- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness. The original denominator product M_1+M_2 must remain nonzero.
+- Rearrangement: multiply original scalar relation `C=(C_1*M_1+C_2*M_2)/(M_1+M_2)` by nonzero `M_1+M_2`. Exact residual `(old_left-old_right)*multiplier-(new_left-new_right)` is `0`.
 - Dimensions: `C: L^2 T^-2 Theta^-1`; `C_1: L^2 T^-2 Theta^-1`; `C_2: L^2 T^-2 Theta^-1`; `M_1: M`; `M_2: M`.
-- Both sides have exponent vector `[0, 2, -2, -1]`; all additions/subtractions combine matching vectors.
+- Both sides have exponent vector `[1, 2, -2, -1]`; all additions/subtractions combine matching vectors.
 
 ### planck-thermodynamics-c5b75ec7231e
 
 Source lines 1553–1554; family `van-der-waals`; human review **pending**.
 
 - Original: `p = \frac{R\theta}{v - b} - \frac{a}{v^{2}},`
-- Test: `p=R*theta/(v-b)-a/v^2`
+- Test: `p*(v-b)*v^2=R*theta*v^2-a*(v-b)`
 - Proposed codes: `[]`; exit status: `0`.
-- Meaning: Here R is substance-specific, unlike the later universal constant; b is specific volume and a has pressure times specific-volume-squared units (section 24).
-- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness.
+- Meaning: R is substance-specific; b is specific volume and a has pressure times specific-volume-squared units (section 24). Multiply by (v-b)*v^2, retaining v!=0 and v!=b.
+- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness. The original denominator product (v-b)*v^2 must remain nonzero.
+- Rearrangement: multiply original scalar relation `p=R*theta/(v-b)-a/v^2` by nonzero `(v-b)*v^2`. Exact residual `(old_left-old_right)*multiplier-(new_left-new_right)` is `0`.
 - Dimensions: `p: M L^-1 T^-2`; `R: L^2 T^-2 Theta^-1`; `theta: Theta`; `v: M^-1 L^3`; `b: M^-1 L^3`; `a: M^-1 L^5 T^-2`.
-- Both sides have exponent vector `[1, -1, -2, 0]`; all additions/subtractions combine matching vectors.
+- Both sides have exponent vector `[-2, 8, -2, 0]`; all additions/subtractions combine matching vectors.
 
 ### planck-thermodynamics-6d212b87b1ba
 
 Source lines 1584–1586; family `clausius-equation`; human review **pending**.
 
 - Original: `p = \frac{R\theta}{v - a} - \frac{c}{\theta(v + b)^{2}}. \Tag{(12)}`
-- Test: `p=R*theta/(v-a)-c/(theta*(v+b)^2)`
+- Test: `p*theta*(v-a)*(v+b)^2=R*theta^2*(v+b)^2-c*(v-a)`
 - Proposed codes: `[]`; exit status: `0`.
-- Meaning: Section 25's a and b are specific volumes; c carries pressure times temperature times specific-volume-squared units.
-- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness.
+- Meaning: Section 25's a,b are specific volumes and c has pressure times temperature times specific-volume-squared units. Multiply by theta*(v-a)*(v+b)^2, retaining every original nonzero denominator.
+- Assumptions: Declared quantity meanings; all denominators nonzero. Dimensional homogeneity is necessary, not sufficient, for physical correctness. The original denominator product theta*(v-a)*(v+b)^2 must remain nonzero.
+- Rearrangement: multiply original scalar relation `p=R*theta/(v-a)-c/(theta*(v+b)^2)` by nonzero `theta*(v-a)*(v+b)^2`. Exact residual `(old_left-old_right)*multiplier-(new_left-new_right)` is `0`.
 - Dimensions: `p: M L^-1 T^-2`; `R: L^2 T^-2 Theta^-1`; `theta: Theta`; `v: M^-1 L^3`; `a: M^-1 L^3`; `b: M^-1 L^3`; `c: M^-1 L^5 T^-2 Theta`.
-- Both sides have exponent vector `[1, -1, -2, 0]`; all additions/subtractions combine matching vectors.
+- Both sides have exponent vector `[-2, 8, -2, 1]`; all additions/subtractions combine matching vectors.
 
 ### planck-thermodynamics-94ffa269abce
 
