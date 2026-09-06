@@ -209,7 +209,6 @@ jobs:
             test "${GITHUB_REF_NAME#v}" = "$source_version"
           fi
       - name: Enforce stable-release behavioral evidence
-        if: github.event_name == 'push'
         run: |
           cd "$SCIEQLINT_RELEASE_SOURCE"
           PIP_CONSTRAINT="$SCIEQLINT_RELEASE_CONSTRAINTS" \
