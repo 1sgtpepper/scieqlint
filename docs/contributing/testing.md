@@ -64,6 +64,22 @@ independently labeled equations (one positive and one negative), so the stable g
 remains blocked at 2/100. Canary comparisons and precision/recall release gates remain
 out of scope until the corpus is larger and baseline variance has been measured.
 
+`benchmarks/accuracy/candidates-v1.json` contains 100 additional source-backed
+cases with proposed expectations. The same strict loader and public-path test
+execute them in PR CI, but the release gate reads only `corpus-v1.json`.
+The [candidate review packet](https://github.com/1sgtpepper/scieqlint/blob/main/benchmarks/accuracy/candidates-v1-review.md)
+records original expressions, source hashes and locations, notation changes,
+assumptions, dimensional declarations and independent algebraic counterexamples.
+These cases remain pending human review; passing CI does not approve their labels.
+Promote reviewed cases into the approved corpus and remove the corresponding
+candidates together, preserving equation identities and updating the release count.
+
+An algebraic non-identity from a textbook exercise is not necessarily an error in
+that exercise. Dimensional homogeneity does not prove a physical law, and an
+unsupported-syntax diagnostic does not establish mathematical truth. The supplied
+Markdown and notebook wrappers exercise input formats; their equations originated
+in TeX and must not be presented as naturally occurring documents in those formats.
+
 ## Bounded property checks
 
 The pull-request suite includes at most three deterministic Hypothesis properties for

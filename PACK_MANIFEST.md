@@ -61,6 +61,8 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `SPEC.md`
 - `SUPPORT.md`
 - `action.yml`
+- `benchmarks/accuracy/candidates-v1-review.md`
+- `benchmarks/accuracy/candidates-v1.json`
 - `benchmarks/accuracy/corpus-v1.json`
 - `docs/api.md`
 - `docs/architecture.md`

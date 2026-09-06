@@ -16,6 +16,9 @@ Release notes must use these sections:
 
 ### Added
 
+- Add 100 source-backed accuracy candidates with independent expectation notes
+  and public-path CI coverage. They remain separate from approved release evidence
+  while human review is pending.
 - MyST inline-math facts now retain their delimiter kind, source span, surrounding
   text role, and parse status, and `QueryHost.math.inline_math()` exposes the
   candidates and classified facts to downstream engines.
