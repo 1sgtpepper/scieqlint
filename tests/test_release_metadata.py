@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import subprocess
@@ -100,19 +101,20 @@ def test_implementation_status_uses_the_current_release_version() -> None:
 
 
 def test_release_readiness_documents_agree_on_independent_evidence_count() -> None:
-    contract_readiness = Path("docs/releases/v1.0.0-contract-readiness.md").read_text(
-        encoding="utf-8"
-    )
-    stabilization = Path("docs/releases/v1.0.0-stabilization-checklist.md").read_text(
-        encoding="utf-8"
-    )
-
-    match = re.search(
-        r"independent-evidence\s+gate is currently closed at (\d+)/100",
-        contract_readiness,
-    )
-    assert match is not None
-    assert f"blocked at {match.group(1)}/100" in stabilization
+    corpus = json.loads(Path("benchmarks/accuracy/corpus-v1.json").read_text(encoding="utf-8"))
+    equation_ids = {
+        case["independent_equation_id"] for case in corpus["cases"] if not case["synthetic"]
+    }
+    for path in (
+        Path("docs/releases/v1.0.0-contract-readiness.md"),
+        Path("docs/releases/v1.0.0-stabilization-checklist.md"),
+    ):
+        match = re.search(
+            r"corpus (?:provides|contains) (\d+) source equations",
+            path.read_text(encoding="utf-8"),
+        )
+        assert match is not None, path
+        assert int(match.group(1)) == len(equation_ids), path
 
 
 def test_current_release_remains_pre_alpha() -> None:
