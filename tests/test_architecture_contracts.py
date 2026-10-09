@@ -40,6 +40,7 @@ from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.ir.model import DocumentIR, FrontendResult
 from scieqlint.query.host import QueryHost
+from scieqlint.report.json import JsonReporter
 from scieqlint.schema.result import AnalysisResult
 from scieqlint.source.maps import SourceMap
 
@@ -179,6 +180,31 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     )
     assert shuffled_kernel_output == kernel_output
     assert shuffled_compatibility_output == compatibility_output
+    rendered = JsonReporter().render(compatibility_result).encode("utf-8")
+    payload = json.loads(rendered)
+    assert [diagnostic["code"] for diagnostic in payload["diagnostics"]] == [
+        "STR003",
+        "STR001",
+        "REF004",
+    ]
+    assert payload["summary"] == {
+        "files_checked": 3,
+        "math_blocks_checked": 0,
+        "errors": 0,
+        "warnings": 2,
+        "info": 1,
+    }
+    assert JsonReporter().render(shuffled_compatibility_result).encode("utf-8") == rendered
+    repeated_result = compatibility_check_documents(documents, config=Config())
+    assert JsonReporter().render(repeated_result).encode("utf-8") == rendered
+    clean_result = compatibility_check_documents((clean,), config=Config())
+    assert JsonReporter().render(clean_result).encode("utf-8") != rendered
+    assert (
+        compatibility_result.exit_code()
+        == shuffled_compatibility_result.exit_code()
+        == repeated_result.exit_code()
+        == 0
+    )
     assert not any(
         diagnostic.span and diagnostic.span.path.as_posix() == "clean.md"
         for diagnostic in compatibility_result.diagnostics
