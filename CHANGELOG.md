@@ -16,6 +16,8 @@ Release notes must use these sections:
 
 ### Added
 
+- Installed release-artifact checks now exercise generated-MyST preset initialization,
+  clean and failing CLI analysis, and both packaged JSON result schema versions.
 - Manual release validation now runs the accuracy, generated-formula golden and
   performance gates against both installed release artifacts.
 - Expand the accuracy corpus to 169 fixtures, including 102 source equations with

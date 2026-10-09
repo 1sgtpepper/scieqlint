@@ -19,6 +19,8 @@ Every release must include:
 - exactly one wheel and one source distribution, with no extra distribution files,
 - the generated-formula quality corpus and exact text/JSON goldens executed against
   both installed release artifacts,
+- generated-MyST preset initialization, clean and failing CLI checks, and packaged
+  JSON schema validation against both installed release artifacts,
 - at least 100 independently labeled semantic equations executed through the public
   analysis path with their expected diagnostics and exit status,
 - the 100-document/500-equation/500-reference representative workload completing within three seconds,
