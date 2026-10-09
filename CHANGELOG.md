@@ -16,6 +16,8 @@ Release notes must use these sections:
 
 ### Added
 
+- Document the v1.2.0 product release criteria, current and planned owners, and
+  exact safety, compatibility and installed-artifact acceptance checks.
 - Installed release-artifact checks now exercise generated-MyST preset initialization,
   clean and failing CLI analysis, and both packaged JSON result schema versions.
 - Manual release validation now runs the accuracy, generated-formula golden and
