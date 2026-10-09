@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import http.client
+import importlib
+import json
+import os
 import socket
+import subprocess
+import sys
 import urllib.request
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+from types import ModuleType
 from typing import NoReturn
 
 import pytest
@@ -12,6 +18,7 @@ from scieqlint.api import check_documents, check_paths
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.markdown import MarkdownScanner
+from scieqlint.scan.notebook import NotebookScanner
 
 
 class UnexpectedNetworkCallError(AssertionError):
@@ -38,6 +45,51 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(http.client.HTTPConnection, "connect", _deny_network)
     monkeypatch.setattr(http.client.HTTPSConnection, "connect", _deny_network)
     monkeypatch.setattr(urllib.request, "urlopen", _deny_network)
+
+
+class UnexpectedExecutionError(AssertionError):
+    """Raised when static analysis attempts execution instead of inspecting data."""
+
+
+def _deny_execution(*_args: object, **_kwargs: object) -> NoReturn:
+    raise UnexpectedExecutionError("analysis core attempted execution")
+
+
+@pytest.fixture
+def no_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Trap known process/shell entry points and selected notebook-kernel imports."""
+
+    for name in ("Popen", "run", "call", "check_call", "check_output"):
+        monkeypatch.setattr(subprocess, name, _deny_execution)
+    for name in ("system", "popen"):
+        monkeypatch.setattr(os, name, _deny_execution)
+
+    kernel_modules = ("nbclient", "jupyter_client", "ipykernel")
+
+    class KernelImportGuard:
+        def find_spec(self, fullname, path=None, target=None) -> None:
+            if fullname.partition(".")[0] in kernel_modules:
+                _deny_execution()
+
+    for name in tuple(sys.modules):
+        if name.partition(".")[0] in kernel_modules:
+            monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(sys, "meta_path", [KernelImportGuard(), *sys.meta_path])
+
+
+@pytest.fixture
+def hostile_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    name = "scieqlint_hostile_project"
+    (tmp_path / f"{name}.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(tmp_path / 'project-imported')!r}).write_text('imported', encoding='utf-8')\n"
+        'raise AssertionError("analysis core imported a user project module")\n',
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delitem(sys.modules, name, raising=False)
+    return name
 
 
 def _document(path: str, text: str, kind: DocumentKind) -> SourceDocument:
@@ -133,6 +185,109 @@ def test_public_analysis_path_ignores_fenced_math_content(
     assert active_result.math_blocks_checked == 2
 
 
+def test_public_notebook_analysis_keeps_code_and_recorded_outputs_inert(
+    tmp_path: Path,
+    hostile_project: str,
+    no_execution: None,
+    no_network: None,
+) -> None:
+    sentinel = tmp_path / "notebook-executed"
+    equation = "(a+b)^2 = a^2 + b^2"
+    input_path = tmp_path / "hostile.ipynb"
+    input_path.write_text(
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "cell_type": "code",
+                        "execution_count": 7,
+                        "metadata": {"tags": ["raises-exception"]},
+                        "source": [
+                            "from pathlib import Path\n",
+                            "Path('notebook-executed').write_text('executed')\n",
+                            f"import {hostile_project}\n",
+                            "import subprocess\n",
+                            "subprocess.run(['python', '-c', 'pass'])\n",
+                            "import os\n",
+                            "os.system('true')\n",
+                            "import socket\n",
+                            "socket.create_connection(('example.invalid', 443))\n",
+                        ],
+                        "outputs": [
+                            {"output_type": "stream", "name": "stdout", "text": "$$x=x+1$$"}
+                        ],
+                    },
+                    {
+                        "cell_type": "markdown",
+                        "metadata": {},
+                        "source": ["$$\n", equation + "\n", "$$\n"],
+                    },
+                ],
+                "metadata": {"kernelspec": {"name": "python3", "display_name": "Python 3"}},
+                "nbformat": 4,
+                "nbformat_minor": 5,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    result = check_paths((input_path,), absolute_paths=True)
+
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 1
+    [diagnostic] = result.diagnostics
+    assert (diagnostic.code, diagnostic.severity.value, diagnostic.message, diagnostic.rule) == (
+        "ALG001",
+        "error",
+        "algebraic identity does not hold",
+        "algebra",
+    )
+    assert diagnostic.equation == equation
+    assert diagnostic.detail == "left - right = 2*a*b"
+    assert diagnostic.span is not None
+    assert diagnostic.span.path == PurePosixPath(input_path.as_posix())
+    assert (diagnostic.span.cell, diagnostic.span.cell_line) == (1, 2)
+    assert not sentinel.exists()
+    assert not (tmp_path / "project-imported").exists()
+    assert hostile_project not in sys.modules
+
+
+def test_public_markdown_analysis_does_not_import_project_code(
+    tmp_path: Path,
+    hostile_project: str,
+) -> None:
+    input_path = tmp_path / "hostile.md"
+    input_path.write_text(
+        f"```python\nimport {hostile_project}\n```\n\n$$\n(a+b)^2 = a^2 + b^2\n$$\n",
+        encoding="utf-8",
+    )
+
+    result = check_paths((input_path,), absolute_paths=True)
+
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == 1
+    [diagnostic] = result.diagnostics
+    assert (diagnostic.code, diagnostic.severity.value, diagnostic.message, diagnostic.rule) == (
+        "ALG001",
+        "error",
+        "algebraic identity does not hold",
+        "algebra",
+    )
+    assert diagnostic.equation == "(a+b)^2 = a^2 + b^2"
+    assert diagnostic.detail == "left - right = 2*a*b"
+    assert diagnostic.span is not None
+    assert (diagnostic.span.path, diagnostic.span.line, diagnostic.span.col) == (
+        PurePosixPath(input_path.as_posix()),
+        6,
+        1,
+    )
+    assert hostile_project not in sys.modules
+    assert not (tmp_path / "project-imported").exists()
+
+
 @pytest.mark.parametrize(
     ("digits", "expected_dimension_codes"),
     [(512, ()), (513, ("DIM020", "DIM020"))],
@@ -226,3 +381,94 @@ def test_no_network_guard_has_a_meaningful_negative_control(
             (_document("negative.md", "Inline math: $x = y$.", DocumentKind.MARKDOWN),),
             config=Config(scanner=ScannerConfig(inline_math=True)),
         )
+
+
+@pytest.mark.parametrize(
+    ("module", "entrypoint"),
+    [
+        (subprocess, "Popen"),
+        (subprocess, "run"),
+        (subprocess, "call"),
+        (subprocess, "check_call"),
+        (subprocess, "check_output"),
+        (os, "system"),
+        (os, "popen"),
+    ],
+    ids=["Popen", "run", "call", "check_call", "check_output", "system", "popen"],
+)
+def test_execution_guards_have_meaningful_negative_controls(
+    module,
+    entrypoint: str,
+    no_execution: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_scan = NotebookScanner.scan
+
+    def scan_then_execute(scanner, document, config, **kwargs):
+        result = original_scan(scanner, document, config, **kwargs)
+        getattr(module, entrypoint)("true")
+        return result
+
+    monkeypatch.setattr(NotebookScanner, "scan", scan_then_execute)
+
+    with pytest.raises(UnexpectedExecutionError, match="analysis core attempted execution"):
+        check_documents(
+            (_document("negative.ipynb", '{"cells": [], "nbformat": 4}', DocumentKind.NOTEBOOK),),
+            config=Config(),
+        )
+
+
+@pytest.mark.parametrize(
+    "kernel_module",
+    [
+        "nbclient",
+        "nbclient.client",
+        "jupyter_client",
+        "jupyter_client.manager",
+        "ipykernel",
+        "ipykernel.kernelapp",
+    ],
+)
+def test_kernel_import_guard_has_meaningful_cached_negative_controls(
+    kernel_module: str,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    monkeypatch.setitem(sys.modules, kernel_module, ModuleType(kernel_module))
+    request.getfixturevalue("no_execution")
+    original_scan = NotebookScanner.scan
+
+    def scan_then_import_kernel(scanner, document, config, **kwargs):
+        result = original_scan(scanner, document, config, **kwargs)
+        importlib.import_module(kernel_module)
+        return result
+
+    monkeypatch.setattr(NotebookScanner, "scan", scan_then_import_kernel)
+
+    with pytest.raises(UnexpectedExecutionError, match="analysis core attempted execution"):
+        check_documents(
+            (_document("negative.ipynb", '{"cells": [], "nbformat": 4}', DocumentKind.NOTEBOOK),),
+            config=Config(),
+        )
+
+
+def test_project_import_guard_has_a_meaningful_negative_control(
+    tmp_path: Path,
+    hostile_project: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_scan = MarkdownScanner.scan
+
+    def scan_then_import_project(scanner, document, config):
+        result = original_scan(scanner, document, config)
+        importlib.import_module(hostile_project)
+        return result
+
+    monkeypatch.setattr(MarkdownScanner, "scan", scan_then_import_project)
+
+    with pytest.raises(AssertionError, match="analysis core imported a user project module"):
+        check_documents(
+            (_document("negative.md", "$$\nx = x\n$$\n", DocumentKind.MARKDOWN),),
+            config=Config(),
+        )
+    assert (tmp_path / "project-imported").read_text(encoding="utf-8") == "imported"
