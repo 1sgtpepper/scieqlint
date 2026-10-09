@@ -2216,6 +2216,9 @@ uv run scieqlint check "examples/good/**/*.md" --format text
 
 ### Release step package template
 
+Coordinate the version and integration-pin merge with publication according to
+the [release checklist](RELEASE_CHECKLIST.md#release-sequence).
+
 Every release follows this sequence:
 
 1. Scope lock: update release checklist.
@@ -2225,8 +2228,9 @@ Every release follows this sequence:
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
 6. Package CI: build wheel and source distribution, run the source-distribution test
    suite from an extracted tree, and install the wheel in a clean venv for CLI smoke.
-7. Release candidate: use a documented prerelease tag such as `v1.2.0rc1` or a
-   prerelease branch; the stable release workflow does not consume prerelease tags.
+7. Release candidate: validate a candidate branch with
+   `gh workflow run release.yml --ref <candidate-branch>`. Manual runs check artifacts
+   without publishing; prerelease tag pushes are rejected by the stable workflow.
 8. Stable tag: push a stable semver tag; the release workflow installs the wheel and
    source distribution in separate clean venvs, runs CLI smoke for each, verifies source,
    wheel, source-distribution, and tag versions, and then runs the fail-closed release gates.

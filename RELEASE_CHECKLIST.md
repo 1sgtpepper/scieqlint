@@ -86,6 +86,14 @@ accuracy, generated-formula goldens, generated-MyST initialization/check/report
 and packaged schemas, and the three-second performance budget.
 Publication requires a stable tag push and the protected environment approval.
 
+Merge the version and integration-pin update only in a coordinated release
+window, with the PyPI publisher configured and an environment approver available.
+Complete protected-`main` CI, manual Release validation, stable tagging and
+approved publication in that window. Until publication completes, `main` and the
+new integration examples may reference an unavailable package or tag. Keep the
+release pins in the immutable tagged commit so its Action installs the matching
+package.
+
 1. Scope lock: update release checks.
 2. Data contracts: update models, diagnostics, and schemas first.
 3. Core implementation: scanner/parser/checker/reporter changes in separate PRs.
@@ -93,8 +101,9 @@ Publication requires a stable tag push and the protected environment approval.
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
 6. Package CI: build wheel and source distribution, run the source-distribution test suite
    from an extracted tree, and install the wheel in a clean venv for CLI smoke.
-7. Release candidate: use a documented prerelease tag such as `v1.2.0rc1` or a prerelease
-   branch; the stable release workflow does not consume prerelease tags.
+7. Release candidate: validate a candidate branch with
+   `gh workflow run release.yml --ref <candidate-branch>`. Manual runs check artifacts
+   without publishing; prerelease tag pushes are rejected by the stable workflow.
 8. Stable tag: after all changes are merged to protected `main`, create an immutable stable
    semver tag at that exact commit. The release workflow rechecks that relationship before
    publication, installs the wheel and source distribution in separate clean venvs, and
