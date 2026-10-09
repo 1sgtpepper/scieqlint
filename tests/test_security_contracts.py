@@ -9,6 +9,7 @@ import subprocess
 import sys
 import urllib.request
 from pathlib import Path, PurePosixPath
+from types import ModuleType
 from typing import NoReturn
 
 import pytest
@@ -56,6 +57,8 @@ def _deny_execution(*_args: object, **_kwargs: object) -> NoReturn:
 
 @pytest.fixture
 def no_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Trap known process/shell entry points and selected notebook-kernel imports."""
+
     for name in ("Popen", "run", "call", "check_call", "check_output"):
         monkeypatch.setattr(subprocess, name, _deny_execution)
     for name in ("system", "popen"):
@@ -68,8 +71,9 @@ def no_execution(monkeypatch: pytest.MonkeyPatch) -> None:
             if fullname.partition(".")[0] in kernel_modules:
                 _deny_execution()
 
-    for name in kernel_modules:
-        monkeypatch.delitem(sys.modules, name, raising=False)
+    for name in tuple(sys.modules):
+        if name.partition(".")[0] in kernel_modules:
+            monkeypatch.delitem(sys.modules, name)
     monkeypatch.setattr(sys, "meta_path", [KernelImportGuard(), *sys.meta_path])
 
 
@@ -82,6 +86,7 @@ def hostile_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     monkeypatch.chdir(tmp_path)
+    monkeypatch.delitem(sys.modules, name, raising=False)
     return name
 
 
@@ -244,8 +249,6 @@ def test_public_notebook_analysis_keeps_code_and_recorded_outputs_inert(
 def test_public_markdown_analysis_does_not_import_project_code(
     tmp_path: Path,
     hostile_project: str,
-    no_execution: None,
-    no_network: None,
 ) -> None:
     input_path = tmp_path / "hostile.md"
     input_path.write_text(
@@ -399,12 +402,24 @@ def test_execution_guards_reject_attempts_from_notebook_analysis(
         )
 
 
-@pytest.mark.parametrize("kernel_module", ["nbclient", "jupyter_client", "ipykernel"])
+@pytest.mark.parametrize(
+    "kernel_module",
+    [
+        "nbclient",
+        "nbclient.client",
+        "jupyter_client",
+        "jupyter_client.manager",
+        "ipykernel",
+        "ipykernel.kernelapp",
+    ],
+)
 def test_kernel_import_guard_rejects_attempts_from_notebook_analysis(
     kernel_module: str,
-    no_execution: None,
     monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
 ) -> None:
+    monkeypatch.setitem(sys.modules, kernel_module, ModuleType(kernel_module))
+    request.getfixturevalue("no_execution")
     original_scan = NotebookScanner.scan
 
     def scan_then_import_kernel(scanner, document, config, **kwargs):
