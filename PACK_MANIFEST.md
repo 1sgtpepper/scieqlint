@@ -1,14 +1,14 @@
 # Pack Manifest
 
-This repository contains the SciEqLint v1.1.0 implementation handoff, public
+This repository contains the SciEqLint v1.2.0 implementation handoff, public
 docs, examples, tests, schemas, CI templates, and release checks.
 
 ## Important distinction
 
 - SPEC.md defines the core implementation and release contracts.
-- src/scieqlint/ implements the v1.1.0 analyzer and graph/API surfaces.
-- `docs/releases/v1.1.0-checklist.md` records the v1.1.0 scope and acceptance
-  checks.
+- src/scieqlint/ implements the v1.2.0 analyzer and graph/API surfaces.
+- `RELEASE_CHECKLIST.md` records the v1.2.0 product scope and acceptance checks;
+  `docs/releases/v1.1.0-checklist.md` retains the earlier release scope.
 - The release checklist and v1.0.0 stabilization checklist record the
   fail-closed stable-release evidence gates.
 

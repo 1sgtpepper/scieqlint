@@ -84,6 +84,8 @@ Release notes must use these sections:
 
 ### Changed
 
+- Prepare v1.2.0 with Beta package maturity and synchronized current integration
+  pins and report version metadata.
 - The generated-document workflow now uses the packaged `generated-myst` preset
   on the CLI path. Provenance-backed checks remain an explicit `[profile]` policy
   for already-loaded documents with caller-supplied `SourceOrigin` metadata.

@@ -93,7 +93,7 @@ Publication requires a stable tag push and the protected environment approval.
 5. Docs: update quickstart, limitations, diagnostics, and integration pages.
 6. Package CI: build wheel and source distribution, run the source-distribution test suite
    from an extracted tree, and install the wheel in a clean venv for CLI smoke.
-7. Release candidate: use a documented prerelease tag such as `v1.1.0rc1` or a prerelease
+7. Release candidate: use a documented prerelease tag such as `v1.2.0rc1` or a prerelease
    branch; the stable release workflow does not consume prerelease tags.
 8. Stable tag: after all changes are merged to protected `main`, create an immutable stable
    semver tag at that exact commit. The release workflow rechecks that relationship before

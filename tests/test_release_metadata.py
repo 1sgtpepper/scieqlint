@@ -82,9 +82,9 @@ def test_release_version_metadata_is_consistent() -> None:
     init_tree = ast.parse(Path("src/scieqlint/__init__.py").read_text(encoding="utf-8"))
     citation = Path("CITATION.cff").read_text(encoding="utf-8")
 
-    assert project["version"] == "1.1.0"
+    assert project["version"] == "1.2.0"
     assert _assigned_string(init_tree, "__version__") == project["version"]
-    assert f"version: {project['version']}" in citation
+    assert yaml.safe_load(citation)["version"] == project["version"]
 
 
 def test_implementation_status_uses_the_current_release_version() -> None:
@@ -117,11 +117,14 @@ def test_release_readiness_documents_agree_on_independent_evidence_count() -> No
         assert int(match.group(1)) == len(equation_ids), path
 
 
-def test_current_release_remains_pre_alpha() -> None:
+def test_current_release_declares_beta_maturity() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
 
-    assert "Development Status :: 2 - Pre-Alpha" in project["classifiers"]
-    assert not any("Production/Stable" in classifier for classifier in project["classifiers"])
+    assert [
+        classifier
+        for classifier in project["classifiers"]
+        if classifier.startswith("Development Status ::")
+    ] == ["Development Status :: 4 - Beta"]
 
 
 def test_documentation_url_points_to_current_repository_docs() -> None:
