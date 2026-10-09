@@ -81,6 +81,8 @@ def no_execution(monkeypatch: pytest.MonkeyPatch) -> None:
 def hostile_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     name = "scieqlint_hostile_project"
     (tmp_path / f"{name}.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(tmp_path / 'project-imported')!r}).write_text('imported', encoding='utf-8')\n"
         'raise AssertionError("analysis core imported a user project module")\n',
         encoding="utf-8",
     )
@@ -236,13 +238,19 @@ def test_public_notebook_analysis_keeps_code_and_recorded_outputs_inert(
     assert result.math_blocks_checked == 1
     assert result.exit_code() == 1
     [diagnostic] = result.diagnostics
-    assert diagnostic.code == "ALG001"
+    assert (diagnostic.code, diagnostic.severity.value, diagnostic.message, diagnostic.rule) == (
+        "ALG001",
+        "error",
+        "algebraic identity does not hold",
+        "algebra",
+    )
     assert diagnostic.equation == equation
     assert diagnostic.detail == "left - right = 2*a*b"
     assert diagnostic.span is not None
     assert diagnostic.span.path == PurePosixPath(input_path.as_posix())
     assert (diagnostic.span.cell, diagnostic.span.cell_line) == (1, 2)
     assert not sentinel.exists()
+    assert not (tmp_path / "project-imported").exists()
     assert hostile_project not in sys.modules
 
 
@@ -262,7 +270,14 @@ def test_public_markdown_analysis_does_not_import_project_code(
     assert result.math_blocks_checked == 1
     assert result.exit_code() == 1
     [diagnostic] = result.diagnostics
-    assert diagnostic.code == "ALG001"
+    assert (diagnostic.code, diagnostic.severity.value, diagnostic.message, diagnostic.rule) == (
+        "ALG001",
+        "error",
+        "algebraic identity does not hold",
+        "algebra",
+    )
+    assert diagnostic.equation == "(a+b)^2 = a^2 + b^2"
+    assert diagnostic.detail == "left - right = 2*a*b"
     assert diagnostic.span is not None
     assert (diagnostic.span.path, diagnostic.span.line, diagnostic.span.col) == (
         PurePosixPath(input_path.as_posix()),
@@ -270,6 +285,7 @@ def test_public_markdown_analysis_does_not_import_project_code(
         1,
     )
     assert hostile_project not in sys.modules
+    assert not (tmp_path / "project-imported").exists()
 
 
 @pytest.mark.parametrize(
@@ -380,7 +396,7 @@ def test_no_network_guard_has_a_meaningful_negative_control(
     ],
     ids=["Popen", "run", "call", "check_call", "check_output", "system", "popen"],
 )
-def test_execution_guards_reject_attempts_from_notebook_analysis(
+def test_execution_guards_have_meaningful_negative_controls(
     module,
     entrypoint: str,
     no_execution: None,
@@ -413,7 +429,7 @@ def test_execution_guards_reject_attempts_from_notebook_analysis(
         "ipykernel.kernelapp",
     ],
 )
-def test_kernel_import_guard_rejects_attempts_from_notebook_analysis(
+def test_kernel_import_guard_has_meaningful_cached_negative_controls(
     kernel_module: str,
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
@@ -437,6 +453,7 @@ def test_kernel_import_guard_rejects_attempts_from_notebook_analysis(
 
 
 def test_project_import_guard_has_a_meaningful_negative_control(
+    tmp_path: Path,
     hostile_project: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -454,3 +471,4 @@ def test_project_import_guard_has_a_meaningful_negative_control(
             (_document("negative.md", "$$\nx = x\n$$\n", DocumentKind.MARKDOWN),),
             config=Config(),
         )
+    assert (tmp_path / "project-imported").read_text(encoding="utf-8") == "imported"
