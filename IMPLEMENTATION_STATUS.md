@@ -1,6 +1,9 @@
 # Implementation Status
 
-The development tree uses package version v1.1.0 and includes unreleased changes.
+The development tree targets v1.2.0 with Beta package maturity and includes
+unreleased changes. [Product release criteria](RELEASE_CHECKLIST.md#v120-product-criteria)
+cover the current supported linter; the complete R1 host/session migration remains
+planned in the architecture ADR.
 
 The analyzer can:
 
@@ -25,4 +28,6 @@ It does not claim broad algebra, macro expansion, code-cell execution, theorem
 proving, or Sphinx/Jupyter Book build validation. Generated-output anchor auditing
 is available to callers that provide source-to-generated provenance facts.
 
-The source of truth for feature readiness is `SPEC.md`, the release checklists under `docs/releases/`, golden fixtures, and the changelog.
+Feature readiness is recorded in `SPEC.md`, the current product criteria in
+`RELEASE_CHECKLIST.md`, the earlier release checklists under `docs/releases/`,
+golden fixtures, and the changelog.
