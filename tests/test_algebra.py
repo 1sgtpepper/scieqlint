@@ -7,8 +7,10 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from scieqlint.api import check_documents
 from scieqlint.check.algebra import check_algebra
-from scieqlint.config.model import Config
+from scieqlint.config.model import Config, ParserConfig
+from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.scan.markdown import MarkdownScanner
 from scieqlint.scan.notebook import NotebookScanner
@@ -269,7 +271,72 @@ def test_assignment_with_different_symbols_is_not_treated_as_identity() -> None:
     assert diagnostics == ()
 
 
-def test_unsupported_trig_reports_parse_unknown() -> None:
-    diagnostics = check_algebra(_first_block("$$\n\\sin(x) = x\n$$\n"))
-    assert [diagnostic.code for diagnostic in diagnostics] == ["PARSE021"]
-    assert diagnostics[0].rule == "parser"
+@pytest.mark.parametrize(
+    ("equation", "code", "message"),
+    [
+        pytest.param(
+            r"\sin(x) = x",
+            "PARSE021",
+            "unsupported function; check skipped",
+            id="unsupported-function",
+        ),
+        pytest.param(
+            r"x \pm x = x",
+            "PARSE020",
+            "unsupported syntax; check skipped",
+            id="unsupported-operator",
+        ),
+        pytest.param(
+            "x =",
+            "PARSE020",
+            "unsupported syntax; check skipped",
+            id="incomplete-equation",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("strict_unknowns", "severity", "exit_code"),
+    [(False, Severity.INFO, 0), (True, Severity.ERROR, 1)],
+    ids=["default", "strict"],
+)
+def test_public_unsupported_math_preserves_source_and_exit_contract(
+    equation: str,
+    code: str,
+    message: str,
+    strict_unknowns: bool,
+    severity: Severity,
+    exit_code: int,
+) -> None:
+    source = f"# Math\n\n$$\n{equation}\n$$\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), source, DocumentKind.MARKDOWN)
+
+    result = check_documents(
+        (document,),
+        config=Config(parser=ParserConfig(strict_unknowns=strict_unknowns)),
+    )
+
+    start = source.index(equation)
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert result.exit_code() == exit_code
+    assert result.diagnostics == (
+        Diagnostic(
+            code=code,
+            severity=severity,
+            message=message,
+            span=SourceSpan(
+                path=document.path,
+                start=start,
+                end=start + len(equation),
+                line=4,
+                col=1,
+                end_line=4,
+                end_col=len(equation),
+            ),
+            equation=equation,
+            rule="parser",
+        ),
+    )
+    span = result.diagnostics[0].span
+    assert span is not None
+    assert document.text[span.start : span.end] == equation
