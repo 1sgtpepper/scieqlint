@@ -284,7 +284,7 @@ def test_assignment_with_different_symbols_is_not_treated_as_identity() -> None:
             r"x \pm x = x",
             "PARSE020",
             "unsupported syntax; check skipped",
-            id="unsupported-operator",
+            id="unsupported-tex-command",
         ),
         pytest.param(
             "x =",
