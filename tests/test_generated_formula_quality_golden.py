@@ -87,23 +87,34 @@ def test_generated_myst_cli_workflow_uses_packaged_preset_and_schemas(tmp_path: 
     }
     _validate_json_result(clean.output, version="0.1")
 
-    document.write_text(r"Inline unknown: $\sin(x) = x$." + "\n", encoding="utf-8")
+    document.write_text(
+        r"Inline unknown: $\sin(x) = x$." + "\n\n<!-- formula-not-decoded -->\n",
+        encoding="utf-8",
+    )
     finding = runner.invoke(main, arguments)
 
     assert finding.exit_code == 1, finding.output
     finding_payload = json.loads(finding.output)
     assert finding_payload["schema_version"] == "0.2"
-    [diagnostic] = finding_payload["diagnostics"]
-    assert (diagnostic["code"], diagnostic["severity"], diagnostic["profile"]) == (
+    [parser_diagnostic, generated_diagnostic] = finding_payload["diagnostics"]
+    assert (parser_diagnostic["code"], parser_diagnostic["severity"]) == (
         "PARSE021",
         "error",
+    )
+    assert (
+        generated_diagnostic["code"],
+        generated_diagnostic["severity"],
+        generated_diagnostic["profile"],
+    ) == (
+        "GEN004",
+        "warning",
         "generated-myst",
     )
     assert finding_payload["summary"] == {
         "files_checked": 1,
         "math_blocks_checked": 1,
         "errors": 1,
-        "warnings": 0,
+        "warnings": 1,
         "info": 0,
     }
     _validate_json_result(finding.output, version="0.2")
