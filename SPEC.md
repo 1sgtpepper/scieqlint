@@ -14,7 +14,7 @@ SciEqLint is a deterministic quality linter for scientific documents. It scans s
 Initial releases implement Markdown/MyST equation diagnostics, reference validation, deterministic output, and documented scanner boundaries.
 
 Complete pack note: this repository tracks the core release ladder through v1.0.0;
-the current implementation targets v1.2.0 with Beta package maturity, including
+the current implementation targets v1.2.1 with Beta package maturity, including
 generated-MyST validation and the product criteria in `RELEASE_CHECKLIST.md`.
 The complete R1 architecture migration remains planned.
 
@@ -2852,6 +2852,6 @@ diagnostic instead of an inferred result.
 
 The companion ZIP includes `PACK_MANIFEST.md`, which lists every repository scaffold file. The pack is intentionally split into specification, governance, docs, CI, package scaffold, tests, schemas, examples, and release checklists.
 
-The included code is the current v1.2.0 analyzer. It exists so contributors can
+The included code is the current v1.2.1 analyzer. It exists so contributors can
 install, run, test, and extend real equation, reference, and MyST structure checks
 while preserving the documented release boundaries.

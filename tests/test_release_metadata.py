@@ -85,7 +85,7 @@ def test_release_version_metadata_is_consistent() -> None:
     init_tree = ast.parse(Path("src/scieqlint/__init__.py").read_text(encoding="utf-8"))
     citation = Path("CITATION.cff").read_text(encoding="utf-8")
 
-    assert project["version"] == "1.2.0"
+    assert project["version"] == "1.2.1"
     assert _assigned_string(init_tree, "__version__") == project["version"]
     assert yaml.safe_load(citation)["version"] == project["version"]
 

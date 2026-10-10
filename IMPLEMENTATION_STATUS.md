@@ -1,7 +1,7 @@
 # Implementation Status
 
-The development tree targets v1.2.0 with Beta package maturity and includes
-unreleased changes. [Product release criteria](RELEASE_CHECKLIST.md#v120-product-criteria)
+The development tree targets v1.2.1 with Beta package maturity and includes
+unreleased changes. [Product release criteria](RELEASE_CHECKLIST.md#v121-product-criteria)
 cover the current supported linter; the complete R1 host/session migration remains
 planned in the architecture ADR.
 
