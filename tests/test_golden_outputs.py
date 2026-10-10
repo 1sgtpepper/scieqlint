@@ -589,5 +589,5 @@ def _crossref_metadata_result() -> CheckResult:
         files_checked=1,
         math_blocks_checked=0,
         config_path=None,
-        version="1.2.0",
+        version="1.2.1",
     )

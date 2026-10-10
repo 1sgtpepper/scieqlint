@@ -16,7 +16,7 @@ Release notes must use these sections:
 
 ### Added
 
-- Document the v1.2.0 product release criteria, current and planned owners, and
+- Document the v1.2.1 product release criteria, current and planned owners, and
   exact safety, compatibility and installed-artifact acceptance checks.
 - Installed release-artifact checks now exercise generated-MyST preset initialization,
   clean and failing CLI analysis, and both packaged JSON result schema versions.
@@ -84,7 +84,7 @@ Release notes must use these sections:
 
 ### Changed
 
-- Prepare v1.2.0 with Beta package maturity and synchronized current integration
+- Prepare v1.2.1 with Beta package maturity and synchronized current integration
   pins and report version metadata. Release guidance requires coordinated
   publication and validates candidates with manual branch runs.
 - The generated-document workflow now uses the packaged `generated-myst` preset
@@ -121,6 +121,8 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Stable release tag/main rechecks now authenticate Git transport using a masked
+  HTTP Basic credential.
 - `GEN004` now respects Markdown ownership boundaries, including headings, list
   continuations, completed blocks, opaque HTML, nested source-owned comments, and
   MyST directive options or TeX comments when deciding whether a formula placeholder

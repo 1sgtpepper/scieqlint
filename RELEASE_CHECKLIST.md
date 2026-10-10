@@ -26,7 +26,7 @@ Every release must include:
 - the 100-document/500-equation/500-reference representative workload completing within three seconds,
 - release notes with migration notes.
 
-## v1.2.0 product criteria
+## v1.2.1 product criteria
 
 This release targets Beta maturity for the current static linter: documented
 Markdown/MyST, LaTeX and notebook source support; supported scalar algebra and

@@ -104,8 +104,8 @@ diagnostics, simple scalar algebra, text output, deterministic JSON output, SARI
 and JSON Schema validation. See
 `docs/limitations.md` for the exact scanner and grammar coverage.
 
-Current release target: v1.2.0 (Beta). The
-[product release criteria](RELEASE_CHECKLIST.md#v120-product-criteria) link the
+Current release target: v1.2.1 (Beta). The
+[product release criteria](RELEASE_CHECKLIST.md#v121-product-criteria) link the
 supported static-analysis contracts to their acceptance checks. The remaining
 R1 architecture migrations are tracked separately.
 
@@ -128,7 +128,7 @@ steps:
   - uses: actions/setup-python@v6
     with:
       python-version: "3.11"
-  - run: python -m pip install scieqlint==1.2.0
+  - run: python -m pip install scieqlint==1.2.1
   - run: rm -f scieqlint.sarif
   - run: set +e; scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif; status=$?; test "$status" -le 1 || exit "$status"
   - run: test -s scieqlint.sarif && python -m json.tool scieqlint.sarif >/dev/null

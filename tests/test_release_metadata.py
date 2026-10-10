@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import ast
+import base64
 import json
 import os
 import re
 import subprocess
 import tomllib
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from threading import Thread
 from typing import Any
 
 import pytest
@@ -82,7 +85,7 @@ def test_release_version_metadata_is_consistent() -> None:
     init_tree = ast.parse(Path("src/scieqlint/__init__.py").read_text(encoding="utf-8"))
     citation = Path("CITATION.cff").read_text(encoding="utf-8")
 
-    assert project["version"] == "1.2.0"
+    assert project["version"] == "1.2.1"
     assert _assigned_string(init_tree, "__version__") == project["version"]
     assert yaml.safe_load(citation)["version"] == project["version"]
 
@@ -455,6 +458,134 @@ jobs:
         _assert_distribution_set_guard(
             _step_run(_workflow_step(build, name="Verify distribution set"))
         )
+
+
+@pytest.mark.parametrize("job_name", ["smoke", "publish"])
+@pytest.mark.parametrize(
+    "case",
+    ["matching", "matching-lightweight", "moved-main", "moved-tag", "missing-main", "missing-tag"],
+)
+def test_remote_release_guard_authenticates_and_rejects_changed_refs(
+    tmp_path: Path,
+    job_name: str,
+    case: str,
+) -> None:
+    workflow = _workflow(Path(".github/workflows/release.yml"))
+    release_run = _step_run(
+        _workflow_step(
+            _workflow_job(workflow, job_name), name="Recheck protected main and release tag"
+        )
+    )
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+
+    def git(*args: str) -> str:
+        return subprocess.check_output(
+            [
+                "git",
+                "-c",
+                "commit.gpgSign=false",
+                "-c",
+                "tag.gpgSign=false",
+                "-c",
+                "user.name=Release Test",
+                "-c",
+                "user.email=release@example.com",
+                *args,
+            ],
+            cwd=repository,
+            env=environment,
+            text=True,
+            stderr=subprocess.PIPE,
+            timeout=5,
+        ).strip()
+
+    git("init", "-q")
+    git("checkout", "-q", "-b", "main")
+    git("commit", "--allow-empty", "-m", "release", "-q")
+    release_sha = git("rev-parse", "HEAD")
+    if case == "matching-lightweight":
+        git("tag", "v1.2.0")
+    else:
+        git("tag", "-a", "v1.2.0", "-m", "release")
+    if case in {"moved-main", "moved-tag"}:
+        git("commit", "--allow-empty", "-m", "later", "-q")
+        if case == "moved-tag":
+            git("tag", "-f", "-a", "v1.2.0", "-m", "moved")
+            git("update-ref", "refs/heads/main", release_sha)
+    elif case == "missing-main":
+        git("update-ref", "-d", "refs/heads/main")
+    elif case == "missing-tag":
+        git("update-ref", "-d", "refs/tags/v1.2.0")
+
+    credential = base64.b64encode(b"x-access-token:release-test-token").decode("ascii")
+
+    class GitServer(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            scheme, _, value = self.headers.get("Authorization", "").partition(" ")
+            if scheme.lower() != "basic" or value != credential:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="release test"')
+                self.end_headers()
+                return
+            if self.path != "/repo.git/info/refs?service=git-upload-pack":
+                self.send_error(404)
+                return
+            advertised = subprocess.check_output(
+                ["git", "upload-pack", "--stateless-rpc", "--advertise-refs", str(repository)],
+                env=environment,
+                timeout=5,
+            )
+            body = b"001e# service=git-upload-pack\n0000" + advertised
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-git-upload-pack-advertisement")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args: object) -> None:
+            pass
+
+    with HTTPServer(("127.0.0.1", 0), GitServer) as server:
+        environment.update(
+            {
+                "GITHUB_SERVER_URL": f"http://127.0.0.1:{server.server_port}",
+                "GITHUB_REPOSITORY": "repo",
+                "GITHUB_REF_TYPE": "tag",
+                "GITHUB_REF_NAME": "v1.2.0",
+                "GITHUB_SHA": release_sha,
+                "EXPECTED_RELEASE_SHA": release_sha,
+                "GITHUB_TOKEN": "release-test-token",
+            }
+        )
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            result = subprocess.run(
+                ["bash", "-euo", "pipefail", "-c", release_run],
+                cwd=tmp_path,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+
+    if case.startswith("matching"):
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode != 0
+    assert result.stdout.splitlines() == [f"::add-mask::{credential}"]
 
 
 def test_release_workflow_ref_guard_executes_matching_and_rejects_moved_main(
