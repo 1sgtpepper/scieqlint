@@ -121,6 +121,8 @@ Release notes must use these sections:
 
 ### Fixed
 
+- Stable release tag/main rechecks now authenticate Git transport using a masked
+  HTTP Basic credential.
 - `GEN004` now respects Markdown ownership boundaries, including headings, list
   continuations, completed blocks, opaque HTML, nested source-owned comments, and
   MyST directive options or TeX comments when deciding whether a formula placeholder
