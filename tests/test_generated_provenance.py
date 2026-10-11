@@ -123,6 +123,8 @@ def test_generated_provenance_fact_rejects_retired_producer_metadata(
     with pytest.raises(TypeError):
         GeneratedProvenanceFact(
             fact_id="origin",
+            document_id="out/generated.md",
+            span=None,
             generated_document_id="out/generated.md",
             **{retired_field: "value"},
         )
