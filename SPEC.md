@@ -1051,13 +1051,8 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 | Concern | Use | Earliest release | Boundary |
 |---|---|---:|---|
 | CLI | `click` | v0.0.1 | command parsing only |
-| Markdown/MyST tokens | `markdown-it-py`, `mdit-py-plugins` | v0.1.0 | tokenization and narrow math extraction |
-| Notebook | `nbformat` | v0.1.4 | schema-aware `.ipynb` loading |
-| Ignore matching | `pathspec` | v0.1.0 | gitignore-style matching |
-| Math grammar | `lark` | v0.1.0 | grammar parsing and transformer entry point |
-| Algebra | `sympy` | v0.1.0 | exact expression backend behind local adapter |
 | JSON Schema validation | `jsonschema` dev dependency | v0.1.0 | golden-output/schema tests only |
-| Package resources | `importlib.resources` | v0.0.1 | grammar, schemas, examples, presets |
+| Package resources | `importlib.resources` | v0.0.1 | schemas and presets |
 | Type checking | `pyright` | v0.0.1 | CI gate |
 | Format/lint | `ruff` | v0.0.1 | CI gate |
 | Tests | `pytest`, `coverage`, `hypothesis` | v0.0.1+ | unit, golden, property tests |
@@ -1164,8 +1159,6 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 `report` may import `diag.model`, result models, and packaged schema metadata. It must not import `scan`, `parse`, or `check`.
 
 `config` must not import `cli`, `scan`, `parse`, `check`, or `report`.
-
-`io.resources` may use `importlib.resources` to load package data. It must not import `scan`, `parse`, `check`, `report`, or `cli`.
 
 These rules must be enforced by import-linter no later than v0.1.0.
 
@@ -2756,8 +2749,9 @@ Benchmarks:
 Package:
 
 - Wheel installs in clean venv.
-- Package includes grammar, schemas, `py.typed`, and demo examples as needed.
-- Package resources load through `importlib.resources`.
+- The wheel includes the active schemas, presets, and `py.typed` package marker.
+- The CLI demo is built into the CLI; the example corpus lives in the repository's root `examples/` directory.
+- Preset data loads through `importlib.resources`.
 
 ### v0.1.1 acceptance
 
