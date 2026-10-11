@@ -752,7 +752,7 @@ def _source_read_diagnostic(
     )
     display_path = _display_path(path, absolute_paths=absolute_paths)
     return Diagnostic(
-        code=info.code,
+        code="INP001",
         severity=info.severity,
         message=f"{info.message}: {display_path}",
         span=_file_start_span(path, absolute_paths=absolute_paths),

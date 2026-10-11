@@ -54,7 +54,7 @@ class ReferenceEngine:
             for duplicate in same_name[1:]:
                 diagnostics.append(
                     DiagnosticIR(
-                        code=duplicate_equation_info.code,
+                        code="REF001",
                         severity_default=duplicate_equation_info.severity,
                         message=f"{duplicate_equation_info.message}: {duplicate.normalized_label}",
                         span=duplicate.label_span or duplicate.span,
@@ -79,7 +79,7 @@ class ReferenceEngine:
             for duplicate in duplicates:
                 diagnostics.append(
                     DiagnosticIR(
-                        code=duplicate_cell_info.code,
+                        code="REF010",
                         severity_default=duplicate_cell_info.severity,
                         message=f"{duplicate_cell_info.message}: {target_label}",
                         span=duplicate.label_span or duplicate.span,
@@ -107,7 +107,7 @@ class ReferenceEngine:
                 continue
             diagnostics.append(
                 DiagnosticIR(
-                    code=missing_equation_info.code,
+                    code="REF002",
                     severity_default=missing_equation_info.severity,
                     message=f"{missing_equation_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,
@@ -123,7 +123,7 @@ class ReferenceEngine:
         ):
             diagnostics.append(
                 DiagnosticIR(
-                    code=ambiguous_equation_info.code,
+                    code="REF011",
                     severity_default=ambiguous_equation_info.severity,
                     message=f"{ambiguous_equation_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,
@@ -159,7 +159,7 @@ class ReferenceEngine:
                 properties += (("excluded_example_document", excluded_example.document_id),)
             diagnostics.append(
                 DiagnosticIR(
-                    code=nonvisible_info.code,
+                    code="REF008",
                     severity_default=nonvisible_info.severity,
                     message=f"{nonvisible_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,
@@ -189,7 +189,7 @@ class ReferenceEngine:
                 target_type = cast(str, fact.target_type)
                 diagnostics.append(
                     DiagnosticIR(
-                        code=display_info.code,
+                        code="REF009",
                         severity_default=display_info.severity,
                         message=f"{display_info.message}: {fact.normalized_target}",
                         span=fact.display_text_span or fact.span,
@@ -223,7 +223,7 @@ class ReferenceEngine:
             if ref.role_kind == "markdown-link" and ref.raw_target_path is None:
                 diagnostics.append(
                     DiagnosticIR(
-                        code=equation_missing_info.code,
+                        code="REF002",
                         severity_default=equation_missing_info.severity,
                         message=f"{equation_missing_info.message}: {ref.target}",
                         span=ref.target_span or ref.span,
@@ -237,7 +237,7 @@ class ReferenceEngine:
                 continue
             diagnostics.append(
                 DiagnosticIR(
-                    code=missing_info.code,
+                    code="REF004",
                     severity_default=missing_info.severity,
                     message=f"{missing_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,
@@ -262,7 +262,7 @@ class ReferenceEngine:
                     continue
                 diagnostics.append(
                     DiagnosticIR(
-                        code=metadata_info.code,
+                        code="REF007",
                         severity_default=metadata_info.severity,
                         message=f"{metadata_info.message}: {display_target}",
                         span=fact.target_span or fact.span,
@@ -301,7 +301,7 @@ class ReferenceEngine:
             identity = normalized_reference_target(ref)
             diagnostics.append(
                 DiagnosticIR(
-                    code=normalized_path_info.code,
+                    code="REF006",
                     severity_default=normalized_path_info.severity,
                     message=(f"{normalized_path_info.message}: {ref.resolved_raw_target_path}"),
                     span=ref.target_span or ref.span,
@@ -331,7 +331,7 @@ class ReferenceEngine:
                 continue
             diagnostics.append(
                 DiagnosticIR(
-                    code=ambiguous_info.code,
+                    code="REF005",
                     severity_default=ambiguous_info.severity,
                     message=f"{ambiguous_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,

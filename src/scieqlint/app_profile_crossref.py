@@ -88,7 +88,7 @@ def raw_missing_label_diagnostics(
         assert fact.span is not None, "raw-LaTeX display facts retain source spans"
         diagnostics.append(
             Diagnostic(
-                code=info.code,
+                code="REF003",
                 severity=info.severity,
                 message=info.message,
                 span=fact.span,
