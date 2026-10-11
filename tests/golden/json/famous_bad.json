@@ -12,7 +12,7 @@
       "hint": null,
       "line": 4,
       "message": "algebraic identity does not hold",
-      "path": "tests/fixtures/bad/famous_bad.md",
+      "path": "examples/bad/famous_bad.md",
       "severity": "error",
       "suppressed": false
     }

@@ -10,7 +10,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "tests/fixtures/bad/famous_bad.md",
+                  "uri": "examples/bad/famous_bad.md",
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
@@ -26,7 +26,7 @@
             "text": "algebraic identity does not hold: left - right = 2*a*b"
           },
           "partialFingerprints": {
-            "primaryLocationLineHash": "194b6de6dab6a2e9e3611b71a8e7550f8d89f130a7bc1cd8582f7db070779246"
+            "primaryLocationLineHash": "d701238c262d4b35af6d3ec640cb97efacedeb93c17a6697c09a6ec23436902a"
           },
           "ruleId": "ALG001"
         }

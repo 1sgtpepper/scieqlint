@@ -436,15 +436,15 @@ scieqlint explain REF002
 python -m scieqlint check examples/bad/famous_bad.md
 ```
 
-Required fixtures:
+Required examples:
 
 ```text
-tests/fixtures/good/algebra_good.md
-tests/fixtures/bad/famous_bad.md
-tests/fixtures/good/references_good.md
-tests/fixtures/bad/references_bad.md
-tests/fixtures/good/myst_good.md
-tests/fixtures/bad/myst_bad.md
+examples/good/algebra_good.md
+examples/bad/famous_bad.md
+examples/good/references_good.md
+examples/bad/references_bad.md
+examples/good/myst_good.md
+examples/bad/myst_bad.md
 ```
 
 Required golden outputs:
@@ -2097,15 +2097,15 @@ tests/test_symbols.py           # v0.4.0
 
 ### Golden tests
 
-v0.1.0 fixtures:
+v0.1.0 examples:
 
 ```text
-tests/fixtures/bad/famous_bad.md
-tests/fixtures/good/algebra_good.md
-tests/fixtures/bad/references_bad.md
-tests/fixtures/good/references_good.md
-tests/fixtures/good/myst_good.md
-tests/fixtures/bad/myst_bad.md
+examples/bad/famous_bad.md
+examples/good/algebra_good.md
+examples/bad/references_bad.md
+examples/good/references_good.md
+examples/good/myst_good.md
+examples/bad/myst_bad.md
 ```
 
 v0.1.0 golden outputs:
