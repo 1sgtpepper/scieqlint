@@ -39,7 +39,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(size_diagnostic(document),),
-            valid=False,
         )
     try:
         notebook_data, root_range = parse_json_document(document.text)
@@ -54,7 +53,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(input_diagnostic(document, exc),),
-            valid=False,
         )
     if not isinstance(notebook_data, Mapping):
         return NotebookInput(
@@ -67,7 +65,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(schema_diagnostic(document, "notebook root must be a JSON object"),),
-            valid=False,
         )
 
     notebook = cast(Mapping[str, object], notebook_data)
@@ -83,7 +80,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(schema_diagnostic(document, "notebook cells must be a list"),),
-            valid=False,
         )
     cells = tuple(cast(list[object], raw_cells))
     try:
@@ -105,7 +101,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(size_diagnostic(document, detail=str(exc)),),
-            valid=False,
         )
     except (ValueError, RecursionError) as exc:  # pragma: no cover - defensive replay guard
         return NotebookInput(
@@ -118,7 +113,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
             cell_source_ranges=(),
             cell_option_spans=(),
             diagnostics=(input_diagnostic(document, exc),),
-            valid=False,
         )
     return NotebookInput(
         document=document,
@@ -130,7 +124,6 @@ def parse_notebook_input(document: SourceDocument) -> NotebookInput:
         cell_source_ranges=cell_source_ranges,
         cell_option_spans=cell_option_spans,
         diagnostics=_notebook_schema_diagnostics(document, notebook),
-        valid=True,
     )
 
 
@@ -155,17 +148,22 @@ class NotebookInput:
     cell_source_ranges: tuple[tuple[tuple[tuple[int, int], ...], ...] | None, ...]
     cell_option_spans: tuple[tuple[tuple[str, SourceSpan], ...] | None, ...]
     diagnostics: tuple[Diagnostic, ...]
-    valid: bool
 
 
 def cell_source(source: object) -> str | None:
     if isinstance(source, str):
         return source
-    if isinstance(source, list):
-        parts = cast(list[object], source)
-        if all(isinstance(part, str) for part in parts):
-            return "".join(cast(list[str], parts))
-    return None
+    if not _has_valid_cell_source_shape(source):
+        return None
+    return "".join(cast(list[str], source))
+
+
+def _has_valid_cell_source_shape(source: object) -> bool:
+    if isinstance(source, str):
+        return True
+    if not isinstance(source, list):
+        return False
+    return all(isinstance(part, str) for part in cast(list[object], source))
 
 
 def notebook_cell_document(
@@ -257,6 +255,7 @@ def _notebook_locations(
     for cell_index, (cell, (cell_start, cell_end)) in enumerate(
         zip(cells, cell_ranges, strict=True)
     ):
+        # Retain the parse-time cell location when callers later mutate its mapping.
         cell_spans[cell_index] = _json_span(
             document,
             cell_start,
@@ -268,21 +267,23 @@ def _notebook_locations(
             continue
         cell = cast(Mapping[str, object], cell)
         cell_members = json_object_members(decoder, document.text, cell_start, cell_end)
-        source = cell_source(cell.get("source"))
-        if cell.get("cell_type") == "markdown":
-            cell_source_ranges[cell_index] = (
-                None
-                if source is None
-                else _source_ranges(decoder, document.text, cell_members["source"])
-            )
-        elif cell.get("cell_type") == "code":
+        cell_type = cell.get("cell_type")
+        source_value = cell.get("source")
+        if cell_type == "markdown":
+            if _has_valid_cell_source_shape(source_value):
+                cell_source_ranges[cell_index] = _source_ranges(
+                    decoder,
+                    document.text,
+                    cell_members["source"],
+                )
+        elif cell_type == "code":
             cell_option_spans[cell_index] = _cell_option_spans(
                 decoder,
                 document,
                 cell_index,
                 cell,
                 cell_members,
-                source,
+                cell_source(source_value),
                 cell_members.get("source"),
                 default_language_span,
             )
@@ -591,12 +592,9 @@ def _output_label_spans(
 def _source_character_length(source: object) -> int | None:
     if isinstance(source, str):
         return _normalized_character_length((source,))
-    if not isinstance(source, list):
+    if not _has_valid_cell_source_shape(source):
         return None
-    parts = cast(list[object], source)
-    if not all(isinstance(part, str) for part in parts):
-        return None
-    return _normalized_character_length(cast(list[str], parts))
+    return _normalized_character_length(cast(list[str], source))
 
 
 def _normalized_character_length(parts: tuple[str, ...] | list[str]) -> int:
@@ -750,7 +748,7 @@ def map_notebook_span(
             document,
             cell_index=cell_index,
             cell_line=span.line,
-            source_ranges=source_ranges[span.start : span.end],
+            source_ranges=(source_ranges[index] for index in range(span.start, span.end)),
         )
     position = (
         source_ranges[span.start][0][0]
@@ -777,16 +775,16 @@ def _mapped_notebook_span(
     *,
     cell_index: int,
     cell_line: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
+    source_ranges: Iterator[tuple[tuple[int, int], ...]],
 ) -> SourceSpan:
     """Build one non-empty raw notebook span from exact logical ranges."""
 
+    segments = tuple(_source_segment(document, ranges) for ranges in source_ranges)
     # Public mapping validates ranges; option slices are non-empty by construction.
-    if not source_ranges:  # pragma: no cover - internal span invariant
+    if not segments:  # pragma: no cover - internal span invariant
         raise NotebookSourceLocationError(
             f"notebook cell {cell_index} source span has no character ranges"
         )
-    segments = tuple(_source_segment(document, ranges) for ranges in source_ranges)
     start = segments[0].start
     end = segments[-1].end
     line, col = document.line_index.position(start)

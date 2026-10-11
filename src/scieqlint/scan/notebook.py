@@ -7,7 +7,7 @@ from dataclasses import replace
 from typing import cast
 
 from scieqlint.config.model import Config
-from scieqlint.diag.model import Diagnostic, SourceSpan
+from scieqlint.diag.model import Diagnostic
 from scieqlint.frontend.notebook_input import (
     NotebookInput,
     NotebookSourceLocationError,
@@ -58,9 +58,8 @@ class NotebookScanner:
             if parsed.document is not document:
                 raise ValueError("parsed notebook input belongs to a different SourceDocument")
             notebook_input = parsed
-        if not notebook_input.valid:
+        if notebook_input.root is None:
             return ScanResult(blocks=(), diagnostics=notebook_input.diagnostics)
-        assert notebook_input.root is not None
 
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
@@ -101,19 +100,51 @@ class NotebookScanner:
             scan = self._markdown.scan(cell_document, config)
             try:
                 mapped_blocks = tuple(
-                    _with_cell_block(block, document, cell_index, source_ranges)
+                    replace(
+                        block,
+                        span=map_notebook_span(
+                            document,
+                            block.span,
+                            cell_index=cell_index,
+                            source_ranges=source_ranges,
+                        ),
+                    )
                     for block in scan.blocks
                 )
                 mapped_labels = tuple(
-                    _with_cell_label(label, document, cell_index, source_ranges)
+                    replace(
+                        label,
+                        span=map_notebook_span(
+                            document,
+                            label.span,
+                            cell_index=cell_index,
+                            source_ranges=source_ranges,
+                        ),
+                    )
                     for label in scan.labels
                 )
                 mapped_references = tuple(
-                    _with_cell_reference(reference, document, cell_index, source_ranges)
+                    replace(
+                        reference,
+                        span=map_notebook_span(
+                            document,
+                            reference.span,
+                            cell_index=cell_index,
+                            source_ranges=source_ranges,
+                        ),
+                    )
                     for reference in scan.references
                 )
                 mapped_symbol_directives = tuple(
-                    _with_cell_symbol_directive(directive, document, cell_index, source_ranges)
+                    replace(
+                        directive,
+                        span=map_notebook_span(
+                            document,
+                            directive.span,
+                            cell_index=cell_index,
+                            source_ranges=source_ranges,
+                        ),
+                    )
                     for directive in scan.symbol_directives
                 )
                 mapped_diagnostics = tuple(
@@ -138,74 +169,6 @@ class NotebookScanner:
         )
 
 
-def _with_cell_block(
-    block: MathBlock,
-    document: SourceDocument,
-    cell_index: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
-) -> MathBlock:
-    return replace(
-        block,
-        span=_with_cell_span(
-            block.span,
-            document,
-            cell_index,
-            source_ranges,
-        ),
-    )
-
-
-def _with_cell_label(
-    label: EquationLabel,
-    document: SourceDocument,
-    cell_index: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
-) -> EquationLabel:
-    return replace(
-        label,
-        span=_with_cell_span(
-            label.span,
-            document,
-            cell_index,
-            source_ranges,
-        ),
-    )
-
-
-def _with_cell_reference(
-    reference: EquationReference,
-    document: SourceDocument,
-    cell_index: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
-) -> EquationReference:
-    return replace(
-        reference,
-        span=_with_cell_span(
-            reference.span,
-            document,
-            cell_index,
-            source_ranges,
-        ),
-    )
-
-
-def _with_cell_symbol_directive(
-    directive: SymbolDirective,
-    document: SourceDocument,
-    cell_index: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
-) -> SymbolDirective:
-    return replace(
-        directive,
-        span=_with_cell_span(
-            directive.span,
-            document,
-            cell_index,
-            source_ranges,
-        ),
-    )
-
-
 def _with_cell_diagnostic(
     diagnostic: Diagnostic,
     document: SourceDocument,
@@ -221,18 +184,4 @@ def _with_cell_diagnostic(
             cell_index=cell_index,
             source_ranges=source_ranges,
         ),
-    )
-
-
-def _with_cell_span(
-    span: SourceSpan,
-    document: SourceDocument,
-    cell_index: int,
-    source_ranges: tuple[tuple[tuple[int, int], ...], ...],
-) -> SourceSpan:
-    return map_notebook_span(
-        document,
-        span,
-        cell_index=cell_index,
-        source_ranges=source_ranges,
     )

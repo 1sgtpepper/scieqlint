@@ -68,8 +68,7 @@ def crossref_facts(
     workspace: WorkspaceHost,
     output_label_spans: Sequence[SourceSpan | None],
 ) -> tuple[CrossrefMetadataFact, ...]:
-    options = cell.option_dict()
-    cell_metadata = {key: value for key, value in options.items() if key in _CROSSREF_DISPLAY_KEYS}
+    cell_metadata = {key: value for key, value in cell.options if key in _CROSSREF_DISPLAY_KEYS}
     boundaries = tuple((output.fact_id, output) for output in outputs) or (
         (f"{cell.fact_id}::unrendered-output", None),
     )
@@ -132,7 +131,7 @@ def output_target_anchors(
         if label is None:
             continue
         assert output.span is not None, "notebook output facts retain source spans"
-        metadata = dict(cell.option_dict())
+        metadata = {key: value for key, value in cell.options if key in _CROSSREF_DISPLAY_KEYS}
         metadata.update(
             {key: value for key, value in output_metadata.items() if key in _CROSSREF_DISPLAY_KEYS}
         )
