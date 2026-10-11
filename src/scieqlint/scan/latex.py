@@ -43,9 +43,7 @@ class LatexScanner:
         # Subclass find overrides can be stateful; share ranges only for built-in text.
         reusable_ranges = type(document.text) is str
         latex_ranges = (
-            tuple(_delimiter_ranges(document, ignored, r"\[", r"\]"))
-            if reusable_ranges
-            else None
+            tuple(_delimiter_ranges(document, ignored, r"\[", r"\]")) if reusable_ranges else None
         )
 
         blocks.extend(
@@ -60,9 +58,7 @@ class LatexScanner:
             )
         )
         dollar_ranges = (
-            tuple(_delimiter_ranges(document, ignored, "$$", "$$"))
-            if reusable_ranges
-            else None
+            tuple(_delimiter_ranges(document, ignored, "$$", "$$")) if reusable_ranges else None
         )
         blocks.extend(
             _delimited_blocks(
@@ -78,12 +74,8 @@ class LatexScanner:
         env_blocks, env_diagnostics = _environment_blocks(document, source_aligned_text, ignored)
         blocks.extend(env_blocks)
         diagnostics.extend(env_diagnostics)
-        diagnostics.extend(
-            _unterminated_delimiters(document, ignored, latex_ranges, r"\[", r"\]")
-        )
-        diagnostics.extend(
-            _unterminated_delimiters(document, ignored, dollar_ranges, "$$", "$$")
-        )
+        diagnostics.extend(_unterminated_delimiters(document, ignored, latex_ranges, r"\[", r"\]"))
+        diagnostics.extend(_unterminated_delimiters(document, ignored, dollar_ranges, "$$", "$$"))
         labels.extend(_labels(document, blocks, ignored))
         references = tuple(_references(document, ignored))
         symbol_directives, symbol_diagnostics = _symbol_directives(document, comments)
