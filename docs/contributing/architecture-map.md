@@ -6,7 +6,6 @@
 | Config defaults | `src/scieqlint/config/` | reporters |
 | Source locations | `src/scieqlint/io/source.py` | algebra |
 | Markdown extraction | `src/scieqlint/scan/markdown.py` | parser/checkers |
-| Grammar | `src/scieqlint/parse/grammar.lark` | reporters |
 | Algebra | `src/scieqlint/check/algebra.py` | scanner |
 | References and fact-backed cross-reference metadata | `src/scieqlint/check/references.py`, `src/scieqlint/facts/reference.py`, `src/scieqlint/frontend/crossref.py`, `src/scieqlint/query/reference.py`, `src/scieqlint/engine/reference.py` | algebra |
 | Generated-output anchor audits | `src/scieqlint/facts/generated.py`, `src/scieqlint/query/generated.py`, `src/scieqlint/engine/generated.py` | CLI/config provenance inference |

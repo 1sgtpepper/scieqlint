@@ -356,16 +356,12 @@ Algebra check supports:
 - integer powers,
 - `\sqrt{n}` only for numeric perfect-square rational operands.
 
-Algorithm:
-
-1. Convert SciEqLint AST to SymPy objects.
-2. Never pass document text to SymPy parsers.
-3. Compute `left - right` for adjacent equality sides.
-4. Apply constrained rational/polynomial simplification using `together` and `cancel`.
-5. Emit `ALG001` only when nonzero residual is proven.
-6. Emit unknown/skipped diagnostics for everything else.
-
-Avoid `sympy.simplify` in v0.1.0.
+The current checker tokenizes each equation side and parses the supported subset
+directly into sparse polynomials with exact `Fraction` coefficients. It compares
+adjacent equality sides by computing their exact residual and emits `ALG001` only
+when that residual is nonzero. Division is supported only by a single monomial;
+square roots are supported only for numeric perfect-square rational operands.
+Unsupported expressions retain the documented skipped-diagnostic behavior.
 
 #### v0.1.0 references scope
 
@@ -1042,7 +1038,7 @@ app service
 file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics -> reporting
 ```
 
-The core owns data contracts, parser output, checks, diagnostics, config semantics, and report schemas. Adapters own I/O, command-line plumbing, and integration-specific formatting.
+The core owns data contracts, math classification, checks, diagnostics, config semantics, and report schemas. Adapters own I/O, command-line plumbing, and integration-specific formatting.
 
 ### Dependency policy
 
@@ -1051,8 +1047,11 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 | Concern | Use | Earliest release | Boundary |
 |---|---|---:|---|
 | CLI | `click` | v0.0.1 | command parsing only |
+| Markdown/MyST tokens | `markdown-it-py`, `mdit-py-plugins` | v0.1.0 | tokenization and narrow math extraction |
+| Notebook | `nbformat` | v0.1.4 | schema-aware `.ipynb` loading |
+| Ignore matching | `pathspec` | v0.1.0 | gitignore-style matching |
 | JSON Schema validation | `jsonschema` dev dependency | v0.1.0 | golden-output/schema tests only |
-| Package resources | `importlib.resources` | v0.0.1 | schemas and presets |
+| Package resources | `importlib.resources` | v0.0.1 | packaged schemas and preset data |
 | Type checking | `pyright` | v0.0.1 | CI gate |
 | Format/lint | `ruff` | v0.0.1 | CI gate |
 | Tests | `pytest`, `coverage`, `hypothesis` | v0.0.1+ | unit, golden, property tests |
@@ -1062,105 +1061,12 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 
 SciEqLint must not depend on Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or TexLab in core analysis.
 
-### Package layout by v0.1.0
+### Current package ownership and import boundaries
 
-```text
-src/scieqlint/
-  __init__.py
-  __main__.py
-  py.typed
-  api.py
-  app.py
-  cli.py
-
-  config/
-    __init__.py
-    model.py
-    load.py
-    validate.py
-
-  io/
-    __init__.py
-    discover.py
-    source.py
-    limits.py
-    resources.py
-
-  scan/
-    __init__.py
-    base.py
-    markdown.py
-
-  parse/
-    __init__.py
-    ast.py
-    grammar.lark
-    parser.py
-    transform.py
-    normalize.py
-    print.py
-
-  check/
-    __init__.py
-    algebra.py
-    references.py
-
-  diag/
-    __init__.py
-    model.py
-    catalog.py
-
-  report/
-    __init__.py
-    base.py
-    text.py
-    json.py
-
-  schemas/
-    scieqlint-result-0.1.schema.json
-    scieqlint-diagnostic-0.1.schema.json
-
-  examples/
-    good/
-    bad/
-```
-
-Add these modules only when their releases start:
-
-```text
-scan/latex.py             # v0.1.3
-scan/notebook.py          # v0.1.4
-check/dimensions.py       # v0.1.2
-check/suppressions.py     # v0.2.0
-check/symbols.py          # v0.4.0
-report/github.py          # v0.1.1
-report/sarif.py           # v0.1.5
-graph/model.py            # v0.3.0
-graph/export.py           # v0.3.0
-presets/*.toml            # v0.2.0
-```
-
-Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by domain.
-
-### Import rules
-
-`cli` may import `api` and reporter selection code. It must not import scanners, parser modules, or check modules directly.
-
-`api` may import `app`, `config`, `diag`, and public data models.
-
-`app` may orchestrate `io`, `scan`, `parse`, `check`, `report`, `config`, and `diag`.
-
-`scan` may import `io.source`, `diag.model`, and `scan.base`. It must not import `parse`, `check`, or `report`.
-
-`parse` may import `parse.ast`, `diag.model`, and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
-
-`check` may import `parse.ast`, `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
-
-`report` may import `diag.model`, result models, and packaged schema metadata. It must not import `scan`, `parse`, or `check`.
-
-`config` must not import `cli`, `scan`, `parse`, `check`, or `report`.
-
-These rules must be enforced by import-linter no later than v0.1.0.
+The initial v0.1.0 package and import proposal is superseded by the current
+[module ownership map](docs/architecture/module-ownership.md), which records the
+current packages, executable import-linter contracts, and accepted future host
+boundaries.
 
 ---
 
@@ -1480,106 +1386,21 @@ Scanners must not emit algebra, dimension, duplicate-label, or missing-reference
 
 ---
 
-## 10. Parser and AST
+## 10. Algebra parsing and check
 
-Parser input is `MathBlock.normalized`.
+The supported syntax contract is defined in the v0.1.0 parser and algebra scope
+above. The current implementation is private to `check.algebra`: it tokenizes
+math text, parses each equation side recursively, and evaluates exact sparse
+polynomials with `Fraction` coefficients and does not pass document text to a
+general-purpose math parser.
 
-Parser output is either:
-
-```python
-ParseOk(ast: EquationGroup)
-```
-
-or:
-
-```python
-ParseUnknown(reason: UnsupportedReason, diagnostics: tuple[Diagnostic, ...])
-```
-
-Parser must not run algebra, dimension, or reference checks.
-
-Parser must not call SymPy directly. SymPy conversion belongs in `check.algebra`.
-
-### AST nodes
-
-All AST nodes must be frozen dataclasses with slots and spans.
-
-```python
-class Expr: ...
-
-
-@dataclass(frozen=True, slots=True)
-class EquationGroup:
-    equations: tuple[Equation, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class Equation:
-    sides: tuple[Expr, ...]
-    span: SourceSpan
-```
-
-`Equation.sides` supports chained equality. Checkers treat `a = b = c` as adjacent pairs: `a = b`, then `b = c`.
-
-Expression nodes:
-
-```python
-@dataclass(frozen=True, slots=True)
-class Number(Expr):
-    value: Fraction
-    raw: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class Symbol(Expr):
-    name: str
-    raw: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class UnaryOp(Expr):
-    op: UnaryOperator
-    operand: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class BinaryOp(Expr):
-    op: BinaryOperator
-    left: Expr
-    right: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class FunctionCall(Expr):
-    func: FunctionName
-    arg: Expr
-    span: SourceSpan
-```
-
-Operators:
-
-```python
-class BinaryOperator(Enum):
-    ADD = "add"
-    SUB = "sub"
-    MUL = "mul"
-    DIV = "div"
-    POW = "pow"
-
-
-class UnaryOperator(Enum):
-    POS = "pos"
-    NEG = "neg"
-
-
-class FunctionName(Enum):
-    SQRT = "sqrt"
-```
+The checker supports rational constants, symbols, addition, subtraction,
+multiplication, division by a single monomial, unary signs, integer powers in the
+specified range, and square roots of numeric perfect-square rational values. It
+remains exact and does not use random sampling or floating-point testing. It
+computes the residual for adjacent equality sides and emits `ALG001` only
+when the exact residual is nonzero. Unsupported input keeps the catalogued
+skipped-diagnostic behavior; it is never treated as a guessed result.
 
 ### Parser diagnostics
 
@@ -1590,33 +1411,10 @@ class FunctionName(Enum):
 | `PARSE021` | v0.1.0 | info | Unsupported function; check skipped |
 | `PARSE022` | v0.1.0 | info | Unsupported operator; check skipped |
 
-`PARSE001` should be rare. Common unsupported constructs should have specific `PARSE02x` codes.
+`PARSE001` should be rare. Common unsupported constructs should have specific
+`PARSE02x` codes.
 
----
-
-## 11. Algebra check
-
-Algebra check proves or rejects scalar equalities for supported expressions.
-
-The check must be exact. It must not use random sampling or floating-point testing.
-
-v0.1.0 uses SymPy through a constrained adapter.
-
-### Boundary
-
-`check.algebra` owns:
-
-- AST to SymPy conversion,
-- symbol creation,
-- equality normalization,
-- residual computation,
-- diagnostic detail formatting.
-
-It must not expose SymPy objects outside `check.algebra`.
-
-It must construct SymPy expressions from SciEqLint AST nodes only. It must not pass document text, normalized TeX strings, or user-controlled expressions to `sympy.parsing.sympy_parser.parse_expr`, `sympy.parsing.latex.parse_latex`, or equivalent text parsers.
-
-### Diagnostics
+### Algebra diagnostics
 
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
@@ -1625,19 +1423,11 @@ It must construct SymPy expressions from SciEqLint AST nodes only. It must not p
 | `ALG020` | v0.1.0 | info | Algebra check skipped |
 | `ALG030` | v0.1.0 | warning | Algebra check exceeded configured limit |
 
-`ALG001` detail must include residual when printable:
+`ALG001` detail includes the exact residual when printable:
 
 ```text
 left - right = 2*a*b
 ```
-
-If residual is too large:
-
-```text
-left - right is nonzero; residual omitted because it exceeds display limit
-```
-
----
 
 ## 12. Dimension check
 
