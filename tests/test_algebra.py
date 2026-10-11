@@ -292,6 +292,12 @@ def test_assignment_with_different_symbols_is_not_treated_as_identity() -> None:
             "unsupported syntax; check skipped",
             id="incomplete-equation",
         ),
+        pytest.param(
+            "x^{2 = x",
+            "PARSE020",
+            "unsupported syntax; check skipped",
+            id="unclosed-grouped-exponent",
+        ),
     ],
 )
 @pytest.mark.parametrize(
