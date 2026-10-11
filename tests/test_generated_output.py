@@ -32,7 +32,6 @@ def snapshot_for_translation(generated_text: str) -> FactSnapshot:
         span=None,
         source_document_id=source.path.as_posix(),
         generated_document_id=generated.path.as_posix(),
-        tool="translation",
         preserved_anchor_inventory=("jax_at_workaround",),
     )
     return replace(snapshot, generated_provenance=(provenance,))
@@ -119,7 +118,6 @@ def test_generated_profile_reports_only_caller_supplied_dropped_anchor() -> None
         DocumentKind.MARKDOWN,
         origin=SourceOrigin(
             source_document_id=source.path.as_posix(),
-            tool="translation",
             preserved_anchor_inventory=("energy",),
         ),
     )
