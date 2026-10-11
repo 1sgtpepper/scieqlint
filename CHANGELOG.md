@@ -14,11 +14,6 @@ Release notes must use these sections:
 
 ## Unreleased
 
-### Removed
-
-- Remove the scanner-side notebook input and JSON compatibility import modules;
-  notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
-
 ### Added
 
 - Document the v1.2.1 product release criteria, current and planned owners, and
@@ -342,6 +337,8 @@ Release notes must use these sections:
 - Remove `SourceOrigin.source_sha`, `SourceOrigin.tool`, and
   `SourceOrigin.tool_version`. Keep `source_document_id` as the only positional
   argument and pass all surviving optional metadata by keyword.
+- Remove the scanner-side notebook input and JSON compatibility import modules;
+  notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
 
 ### Migration notes
 
