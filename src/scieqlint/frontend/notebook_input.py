@@ -438,7 +438,7 @@ def _source_option_span(
         document,
         cell_index=cell_index,
         cell_line=cell_line,
-        source_ranges=source_ranges,
+        source_ranges=iter(source_ranges),
     )
 
 

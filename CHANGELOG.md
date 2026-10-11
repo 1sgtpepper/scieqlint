@@ -14,6 +14,11 @@ Release notes must use these sections:
 
 ## Unreleased
 
+### Removed
+
+- Remove the scanner-side notebook input and JSON compatibility import modules;
+  notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
+
 ### Added
 
 - Document the v1.2.1 product release criteria, current and planned owners, and
