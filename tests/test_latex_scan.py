@@ -84,7 +84,7 @@ def test_latex_scanner_preserves_stateful_str_find_schedule() -> None:
                 return super().find(sub, start)
             return super().find(sub, start, end)
 
-    text = SecondCloseMiss(r"\[x\]")
+    text = SecondCloseMiss(r"\[x\]" + "\n% \\[comment\n\\\\[escaped\n")
     document = _document(text)
     result = LatexScanner().scan(document, Config())
 
