@@ -334,7 +334,9 @@ Release notes must use these sections:
 
 ### Removed
 
-- Nothing yet.
+- Remove `SourceOrigin.source_sha`, `SourceOrigin.tool`, and
+  `SourceOrigin.tool_version`. Keep `source_document_id` as the only positional
+  argument and pass all surviving optional metadata by keyword.
 
 ### Migration notes
 
