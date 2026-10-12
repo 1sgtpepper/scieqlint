@@ -8,10 +8,10 @@ def test_agent_instruction_files_point_to_repo_contracts() -> None:
     agents = agents_path.read_text(encoding="utf-8")
     _assert_repo_contracts(agents)
 
-    claude_path = Path("CLAUDE.md")
-    instructions = claude_path.read_text(encoding="utf-8")
+    instructions_path = Path("CLAUDE.md")
+    instructions = instructions_path.read_text(encoding="utf-8")
     assert "[`AGENTS.md`](AGENTS.md)" in instructions
-    assert (claude_path.parent / "AGENTS.md").read_text(encoding="utf-8") == agents
+    assert (instructions_path.parent / "AGENTS.md").read_text(encoding="utf-8") == agents
 
 
 def _assert_repo_contracts(instructions: str) -> None:

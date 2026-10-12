@@ -1147,6 +1147,7 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 
 `parse` may import `diag.model` and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
 
+
 `check` may import `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
 
 `report` may import `diag.model`, result models, and packaged schema metadata. It must not import `scan`, `parse`, or `check`.
@@ -1340,6 +1341,7 @@ Scanners must not emit algebra, dimension, duplicate-label, or missing-reference
 ---
 
 ## 10. Unsupported math diagnostics
+
 
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
