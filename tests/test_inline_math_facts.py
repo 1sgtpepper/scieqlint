@@ -553,7 +553,6 @@ def test_myst_roles_own_overlapping_latex_parens_without_hiding_adjacent_math(
         assert fact.span.end == body_start + len(body)
         assert source[raw_start : raw_start + len(raw)] == raw
         cursor = raw_start + len(raw)
-    assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
 
 
 @pytest.mark.parametrize(

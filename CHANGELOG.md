@@ -25,9 +25,8 @@ Release notes must use these sections:
 - Expand the accuracy corpus to 169 fixtures, including 102 source equations with
   independently justified expectations and source provenance.
   Enforce the 100-equation accuracy gate in ordinary PR CI as well as release checks.
-- MyST inline-math facts now retain their delimiter kind, source span, surrounding
-  text role, and parse status, and `QueryHost.math.inline_math()` exposes the
-  candidates and classified facts to downstream engines.
+- MyST inline-math candidates retain delimiter kind, source span, surrounding text
+  role, and classification status on `FactSnapshot.inline_math`.
 - Generated-document validation now reports high-confidence suspicious formula
   text as source-spanned `GEN002` diagnostics when the `generated-myst` profile is
   selected, including through the packaged preset.
@@ -347,6 +346,8 @@ Release notes must use these sections:
   terminal CI aggregate while retaining the required docs and project checks.
 - Remove the placeholder funding file and superseded `scripts/check_pack.py`
   wrapper.
+- Remove the unused `QueryHost.math.inline_math()` projection; inline-math candidates
+  and classification status remain available on `FactSnapshot.inline_math`.
 
 ### Migration notes
 

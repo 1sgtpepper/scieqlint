@@ -561,10 +561,18 @@ def test_notebook_scanner_rejects_parsed_input_from_another_document() -> None:
 
 
 @pytest.mark.parametrize("text", ["{", "", " \n\t", "{} {}"])
-def test_invalid_notebook_json_emits_input_diagnostic(text: str) -> None:
+@pytest.mark.parametrize(
+    "references_enabled",
+    [True, False],
+    ids=["profile-selected", "unselected"],
+)
+def test_invalid_notebook_json_emits_input_diagnostic(text: str, references_enabled: bool) -> None:
     document = SourceDocument.from_text(PurePosixPath("broken.ipynb"), text, DocumentKind.NOTEBOOK)
 
-    result = check_documents([document], config=Config())
+    config = Config(
+        checks=ChecksConfig(references=ReferencesConfig(enabled=references_enabled)),
+    )
+    result = check_documents([document], config=config)
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
     assert result.diagnostics[0].span is not None
