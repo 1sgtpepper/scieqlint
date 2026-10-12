@@ -77,7 +77,6 @@ def test_myst_fact_spans_select_their_source_tokens(
     expected_spans: dict[str, list[tuple[tuple[int, int], str]]] = {
         "heading": [],
         "heading_marker": [],
-        "heading_text": [],
         "anchor": [],
         "anchor_label": [],
         "reference": [],
@@ -91,11 +90,6 @@ def test_myst_fact_spans_select_their_source_tokens(
             expected_spans[name].append(((source_offset, source_offset + len(text)), "# Heading\n"))
             marker_start = source_offset + text.index("#")
             expected_spans["heading_marker"].append(((marker_start, marker_start + 1), "#"))
-            heading_text = "Heading"
-            heading_text_start = source_offset + text.index(heading_text)
-            expected_spans["heading_text"].append(
-                ((heading_text_start, heading_text_start + len(heading_text)), heading_text)
-            )
         elif name == "anchor":
             expected_spans[name].append(((source_offset, source_offset + len(text)), "(target)=\n"))
             anchor_label = "target"
@@ -128,10 +122,6 @@ def test_myst_fact_spans_select_their_source_tokens(
         for fact in snapshot.headings
     ] == expected_spans["heading_marker"]
     assert [
-        (_span_offsets(document, fact.text_span), _span_text(document, fact.text_span))
-        for fact in snapshot.headings
-    ] == expected_spans["heading_text"]
-    assert [
         (_span_offsets(document, fact.span), _span_text(document, fact.span))
         for fact in snapshot.target_anchors
     ] == expected_spans["anchor"]
@@ -158,7 +148,6 @@ def test_myst_fact_spans_select_their_source_tokens(
     for fact in snapshot.headings:
         _assert_span_coordinates(document.text, fact.span)
         _assert_span_coordinates(document.text, fact.marker_span)
-        _assert_span_coordinates(document.text, fact.text_span)
     for fact in snapshot.target_anchors:
         _assert_span_coordinates(document.text, fact.span)
         _assert_span_coordinates(document.text, fact.label_span)
@@ -278,8 +267,6 @@ def test_code_cell_frontend_preserves_fence_and_reference_semantics(
     close_start = text.index(close_line, body_start)
     close_end = close_start + len(close_line)
     assert fence.opener == marker
-    assert fence.fence_char == marker[0]
-    assert fence.fence_length == len(marker)
     assert fence.info_string == f"{{code-cell}} {language}"
     assert fence.language == language
     assert fence.kind == "code-cell"
@@ -287,18 +274,14 @@ def test_code_cell_frontend_preserves_fence_and_reference_semantics(
     assert _span_offsets(document, fence.span) == (0, close_end)
     assert _span_offsets(document, fence.opener_span) == (0, opener_end)
     assert _span_offsets(document, fence.body_span) == (body_start, close_start)
-    assert fence.closer_span is not None
-    assert _span_offsets(document, fence.closer_span) == (close_start, close_end)
     assert _span_text(document, fence.span) == text[:close_end]
     assert _span_text(document, fence.opener_span) == opener + "\n"
     assert _span_text(document, fence.body_span) == (
         f":{label_key}: {label}\nraise RuntimeError('property tests never execute cells')\n"
     )
-    assert _span_text(document, fence.closer_span) == close_line
     _assert_span_coordinates(document.text, fence.span)
     _assert_span_coordinates(document.text, fence.opener_span)
     _assert_span_coordinates(document.text, fence.body_span)
-    _assert_span_coordinates(document.text, fence.closer_span)
     [cell] = snapshot.code_cells
     assert cell.language == language
     assert cell.label == label

@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 from scieqlint.diag.model import SourceSpan
-from scieqlint.source.maps import Origin
-
-Confidence = Literal["source", "generated", "inferred", "external"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -23,6 +19,3 @@ class FactBase:
     fact_id: str
     document_id: str
     span: SourceSpan | None
-    raw: str | None = None
-    origin: Origin | None = None
-    confidence: Confidence = "source"

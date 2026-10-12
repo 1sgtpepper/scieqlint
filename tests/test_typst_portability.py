@@ -60,6 +60,11 @@ def notebook_doc(text: str) -> SourceDocument:
     )
 
 
+def source_text(source: str, fact: OutputPortabilityFact) -> str:
+    assert fact.span is not None
+    return source[fact.span.start : fact.span.end]
+
+
 def typst_config() -> Config:
     return Config(
         profile=ProfileConfig(name="typst-portability"),
@@ -100,13 +105,13 @@ def test_typst_checks_math_body_after_myst_option_prefix(
     result = check_documents((doc(source),), config=typst_config())
 
     risks = snapshot.portability
-    assert [risk.raw for risk in risks] == expected
+    assert [source_text(source, risk) for risk in risks] == expected
     assert [item.code for item in result.diagnostics] == ["PORT003"] * len(expected)
     for risk in risks:
         assert risk.span is not None
-        assert risk.raw is not None
-        assert risk.span.start == source.index(risk.raw, len("```{math}\n") + len(prefix))
-        assert source[risk.span.start : risk.span.end] == risk.raw
+        assert risk.span.start == source.index(
+            source_text(source, risk), len("```{math}\n") + len(prefix)
+        )
 
 
 def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
@@ -122,7 +127,7 @@ def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
         "typst-unsupported-command",
         "typst-unsupported-command",
     ]
-    assert [fact.raw for fact in snapshot.portability] == [
+    assert [source_text(_SOURCE, fact) for fact in snapshot.portability] == [
         r"\begin{matrix}",
         r"\begin{aligned}",
         r"\dfrac",
@@ -174,7 +179,7 @@ def test_typst_profile_uses_latex_scanner_for_tex_display_forms(source: str) -> 
     assert [(fact.container, fact.body) for fact in snapshot.display_math] == [
         ("latex-display", r"\dfrac{x}{2}")
     ]
-    assert [fact.raw for fact in snapshot.portability] == [r"\dfrac"]
+    assert [source_text(source, fact) for fact in snapshot.portability] == [r"\dfrac"]
     [risk] = snapshot.portability
     assert risk.span is not None
     assert source[risk.span.start : risk.span.end] == r"\dfrac"
@@ -397,7 +402,7 @@ def test_typst_portability_preserves_escape_parity_for_commands_and_environments
         **profile_scan_inputs((doc(source),)),
     )
 
-    assert [fact.raw for fact in snapshot.portability] == [
+    assert [source_text(source, fact) for fact in snapshot.portability] == [
         r"\dfrac",
         r"\begin{matrix}",
     ]
@@ -454,10 +459,10 @@ $$
         **profile_scan_inputs((doc(source),)),
     )
 
-    assert [fact.raw for fact in snapshot.portability] == [r"\begin{aligned}"]
+    assert [source_text(source, fact) for fact in snapshot.portability] == [r"\begin{aligned}"]
     [risk] = snapshot.portability
     assert risk.span is not None
-    assert source[risk.span.start : risk.span.end] == r"\begin{aligned}"
+    assert source_text(source, risk) == r"\begin{aligned}"
     assert dict(risk.metadata)["delimiter_commands"] == "left,right"
 
 
@@ -480,7 +485,7 @@ $$
         **profile_scan_inputs((doc(source),)),
     )
 
-    assert [fact.raw for fact in snapshot.portability] == [
+    assert [source_text(source, fact) for fact in snapshot.portability] == [
         r"\begin{array}",
         r"\begin{matrix}",
     ]
@@ -547,7 +552,7 @@ def test_typst_profile_bounds_mismatched_environment_closers(source: str) -> Non
     document = doc(source)
     snapshot = _profile_snapshot((document,), typst_config(), **profile_scan_inputs((document,)))
 
-    assert [(fact.raw, dict(fact.metadata)) for fact in snapshot.portability] == [
+    assert [(source_text(source, fact), dict(fact.metadata)) for fact in snapshot.portability] == [
         (
             r"\begin{matrix}",
             {
@@ -559,7 +564,7 @@ def test_typst_profile_bounds_mismatched_environment_closers(source: str) -> Non
     ]
     [risk] = snapshot.portability
     assert risk.span is not None
-    assert source[risk.span.start : risk.span.end] == r"\begin{matrix}"
+    assert source_text(source, risk) == r"\begin{matrix}"
 
     result = check_documents((document,), config=typst_config())
     [diagnostic] = [item for item in result.diagnostics if item.code == "PORT003"]
@@ -579,7 +584,7 @@ $$
     document = doc(source)
     snapshot = _profile_snapshot((document,), typst_config(), **profile_scan_inputs((document,)))
 
-    assert [(fact.raw, dict(fact.metadata)) for fact in snapshot.portability] == [
+    assert [(source_text(source, fact), dict(fact.metadata)) for fact in snapshot.portability] == [
         (
             r"\begin{matrix}",
             {
@@ -591,7 +596,7 @@ $$
     ]
     [risk] = snapshot.portability
     assert risk.span is not None
-    assert source[risk.span.start : risk.span.end] == r"\begin{matrix}"
+    assert source_text(source, risk) == r"\begin{matrix}"
 
     result = check_documents((document,), config=typst_config())
     [diagnostic] = [item for item in result.diagnostics if item.code == "PORT003"]
@@ -656,15 +661,11 @@ $$
         **profile_scan_inputs((doc(source),)),
     )
 
-    assert [fact.raw for fact in snapshot.portability] == [
+    assert [source_text(source, fact) for fact in snapshot.portability] == [
         r"\begin{array}",
         r"\begin{matrix}",
     ]
-    assert all(
-        source[fact.span.start : fact.span.end] == fact.raw
-        for fact in snapshot.portability
-        if fact.span is not None
-    )
+    assert all(fact.span is not None for fact in snapshot.portability)
 
 
 @pytest.mark.parametrize("closer_prefix", ["% ", "\\\\"])
@@ -683,7 +684,7 @@ def test_typst_portability_resumes_after_exact_verbatim_closer(closer_prefix: st
     )
 
     [risk] = snapshot.portability
-    assert risk.raw == r"\begin{matrix}"
+    assert source_text(source, risk) == r"\begin{matrix}"
 
 
 def test_unclosed_raw_environment_preserves_typst_risk_to_eof() -> None:
@@ -851,7 +852,6 @@ def test_frontend_without_profile_keeps_typst_policy_unmaterialized() -> None:
 def test_typst_engine_rejects_foreign_risk_kind() -> None:
     foreign = OutputPortabilityFact(
         fact_id="foreign-risk",
-        document_id="typst-equations.md",
         span=None,
         subject_fact_id="subject",
         output_profile="typst",
@@ -871,7 +871,6 @@ def test_typst_engine_rejects_foreign_risk_kind() -> None:
 def test_typst_engine_rejects_unknown_syntax_kind() -> None:
     unknown = OutputPortabilityFact(
         fact_id="unknown-syntax",
-        document_id="typst-equations.md",
         span=None,
         subject_fact_id="subject",
         output_profile="typst",

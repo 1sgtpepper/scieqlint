@@ -196,7 +196,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/query/host.py`
 - `src/scieqlint/query/math.py`
 - `src/scieqlint/query/portability.py`
-- `src/scieqlint/query/project.py`
 - `src/scieqlint/query/reference.py`
 - `src/scieqlint/query/structure.py`
 - `src/scieqlint/report/__init__.py`
@@ -212,7 +211,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/scan/symbols.py`
 - `src/scieqlint/schema/__init__.py`
 - `src/scieqlint/schema/diagnostic.py`
-- `src/scieqlint/schema/result.py`
 - `src/scieqlint/schemas/__init__.py`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.1.schema.json`
 - `src/scieqlint/schemas/scieqlint-diagnostic-0.2.schema.json`

@@ -15,7 +15,6 @@ ReferenceIdentity = NormalizedReferenceTarget | str
 CrossrefMetadataKind = Literal["reference-use", "target-definition"]
 TargetVisibility = Literal["visible", "hidden", "excluded"]
 ReferenceDisplayIntent = Literal["explicit", "target-default", "typed-number"]
-TargetTypeSource = Literal["resolved", "explicit", "inferred", "ambiguous", "unresolved"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -23,7 +22,6 @@ class TargetAnchorFact(FactBase):
     label: str
     normalized_label: str
     target_kind: str | None
-    attaches_to_fact_id: str | None
     placement: TargetPlacement
     visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
@@ -34,11 +32,11 @@ class GenericRefFact(FactBase):
     role_kind: str
     target: str
     normalized_target: str
+    raw: str | None = None
     title: str | None = None
     title_span: SourceSpan | None = None
     role_span: SourceSpan | None = None
     target_span: SourceSpan | None = None
-    local_or_external: str = "local"
     raw_target_path: str | None = None
     resolved_raw_target_path: str | None = None
     normalized_target_path: PurePosixPath | None = None
@@ -91,14 +89,10 @@ def format_member_target_identity(identity: NormalizedReferenceTarget) -> str:
 class CrossrefMetadataFact(FactBase):
     """Source-neutral cross-reference metadata for one output boundary."""
 
-    source_fact_id: str
-    logical_target: str
     normalized_target: str
     source_format: str
     output_boundary: str
     normalized_target_path: PurePosixPath | None = None
-    reference_role: str | None = None
-    display_title: str | None = None
     resolved_target_kind: str | None = None
     target_metadata: tuple[tuple[str, str], ...] = ()
     metadata_kind: CrossrefMetadataKind = "reference-use"
@@ -121,7 +115,7 @@ class EquationLabelFact(FactBase):
     normalized_label: str
     label_syntax_kind: str
     source_block_id: str | None
-    namespace: str = "equation"
+    raw: str | None = None
     visibility: TargetVisibility = "visible"
     label_span: SourceSpan | None = None
 
@@ -131,6 +125,7 @@ class EquationRefFact(FactBase):
     ref_kind: str
     target: str
     normalized_target: str
+    raw: str | None = None
     title: str | None = None
     title_span: SourceSpan | None = None
     source_block_id: str | None = None
@@ -152,7 +147,6 @@ class ReferenceDisplayTextFact(FactBase):
     explicit_text: str | None
     target_type: str | None
     display_intent: ReferenceDisplayIntent
-    target_type_source: TargetTypeSource = "unresolved"
     target_identity: NormalizedReferenceTarget | None = None
     target_fact_ids: tuple[str, ...] = ()
     display_text_span: SourceSpan | None = None

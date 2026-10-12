@@ -125,10 +125,7 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
 
     [cell] = snapshot.code_cells
     assert cell.language == "python"
-    assert cell.engine == "python"
     assert cell.label == "fig-theme"
-    assert cell.tags == ("hide-input",)
-    assert cell.raw == "plot_light()\nplot_dark()\n"
     assert cell.option_dict() == {
         "fig-cap": "Theme comparison",
         "label": "fig-theme",
@@ -136,30 +133,21 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
         "tags": '["hide-input"]',
     }
     assert [output.output_index for output in snapshot.notebook_outputs] == [0, 1]
-    assert snapshot.notebook_outputs[0] in snapshot.all_facts()
-    assert QueryHost(snapshot).structure.notebook_outputs() == snapshot.notebook_outputs
-    assert snapshot.notebook_outputs[0].mime_types == ("image/png", "text/plain")
     assert snapshot.notebook_outputs[0].metadata == (("needs_background", "light"),)
     assert all(output.span is not None for output in snapshot.notebook_outputs)
     assert [output.span.cell for output in snapshot.notebook_outputs if output.span] == [0, 0]
     assert all(
         output.span and output.span.cell_line is None for output in snapshot.notebook_outputs
     )
-    assert all(
-        output.raw is not None and document.text[output.span.start : output.span.end] == output.raw
-        for output in snapshot.notebook_outputs
-        if output.span is not None
-    )
     assert [fact.output_boundary for fact in snapshot.crossref_metadata] == [
         "theme.ipynb::notebook-cell::0::output::0",
         "theme.ipynb::notebook-cell::0::output::1",
     ]
     assert [
-        (fact.resolved_target_kind, fact.reference_role, fact.target_metadata)
-        for fact in snapshot.crossref_metadata
+        (fact.resolved_target_kind, fact.target_metadata) for fact in snapshot.crossref_metadata
     ] == [
-        ("figure", None, (("fig-cap", "Theme comparison"),)),
-        ("figure", None, (("fig-cap", "Theme comparison"),)),
+        ("figure", (("fig-cap", "Theme comparison"),)),
+        ("figure", (("fig-cap", "Theme comparison"),)),
     ]
     assert QueryHost(snapshot).references.conflicting_metadata() == ()
 
@@ -229,16 +217,7 @@ def test_notebook_output_spans_use_literal_boundaries_and_cell_identity() -> Non
         "book/escaped-output.ipynb::notebook-cell::0::output::1",
         "book/escaped-output.ipynb::notebook-cell::1::output::0",
     ]
-    assert [(output.cell_index, output.output_index) for output in snapshot.notebook_outputs] == [
-        (0, 0),
-        (0, 1),
-        (1, 0),
-    ]
-    assert [output.output_type for output in snapshot.notebook_outputs] == [
-        "display_data",
-        "display_data",
-        "execute_result",
-    ]
+    assert [output.output_index for output in snapshot.notebook_outputs] == [0, 1, 0]
     assert [output.document_id for output in snapshot.notebook_outputs] == [
         "book/escaped-output.ipynb",
         "book/escaped-output.ipynb",
@@ -687,7 +666,6 @@ def test_output_metadata_is_a_rendering_conflict_input_with_an_exact_location() 
     [metadata] = snapshot.crossref_metadata
     assert metadata.target_metadata == (("fig-cap", "Rendered figure"),)
     assert metadata.span == snapshot.notebook_outputs[0].span
-    assert metadata.raw == snapshot.notebook_outputs[0].raw
 
 
 def test_notebook_output_label_produces_target_metadata_without_cell_label() -> None:
@@ -712,14 +690,13 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert anchor.label == "fig-output"
     assert anchor.normalized_label == "fig-output"
     assert anchor.target_kind == "figure"
-    assert anchor.attaches_to_fact_id == output.fact_id
     assert anchor.span == output.span
     assert anchor.label_span is not None
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "fig-output"
     identity = (PurePosixPath("theme.ipynb"), "fig-output")
     reference_results = QueryHost(snapshot).references.results()
     assert reference_results.target_identity_index[identity] == (anchor,)
-    assert metadata.logical_target == "fig-output"
+    assert metadata.normalized_target == "fig-output"
     assert metadata.resolved_target_kind == "figure"
     assert metadata.metadata_kind == "target-definition"
     assert metadata.target_metadata == (("fig-cap", "Output caption"),)
@@ -727,7 +704,12 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert metadata.span == output.span
     assert metadata.target_span == anchor.label_span
     assert metadata.span is not None
-    assert document.text[metadata.span.start : metadata.span.end] == output.raw
+    expected_output = (
+        '{"data": {"image/png": "payload"}, "metadata": '
+        '{"fig-cap": "Output caption", "label": "fig-output"}, '
+        '"output_type": "display_data"}'
+    )
+    assert document.text[metadata.span.start : metadata.span.end] == expected_output
 
 
 @pytest.mark.parametrize(
@@ -847,7 +829,7 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
         label_start + len("lst-output"),
     )
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "lst-output"
-    assert metadata.logical_target == "lst-output"
+    assert metadata.normalized_target == "lst-output"
     assert metadata.target_metadata == (("lst-cap", "Output listing"),)
     assert metadata.target_span == anchor.label_span
     reference_results = query.references.results()
@@ -882,7 +864,7 @@ def test_notebook_output_label_precedes_listing_alias() -> None:
     assert anchor.label == "fig-canonical"
     assert anchor.label_span is not None
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "fig-canonical"
-    assert metadata.logical_target == "fig-canonical"
+    assert metadata.normalized_target == "fig-canonical"
     assert metadata.target_span == anchor.label_span
 
 
@@ -1417,7 +1399,7 @@ def test_untyped_notebook_output_label_is_an_ordinary_target() -> None:
         (PurePosixPath("theme.ipynb"), "plain-output")
     ] == (anchor,)
     assert not any(
-        fact.metadata_kind == "target-definition" and fact.logical_target == "plain-output"
+        fact.metadata_kind == "target-definition" and fact.normalized_target == "plain-output"
         for fact in snapshot.crossref_metadata
     )
     assert ReferenceEngine().run(query) == ()
@@ -1638,7 +1620,9 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
     assert equation_label.label == "eq-cell"
     assert equation_ref.title == "Equation"
     assert equation_ref.target == "eq-cell"
-    assert {(fact.metadata_kind, fact.logical_target) for fact in snapshot.crossref_metadata} == {
+    assert {
+        (fact.metadata_kind, fact.normalized_target) for fact in snapshot.crossref_metadata
+    } == {
         ("target-definition", "fig-cell"),
         ("target-definition", "eq-cell"),
         ("reference-use", "fig-cell"),
@@ -1666,15 +1650,14 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
     assert source_slice(equation_ref.target_span) == "eq-cell"
 
     for fact in snapshot.crossref_metadata:
-        assert fact.logical_target in source_slice(fact.span)
-        assert source_slice(fact.target_span) == fact.logical_target
+        assert fact.normalized_target in source_slice(fact.span)
+        assert source_slice(fact.target_span) == fact.normalized_target
 
     generic_metadata = next(
         fact
         for fact in snapshot.crossref_metadata
-        if fact.metadata_kind == "reference-use" and fact.logical_target == "fig-cell"
+        if fact.metadata_kind == "reference-use" and fact.normalized_target == "fig-cell"
     )
-    assert generic_metadata.reference_role == "ref"
     assert generic_metadata.resolved_target_kind is None
     assert generic_metadata.target_metadata == ()
     assert generic_metadata.target_span is not None
@@ -1684,10 +1667,10 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
     [display] = [
         fact for fact in snapshot.reference_display_text if fact.normalized_target == "fig-cell"
     ]
-    assert display.source_fact_id == generic_ref.fact_id
     assert display.target_fact_ids == (anchor.fact_id,)
     assert display.target_identity == (PurePosixPath("theme.ipynb"), "fig-cell")
     assert display.explicit_text == "Figure"
+    assert display.source_fact_id == generic_ref.fact_id
     assert source_slice(display.display_text_span) == "Figure"
 
 
@@ -1798,22 +1781,18 @@ def test_notebook_frontend_bounds_malformed_cell_and_output_metadata() -> None:
 
     snapshot = NotebookFrontend().lower((document,))
 
-    assert [(cell.label, cell.raw, cell.option_dict()) for cell in snapshot.code_cells] == [
-        (None, None, {}),
+    assert [(cell.label, cell.option_dict()) for cell in snapshot.code_cells] == [
+        (None, {}),
         (
             "fig-theme",
-            "plot()",
             {"fig-cap": "Theme comparison", "label": "fig-theme"},
         ),
-        (None, None, {}),
+        (None, {}),
     ]
-    assert [
-        (output.cell_index, output.output_index, output.output_type, output.metadata)
-        for output in snapshot.notebook_outputs
-    ] == [
-        (2, 0, "display_data", ()),
-        (2, 1, "display_data", ()),
-        (2, 2, "unknown", ()),
+    assert [(output.output_index, output.metadata) for output in snapshot.notebook_outputs] == [
+        (0, ()),
+        (1, ()),
+        (2, ()),
     ]
 
 
@@ -1859,7 +1838,6 @@ def test_notebook_frontend_skips_non_cell_entries_and_normalizes_scalar_metadata
     assert len(snapshot.code_cells) == 1
     [cell] = snapshot.code_cells
     assert cell.label is None
-    assert cell.tags == ("hide-input", "remove-output")
     assert cell.option_dict() == {
         "caption": "3.5",
         "fig-cap": "true",
@@ -1900,15 +1878,20 @@ def test_notebook_facts_fixture_preserves_spans_without_executing_code() -> None
     [output] = snapshot.notebook_outputs
     assert cell.fact_id == "notebook_facts.ipynb::notebook-cell::1"
     assert cell.label == "fig-facts"
-    assert cell.tags == ("hide-input",)
-    assert cell.raw == "raise RuntimeError('not executed')\n"
     assert output.output_index == 0
-    assert output.output_type == "display_data"
-    assert output.mime_types == ("image/png",)
     assert dict(output.metadata) == {"label": "fig-output"}
     assert output.span is not None
-    assert output.raw is not None
-    assert document.text[output.span.start : output.span.end] == output.raw
+    assert document.text[output.span.start : output.span.end] == (
+        "{\n"
+        '          "data": {\n'
+        '            "image/png": "payload"\n'
+        "          },\n"
+        '          "metadata": {\n'
+        '            "label": "fig-output"\n'
+        "          },\n"
+        '          "output_type": "display_data"\n'
+        "        }"
+    )
     [anchor] = snapshot.target_anchors
     assert anchor.label == "fig-output"
     assert anchor.label_span is not None

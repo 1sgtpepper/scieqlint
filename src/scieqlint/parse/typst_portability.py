@@ -38,7 +38,7 @@ def typst_math_risks(
             for token in lexical.environment_tokens
             if not range_contains(token[2], lexical.non_math_ranges)
         )
-        smap = SourceMap.for_document(document)
+        smap = SourceMap(document)
         risks.extend(_typst_command_risks(display, segment, smap))
         risks.extend(
             _typst_environment_risks(
@@ -87,10 +87,7 @@ def _typst_command_risks(
         risks.append(
             OutputPortabilityFact(
                 fact_id=f"{display.fact_id}::typst-command::{start}",
-                document_id=display.document_id,
                 span=smap.span(start, end),
-                raw=match.group(0),
-                confidence=display.confidence,
                 subject_fact_id=display.fact_id,
                 output_profile="typst",
                 risk_kind="typst-unsupported-command",
@@ -158,10 +155,7 @@ def _typst_environment_risks(
         risks.append(
             OutputPortabilityFact(
                 fact_id=f"{display.fact_id}::typst-environment::{start}",
-                document_id=display.document_id,
                 span=smap.span(start, token_end),
-                raw=segment[environment_start : environment_start + token_length],
-                confidence=display.confidence,
                 subject_fact_id=display.fact_id,
                 output_profile="typst",
                 risk_kind="typst-fragile-environment",

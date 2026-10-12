@@ -1,4 +1,4 @@
-"""Heading, section, and target-anchor lowering for MyST/Markdown."""
+"""Heading and target-anchor fact production for MyST/Markdown."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from scieqlint.facts.reference import TargetAnchorFact
 from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
-    SectionFact,
     StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
@@ -23,7 +22,6 @@ from .myst_shared import (
     OffsetRange,
     in_ranges,
     normalize_label,
-    slug,
 )
 
 
@@ -48,7 +46,6 @@ def scan_headings(
         text = _heading_text(body)
 
         indent = len(line) - len(line.lstrip(" \t"))
-        text_start = start + indent + len(hashes) + (len(space) if space else 0)
         yield HeadingFact(
             fact_id=f"{document.path.as_posix()}::heading::{start}",
             document_id=document.path.as_posix(),
@@ -56,9 +53,7 @@ def scan_headings(
             raw=line,
             level=len(hashes),
             text=text,
-            slug_candidate=slug(text),
             marker_span=smap.span(start + indent, start + indent + len(hashes)),
-            text_span=smap.span(text_start, text_start + len(body.lstrip())) if text else None,
         )
 
 
@@ -83,7 +78,6 @@ def scan_heading_syntax_issues(
             ),
             raw=line,
             kind="atx-heading",
-            reason="missing_space_after_atx_marker",
         )
 
 
@@ -105,11 +99,9 @@ def scan_anchors(
             fact_id=f"{document.path.as_posix()}::anchor::{start}",
             document_id=document.path.as_posix(),
             span=smap.span(start, end),
-            raw=line,
             label=label,
             normalized_label=normalize_label(label),
             target_kind=None,
-            attaches_to_fact_id=None,
             placement="standalone",
             label_span=smap.span(label_start, label_start + len(label)),
         )
@@ -144,7 +136,6 @@ def attach_anchors(
         yield replace(
             anchor,
             target_kind=kind,
-            attaches_to_fact_id=next_fact.fact_id,
             placement=placement,
         )
 
@@ -158,32 +149,6 @@ def _attached_target_kind(fact: HeadingFact | FenceFact) -> str:
         "{table}": "table",
         "{code-cell}": "code-cell",
     }.get(directive, "block")
-
-
-def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFact]:
-    stack: list[tuple[int, str]] = []
-    counters = [0] * 7
-    for heading in headings:
-        level = heading.level
-        counters[level] += 1
-        for idx in range(level + 1, 7):
-            counters[idx] = 0
-        while stack and stack[-1][0] >= level:
-            stack.pop()
-        parent = stack[-1][1] if stack else None
-        fact_id = f"{heading.fact_id}::section"
-        stack.append((level, fact_id))
-        yield SectionFact(
-            fact_id=fact_id,
-            document_id=heading.document_id,
-            span=heading.span,
-            raw=heading.raw,
-            heading_fact_id=heading.fact_id,
-            parent_section_id=parent,
-            depth=level,
-            ordinal_path=tuple(counters[1 : level + 1]),
-            starts_at=heading.span,
-        )
 
 
 def _heading_text(body: str) -> str:

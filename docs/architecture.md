@@ -22,9 +22,8 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 - MathHost classifies inline and display candidates and owns Typst math portability facts. It
   does not call SymPy or expand TeX macros; full LaTeX macro expansion remains deferred.
   Unsupported candidates retain their `parse_status`; they do not create separate
-  `UnknownMath` snapshot records. The architecture preview's unknown-math query is retired, and
-  its summary fact count excludes those former rows. Unsupported checker diagnostics are
-  unchanged.
+  `UnknownMath` snapshot records. The architecture preview's unknown-math query is retired;
+  unsupported checker diagnostics are unchanged.
 - PolicyHost owns output-profile support, code-cell language-catalog policy, and
   diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.
