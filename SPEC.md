@@ -111,7 +111,7 @@ A release is done only when all of the following are true:
 - contributor-facing docs show how to run, test, and safely change the shipped behavior,
 - golden fixtures lock expected output,
 - the diagnostic catalog and schemas are updated when applicable,
-- issue labels and starter issues reflect the current release scope,
+- issue labels and live starter-issue queues reflect the current release scope,
 - package CI's source-distribution test-suite and clean wheel CLI smoke gates pass,
 - the stable release workflow's separate clean wheel and source-distribution
   install/CLI smoke gates pass,
@@ -161,7 +161,8 @@ Ships:
 - `py.typed` included.
 - `CONTRIBUTING.md`, `ROADMAP.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, and `MAINTAINERS.md` exist.
 - GitHub issue templates and PR template exist.
-- `GOOD_FIRST_ISSUES.md` lists at least ten starter issues.
+- The initial ten-issue seed-list gate is complete; `GOOD_FIRST_ISSUES.md` routes
+  contributors to the live issue queues.
 
 Acceptance:
 
@@ -2277,13 +2278,13 @@ Every diagnostic code page/table must include:
 
 ### OSS contributor experience
 
-Contributor documentation covers repository layout, local checks, starter issues, and review flow.
+Contributor documentation covers repository layout, local checks, live issue routes, and review flow.
 
 Contributor documentation includes:
 
 - product summary,
 - local quality loop commands,
-- starter issues with affected area, change, and test notes,
+- live newcomer issue routes and the issue guide,
 - release scope reference,
 - architecture map for scanner, parser, checker, reporter, config, docs, and packaging.
 
@@ -2294,7 +2295,7 @@ By v0.0.1 the repository must include these top-level files:
 | `README.md` | product pitch, install, first demo, limitations link | v0.0.1 |
 | `CONTRIBUTING.md` | local setup, test commands, PR expectations, issue labels | v0.0.1 |
 | `ROADMAP.md` | release ladder rewritten for contributors | v0.0.1 |
-| `GOOD_FIRST_ISSUES.md` | ten starter issues | v0.0.1 |
+| `GOOD_FIRST_ISSUES.md` | links to live newcomer issue queues | v0.0.1 |
 | `CODE_OF_CONDUCT.md` | behavior rules for safe collaboration | v0.0.1 |
 | `SECURITY.md` | responsible disclosure and security boundaries | v0.0.1 |
 | `SUPPORT.md` | where to ask questions and what is out of support | v0.0.1 |
@@ -2413,24 +2414,12 @@ scope:later-release
 
 Issues marked `scope:later-release` are kept out of the active milestone.
 
-#### First ten starter issues
+#### Historical starter-issue gate
 
-By v0.0.1, `GOOD_FIRST_ISSUES.md` must include at least these ten issues, even if the tracker is not yet public:
-
-| # | Title | Labels | Contributor value |
-|---:|---|---|---|
-| 1 | Add minimal CLI help golden snapshots | `good first issue`, `area:cli`, `release:v0.0.1` | teaches CLI shape without touching analysis |
-| 2 | Implement or test `LineIndex` offset mapping | `good second issue`, `area:tests`, `release:v0.1.0` | teaches source spans, a core project concept |
-| 3 | Add diagnostic catalog table tests | `good first issue`, `area:tests`, `release:v0.1.0` | teaches stable diagnostic codes |
-| 4 | Add Markdown display-math scanner fixtures | `good first issue`, `area:scanner-markdown`, `release:v0.1.0` | teaches scanner contracts |
-| 5 | Add MyST directive label fixtures | `good first issue`, `area:scanner-markdown`, `release:v0.1.0` | teaches MyST support boundaries |
-| 6 | Add parser tests for unary signs and powers | `good second issue`, `area:parser`, `release:v0.1.0` | teaches grammar without expanding scope |
-| 7 | Add algebra golden case for famous false identity | `good first issue`, `area:algebra`, `release:v0.1.0` | anchors the product demo |
-| 8 | Add JSON reporter schema validation fixture | `good second issue`, `area:report-json`, `release:v0.1.0` | teaches automation contract |
-| 9 | Write limitations examples for unsupported functions | `good first issue`, `area:docs`, `release:v0.1.0` | reinforces parser-boundary docs |
-| 10 | Add package-resource smoke test for grammar and schemas | `good second issue`, `area:packaging`, `release:v0.1.0` | protects release quality |
-
-These are seed issues. Maintainers may replace them with equivalent issues, but the issue list must preserve the same mix: docs, fixtures, tests, CLI, scanner, parser, reporter, packaging.
+The v0.0.1 specification required ten seed issues covering documentation,
+fixtures, tests, CLI, scanners, parser, reporters, and packaging. That initial
+gate is complete; it is not a current backlog. `GOOD_FIRST_ISSUES.md` now links
+to the live `good first issue`, `good second issue`, and `help wanted` queues.
 
 #### Contributor paths
 
@@ -2443,7 +2432,7 @@ The repository should document four contributor paths:
 | Math/science domain contributor | benchmark cases, unsupported examples, dimension configs | parser or algebra expansion |
 | CI/integration contributor | package smoke, pre-commit, GitHub reporter, SARIF fixtures | core checker behavior |
 
-Each path should have one linked starter issue.
+Use the live issue routes in `GOOD_FIRST_ISSUES.md` to find work for these contributor paths.
 
 #### PR flow
 
@@ -2494,7 +2483,6 @@ docs/contributing/pr-dependency-checks.md
 docs/contributing/testing.md
 docs/contributing/golden-files.md
 docs/contributing/diagnostics.md
-docs/contributing/release-scope.md
 docs/contributing/review-guide.md
 docs/contributing/issue-guide.md
 ```
@@ -2512,14 +2500,13 @@ v0.0.1 contributor acceptance:
 
 - top-level contributor files exist,
 - issue and PR templates exist,
-- at least ten starter issues are written,
+- the historical ten-issue seed-list gate is complete, and current queues are linked,
 - labels are documented,
 - local setup commands are documented and tested by a maintainer from a clean checkout.
 
 v0.1.0 contributor acceptance:
 
 - contributor docs explain fixtures, golden outputs, diagnostics, and release scope,
-- at least five starter issues remain open and current after v0.1.0 ships,
 - at least one example PR in docs shows the smallest acceptable contribution path,
 - release notes thank external contributors if any contributed.
 
@@ -2569,7 +2556,7 @@ Any grammar expansion requires:
 - CLI commands exist.
 - CI skeleton is green.
 - Contributor quickstart can be followed on a clean machine.
-- At least ten starter issues are written using the required issue contract.
+- The initial ten-issue seed-list gate is complete; current contributor work is routed through live GitHub labels.
 
 ### v0.1.0 checks
 
@@ -2580,7 +2567,7 @@ Product:
 - `scieqlint check .` provides useful zero-config diagnostics on Markdown/MyST files.
 - Limitations page clearly states unsupported syntax, supported reference forms, supported MyST subset, and unsupported build behavior.
 - Contributor docs explain how to add a scanner fixture, parser case, diagnostic, reporter golden, and limitation entry without changing unrelated layers.
-- The issue tracker contains labeled `good first issue`, `help wanted`, `area:*`, `release:*`, and `scope:*` examples aligned with v0.1.0.
+- The original v0.1.0 issue-label examples were a release gate; current newcomer work is routed through the live labels linked from `GOOD_FIRST_ISSUES.md`.
 
 CLI:
 
