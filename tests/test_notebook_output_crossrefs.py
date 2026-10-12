@@ -1536,7 +1536,6 @@ def test_notebook_frontend_preserves_split_crlf_source_items() -> None:
     assert display.span.cell == 0
     assert display.span.segments
     assert len(display.span.segments[1].ranges) == 2
-    assert snapshot.unknown_math == ()
     assert snapshot.target_anchors == ()
     assert snapshot.generic_refs == ()
     assert snapshot.equation_labels == ()

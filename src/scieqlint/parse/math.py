@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.markdown import is_non_math_tex_environment
@@ -12,7 +12,6 @@ from scieqlint.source.maps import SourceMap
 
 from . import math_classification as _classification
 from .generated_formulas import classify_generated_formulas as _classify_generated_formulas
-from .macro_facts import inline_math_macro_facts as _inline_math_macro_facts
 from .raw_equations import raw_equation_facts as _raw_equation_facts
 from .typst_portability import typst_math_risks as _typst_math_risks
 
@@ -26,13 +25,9 @@ class MathHost:
 
     def classify(self, snapshot: FactSnapshot) -> FactSnapshot:
         inline_math: list[InlineMathFact] = []
-        unknown_math: list[UnknownMathFact] = []
-        existing_unknown_ids = {fact.source_math_fact_id for fact in snapshot.unknown_math}
         for fact in snapshot.inline_math:
-            status, unknown = _classify_inline(fact)
+            status = _classify_inline(fact)
             inline_math.append(replace(fact, parse_status=status))
-            if unknown is not None and fact.fact_id not in existing_unknown_ids:
-                unknown_math.append(unknown)
         display_math: list[DisplayMathFact] = []
         equation_labels = list(snapshot.equation_labels)
         equation_refs = list(snapshot.equation_refs)
@@ -48,7 +43,7 @@ class MathHost:
         for fact in snapshot.display_math:
             if fact.container == "raw-latex" and is_non_math_tex_environment(fact.environment):
                 continue
-            display, unknown = _classify_display(fact)
+            display = _classify_display(fact)
             if (
                 fact.container == "raw-latex"
                 and fact.complete
@@ -73,21 +68,12 @@ class MathHost:
                     equation_refs.append(reference)
                     existing_ref_ids.add(reference.fact_id)
             display_math.append(display)
-            if unknown is not None and fact.fact_id not in existing_unknown_ids:
-                unknown_math.append(unknown)
-        macro_declarations, macro_uses = _inline_math_macro_facts(
-            snapshot.documents,
-            tuple(inline_math),
-        )
         classified = replace(
             snapshot,
             inline_math=tuple(inline_math),
             display_math=tuple(display_math),
             equation_labels=tuple(equation_labels),
             equation_refs=tuple(equation_refs),
-            math_macro_declarations=macro_declarations,
-            math_macro_uses=macro_uses,
-            unknown_math=(*snapshot.unknown_math, *unknown_math),
         )
         accepted_raw_display_ids = {
             fact.fact_id
