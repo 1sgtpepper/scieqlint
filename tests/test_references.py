@@ -7,12 +7,13 @@ import pytest
 
 from scieqlint import markdown as markdown_module
 from scieqlint.api import check_documents, graph_documents
-from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.config.model import ChecksConfig, Config, ReferencesConfig, ScannerConfig
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
+from scieqlint.query.reference import ReferenceQueryView
 from scieqlint.scan.markdown import MarkdownScanner
 
 
@@ -429,6 +430,80 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_block_html() -> Non
     assert [reference.target for reference in frontend.equation_refs] == ["missing"]
     public_diagnostics = check_documents([document], config=Config()).diagnostics
     assert [diagnostic.code for diagnostic in public_diagnostics] == ["REF002"]
+
+
+def test_reference_resolution_follows_enabled_gate_once_with_exact_spans(monkeypatch) -> None:
+    source = "See {eq}`missing`.\n\n$$\nx = 1\n$$\n"
+    path = PurePosixPath("dispatch.md")
+    document = SourceDocument.from_text(path, source, DocumentKind.MARKDOWN)
+    target_indexes = ReferenceQueryView._target_indexes
+    reference_engine_run = ReferenceEngine.run
+    counts = {"engine_runs": 0, "pre_dispatch_indexes": 0}
+    in_engine = False
+
+    def count_target_indexes(view: ReferenceQueryView, targets: tuple):
+        if not in_engine:
+            counts["pre_dispatch_indexes"] += 1
+        return target_indexes(view, targets)
+
+    def count_engine_run(engine: ReferenceEngine, query: QueryHost):
+        nonlocal in_engine
+        counts["engine_runs"] += 1
+        in_engine = True
+        try:
+            return reference_engine_run(engine, query)
+        finally:
+            in_engine = False
+
+    monkeypatch.setattr(ReferenceQueryView, "_target_indexes", count_target_indexes)
+    monkeypatch.setattr(ReferenceEngine, "run", count_engine_run)
+
+    for enabled, expected_codes, expected_traversals in (
+        (True, ["REF002", "REF003"], 1),
+        (False, [], 0),
+    ):
+        counts.update(engine_runs=0, pre_dispatch_indexes=0)
+        result = check_documents(
+            (document,),
+            config=Config(
+                checks=ChecksConfig(
+                    references=ReferencesConfig(
+                        enabled=enabled,
+                        missing_label_strict=True,
+                    )
+                )
+            ),
+        )
+
+        assert counts == {
+            "engine_runs": expected_traversals,
+            "pre_dispatch_indexes": 0,
+        }
+        assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+        if enabled:
+            reference_start = source.index("missing")
+            equation_start = source.index("x = 1")
+            equation_end = equation_start + len("x = 1")
+            assert [diagnostic.span for diagnostic in result.diagnostics] == [
+                SourceSpan(
+                    path=path,
+                    start=reference_start,
+                    end=reference_start + len("missing"),
+                    line=1,
+                    col=reference_start + 1,
+                    end_line=1,
+                    end_col=reference_start + len("missing"),
+                ),
+                SourceSpan(
+                    path=path,
+                    start=equation_start,
+                    end=equation_end,
+                    line=4,
+                    col=1,
+                    end_line=4,
+                    end_col=len("x = 1"),
+                ),
+            ]
 
 
 def test_equation_roles_follow_equal_length_and_multiline_code_spans() -> None:

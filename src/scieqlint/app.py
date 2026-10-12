@@ -73,10 +73,6 @@ _project_generated_diagnostic = _app_profile_generated.project_generated_diagnos
 _raw_missing_label_diagnostics = _app_profile_crossref.raw_missing_label_diagnostics
 _source_reference_facts = _app_profile_crossref.source_reference_facts
 _source_role_fact_id = _app_profile_crossref.source_role_fact_id
-_without_profile_owned_legacy_reference_diagnostics = (
-    _app_profile_crossref.without_profile_owned_legacy_reference_diagnostics
-)
-
 _ResultT = TypeVar("_ResultT")
 
 
@@ -371,10 +367,6 @@ def check_documents(
             if diagnostic not in diagnostics:
                 diagnostics.append(diagnostic)
         query = QueryHost(snapshot)
-        diagnostics = _without_profile_owned_legacy_reference_diagnostics(
-            diagnostics,
-            query,
-        )
         if config.checks.references.enabled:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
