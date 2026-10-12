@@ -206,7 +206,9 @@ See {ref}`cell-demo`.
     assert cell.language == "custom.kernel"
     assert source_slice(document, cell.label_span) == "cell-demo"
     assert source_slice(document, cell.language_span) == "custom.kernel"
-    assert QueryHost(snapshot).references.code_cell_targets() == (cell,)
+    assert QueryHost(snapshot).references.results().target_identity_index[
+        (PurePosixPath("paper.md"), "cell-demo")
+    ] == (cell,)
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
 
@@ -286,7 +288,7 @@ See {ref}`repeated-cell`.
     query = QueryHost(snapshot)
     diagnostics = ReferenceEngine().run(query)
 
-    assert query.references.duplicate_code_cell_targets() == {
+    assert query.references.results().duplicate_code_cell_targets == {
         (PurePosixPath("cells.md"), "repeated-cell"): (snapshot.code_cells[1],)
     }
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF010", "REF005"]
@@ -342,7 +344,7 @@ print(2)
     snapshot = MySTFrontend().lower((first, second))
     query = QueryHost(snapshot)
 
-    assert query.references.duplicate_code_cell_targets() == {}
+    assert query.references.results().duplicate_code_cell_targets == {}
     assert not [item for item in ReferenceEngine().run(query) if item.code == "REF010"]
 
 
@@ -903,15 +905,17 @@ def test_nonvisible_notebook_code_cells_keep_facts_without_language_or_reference
     query = QueryHost(snapshot)
     hidden_cell, visible_cell = snapshot.code_cells
 
-    assert query.references.code_cell_targets() == (hidden_cell, visible_cell)
     assert hidden_cell.visibility == visibility
     assert visible_cell.visibility == "visible"
-    if visibility == "hidden":
-        assert query.references.hidden_code_cell_targets() == (hidden_cell,)
-    else:
-        assert query.references.excluded_code_cell_targets() == (hidden_cell,)
+    results = query.references.results()
+    assert (PurePosixPath("visible.ipynb"), visible_cell.normalized_label) in (
+        results.target_identity_index
+    )
+    assert (PurePosixPath("hidden.ipynb"), hidden_cell.normalized_label) not in (
+        results.target_identity_index
+    )
     assert query.portability.quarto_crossref_label_issues() == ()
-    assert query.references.duplicate_code_cell_targets() == {}
+    assert results.duplicate_code_cell_targets == {}
     assert query.structure.invalid_code_cell_languages() == ()
     assert (
         StructureEngine(

@@ -521,11 +521,10 @@ def test_reference_namespace_includes_code_cell_labels_and_preserves_identity() 
     snapshot = MySTFrontend().lower((source,))
     query = QueryHost(snapshot)
 
-    assert query.references.target_index()["FIG-cell"] == (snapshot.code_cells[0],)
-    assert query.references.target_identity_index()[(PurePosixPath("paper.md"), "FIG-cell")] == (
-        snapshot.code_cells[0],
-    )
-    assert query.references.unresolved_generic_refs() == ()
+    assert query.references.results().target_identity_index[
+        (PurePosixPath("paper.md"), "FIG-cell")
+    ] == (snapshot.code_cells[0],)
+    assert query.references.results().unresolved_generic_refs == ()
 
 
 def test_duplicate_code_cell_labels_report_duplicate_and_ambiguous_diagnostics() -> None:

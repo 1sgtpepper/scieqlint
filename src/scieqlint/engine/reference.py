@@ -7,9 +7,6 @@ from typing import cast
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.facts.reference import (
-    EquationLabelFact,
-    EquationRefFact,
-    GenericRefFact,
     NormalizedReferenceTarget,
     format_member_target_identity,
     normalized_reference_target,
@@ -42,15 +39,10 @@ class ReferenceEngine:
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
+        references = query.references
+        results = references.results()
         duplicate_equation_info = CATALOG["REF001"]
-        duplicate_targets = query.references.duplicate_equation_targets().values()
-        duplicate_groups = tuple(
-            sorted(
-                (tuple(sorted(same_name, key=_fact_source_key)) for same_name in duplicate_targets),
-                key=lambda facts: _fact_source_key(facts[0]),
-            )
-        )
-        for same_name in duplicate_groups:
+        for same_name in results.duplicate_equation_targets.values():
             for duplicate in same_name[1:]:
                 diagnostics.append(
                     DiagnosticIR(
@@ -63,11 +55,8 @@ class ReferenceEngine:
                     )
                 )
         duplicate_cell_info = CATALOG["REF010"]
-        target_index = query.references.target_identity_index()
-        for target, duplicates in sorted(
-            query.references.duplicate_code_cell_targets().items(),
-            key=lambda item: (item[0][0].as_posix(), item[0][1]),
-        ):
+        target_index = results.target_identity_index
+        for target, duplicates in results.duplicate_code_cell_targets.items():
             facts = target_index[target]
             duplicate_ids = {duplicate.fact_id for duplicate in duplicates}
             # The query leaves the first cell, or a colliding non-cell target,
@@ -92,17 +81,15 @@ class ReferenceEngine:
                         ),
                     )
                 )
-        nonvisible_impacts = query.references.nonvisible_equation_target_impacts()
+        nonvisible_impacts = results.nonvisible_equation_target_impacts
         nonvisible_only_reference_ids = {
             impact.reference.fact_id
             for impact in nonvisible_impacts
-            if not impact.visible_targets and (impact.hidden_targets or impact.excluded_targets)
+            if not impact.visible_target_count
+            and (impact.hidden_target_count or impact.excluded_target_count)
         }
         missing_equation_info = CATALOG["REF002"]
-        for ref in sorted(
-            query.references.unresolved_equation_refs(),
-            key=_fact_source_key,
-        ):
+        for ref in results.unresolved_equation_refs:
             if ref.fact_id in nonvisible_only_reference_ids:
                 continue
             diagnostics.append(
@@ -117,10 +104,7 @@ class ReferenceEngine:
                 )
             )
         ambiguous_equation_info = CATALOG["REF011"]
-        for ref in sorted(
-            query.references.ambiguous_equation_refs(),
-            key=_fact_source_key,
-        ):
+        for ref in results.ambiguous_equation_refs:
             diagnostics.append(
                 DiagnosticIR(
                     code="REF011",
@@ -133,13 +117,10 @@ class ReferenceEngine:
                 )
             )
         nonvisible_info = CATALOG["REF008"]
-        for impact in sorted(
-            nonvisible_impacts,
-            key=lambda item: _fact_source_key(item.reference),
-        ):
+        for impact in nonvisible_impacts:
             ref = impact.reference
-            hidden_example = impact.hidden_targets[0] if impact.hidden_targets else None
-            excluded_example = impact.excluded_targets[0] if impact.excluded_targets else None
+            hidden_example = impact.hidden_example
+            excluded_example = impact.excluded_example
             hidden_suffix = f" (example={hidden_example.document_id!r})" if hidden_example else ""
             excluded_suffix = (
                 f" (example={excluded_example.document_id!r})" if excluded_example else ""
@@ -147,9 +128,9 @@ class ReferenceEngine:
             provenance_ids = (ref.fact_id,)
             properties = (
                 ("target", ref.normalized_target),
-                ("visible_target_count", str(len(impact.visible_targets))),
-                ("hidden_target_count", str(len(impact.hidden_targets))),
-                ("excluded_target_count", str(len(impact.excluded_targets))),
+                ("visible_target_count", str(impact.visible_target_count)),
+                ("hidden_target_count", str(impact.hidden_target_count)),
+                ("excluded_target_count", str(impact.excluded_target_count)),
             )
             if hidden_example is not None:
                 provenance_ids += (hidden_example.fact_id,)
@@ -164,9 +145,9 @@ class ReferenceEngine:
                     message=f"{nonvisible_info.message}: {ref.target}",
                     span=ref.target_span or ref.span,
                     detail=(
-                        f"visible targets={len(impact.visible_targets)}; "
-                        f"hidden targets={len(impact.hidden_targets)}{hidden_suffix}; "
-                        f"excluded targets={len(impact.excluded_targets)}{excluded_suffix}"
+                        f"visible targets={impact.visible_target_count}; "
+                        f"hidden targets={impact.hidden_target_count}{hidden_suffix}; "
+                        f"excluded targets={impact.excluded_target_count}{excluded_suffix}"
                     ),
                     hint=(
                         "Rename the non-visible target or make its source visible in "
@@ -180,7 +161,7 @@ class ReferenceEngine:
             )
         if self.profile == "reference-display":
             display_info = CATALOG["REF009"]
-            for issue in query.references.unclear_nonheading_display_text():
+            for issue in references.unclear_nonheading_display_text():
                 fact = issue.fact
                 rendered = fact.explicit_text if fact.explicit_text is not None else ""
                 target_identity = format_member_target_identity(
@@ -216,10 +197,7 @@ class ReferenceEngine:
                 )
         missing_info = CATALOG["REF004"]
         equation_missing_info = CATALOG["REF002"]
-        for ref in sorted(
-            query.references.unresolved_generic_refs(),
-            key=_fact_source_key,
-        ):
+        for ref in results.unresolved_generic_refs:
             if ref.role_kind == "markdown-link" and ref.raw_target_path is None:
                 diagnostics.append(
                     DiagnosticIR(
@@ -247,7 +225,7 @@ class ReferenceEngine:
                 )
             )
         metadata_info = CATALOG["REF007"]
-        for target, facts in query.references.conflicting_metadata():
+        for target, facts in references.conflicting_metadata():
             display_target = format_member_target_identity(target)
             canonical = facts[0]
             canonical_kind = canonical.resolved_target_kind
@@ -292,10 +270,7 @@ class ReferenceEngine:
                     )
                 )
         normalized_path_info = CATALOG["REF006"]
-        for ref, raw_matches, normalized_matches in sorted(
-            query.references.path_normalization_mismatches(),
-            key=lambda item: _fact_source_key(item[0]),
-        ):
+        for ref, raw_matches, normalized_matches in results.path_normalization_mismatches:
             assert ref.resolved_raw_target_path is not None
             assert ref.normalized_target_path is not None
             identity = normalized_reference_target(ref)
@@ -323,10 +298,7 @@ class ReferenceEngine:
                 )
             )
         ambiguous_info = CATALOG["REF005"]
-        for ref in sorted(
-            query.references.ambiguous_generic_refs(),
-            key=_fact_source_key,
-        ):
+        for ref in results.ambiguous_generic_refs:
             if ref.role_kind not in {"ref", "markdown-link"}:
                 continue
             diagnostics.append(
@@ -361,24 +333,6 @@ def _metadata_atom_preview(value: str) -> str:
         return f"<{len(value)} chars>"
     rendered = repr(value)
     return rendered if len(rendered) <= 80 else f"<{len(value)} chars>"
-
-
-def _fact_source_key(
-    fact: EquationLabelFact | EquationRefFact | GenericRefFact,
-) -> tuple[str, int, int, int, str, str]:
-    span = (
-        fact.label_span or fact.span
-        if isinstance(fact, EquationLabelFact)
-        else fact.target_span or fact.span
-    )
-    return (
-        fact.document_id,
-        -1 if span is None or span.cell is None else span.cell,
-        -1 if span is None else span.start,
-        -1 if span is None else span.end,
-        fact.fact_id,
-        fact.raw or "",
-    )
 
 
 def _diagnostic_key(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypeVar, cast
 
@@ -16,7 +17,6 @@ from scieqlint.facts.reference import (
     TargetAnchorFact,
     crossref_target_identity,
     generic_reference_identity,
-    normalized_reference_target,
 )
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import CodeCellFact
@@ -27,17 +27,13 @@ TargetT = TypeVar("TargetT", bound=TargetFact)
 
 
 @dataclass(frozen=True, slots=True)
-class ResolvedTarget:
-    key: str
-    facts: tuple[TargetFact, ...]
-
-
-@dataclass(frozen=True, slots=True)
 class NonvisibleEquationTargetImpact:
     reference: EquationRefFact
-    visible_targets: tuple[EquationLabelFact, ...]
-    hidden_targets: tuple[EquationLabelFact, ...]
-    excluded_targets: tuple[EquationLabelFact, ...]
+    visible_target_count: int
+    hidden_target_count: int
+    excluded_target_count: int
+    hidden_example: EquationLabelFact | None
+    excluded_example: EquationLabelFact | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,50 +43,38 @@ class UnclearReferenceDisplayText:
 
 
 @dataclass(frozen=True, slots=True)
+class _ReferenceQueryResults:
+    target_identity_index: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]]
+    duplicate_equation_targets: dict[str, tuple[EquationLabelFact, ...]]
+    duplicate_code_cell_targets: dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]]
+    unresolved_equation_refs: tuple[EquationRefFact, ...]
+    ambiguous_equation_refs: tuple[EquationRefFact, ...]
+    nonvisible_equation_target_impacts: tuple[NonvisibleEquationTargetImpact, ...]
+    unresolved_generic_refs: tuple[GenericRefFact, ...]
+    ambiguous_generic_refs: tuple[GenericRefFact, ...]
+    path_normalization_mismatches: tuple[
+        tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]], ...
+    ]
+
+
+@dataclass(frozen=True, slots=True)
 class ReferenceQueryView:
     snapshot: FactSnapshot
 
-    def generic_targets(self) -> tuple[TargetAnchorFact, ...]:
-        return self.snapshot.target_anchors
-
-    def equation_targets(self) -> tuple[EquationLabelFact, ...]:
-        return self.snapshot.equation_labels
-
-    def code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(cell for cell in self.snapshot.code_cells if cell.normalized_label is not None)
-
     def visible_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "visible")
-
-    def hidden_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "hidden")
-
-    def excluded_code_cell_targets(self) -> tuple[CodeCellFact, ...]:
-        return tuple(cell for cell in self.code_cell_targets() if cell.visibility == "excluded")
+        return tuple(
+            cell
+            for cell in self.snapshot.code_cells
+            if cell.normalized_label is not None and cell.visibility == "visible"
+        )
 
     def visible_equation_targets(self) -> tuple[EquationLabelFact, ...]:
         return tuple(
             label for label in self.snapshot.equation_labels if label.visibility == "visible"
         )
 
-    def hidden_equation_targets(self) -> tuple[EquationLabelFact, ...]:
-        return tuple(
-            label for label in self.snapshot.equation_labels if label.visibility == "hidden"
-        )
-
-    def excluded_equation_targets(self) -> tuple[EquationLabelFact, ...]:
-        return tuple(
-            label for label in self.snapshot.equation_labels if label.visibility == "excluded"
-        )
-
-    def generic_refs(self) -> tuple[GenericRefFact, ...]:
-        return self.snapshot.generic_refs
-
     def visible_generic_refs(self) -> tuple[GenericRefFact, ...]:
         return tuple(ref for ref in self.snapshot.generic_refs if ref.visibility == "visible")
-
-    def equation_refs(self) -> tuple[EquationRefFact, ...]:
-        return self.snapshot.equation_refs
 
     def visible_equation_refs(self) -> tuple[EquationRefFact, ...]:
         return tuple(ref for ref in self.snapshot.equation_refs if ref.visibility == "visible")
@@ -159,139 +143,27 @@ class ReferenceQueryView:
             by_target.items(), key=lambda item: (item[0][0].as_posix(), item[0][1])
         ):
             boundaries = {fact.output_boundary for fact in facts}
-            signatures = {_producer_signature(fact) for fact in facts}
+            signatures = {(fact.resolved_target_kind, fact.target_metadata) for fact in facts}
             if len(boundaries) > 1 and len(signatures) > 1:
                 conflicts.append((target, tuple(sorted(facts, key=_metadata_source_key))))
         return tuple(conflicts)
 
-    def target_index(self) -> dict[str, tuple[TargetFact, ...]]:
-        """Return the label-only namespace used by pathless reference roles."""
-
-        label_index, _ = self._target_indexes(self._target_facts())
-        return label_index
-
-    def target_identity_index(
-        self,
-    ) -> dict[NormalizedReferenceTarget, tuple[TargetFact, ...]]:
-        """Return targets keyed by normalized member path and label."""
-
-        _, identity_index = self._target_indexes(self._target_facts())
-        return identity_index
-
-    def equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
-        return _equation_index(self.visible_equation_targets())
-
-    def hidden_equation_target_index(self) -> dict[str, tuple[EquationLabelFact, ...]]:
-        return _equation_index(self.hidden_equation_targets())
-
-    def excluded_equation_target_index(
-        self,
-    ) -> dict[str, tuple[EquationLabelFact, ...]]:
-        return _equation_index(self.excluded_equation_targets())
-
-    def duplicate_equation_targets(
-        self,
-    ) -> dict[str, tuple[EquationLabelFact, ...]]:
-        return {key: value for key, value in self.equation_target_index().items() if len(value) > 1}
-
-    def unresolved_equation_refs(self) -> tuple[EquationRefFact, ...]:
-        targets = self.equation_target_index()
-        return tuple(
-            ref for ref in self.visible_equation_refs() if ref.normalized_target not in targets
-        )
-
-    def ambiguous_equation_refs(self) -> tuple[EquationRefFact, ...]:
-        targets = self.equation_target_index()
-        return tuple(
-            ref
-            for ref in self.visible_equation_refs()
-            if len(targets.get(ref.normalized_target, ())) > 1
-        )
-
-    def nonvisible_equation_target_impacts(
-        self,
-    ) -> tuple[NonvisibleEquationTargetImpact, ...]:
-        """Return references whose target identity exists outside the visible set."""
-
-        visible = self.equation_target_index()
-        hidden = {
-            target: tuple(sorted(labels, key=_equation_label_source_key))
-            for target, labels in self.hidden_equation_target_index().items()
+    def results(self) -> _ReferenceQueryResults:
+        visible_equation_index = _equation_index(self.visible_equation_targets())
+        duplicate_equation_targets = {
+            key: tuple(sorted(value, key=_query_fact_source_key))
+            for key, value in sorted(
+                visible_equation_index.items(),
+                key=lambda item: _query_fact_source_key(item[1][0]),
+            )
+            if len(value) > 1
         }
-        excluded = {
-            target: tuple(sorted(labels, key=_equation_label_source_key))
-            for target, labels in self.excluded_equation_target_index().items()
-        }
-        impacts: list[NonvisibleEquationTargetImpact] = []
-        for ref in sorted(self.visible_equation_refs(), key=_reference_source_key):
-            hidden_targets = hidden.get(ref.normalized_target, ())
-            excluded_targets = excluded.get(ref.normalized_target, ())
-            if not hidden_targets and not excluded_targets:
-                continue
-            impacts.append(
-                NonvisibleEquationTargetImpact(
-                    reference=ref,
-                    visible_targets=visible.get(ref.normalized_target, ()),
-                    hidden_targets=hidden_targets,
-                    excluded_targets=excluded_targets,
-                )
-            )
-        return tuple(impacts)
 
-    def duplicate_generic_targets(
-        self,
-    ) -> dict[NormalizedReferenceTarget, tuple[TargetAnchorFact, ...]]:
-        _, index = self._target_indexes(
-            tuple(
-                anchor
-                for anchor in self.snapshot.target_anchors
-                if anchor.visibility == "visible" and anchor.placement != "orphaned"
-            )
+        target_facts = self._target_facts()
+        target_index, target_identity_index = self._target_indexes(target_facts)
+        generic_ref_identities = tuple(
+            (ref, generic_reference_identity(ref)) for ref in self.visible_generic_refs()
         )
-        return {key: tuple(value) for key, value in index.items() if len(value) > 1}
-
-    def duplicate_code_cell_targets(
-        self,
-    ) -> dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]]:
-        duplicates: dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]] = {}
-        for key, facts in self.target_identity_index().items():
-            if len(facts) < 2:
-                continue
-            cells = tuple(
-                sorted(
-                    (fact for fact in facts if isinstance(fact, CodeCellFact)),
-                    key=_code_cell_source_key,
-                )
-            )
-            if not cells:
-                continue
-            non_cell_count = len(facts) - len(cells)
-            offending = cells if non_cell_count else cells[1:]
-            duplicates[key] = offending
-        return duplicates
-
-    def unresolved_generic_refs(self) -> tuple[GenericRefFact, ...]:
-        targets, identity_targets = self._target_indexes(self._target_facts())
-        return tuple(
-            ref
-            for ref in self.visible_generic_refs()
-            if generic_reference_identity(ref) is not None
-            and not self._generic_ref_targets(ref, targets, identity_targets)
-        )
-
-    def ambiguous_generic_refs(self) -> tuple[GenericRefFact, ...]:
-        targets, identity_targets = self._target_indexes(self._target_facts())
-        return tuple(
-            ref
-            for ref in self.visible_generic_refs()
-            if generic_reference_identity(ref) is not None
-            and len(self._generic_ref_targets(ref, targets, identity_targets)) > 1
-        )
-
-    def path_normalization_mismatches(
-        self,
-    ) -> tuple[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]], ...]:
-        """Return local path references whose raw and normalized resolution differ."""
 
         raw_members: dict[str, list[str]] = defaultdict(list)
         normalized_members: dict[str, list[str]] = defaultdict(list)
@@ -307,32 +179,103 @@ class ReferenceQueryView:
         normalized_member_ids = {
             path: frozenset(document_ids) for path, document_ids in normalized_members.items()
         }
+        path_identities = {
+            identity
+            for ref, identity in generic_ref_identities
+            if ref.resolved_raw_target_path is not None
+            and ref.normalized_target_path is not None
+            and isinstance(identity, tuple)
+        }
+        normalized_target_cache: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]] = {}
+        duplicate_code_cell_targets: dict[NormalizedReferenceTarget, tuple[CodeCellFact, ...]] = {}
+        for identity, facts in sorted(
+            target_identity_index.items(),
+            key=lambda item: (item[0][0].as_posix(), item[0][1]),
+        ):
+            has_path_reference = identity in path_identities
+            if len(facts) < 2 and not has_path_reference:
+                continue
+            cells: list[CodeCellFact] = []
+            normalized_member_targets: list[TargetFact] = []
+            member_ids: frozenset[str] = (
+                normalized_member_ids.get(identity[0].as_posix(), frozenset())
+                if has_path_reference
+                else frozenset()
+            )
+            # Share this identity-bucket pass between duplicate-cell and path checks.
+            for fact in facts:
+                if isinstance(fact, CodeCellFact):
+                    cells.append(fact)
+                if has_path_reference and fact.document_id in member_ids:
+                    normalized_member_targets.append(fact)
+            if has_path_reference:
+                normalized_target_cache[identity] = tuple(normalized_member_targets)
+            if len(facts) >= 2 and cells:
+                cells.sort(key=_code_cell_source_key)
+                non_cell_count = len(facts) - len(cells)
+                duplicates = cells if non_cell_count else cells[1:]
+                duplicate_code_cell_targets[identity] = tuple(duplicates)
 
-        mismatches: list[tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]] = []
-        target_facts = self._target_facts()
-        _, target_index = self._target_indexes(target_facts)
+        hidden_equation_targets = _equation_target_summaries(
+            label for label in self.snapshot.equation_labels if label.visibility == "hidden"
+        )
+        excluded_equation_targets = _equation_target_summaries(
+            label for label in self.snapshot.equation_labels if label.visibility == "excluded"
+        )
+        visible_equation_refs = self.visible_equation_refs()
+        nonvisible_impacts: list[NonvisibleEquationTargetImpact] = []
+        unresolved_equation_refs: list[EquationRefFact] = []
+        ambiguous_equation_refs: list[EquationRefFact] = []
+        for ref in visible_equation_refs:
+            visible_targets = visible_equation_index.get(ref.normalized_target, ())
+            if not visible_targets:
+                unresolved_equation_refs.append(ref)
+            elif len(visible_targets) > 1:
+                ambiguous_equation_refs.append(ref)
+            hidden_summary = hidden_equation_targets.get(ref.normalized_target)
+            excluded_summary = excluded_equation_targets.get(ref.normalized_target)
+            if hidden_summary is not None or excluded_summary is not None:
+                nonvisible_impacts.append(
+                    NonvisibleEquationTargetImpact(
+                        reference=ref,
+                        visible_target_count=len(visible_targets),
+                        hidden_target_count=hidden_summary[0] if hidden_summary else 0,
+                        excluded_target_count=excluded_summary[0] if excluded_summary else 0,
+                        hidden_example=hidden_summary[1] if hidden_summary else None,
+                        excluded_example=excluded_summary[1] if excluded_summary else None,
+                    )
+                )
+        nonvisible_impacts.sort(key=lambda impact: _query_fact_source_key(impact.reference))
+
         raw_target_index: dict[tuple[str, str], list[tuple[int, TargetFact]]] = defaultdict(list)
         for order, fact in enumerate(target_facts):
             normalized_label = cast(str, fact.normalized_label)
             raw_target_index[(fact.document_id, normalized_label)].append((order, fact))
-        normalized_target_cache: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]] = {}
         mismatch_cache: dict[tuple[str, NormalizedReferenceTarget], bool] = {}
-        for ref in self.visible_generic_refs():
+        unresolved_generic_refs: list[GenericRefFact] = []
+        ambiguous_generic_refs: list[GenericRefFact] = []
+        path_normalization_mismatches: list[
+            tuple[GenericRefFact, tuple[str, ...], tuple[str, ...]]
+        ] = []
+        for ref, identity in generic_ref_identities:
+            if identity is not None:
+                targets = (
+                    target_identity_index.get(identity, ())
+                    if isinstance(identity, tuple)
+                    else target_index.get(identity, ())
+                )
+                if not targets:
+                    unresolved_generic_refs.append(ref)
+                elif len(targets) > 1:
+                    ambiguous_generic_refs.append(ref)
+
             if ref.resolved_raw_target_path is None or ref.normalized_target_path is None:
                 continue
+            assert isinstance(identity, tuple)
             raw_matches = raw_member_index.get(ref.resolved_raw_target_path, ())
             normalized_path = ref.normalized_target_path.as_posix()
             normalized_matches = normalized_member_index.get(normalized_path, ())
-            identity = normalized_reference_target(ref)
-            normalized_targets = normalized_target_cache.get(identity)
-            if normalized_targets is None:
-                member_ids = normalized_member_ids.get(normalized_path, frozenset())
-                normalized_targets = tuple(
-                    fact
-                    for fact in target_index.get(identity, ())
-                    if fact.document_id in member_ids
-                )
-                normalized_target_cache[identity] = normalized_targets
+            normalized_targets = normalized_target_cache.get(identity, ())
             resolution = (ref.resolved_raw_target_path, identity)
             mismatch = mismatch_cache.get(resolution)
             if mismatch is None:
@@ -346,24 +289,28 @@ class ReferenceQueryView:
                 mismatch = raw_targets != normalized_targets and bool(normalized_targets)
                 mismatch_cache[resolution] = mismatch
             if mismatch:
-                mismatches.append((ref, raw_matches, normalized_matches))
-        return tuple(mismatches)
+                path_normalization_mismatches.append((ref, raw_matches, normalized_matches))
 
-    def _generic_ref_targets(
-        self,
-        ref: GenericRefFact,
-        target_index: dict[str, tuple[TargetFact, ...]],
-        identity_index: dict[NormalizedReferenceTarget, tuple[TargetFact, ...]],
-    ) -> tuple[TargetFact, ...]:
-        identity = generic_reference_identity(ref)
-        assert identity is not None
-        if isinstance(identity, tuple):
-            return identity_index.get(identity, ())
-        return target_index.get(identity, ())
+        unresolved_equation_refs.sort(key=_query_fact_source_key)
+        ambiguous_equation_refs.sort(key=_query_fact_source_key)
+        unresolved_generic_refs.sort(key=_query_fact_source_key)
+        ambiguous_generic_refs.sort(key=_query_fact_source_key)
+        path_normalization_mismatches.sort(key=lambda item: _query_fact_source_key(item[0]))
+        return _ReferenceQueryResults(
+            target_identity_index=target_identity_index,
+            duplicate_equation_targets=duplicate_equation_targets,
+            duplicate_code_cell_targets=duplicate_code_cell_targets,
+            unresolved_equation_refs=tuple(unresolved_equation_refs),
+            ambiguous_equation_refs=tuple(ambiguous_equation_refs),
+            nonvisible_equation_target_impacts=tuple(nonvisible_impacts),
+            unresolved_generic_refs=tuple(unresolved_generic_refs),
+            ambiguous_generic_refs=tuple(ambiguous_generic_refs),
+            path_normalization_mismatches=tuple(path_normalization_mismatches),
+        )
 
     def _target_facts(self) -> tuple[TargetFact, ...]:
         return (
-            *tuple(
+            *(
                 anchor
                 for anchor in self.snapshot.target_anchors
                 if anchor.visibility == "visible" and anchor.placement != "orphaned"
@@ -397,11 +344,6 @@ class ReferenceQueryView:
             {key: tuple(value) for key, value in identity_index.items()},
         )
 
-    def orphaned_targets(self) -> tuple[TargetAnchorFact, ...]:
-        return tuple(
-            anchor for anchor in self.snapshot.target_anchors if anchor.placement == "orphaned"
-        )
-
 
 def _equation_index(
     labels: tuple[EquationLabelFact, ...],
@@ -412,9 +354,19 @@ def _equation_index(
     return {key: tuple(value) for key, value in index.items()}
 
 
-def _equation_label_source_key(
-    fact: EquationLabelFact,
-) -> tuple[str, int, int, str]:
+def _equation_target_summaries(
+    labels: Iterable[EquationLabelFact],
+) -> dict[str, tuple[int, EquationLabelFact]]:
+    summaries: dict[str, tuple[int, EquationLabelFact]] = {}
+    for label in labels:
+        count, example = summaries.get(label.normalized_label, (0, label))
+        if count == 0 or _equation_label_source_key(label) < _equation_label_source_key(example):
+            example = label
+        summaries[label.normalized_label] = (count + 1, example)
+    return summaries
+
+
+def _equation_label_source_key(fact: EquationLabelFact) -> tuple[str, int, int, str]:
     span = fact.label_span or fact.span
     return (
         fact.document_id,
@@ -424,13 +376,21 @@ def _equation_label_source_key(
     )
 
 
-def _reference_source_key(fact: EquationRefFact) -> tuple[str, int, int, str]:
-    span = fact.target_span or fact.span
+def _query_fact_source_key(
+    fact: EquationLabelFact | EquationRefFact | GenericRefFact,
+) -> tuple[str, int, int, int, str, str]:
+    span = (
+        fact.label_span or fact.span
+        if isinstance(fact, EquationLabelFact)
+        else fact.target_span or fact.span
+    )
     return (
         fact.document_id,
-        span.start if span is not None else -1,
-        span.end if span is not None else -1,
+        -1 if span is None or span.cell is None else span.cell,
+        -1 if span is None else span.start,
+        -1 if span is None else span.end,
         fact.fact_id,
+        fact.raw or "",
     )
 
 
@@ -454,15 +414,6 @@ def _metadata_source_key(fact: CrossrefMetadataFact) -> tuple[str, int, int, str
         span.end if span is not None else -1,
         fact.output_boundary,
         fact.fact_id,
-    )
-
-
-def _producer_signature(
-    fact: CrossrefMetadataFact,
-) -> tuple[str | None, tuple[tuple[str, str], ...]]:
-    return (
-        fact.resolved_target_kind,
-        tuple(sorted(fact.target_metadata)),
     )
 
 

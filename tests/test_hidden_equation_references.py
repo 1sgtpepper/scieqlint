@@ -84,22 +84,17 @@ def test_visible_hidden_and_excluded_equation_targets_remain_separate() -> None:
         )
     )
 
-    assert query.references.equation_targets() == (visible, hidden, excluded)
-    assert query.references.visible_equation_targets() == (visible,)
-    assert query.references.hidden_equation_targets() == (hidden,)
-    assert query.references.excluded_equation_targets() == (excluded,)
-    assert query.references.equation_target_index() == {"eq-energy": (visible,)}
-    assert query.references.hidden_equation_target_index() == {"eq-energy": (hidden,)}
-    assert query.references.excluded_equation_target_index() == {"eq-energy": (excluded,)}
-    assert query.references.target_index()["eq-energy"] == (visible,)
-    assert query.references.duplicate_equation_targets() == {}
-    assert query.references.unresolved_equation_refs() == ()
+    results = query.references.results()
+    assert results.duplicate_equation_targets == {}
+    assert results.unresolved_equation_refs == ()
 
-    [impact] = query.references.nonvisible_equation_target_impacts()
+    [impact] = results.nonvisible_equation_target_impacts
     assert impact.reference is ref
-    assert impact.visible_targets == (visible,)
-    assert impact.hidden_targets == (hidden,)
-    assert impact.excluded_targets == (excluded,)
+    assert impact.visible_target_count == 1
+    assert impact.hidden_target_count == 1
+    assert impact.excluded_target_count == 1
+    assert impact.hidden_example is hidden
+    assert impact.excluded_example is excluded
 
 
 def test_reference_engine_reports_one_nonvisible_resolution_impact_per_reference() -> None:
@@ -153,6 +148,38 @@ def test_reference_engine_reports_one_nonvisible_resolution_impact_per_reference
     assert projected["code"] == "REF008"
     assert projected["provenance_ids"] == ["ref", "hidden", "excluded"]
     assert projected["properties"]["hidden_example_document"] == "appendix.md"
+
+
+def test_nonvisible_target_examples_are_capped_and_source_ordered() -> None:
+    later_hidden = label("hidden-z", document="z.md", visibility="hidden", start=10)
+    first_hidden = label("hidden-a", document="a.md", visibility="hidden", start=5)
+    later_excluded = label("excluded-z", document="z.md", visibility="excluded", start=20)
+    first_excluded = label("excluded-a", document="a.md", visibility="excluded", start=15)
+    ref = reference()
+    labels = (later_hidden, first_hidden, later_excluded, first_excluded)
+
+    results = QueryHost(
+        FactSnapshot(equation_labels=labels, equation_refs=(ref,))
+    ).references.results()
+    reversed_results = QueryHost(
+        FactSnapshot(equation_labels=tuple(reversed(labels)), equation_refs=(ref,))
+    ).references.results()
+
+    [impact] = results.nonvisible_equation_target_impacts
+    [reversed_impact] = reversed_results.nonvisible_equation_target_impacts
+    assert impact.visible_target_count == 0
+    assert impact.hidden_target_count == 2
+    assert impact.excluded_target_count == 2
+    assert impact.hidden_example is first_hidden
+    assert impact.excluded_example is first_excluded
+    assert reversed_impact == impact
+    diagnostic = ReferenceEngine().run(
+        QueryHost(FactSnapshot(equation_labels=labels, equation_refs=(ref,)))
+    )
+    reversed_diagnostic = ReferenceEngine().run(
+        QueryHost(FactSnapshot(equation_labels=tuple(reversed(labels)), equation_refs=(ref,)))
+    )
+    assert diagnostic == reversed_diagnostic
 
 
 def test_hidden_only_target_remains_unresolved_and_reports_visibility_impact() -> None:
@@ -247,7 +274,7 @@ def test_nonvisible_labels_without_matching_references_do_not_warn() -> None:
 
     query = QueryHost(FactSnapshot(equation_labels=(hidden, excluded)))
 
-    assert query.references.nonvisible_equation_target_impacts() == ()
+    assert query.references.results().nonvisible_equation_target_impacts == ()
     assert ReferenceEngine().run(query) == ()
 
 

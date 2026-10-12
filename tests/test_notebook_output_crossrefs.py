@@ -717,7 +717,9 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert anchor.span == output.span
     assert anchor.label_span is not None
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "fig-output"
-    assert QueryHost(snapshot).references.target_index()["fig-output"] == (anchor,)
+    identity = (PurePosixPath("theme.ipynb"), "fig-output")
+    reference_results = QueryHost(snapshot).references.results()
+    assert reference_results.target_identity_index[identity] == (anchor,)
     assert metadata.logical_target == "fig-output"
     assert metadata.resolved_target_kind == "figure"
     assert metadata.metadata_kind == "target-definition"
@@ -727,8 +729,6 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert metadata.target_span == anchor.label_span
     assert metadata.span is not None
     assert document.text[metadata.span.start : metadata.span.end] == output.raw
-    identity = (PurePosixPath("theme.ipynb"), "fig-output")
-    assert QueryHost(snapshot).references.target_identity_index()[identity] == (anchor,)
 
 
 @pytest.mark.parametrize(
@@ -851,8 +851,11 @@ def test_notebook_output_listing_alias_resolves_and_preserves_label_span() -> No
     assert metadata.logical_target == "lst-output"
     assert metadata.target_metadata == (("lst-cap", "Output listing"),)
     assert metadata.target_span == anchor.label_span
-    assert query.references.target_index()["lst-output"] == (anchor,)
-    assert query.references.unresolved_generic_refs() == ()
+    reference_results = query.references.results()
+    assert reference_results.target_identity_index[
+        (PurePosixPath("theme.ipynb"), "lst-output")
+    ] == (anchor,)
+    assert reference_results.unresolved_generic_refs == ()
     assert ReferenceEngine().run(query) == ()
 
 
@@ -1054,10 +1057,10 @@ def test_notebook_output_listing_aliases_participate_in_duplicate_resolution() -
     query = QueryHost(snapshot)
     identity = (PurePosixPath("theme.ipynb"), "lst-output")
 
-    anchors = query.references.target_identity_index().get(identity, ())
+    reference_results = query.references.results()
+    anchors = reference_results.target_identity_index.get(identity, ())
     assert len(anchors) == 2
-    assert query.references.duplicate_generic_targets()[identity] == anchors
-    [reference] = query.references.ambiguous_generic_refs()
+    [reference] = reference_results.ambiguous_generic_refs
     assert reference.normalized_target == "lst-output"
     assert any(item.code == "REF005" for item in ReferenceEngine().run(query))
 
@@ -1241,7 +1244,7 @@ def test_notebook_frontend_preserves_configured_project_member_identity() -> Non
         PurePosixPath("source.ipynb"),
         PurePosixPath("target.ipynb"),
     )
-    assert QueryHost(snapshot).references.unresolved_generic_refs() == ()
+    assert QueryHost(snapshot).references.results().unresolved_generic_refs == ()
 
 
 def test_public_output_link_reports_only_the_missing_control() -> None:
@@ -1394,10 +1397,10 @@ def test_notebook_output_labels_participate_in_duplicate_resolution() -> None:
     query = QueryHost(snapshot)
     identity = (PurePosixPath("theme.ipynb"), "fig-output")
 
-    anchors = query.references.target_identity_index()[identity]
+    reference_results = query.references.results()
+    anchors = reference_results.target_identity_index[identity]
     assert len(anchors) == 2
-    assert query.references.duplicate_generic_targets()[identity] == anchors
-    [reference] = query.references.ambiguous_generic_refs()
+    [reference] = reference_results.ambiguous_generic_refs
     assert reference.normalized_target == "fig-output"
     assert any(item.code == "REF005" for item in ReferenceEngine().run(query))
 
@@ -1418,7 +1421,9 @@ def test_untyped_notebook_output_label_is_an_ordinary_target() -> None:
 
     [anchor] = snapshot.target_anchors
     assert anchor.target_kind is None
-    assert query.references.target_index()["plain-output"] == (anchor,)
+    assert query.references.results().target_identity_index[
+        (PurePosixPath("theme.ipynb"), "plain-output")
+    ] == (anchor,)
     assert not any(
         fact.metadata_kind == "target-definition" and fact.logical_target == "plain-output"
         for fact in snapshot.crossref_metadata

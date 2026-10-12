@@ -30,15 +30,17 @@ def without_profile_owned_legacy_reference_diagnostics(
     diagnostics: list[Diagnostic],
     query: QueryHost,
 ) -> list[Diagnostic]:
+    references = query.references
+    results = references.results()
     profile_owned_spans = {
         span
-        for fact in query.references.equation_refs()
+        for fact in query.snapshot.equation_refs
         if (span := fact.target_span or fact.span) is not None
     }
-    unresolved_generic_ids = {fact.fact_id for fact in query.references.unresolved_generic_refs()}
+    unresolved_generic_ids = {fact.fact_id for fact in results.unresolved_generic_refs}
     profile_owned_spans.update(
         span
-        for fact in query.references.generic_refs()
+        for fact in query.snapshot.generic_refs
         if not (
             fact.fact_id in unresolved_generic_ids
             and fact.role_kind == "markdown-link"

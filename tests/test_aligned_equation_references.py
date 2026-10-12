@@ -116,8 +116,8 @@ $$
         ("tex-eqref", "eq:first", snapshot.display_math[0].fact_id),
         ("eq", "eq:first", None),
     ]
-    assert query.references.unresolved_equation_refs() == ()
-    assert query.references.equation_refs() == snapshot.equation_refs
+    assert query.references.results().unresolved_equation_refs == ()
+    assert query.snapshot.equation_refs == snapshot.equation_refs
     assert ReferenceEngine().run(query) == ()
     assert all(fact.target_span is not None for fact in snapshot.equation_refs)
     assert [
@@ -183,14 +183,16 @@ $$
     engine = ReferenceEngine().run(query)
     result = check_documents([document], config=without_algebra())
 
-    assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
+    assert query.references.results().duplicate_equation_targets == {
+        "dup": snapshot.equation_labels
+    }
     assert [(diagnostic.code, diagnostic.message) for diagnostic in engine] == [
         ("REF001", "duplicate equation label: dup"),
         ("REF011", "ambiguous equation reference: dup"),
     ]
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF001") == 1
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF011") == 1
-    assert query.references.ambiguous_equation_refs() == (snapshot.equation_refs[0],)
+    assert query.references.results().ambiguous_equation_refs == (snapshot.equation_refs[0],)
 
 
 def test_latex_reference_diagnostics_do_not_depend_on_markdown_scanning() -> None:
@@ -506,7 +508,9 @@ def test_duplicate_equation_labels_across_documents_report_duplicate_and_ambigui
         diagnostic for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
     )
 
-    assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
+    assert query.references.results().duplicate_equation_targets == {
+        "dup": snapshot.equation_labels
+    }
     assert [(diagnostic.code, diagnostic.message) for diagnostic in reference_diagnostics] == [
         ("REF001", "duplicate equation label: dup"),
         ("REF011", "ambiguous equation reference: dup"),
@@ -758,4 +762,4 @@ $$
     snapshot = lower(doc(source))
     query = QueryHost(snapshot)
 
-    assert query.references.ambiguous_equation_refs() == snapshot.equation_refs
+    assert query.references.results().ambiguous_equation_refs == snapshot.equation_refs
