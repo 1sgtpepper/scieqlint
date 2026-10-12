@@ -38,6 +38,34 @@ class _CharacterWorkText(str):
         return super().__getitem__(key)
 
 
+class _HookFenceText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.find_calls = 0
+        instance.slices = 0
+        return instance
+
+    def find(self, sub: str, start: int = 0, end: int | None = None) -> int:
+        self.find_calls += 1
+        return super().find(sub, start, len(self) if end is None else end)
+
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            self.slices += 1
+        return super().__getitem__(key)
+
+
+class _HookMaskText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.iterations = 0
+        return instance
+
+    def __iter__(self):
+        self.iterations += 1
+        return super().__iter__()
+
+
 class _RegexTraversal:
     def __init__(self, pattern, work: list[int]) -> None:
         self._pattern = pattern
@@ -156,6 +184,57 @@ def test_scanner_display_diagnostics_bound_closed_range_work(monkeypatch) -> Non
     assert len(result.blocks) == block_count
     assert result.diagnostics == ()
     assert any_work[0] <= 8 * len(source)
+
+
+@pytest.mark.parametrize("has_link_metadata", [False, True], ids=["baseline", "masked"])
+def test_scanner_shares_lexical_projection_only_for_matching_symbol_input(
+    monkeypatch: pytest.MonkeyPatch,
+    has_link_metadata: bool,
+) -> None:
+    link = "[section](#section)\n\n" if has_link_metadata else ""
+    source = link + "$$\nx = 1\n$$\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), source, DocumentKind.MARKDOWN)
+    metadata = markdown_module.markdown_reference_snapshot(source).link_metadata_ranges
+    masked = markdown_scan_module._mask_ranges(source, metadata)
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_scan_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, occupied):
+        calls.append((text, tuple(occupied)))
+        return real_lexical_ranges(text, occupied)
+
+    monkeypatch.setattr(markdown_scan_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    result = MarkdownScanner().scan(document, Config())
+
+    if has_link_metadata:
+        assert calls == [(source, metadata), (masked, ())]
+    else:
+        assert calls == [(source, ())]
+    assert [block.container for block in result.blocks] == [MathContainer.MARKDOWN_DISPLAY]
+    assert result.diagnostics == ()
+
+
+def test_empty_masking_reuses_builtin_text_but_preserves_subclass_iteration() -> None:
+    source = "plain text"
+    assert markdown_scan_module._mask_ranges(source, ()) is source
+
+    custom = _HookMaskText(source)
+    masked = markdown_scan_module._mask_ranges(custom, ())
+
+    assert masked == source
+    assert type(masked) is str
+    assert custom.iterations == 1
+
+
+def test_math_fence_newline_fast_path_preserves_custom_text_hooks() -> None:
+    source = _HookFenceText("```math\r\nx = 1\r\n```")
+
+    ranges = markdown_scan_module._math_fence_ranges(source, ((0, len(source)),))
+
+    assert ranges == ((0, 8, 10, 14),)
+    assert source.find_calls == 0
+    assert source.slices == 1
 
 
 def test_scanner_reuses_exact_lexical_result_for_display_and_fences(monkeypatch) -> None:

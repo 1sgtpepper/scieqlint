@@ -76,6 +76,75 @@ def _link_tokens(text: str):
     return markdown_module.markdown_reference_snapshot(text).links
 
 
+@pytest.mark.parametrize(
+    "occupied",
+    [
+        pytest.param((), id="empty"),
+        pytest.param(((5, 5),), id="empty-range"),
+        pytest.param(((11, 17),), id="nonempty"),
+        pytest.param(((14, 17), (11, 15), (13, 14), (16, 16)), id="unsorted-overlapping"),
+    ],
+)
+def test_reference_snapshot_reuses_baseline_without_metadata_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    occupied: tuple[tuple[int, int], ...],
+) -> None:
+    source = "$$\nx = 1\n$$\nplain"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append((text, tuple(ranges)))
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == [(source, occupied)]
+    assert snapshot.links == ()
+    assert snapshot.link_metadata_ranges == ()
+
+
+def test_reference_snapshot_keeps_second_scan_for_link_metadata_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = "[x](#target)"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append((text, tuple(ranges)))
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source)
+
+    assert calls == [(source, ()), (source, ((4, 12),))]
+    assert [token.fragment_target for token in snapshot.links] == ["target"]
+    assert snapshot.link_metadata_ranges == ((4, 12),)
+
+
+def test_reference_snapshot_keeps_second_scan_for_custom_text_and_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _CharacterWorkText("$$\nx = 1\n$$\nplain")
+    occupied = _RangeWork(((0, 0),))
+    calls: list[str] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append(type(text).__name__)
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == ["_CharacterWorkText", "_CharacterWorkText"]
+
+
 def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
