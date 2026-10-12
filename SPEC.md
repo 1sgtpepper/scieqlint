@@ -1967,7 +1967,7 @@ permissions:
 Recommended commands:
 
 ```bash
-uv sync --locked --group dev
+uv sync --extra dev --extra docs
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
@@ -2180,19 +2180,23 @@ By v0.0.1 the repository must include these top-level files:
 | `.github/PULL_REQUEST_TEMPLATE.md` | contributor checklist | v0.0.1 |
 | `.github/ISSUE_TEMPLATE/*.md` | bug, feature, docs, and task issue templates | v0.0.1 |
 
-The first screen of `CONTRIBUTING.md` must include:
+Once the repository commits a `uv.lock`, the first screen of `CONTRIBUTING.md`
+may make this locked `uv` setup primary:
 
 ```bash
 git clone https://github.com/OWNER/scieqlint.git
 cd scieqlint
-uv sync --group dev
+uv sync --locked --extra dev
 uv run pytest
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
 ```
 
-If `uv` is not installed, the file should link or point to the supported fallback command sequence using standard Python virtual environments. The fallback must remain a documented second path, not the primary path.
+Until a lockfile is committed, keep the standard Python virtual-environment
+setup primary and document `uv` as an optional equivalent. After the lockfile is
+committed, the file should still link to the supported virtual-environment
+fallback.
 
 #### Contributor issue contract
 
