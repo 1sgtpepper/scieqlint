@@ -12,10 +12,8 @@ from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost, decode_project_fragment
 from scieqlint.markdown import (
     MarkdownReferenceSnapshot,
+    _ordered_lexical_ranges,  # pyright: ignore[reportPrivateUsage]
     code_fence_ranges,
-    dollar_display_opener_positions,
-    dollar_display_ranges,
-    dollar_inline_ranges,
     inline_code_ranges,
     is_escaped,
     is_fence_closer,
@@ -71,14 +69,17 @@ class MarkdownScanner:
             ),
         )
 
-        for block in _display_blocks(document, link_metadata):
+        lexical = _ordered_lexical_ranges(document.text, link_metadata)
+        for block in _display_blocks(document, lexical.display):
             blocks.append(block)
             labels.extend(_tex_labels(document, block))
             labels.extend(_display_tail_labels(document, block))
-        diagnostics.extend(_unterminated_display_diagnostics(document, link_metadata))
+        diagnostics.extend(
+            _unterminated_display_diagnostics(document, lexical.display, lexical.display_openers)
+        )
 
         if config.scanner.math_fences:
-            math_fences = _math_fence_ranges(document.text, link_metadata)
+            math_fences = _math_fence_ranges(document.text, lexical.fences)
             for block in _fenced_blocks(document, math_fences):
                 blocks.append(block)
                 labels.extend(_tex_labels(document, block))
@@ -102,9 +103,9 @@ class MarkdownScanner:
 
 def _display_blocks(
     document: SourceDocument,
-    occupied: tuple[tuple[int, int], ...],
+    ranges: Iterable[tuple[int, int, int, int]],
 ) -> Iterable[MathBlock]:
-    for _start, body_start, body_end, _end in _display_ranges(document, occupied):
+    for _start, body_start, body_end, _end in ranges:
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
         if not text:
@@ -121,39 +122,24 @@ def _display_blocks(
 
 def _unterminated_display_diagnostics(
     document: SourceDocument,
-    occupied: tuple[tuple[int, int], ...],
+    display_ranges: Iterable[tuple[int, int, int, int]],
+    display_openers: Iterable[int],
 ) -> Iterable[Diagnostic]:
     # Both lexical results identify a display opener by its exact source start.
-    closed_starts = {
-        start for start, _body_start, _body_end, _end in _display_ranges(document, occupied)
-    }
-    for start in dollar_display_opener_positions(document.text, occupied):
+    closed_starts = {start for start, _body_start, _body_end, _end in display_ranges}
+    for start in display_openers:
         if start in closed_starts:
             continue
         yield _scan_diagnostic(document, start, start + 2)
 
 
-def _display_ranges(
-    document: SourceDocument,
-    occupied: tuple[tuple[int, int], ...],
-) -> Iterable[tuple[int, int, int, int]]:
-    return iter(dollar_display_ranges(document.text, occupied))
-
-
-def _inline_ranges(
-    document: SourceDocument,
-    occupied: tuple[tuple[int, int], ...],
-) -> Iterable[tuple[int, int, int, int]]:
-    return iter(dollar_inline_ranges(document.text, occupied))
-
-
 def _math_fence_ranges(
     text: str,
-    occupied: tuple[tuple[int, int], ...],
+    code_fences: Iterable[tuple[int, int]],
 ) -> tuple[_MathFenceRange, ...]:
     """Derive supported math fences from the shared lexical ownership result."""
     ranges: list[_MathFenceRange] = []
-    for opener_start, range_end in code_fence_ranges(text, occupied):
+    for opener_start, range_end in code_fences:
         source = text[opener_start:range_end]
         opener_line, newline, _body = source.partition("\n")
         opener = parse_fence_opener(opener_line)
@@ -197,15 +183,16 @@ def math_container_opener_lines(
         (block.container, block.span.start, block.span.end): block.block_id for block in blocks
     }
     opener_lines: dict[str, int] = {}
-    link_metadata = markdown_reference_snapshot(document.text).link_metadata_ranges
-    for opener_start, body_start, body_end, _end in _display_ranges(document, link_metadata):
+    reference_snapshot = markdown_reference_snapshot(document.text)
+    link_metadata = reference_snapshot.link_metadata_ranges
+    lexical = _ordered_lexical_ranges(document.text, link_metadata)
+    for opener_start, body_start, body_end, _end in lexical.display:
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         block_id = block_ids.get((MathContainer.MARKDOWN_DISPLAY, span_start, span_end))
         if block_id is not None:
             opener_lines[block_id] = document.line_index.position(opener_start)[0]
     for opener_start, _opener_end, body_start, body_end in _math_fence_ranges(
-        document.text,
-        link_metadata,
+        document.text, lexical.fences
     ):
         if body_end is None:
             continue
@@ -246,7 +233,8 @@ def _inline_blocks(
         *link_metadata,
         *((block.span.start, block.span.end) for block in existing_blocks),
     )
-    for _start, body_start, body_end, _end in _inline_ranges(document, occupied):
+    inline_ranges = _ordered_lexical_ranges(document.text, occupied).inline
+    for _start, body_start, body_end, _end in inline_ranges:
         body = document.text[body_start:body_end]
         text = body.strip()
         if not text:

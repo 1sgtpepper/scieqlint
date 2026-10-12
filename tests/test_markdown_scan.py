@@ -159,6 +159,34 @@ def test_scanner_display_diagnostics_bound_closed_range_work(monkeypatch) -> Non
     assert any_work[0] <= 8 * len(source)
 
 
+def test_scanner_reuses_exact_lexical_result_for_display_and_fences(monkeypatch) -> None:
+    source = "$$\nx = 1\n$$\n\n```math\ny = 2\n```\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), source, DocumentKind.MARKDOWN)
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_scan_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, occupied):
+        calls.append((text, tuple(occupied)))
+        return real_lexical_ranges(text, occupied)
+
+    monkeypatch.setattr(markdown_scan_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert calls == [(source, ())]
+    assert [block.container for block in result.blocks] == [
+        MathContainer.MARKDOWN_DISPLAY,
+        MathContainer.MARKDOWN_FENCE,
+    ]
+    assert result.diagnostics == ()
+
+    calls.clear()
+    opener_lines = markdown_scan_module.math_container_opener_lines(document, result.blocks)
+
+    assert calls == [(source, ())]
+    assert sorted(opener_lines.values()) == [1, 5]
+
+
 def test_scans_display_math_label_and_markdown_reference() -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
