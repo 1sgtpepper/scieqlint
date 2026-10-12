@@ -9,7 +9,7 @@ from scieqlint.facts.math import DisplayMathFact
 from scieqlint.facts.reference import EquationLabelFact, EquationRefFact
 from scieqlint.facts.structure import FenceFact
 from scieqlint.io.source import SourceDocument
-from scieqlint.markdown import is_escaped, range_contains, scan_tex_lexically
+from scieqlint.markdown import TexLexicalScan, is_escaped, range_contains, scan_tex_lexically
 from scieqlint.source.maps import SourceMap
 
 from .myst_blocks import directive_option_prefix_lines
@@ -190,8 +190,19 @@ def _math_fact_from_fence(
     if fence.is_closed:
         tex_body_start = fence.body_span.start + option_prefix_length
         tex_body = body_text[option_prefix_length:]
-        labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body))
-        references = tuple(_tex_reference_facts(document, smap, fact_id, tex_body_start, tex_body))
+        lexical = scan_tex_lexically(tex_body)
+        labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body, lexical))
+        reference_lexical = lexical if type(tex_body) is str else scan_tex_lexically(tex_body)
+        references = tuple(
+            _tex_reference_facts(
+                document,
+                smap,
+                fact_id,
+                tex_body_start,
+                tex_body,
+                reference_lexical,
+            )
+        )
         if fence.info_string == "{math}":
             labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
     return (
@@ -231,10 +242,21 @@ def _dollar_display_math(
             continue
         span_start = body_start + len(body_text) - len(body_text.lstrip())
         span_end = body_start + len(body_text.rstrip())
-        label_facts = list(_tex_label_facts(document, smap, fact_id, body_start, body_text))
+        lexical = scan_tex_lexically(body_text)
+        label_facts = list(
+            _tex_label_facts(document, smap, fact_id, body_start, body_text, lexical)
+        )
         label_facts.extend(_dollar_tail_label_facts(document, smap, fact_id, body_end))
+        reference_lexical = lexical if type(body_text) is str else scan_tex_lexically(body_text)
         reference_facts = tuple(
-            _tex_reference_facts(document, smap, fact_id, body_start, body_text)
+            _tex_reference_facts(
+                document,
+                smap,
+                fact_id,
+                body_start,
+                body_text,
+                reference_lexical,
+            )
         )
         labels.extend(label_facts)
         references.extend(reference_facts)
@@ -258,8 +280,8 @@ def _tex_reference_facts(
     fact_id: str,
     body_start: int,
     body_text: str,
+    lexical: TexLexicalScan,
 ) -> Iterable[EquationRefFact]:
-    lexical = scan_tex_lexically(body_text)
     active_body = lexical.active_text
     for match in _TEX_REFERENCE_RE.finditer(active_body):
         if is_escaped(body_text, match.start()) or range_contains(
@@ -294,8 +316,8 @@ def _tex_label_facts(
     fact_id: str,
     body_start: int,
     body_text: str,
+    lexical: TexLexicalScan,
 ) -> Iterable[EquationLabelFact]:
-    lexical = scan_tex_lexically(body_text)
     active_body = lexical.active_text
     for match in TEX_LABEL_RE.finditer(active_body):
         if is_escaped(body_text, match.start()) or range_contains(

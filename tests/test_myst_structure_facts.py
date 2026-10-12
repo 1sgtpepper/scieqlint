@@ -5,6 +5,8 @@ from scieqlint.api import check_documents
 from scieqlint.config.model import Config, ScannerConfig
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
+from scieqlint.frontend import myst as myst_frontend_module
+from scieqlint.frontend import myst_display_math
 from scieqlint.frontend.myst import (
     MySTFrontend,
     _directive_option_prefix_lines,
@@ -13,6 +15,7 @@ from scieqlint.frontend.myst import (
     _quarto_options,
 )
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.markdown import dollar_display_opener_positions as markdown_display_opener_positions
 from scieqlint.query.host import QueryHost
 
 GOOD_FIXTURE = Path("tests/fixtures/good/architecture_myst_good.md")
@@ -549,6 +552,132 @@ def test_unterminated_display_math_owns_following_structure_until_eof() -> None:
     assert snapshot.target_anchors == ()
     assert snapshot.fences == ()
     assert snapshot.structure_syntax_issues == ()
+
+
+def test_frontend_reuses_display_openers_for_the_same_lexical_input(monkeypatch) -> None:
+    source = "$$\nx = 1\n$$\n# Heading\n"
+    reference_snapshot = myst_frontend_module.markdown_reference_snapshot(source)
+    occupied = (
+        *reference_snapshot.link_metadata_ranges,
+        *((token.start, token.end) for token in reference_snapshot.links),
+    )
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = myst_frontend_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append((text, tuple(ranges)))
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(myst_frontend_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert calls == [(source, occupied)]
+    assert [fact.body for fact in snapshot.display_math] == ["x = 1"]
+    assert [heading.text for heading in snapshot.headings] == ["Heading"]
+
+
+def test_frontend_preserves_custom_splitlines_results_between_display_scans(monkeypatch) -> None:
+    class ChangingSplitlinesText(str):
+        def __new__(cls, value: str):
+            instance = super().__new__(cls, value)
+            instance.splitlines_calls = 0
+            return instance
+
+        def replace(self, old: str, new: str, count: int = -1) -> "ChangingSplitlinesText":
+            return type(self)(super().replace(old, new, count))
+
+        def splitlines(self, keepends: bool = False) -> list[str]:
+            self.splitlines_calls += 1
+            if self.splitlines_calls in {3, 6}:
+                return []
+            return super().splitlines(keepends)
+
+    source = "$$\n\\begin{equation}x=1\\end{equation}\n"
+    custom_document = doc(ChangingSplitlinesText(source))
+    opener_results: list[tuple[int, ...]] = []
+    real_opener_query = markdown_display_opener_positions
+
+    def observe_custom_opener_query(text, occupied):
+        result = real_opener_query(text, occupied)
+        if text is custom_document.text:
+            opener_results.append(result)
+        return result
+
+    monkeypatch.setattr(
+        myst_frontend_module,
+        "dollar_display_opener_positions",
+        observe_custom_opener_query,
+        raising=False,
+    )
+    custom_snapshot = MySTFrontend().lower((custom_document,))
+
+    ordinary_snapshot = MySTFrontend().lower((doc(source),))
+    # The unmatched opener hides the later raw environment either way, so the
+    # opener query itself proves the custom input was still evaluated.
+    assert custom_snapshot.display_math == ordinary_snapshot.display_math == ()
+    assert opener_results == [(0,)]
+    active_snapshot = MySTFrontend().lower((doc("\\begin{equation}x=1\\end{equation}\n"),))
+    assert [(fact.container, fact.body) for fact in active_snapshot.display_math] == [
+        ("raw-latex", "x=1")
+    ]
+
+
+def test_display_math_reuses_one_tex_scan_for_labels_and_references(monkeypatch) -> None:
+    tex_body = "\\label{live-label}\n\\eqref{live-reference}\n"
+    source = "```{math}\n" + tex_body + "```\n"
+    scanned: list[str] = []
+    real_scan = myst_display_math.scan_tex_lexically
+
+    def count_scan(text, occupied=()):
+        scanned.append(text)
+        return real_scan(text, occupied)
+
+    monkeypatch.setattr(myst_display_math, "scan_tex_lexically", count_scan)
+
+    snapshot = MySTFrontend().lower((doc(source),))
+
+    assert scanned.count(tex_body) == 1
+    assert [label.label for label in snapshot.equation_labels] == ["live-label"]
+    assert [reference.target for reference in snapshot.equation_refs] == ["live-reference"]
+
+
+def test_display_facts_preserve_custom_tex_body_iteration_between_scans() -> None:
+    class AlternatingIterationText(str):
+        def __new__(cls, value: str):
+            instance = super().__new__(cls, value)
+            instance.iteration_calls = 0
+            return instance
+
+        def replace(self, old: str, new: str, count: int = -1) -> "AlternatingIterationText":
+            return type(self)(super().replace(old, new, count))
+
+        def __getitem__(self, key):
+            value = super().__getitem__(key)
+            return type(self)(value) if isinstance(key, slice) else value
+
+        def __iter__(self):
+            self.iteration_calls += 1
+            if self.iteration_calls == 2:
+                return iter(" " * len(self))
+            return super().__iter__()
+
+    tex_body = "\\label{live-label}\n\\eqref{live-reference}\n"
+    sources = (
+        "```{math}\n" + tex_body + "```\n",
+        "$$\n" + tex_body + "$$\n",
+    )
+
+    for source in sources:
+        custom_snapshot = MySTFrontend().lower((doc(AlternatingIterationText(source)),))
+        ordinary_snapshot = MySTFrontend().lower((doc(source),))
+
+        assert [label.label for label in custom_snapshot.equation_labels] == ["live-label"]
+        assert custom_snapshot.equation_refs == ()
+        assert [label.label for label in ordinary_snapshot.equation_labels] == ["live-label"]
+        assert [reference.target for reference in ordinary_snapshot.equation_refs] == [
+            "live-reference"
+        ]
 
 
 def test_block_interrupted_link_title_does_not_hide_structure() -> None:

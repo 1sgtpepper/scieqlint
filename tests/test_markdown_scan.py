@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -37,6 +38,52 @@ class _CharacterWorkText(str):
         else:
             self.character_work += 1
         return super().__getitem__(key)
+
+
+class _ChangingSplitlinesText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.splitlines_calls = 0
+        return instance
+
+    def splitlines(self, keepends: bool = False) -> list[str]:
+        self.splitlines_calls += 1
+        if self.splitlines_calls > 3:
+            return []
+        return super().splitlines(keepends)
+
+
+class _IteratingSplitlinesText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.iterated = False
+        return instance
+
+    def __iter__(self) -> Iterator[str]:
+        self.iterated = True
+        return super().__iter__()
+
+    def splitlines(self, keepends: bool = False) -> list[str]:
+        if self.iterated:
+            return []
+        return super().splitlines(keepends)
+
+
+class _TrimmedBodySplitlinesText(str):
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.trimmed_display_body = False
+        return instance
+
+    def __getitem__(self, key):
+        if key == slice(2, 7):
+            self.trimmed_display_body = True
+        return super().__getitem__(key)
+
+    def splitlines(self, keepends: bool = False) -> list[str]:
+        if self.trimmed_display_body:
+            return []
+        return super().splitlines(keepends)
 
 
 class _RegexTraversal:
@@ -157,6 +204,119 @@ def test_scanner_display_diagnostics_bound_closed_range_work(monkeypatch) -> Non
     assert len(result.blocks) == block_count
     assert result.diagnostics == ()
     assert any_work[0] <= 8 * len(source)
+
+
+def test_scanner_reuses_exact_lexical_result_for_display_and_fences(monkeypatch) -> None:
+    source = "$$\nx = 1\n$$\n\n```math\ny = 2\n```\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), source, DocumentKind.MARKDOWN)
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_scan_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, occupied):
+        calls.append((text, tuple(occupied)))
+        return real_lexical_ranges(text, occupied)
+
+    monkeypatch.setattr(markdown_scan_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    result = MarkdownScanner().scan(document, Config())
+
+    assert calls == [(source, ())]
+    assert [block.container for block in result.blocks] == [
+        MathContainer.MARKDOWN_DISPLAY,
+        MathContainer.MARKDOWN_FENCE,
+    ]
+    assert result.diagnostics == ()
+
+    calls.clear()
+    opener_lines = markdown_scan_module.math_container_opener_lines(document, result.blocks)
+
+    assert calls == [(source, ())]
+    assert sorted(opener_lines.values()) == [1, 5]
+
+
+def test_scanner_preserves_custom_splitlines_results_between_display_scans() -> None:
+    source = "$$"
+    ordinary = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+    custom = SourceDocument(
+        ordinary.path,
+        _ChangingSplitlinesText(source),
+        ordinary.kind,
+        ordinary.line_index,
+        ordinary.display_path,
+    )
+
+    result = MarkdownScanner().scan(custom, Config())
+    native_result = MarkdownScanner().scan(ordinary, Config())
+
+    assert result.blocks == ()
+    assert result.diagnostics == ()
+    assert native_result.blocks == ()
+    assert [
+        (diagnostic.code, diagnostic.span.start, diagnostic.span.end, diagnostic.span.line)
+        for diagnostic in native_result.diagnostics
+    ] == [("SCAN001", 0, 2, 1)]
+
+
+def test_scanner_masks_custom_text_before_scanning_display_math() -> None:
+    source = "$$\nx = 1\n$$\n"
+    ordinary = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+    custom = SourceDocument(
+        ordinary.path,
+        _IteratingSplitlinesText(source),
+        ordinary.kind,
+        ordinary.line_index,
+        ordinary.display_path,
+    )
+
+    result = MarkdownScanner().scan(custom, Config())
+    native_result = MarkdownScanner().scan(ordinary, Config())
+
+    assert result.blocks == ()
+    assert result.diagnostics == ()
+    assert [block.text for block in native_result.blocks] == ["x = 1"]
+    assert native_result.diagnostics == ()
+
+
+def test_opener_lines_query_custom_fences_after_display_body_trimming() -> None:
+    source = "$$\nx=1\n$$\n\n```math\ny=2\n```\n"
+    ordinary = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+    native_blocks = MarkdownScanner().scan(ordinary, Config()).blocks
+    custom = SourceDocument(
+        ordinary.path,
+        _TrimmedBodySplitlinesText(source),
+        ordinary.kind,
+        ordinary.line_index,
+        ordinary.display_path,
+    )
+
+    opener_lines = markdown_scan_module.math_container_opener_lines(custom, native_blocks)
+    native_opener_lines = markdown_scan_module.math_container_opener_lines(
+        ordinary,
+        native_blocks,
+    )
+
+    display_block_id = next(
+        block.block_id
+        for block in native_blocks
+        if block.container is MathContainer.MARKDOWN_DISPLAY
+    )
+    fence_block_id = next(
+        block.block_id for block in native_blocks if block.container is MathContainer.MARKDOWN_FENCE
+    )
+    assert opener_lines == {display_block_id: 1}
+    assert native_opener_lines == {display_block_id: 1, fence_block_id: 5}
 
 
 def test_scans_display_math_label_and_markdown_reference() -> None:
