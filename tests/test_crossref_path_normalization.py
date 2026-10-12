@@ -20,6 +20,7 @@ from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.facts.reference import GenericRefFact
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
+from scieqlint.query import reference as reference_query
 from scieqlint.query.host import QueryHost
 from scieqlint.query.reference import ReferenceQueryView
 
@@ -503,12 +504,11 @@ def test_reference_engine_ignores_unsupported_path_roles_after_query_classificat
         project_members=(),
     )
     query = QueryHost(snapshot)
+    results = query.references.results()
 
-    assert (PurePosixPath("target.md"), "shared") in query.references.target_identity_index()
-    assert [ref.target_fragment for ref in query.references.unresolved_generic_refs()] == [
-        "missing"
-    ]
-    assert [ref.target_fragment for ref in query.references.ambiguous_generic_refs()] == ["shared"]
+    assert (PurePosixPath("target.md"), "shared") in results.target_identity_index
+    assert [ref.target_fragment for ref in results.unresolved_generic_refs] == ["missing"]
+    assert [ref.target_fragment for ref in results.ambiguous_generic_refs] == ["shared"]
     assert ReferenceEngine().run(query) == ()
 
 
@@ -526,8 +526,22 @@ def test_frontend_snapshot_preserves_configured_project_member_identity() -> Non
         PurePosixPath("source.md"),
         PurePosixPath("target.md"),
     )
-    assert references.unresolved_generic_refs() == ()
-    assert (PurePosixPath("target.md"), "target") in references.target_identity_index()
+    results = references.results()
+    assert results.unresolved_generic_refs == ()
+    assert (PurePosixPath("target.md"), "target") in results.target_identity_index
+
+
+def test_reference_results_return_fresh_mutable_identity_indexes() -> None:
+    snapshot = MySTFrontend().lower((doc("paper.md", "(target)=\n# Target\n"),))
+    identity = (PurePosixPath("paper.md"), "target")
+    references = ReferenceQueryView(snapshot)
+
+    first = references.results()
+    first.target_identity_index.clear()
+    second = references.results()
+
+    assert identity in second.target_identity_index
+    assert snapshot.target_anchors[0].normalized_label == "target"
 
 
 def test_normalized_only_resolution_emits_exact_reference_diagnostic() -> None:
@@ -584,40 +598,66 @@ def test_path_normalization_mismatch_indexes_targets_once_for_all_references(mon
     counted_targets = CountingTargets(ReferenceQueryView(snapshot)._target_facts())
     target_identity = (PurePosixPath("chapters/energy.md"), "shared")
     target_indexes = ReferenceQueryView._target_indexes
+    counts = {"target_facts": 0, "target_indexes": 0, "equation_indexes": 0, "results": 0}
 
-    def target_facts(_view: ReferenceQueryView) -> tuple:
+    def counting_target_facts(_view: ReferenceQueryView) -> tuple:
+        counts["target_facts"] += 1
         return counted_targets
 
     def counting_target_indexes(
         view: ReferenceQueryView,
         targets: tuple,
     ) -> tuple[dict, dict]:
+        counts["target_indexes"] += 1
         label_index, identity_index = target_indexes(view, targets)
         identity_index[target_identity] = CountingBucket(identity_index[target_identity])
         return label_index, identity_index
 
-    monkeypatch.setattr(ReferenceQueryView, "_target_facts", target_facts)
+    equation_index = reference_query._equation_index
+
+    def counting_equation_index(labels: tuple) -> dict:
+        counts["equation_indexes"] += 1
+        return equation_index(labels)
+
+    monkeypatch.setattr(ReferenceQueryView, "_target_facts", counting_target_facts)
     monkeypatch.setattr(
         ReferenceQueryView,
         "_target_indexes",
         counting_target_indexes,
     )
+    monkeypatch.setattr(reference_query, "_equation_index", counting_equation_index)
 
     references = ReferenceQueryView(snapshot)
-    assert len(references.ambiguous_generic_refs()) == target_count
-    assert references.unresolved_generic_refs() == ()
-
-    CountingTargets.iterations = 0
-    CountingBucket.iterations = 0
-    mismatches = references.path_normalization_mismatches()
+    results = references.results()
+    mismatches = results.path_normalization_mismatches
 
     assert len(mismatches) == target_count
     assert all(
         raw_matches == () and normalized_matches == ("chapters/energy.md",)
         for _ref, raw_matches, normalized_matches in mismatches
     )
+    assert counts == {"target_facts": 1, "target_indexes": 1, "equation_indexes": 1, "results": 0}
+    assert len(results.ambiguous_generic_refs) == target_count
+    assert results.unresolved_generic_refs == ()
     assert CountingTargets.iterations == 2
-    assert CountingBucket.iterations <= 1
+    assert CountingBucket.iterations == 1
+
+    for name in counts:
+        counts[name] = 0
+    CountingTargets.iterations = 0
+    CountingBucket.iterations = 0
+    result_builder = ReferenceQueryView.results
+
+    def counting_results(view: ReferenceQueryView):
+        counts["results"] += 1
+        return result_builder(view)
+
+    monkeypatch.setattr(ReferenceQueryView, "results", counting_results)
+    diagnostics = ReferenceEngine().run(QueryHost(snapshot))
+    assert counts == {"target_facts": 1, "target_indexes": 1, "equation_indexes": 1, "results": 1}
+    assert sum(diagnostic.code == "REF006" for diagnostic in diagnostics) == target_count
+    assert CountingTargets.iterations == 2
+    assert CountingBucket.iterations == 1
 
 
 def test_path_and_fragment_identity_selects_the_referenced_member() -> None:

@@ -1767,26 +1767,18 @@ def test_query_host_views_expose_snapshot_contracts():
     assert directive.option_dict() == {"renderings": "html", "fig-cap": "Plot"}
     assert cell.option_dict() == directive.option_dict()
 
-    assert query.references.generic_targets() == (
+    reference_results = query.references.results()
+    assert reference_results.target_identity_index[(PurePosixPath("chapter.md"), "intro")] == (
         source_anchor,
         duplicate_anchor,
-        orphaned_anchor,
     )
-    assert query.references.equation_targets() == (equation,)
-    assert query.references.visible_equation_targets() == (equation,)
-    assert query.references.hidden_equation_targets() == ()
-    assert query.references.excluded_equation_targets() == ()
-    assert query.references.equation_refs() == (equation_ref,)
-    assert query.references.generic_refs() == (ref, unresolved_ref)
-    assert query.references.target_index()["intro"] == (source_anchor, duplicate_anchor)
-    assert query.references.duplicate_generic_targets() == {
-        (PurePosixPath("chapter.md"), "intro"): (source_anchor, duplicate_anchor)
-    }
-    assert query.references.unresolved_generic_refs() == (unresolved_ref,)
-    assert query.references.ambiguous_generic_refs() == (ref,)
-    assert query.references.orphaned_targets() == (orphaned_anchor,)
-    assert query.references.unresolved_equation_refs() == (equation_ref,)
-    assert query.references.ambiguous_equation_refs() == ()
+    assert reference_results.unresolved_generic_refs == (unresolved_ref,)
+    assert reference_results.ambiguous_generic_refs == (ref,)
+    assert tuple(
+        anchor for anchor in snapshot.target_anchors if anchor.placement == "orphaned"
+    ) == (orphaned_anchor,)
+    assert reference_results.unresolved_equation_refs == (equation_ref,)
+    assert reference_results.ambiguous_equation_refs == ()
 
     assert query.math.inline_math() == (inline,)
     assert query.math.display_math() == (display,)

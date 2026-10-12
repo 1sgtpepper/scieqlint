@@ -509,13 +509,12 @@ def test_nonvisible_code_cell_target_is_not_resolvable_from_visible_reference(
     config = Config(project=ProjectConfig(visibility=(("target.md", visibility),)))
     snapshot = _profile_snapshot((source, target), config, **profile_scan_inputs((source, target)))
     query = QueryHost(snapshot)
-    [cell] = query.references.code_cell_targets()
+    [cell] = snapshot.code_cells
 
-    if visibility == "hidden":
-        assert query.references.hidden_code_cell_targets() == (cell,)
-    else:
-        assert query.references.excluded_code_cell_targets() == (cell,)
-    assert "hidden-cell" not in query.references.target_index()
+    assert cell.visibility == visibility
+    assert (PurePosixPath("target.md"), "hidden-cell") not in (
+        query.references.results().target_identity_index
+    )
 
     result = check_documents((source, target), config=config)
 
