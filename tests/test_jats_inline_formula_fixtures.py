@@ -7,7 +7,6 @@ from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
 from scieqlint.parse.math import MathHost
-from scieqlint.query.host import QueryHost
 
 
 def _fixture() -> tuple[str, SourceDocument]:
@@ -34,20 +33,18 @@ def test_jats_converted_fixture_preserves_inline_formulas_across_content_layers(
         "p = q+r",
         "z = 3",
     ]
-    raw_inline_math = snapshot.inline_math
-    inline_math = QueryHost(snapshot).math.inline_math()
+    inline_math = snapshot.inline_math
 
-    assert [fact.body for fact in raw_inline_math] == expected_bodies
-    assert [fact.parse_status for fact in raw_inline_math] == ["preserved"] * len(expected_bodies)
+    assert [fact.body for fact in inline_math] == expected_bodies
+    assert [fact.parse_status for fact in inline_math] == ["preserved"] * len(expected_bodies)
     assert [
         (fact.kind, fact.candidate_kind, fact.text, fact.source_math_fact_id)
         for fact in frontend_snapshot.generated_formulas
     ] == [
         ("candidate", "formula-text", body, math_fact.fact_id)
-        for body, math_fact in zip(expected_bodies, raw_inline_math, strict=True)
+        for body, math_fact in zip(expected_bodies, inline_math, strict=True)
     ]
     assert snapshot.generated_formulas == ()
-    assert inline_math == raw_inline_math
 
     assert [fact.body for fact in inline_math] == expected_bodies
     assert [fact.delimiter_kind for fact in inline_math] == [
@@ -75,7 +72,7 @@ def test_jats_converted_fixture_keeps_literal_xml_in_code_inert() -> None:
 
     frontend_snapshot = MySTFrontend().lower((document,))
     snapshot = MathHost().classify(frontend_snapshot)
-    inline_math = QueryHost(snapshot).math.inline_math()
+    inline_math = snapshot.inline_math
 
     assert [fact.body for fact in snapshot.inline_math] == [
         "E = mc^2",
