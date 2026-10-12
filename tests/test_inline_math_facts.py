@@ -543,9 +543,17 @@ def test_myst_roles_own_overlapping_latex_parens_without_hiding_adjacent_math(
     assert [(fact.delimiter_kind, fact.body) for fact in snapshot.inline_math] == [
         (delimiter, body) for delimiter, body, _raw in expected
     ]
-    for fact in snapshot.inline_math:
+    cursor = 0
+    for fact, (_, body, raw) in zip(snapshot.inline_math, expected, strict=True):
         assert fact.span is not None
         assert source[fact.span.start : fact.span.end] == fact.body
+        raw_start = source.index(raw, cursor)
+        body_start = raw_start + raw.index(body)
+        assert fact.span.start == body_start
+        assert fact.span.end == body_start + len(body)
+        assert source[raw_start : raw_start + len(raw)] == raw
+        cursor = raw_start + len(raw)
+    assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
 
 
 @pytest.mark.parametrize(
@@ -574,6 +582,7 @@ def test_opaque_ranges_reset_unclosed_latex_parens_without_hiding_later_math(
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == "x = 1"
     opener = "\\(x = 1\\)"
+    assert source[fact.span.start - 2 : fact.span.end + 2] == opener
     assert fact.fact_id == f"generated.md::inline-math::{source.index(opener)}"
 
 

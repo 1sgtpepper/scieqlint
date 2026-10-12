@@ -1669,6 +1669,7 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
     assert display.target_fact_ids == (anchor.fact_id,)
     assert display.target_identity == (PurePosixPath("theme.ipynb"), "fig-cell")
     assert display.explicit_text == "Figure"
+    assert display.source_fact_id == generic_ref.fact_id
     assert source_slice(display.display_text_span) == "Figure"
 
 
@@ -1879,6 +1880,11 @@ def test_notebook_facts_fixture_preserves_spans_without_executing_code() -> None
     assert output.output_index == 0
     assert dict(output.metadata) == {"label": "fig-output"}
     assert output.span is not None
+    assert json.loads(document.text[output.span.start : output.span.end]) == {
+        "data": {"image/png": "payload"},
+        "metadata": {"label": "fig-output"},
+        "output_type": "display_data",
+    }
     [anchor] = snapshot.target_anchors
     assert anchor.label == "fig-output"
     assert anchor.label_span is not None

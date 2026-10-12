@@ -62,7 +62,7 @@ class _HookMaskText(str):
 
     def __iter__(self):
         self.iterations += 1
-        return super().__iter__()
+        return iter(str(self))
 
 
 class _RegexTraversal:
@@ -227,11 +227,13 @@ def test_empty_masking_reuses_builtin_text_but_preserves_subclass_iteration() ->
 
 
 def test_math_fence_newline_fast_path_preserves_custom_text_hooks() -> None:
-    source = _HookFenceText("```math\r\nx = 1\r\n```")
+    text = "```math\r\nx = 1\r\n```"
+    source = _HookFenceText(text)
 
     ranges = markdown_scan_module._math_fence_ranges(source, ((0, len(source)),))
 
-    assert ranges == ((0, 8, 10, 14),)
+    assert ranges == ((0, 8, 9, 16),)
+    assert markdown_scan_module._math_fence_ranges(text, ((0, len(text)),)) == ranges
     assert source.find_calls == 0
     assert source.slices == 1
 

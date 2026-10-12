@@ -179,11 +179,14 @@ def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None
 
 
 def test_four_space_fence_closer_remains_inside_the_fence():
-    snapshot = MySTFrontend().lower((doc("```{math}\nx = x\n    ```\ny = y\n```\n"),))
+    document = doc("```{math}\nx = x\n    ```\ny = y\n```\n")
+    snapshot = MySTFrontend().lower((document,))
 
     assert len(snapshot.fences) == 1
     assert snapshot.fences[0].is_closed is True
-    assert snapshot.fences[0].body_span is not None
+    body_span = snapshot.fences[0].body_span
+    assert body_span is not None
+    assert "    ```\ny = y\n" in document.text[body_span.start : body_span.end]
 
 
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():

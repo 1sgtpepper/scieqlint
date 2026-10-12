@@ -77,7 +77,6 @@ def test_myst_fact_spans_select_their_source_tokens(
     expected_spans: dict[str, list[tuple[tuple[int, int], str]]] = {
         "heading": [],
         "heading_marker": [],
-        "heading_text": [],
         "anchor": [],
         "anchor_label": [],
         "reference": [],
@@ -91,11 +90,6 @@ def test_myst_fact_spans_select_their_source_tokens(
             expected_spans[name].append(((source_offset, source_offset + len(text)), "# Heading\n"))
             marker_start = source_offset + text.index("#")
             expected_spans["heading_marker"].append(((marker_start, marker_start + 1), "#"))
-            heading_text = "Heading"
-            heading_text_start = source_offset + text.index(heading_text)
-            expected_spans["heading_text"].append(
-                ((heading_text_start, heading_text_start + len(heading_text)), heading_text)
-            )
         elif name == "anchor":
             expected_spans[name].append(((source_offset, source_offset + len(text)), "(target)=\n"))
             anchor_label = "target"
