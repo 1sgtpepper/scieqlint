@@ -7,6 +7,16 @@ from collections.abc import Iterator
 from typing import cast
 
 _MAX_JSON_INTEGER_DIGITS = 4096
+_JSON_SHORT_ESCAPES = {
+    '"': '"',
+    "\\": "\\",
+    "/": "/",
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+}
 
 
 def parse_json_document(text: str) -> tuple[object, tuple[int, int]]:
@@ -100,14 +110,6 @@ def _skip_json_whitespace(text: str, start: int) -> int:
     return start
 
 
-def json_string_character_ranges(
-    text: str,
-    start: int,
-    end: int,
-) -> list[tuple[str, int, int]]:
-    return list(iter_json_string_character_ranges(text, start, end))
-
-
 def iter_json_string_character_ranges(
     text: str,
     start: int,
@@ -141,15 +143,6 @@ def iter_json_string_character_ranges(
             yield character, raw_start, raw_end
             position = raw_end
             continue
-        escaped = {
-            '"': '"',
-            "\\": "\\",
-            "/": "/",
-            "b": "\b",
-            "f": "\f",
-            "n": "\n",
-            "r": "\r",
-            "t": "\t",
-        }[escape]
+        escaped = _JSON_SHORT_ESCAPES[escape]
         yield escaped, raw_start, position + 1
         position += 1
