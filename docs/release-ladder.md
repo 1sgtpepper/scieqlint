@@ -1,4 +1,4 @@
-# Roadmap
+# Release ladder
 
 SciEqLint grows by scoped release slices. Release order changes only for correctness, security, packaging, or compatibility defects.
 

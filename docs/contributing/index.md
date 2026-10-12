@@ -5,10 +5,10 @@ Welcome. SciEqLint is built for narrow, exact, well-tested contributions.
 Start with:
 
 1. `README.md`
-2. `SPEC.md`
-3. `GOOD_FIRST_ISSUES.md`
-4. `CONTRIBUTING.md`
-5. this docs section
+2. `GOOD_FIRST_ISSUES.md` for live GitHub issue queues
+3. `CONTRIBUTING.md` for the local workflow
+4. this docs section
+5. `SPEC.md` for the product and engineering contract
 
 A good SciEqLint PR changes one layer, includes tests, and preserves deterministic output.
 

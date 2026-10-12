@@ -143,7 +143,7 @@ Start with these files:
 
 - `SPEC.md` for the product and engineering contract.
 - `CONTRIBUTING.md` for the local workflow.
-- `GOOD_FIRST_ISSUES.md` for scoped starter tasks.
+- `GOOD_FIRST_ISSUES.md` for live GitHub newcomer and help-wanted issues.
 - `ROADMAP.md` for release order and cut rules.
 - `docs/contributing/` for deeper guidance.
 

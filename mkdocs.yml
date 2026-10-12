@@ -35,10 +35,9 @@ nav:
       - Testing: contributing/testing.md
       - Golden files: contributing/golden-files.md
       - Diagnostics: contributing/diagnostics.md
-      - Release scope: contributing/release-scope.md
       - Review guide: contributing/review-guide.md
       - Issue guide: contributing/issue-guide.md
-  - Release checklists:
+  - Release archive:
       - v0.0.1: releases/v0.0.1-checklist.md
       - v0.1.0: releases/v0.1.0-checklist.md
       - v0.1.1: releases/v0.1.1-checklist.md
