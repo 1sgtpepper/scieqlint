@@ -27,20 +27,16 @@ SciEqLint checks supported scientific document sources:
 
 ## Output formats
 
-v0.1.0 ships:
+Supported reporter formats:
 
 ```bash
 scieqlint check . --format text
 scieqlint check . --format json
 ```
 
-v0.1.1 adds GitHub annotations:
-
 ```bash
 scieqlint check . --format github
 ```
-
-v0.1.5 adds SARIF:
 
 ```bash
 scieqlint check . --format sarif --output scieqlint.sarif

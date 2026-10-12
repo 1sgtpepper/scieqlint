@@ -1,7 +1,5 @@
 # GitHub annotations
 
-GitHub annotations start in v0.1.1 with `--format github`.
-
 Example:
 
 ```bash
@@ -37,5 +35,3 @@ or prose quality. Formula placeholders are reported as `GEN004`; they remain out
 `GEN002`.
 
 The reporter must escape workflow command payloads correctly and must not change analysis behavior.
-
-v0.1.1 does not add scanner, parser, dimension, or algebra features.
