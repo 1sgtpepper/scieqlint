@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 import pytest
 
 import scieqlint.frontend.reference_display as reference_display
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
@@ -227,6 +228,7 @@ def test_hidden_reference_source_does_not_produce_display_facts() -> None:
     snapshot = _profile_snapshot(
         (source, target),
         profile_config(project=ProjectConfig(visibility=(("source.md", "hidden"),))),
+        **profile_scan_inputs((source, target)),
     )
 
     assert [ref.visibility for ref in snapshot.generic_refs] == ["hidden"]
@@ -239,6 +241,7 @@ def test_hidden_equation_reference_source_does_not_produce_display_facts() -> No
     snapshot = _profile_snapshot(
         (source, target),
         profile_config(project=ProjectConfig(visibility=(("source.md", "hidden"),))),
+        **profile_scan_inputs((source, target)),
     )
 
     assert [ref.visibility for ref in snapshot.equation_refs] == ["hidden"]
@@ -612,7 +615,11 @@ def test_application_derives_display_facts_only_for_the_opt_in_profile(
         monkeypatch.setattr(owner, unexpected_derivation)
 
     config = profile_config(None)
-    snapshot = _profile_snapshot((source, notebook), config)
+    snapshot = _profile_snapshot(
+        (source, notebook),
+        config,
+        **profile_scan_inputs((source, notebook)),
+    )
     result = public_check_documents((source, notebook), config=config)
 
     assert snapshot.reference_display_text == ()
@@ -706,7 +713,7 @@ def test_raw_tex_reference_forms_have_typed_number_display_intent() -> None:
         "\\begin{equation}\nx = 1 \\label{eq-raw} \\eqref{eq-raw} \\ref{eq-raw}\n\\end{equation}\n"
     )
 
-    snapshot = _profile_snapshot((source,), profile_config())
+    snapshot = _profile_snapshot((source,), profile_config(), **profile_scan_inputs((source,)))
     result = check_documents((source,), config=profile_config())
 
     raw_facts = tuple(
@@ -882,7 +889,11 @@ def test_display_resolution_applies_visibility_before_matching_targets() -> None
         project=ProjectConfig(visibility=(("target.md", "hidden"),)),
     )
 
-    snapshot = _profile_snapshot((source, hidden_target, visible_same_label), config)
+    snapshot = _profile_snapshot(
+        (source, hidden_target, visible_same_label),
+        config,
+        **profile_scan_inputs((source, hidden_target, visible_same_label)),
+    )
 
     [display] = snapshot.reference_display_text
     assert display.target_type is None
@@ -1034,7 +1045,7 @@ def test_notebook_explicit_display_text_retains_its_json_span() -> None:
         DocumentKind.NOTEBOOK,
     )
 
-    snapshot = _profile_snapshot((notebook,), profile_config())
+    snapshot = _profile_snapshot((notebook,), profile_config(), **profile_scan_inputs((notebook,)))
     result = check_documents((notebook,), config=profile_config())
 
     [display] = snapshot.reference_display_text

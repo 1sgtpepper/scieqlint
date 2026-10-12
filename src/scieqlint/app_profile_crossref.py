@@ -16,7 +16,6 @@ from scieqlint.scan.base import (
     LabelSource,
     ReferenceSource,
 )
-from scieqlint.scan.latex import LatexScanner
 
 SOURCE_REFERENCE_KINDS = {
     ReferenceSource.MYST_EQ_ROLE: "eq",
@@ -101,21 +100,13 @@ def raw_missing_label_diagnostics(
 
 def source_label_facts(
     documents: Sequence[SourceDocument],
-    source_labels: Sequence[EquationLabel] | None,
+    source_labels: Sequence[EquationLabel],
     config: Config,
 ) -> tuple[EquationLabelFact, ...]:
-    labels = source_labels
-    if labels is None:
-        labels = tuple(
-            label
-            for document in documents
-            if document.kind is DocumentKind.LATEX
-            for label in LatexScanner().scan(document, config).labels
-        )
     if config.profile.name != "cross-format-references":
         return tuple(
             legacy_equation_label_fact(label)
-            for label in labels
+            for label in source_labels
             if label.source is LabelSource.LATEX_LABEL
         )
     source_ids = {
@@ -135,28 +126,20 @@ def source_label_facts(
             source_block_id=label.block_id,
             label_span=label.span,
         )
-        for label in labels
+        for label in source_labels
         if label.span.path.as_posix() in source_ids
     )
 
 
 def source_reference_facts(
     documents: Sequence[SourceDocument],
-    source_references: Sequence[EquationReference] | None,
+    source_references: Sequence[EquationReference],
     config: Config,
 ) -> tuple[EquationRefFact, ...]:
-    references = source_references
-    if references is None:
-        references = tuple(
-            reference
-            for document in documents
-            if document.kind is DocumentKind.LATEX
-            for reference in LatexScanner().scan(document, config).references
-        )
     if config.profile.name != "cross-format-references":
         return tuple(
             legacy_equation_reference_fact(reference)
-            for reference in references
+            for reference in source_references
             if reference.source in {ReferenceSource.LATEX_REF, ReferenceSource.LATEX_EQREF}
         )
     source_ids = {
@@ -165,7 +148,7 @@ def source_reference_facts(
     if not source_ids:
         return ()
     facts: list[EquationRefFact] = []
-    for reference in references:
+    for reference in source_references:
         if reference.span.path.as_posix() not in source_ids:
             continue
         ref_kind = SOURCE_REFERENCE_KINDS[reference.source]
