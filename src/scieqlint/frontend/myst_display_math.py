@@ -192,8 +192,16 @@ def _math_fact_from_fence(
         tex_body = body_text[option_prefix_length:]
         lexical = scan_tex_lexically(tex_body)
         labels.extend(_tex_label_facts(document, smap, fact_id, tex_body_start, tex_body, lexical))
+        reference_lexical = lexical if type(tex_body) is str else scan_tex_lexically(tex_body)
         references = tuple(
-            _tex_reference_facts(document, smap, fact_id, tex_body_start, tex_body, lexical)
+            _tex_reference_facts(
+                document,
+                smap,
+                fact_id,
+                tex_body_start,
+                tex_body,
+                reference_lexical,
+            )
         )
         if fence.info_string == "{math}":
             labels.extend(_myst_math_label_facts(document, smap, fact_id, fence))
@@ -239,8 +247,16 @@ def _dollar_display_math(
             _tex_label_facts(document, smap, fact_id, body_start, body_text, lexical)
         )
         label_facts.extend(_dollar_tail_label_facts(document, smap, fact_id, body_end))
+        reference_lexical = lexical if type(body_text) is str else scan_tex_lexically(body_text)
         reference_facts = tuple(
-            _tex_reference_facts(document, smap, fact_id, body_start, body_text, lexical)
+            _tex_reference_facts(
+                document,
+                smap,
+                fact_id,
+                body_start,
+                body_text,
+                reference_lexical,
+            )
         )
         labels.extend(label_facts)
         references.extend(reference_facts)
