@@ -337,6 +337,10 @@ Release notes must use these sections:
 - Remove `SourceOrigin.source_sha`, `SourceOrigin.tool`, and
   `SourceOrigin.tool_version`. Keep `source_document_id` as the only positional
   argument and pass all surviving optional metadata by keyword.
+- Retire the `v010` and `notebook` optional dependency groups. The wheel no longer
+  ships duplicate source examples or forced README/SPEC copies, and the unreferenced
+  `scieqlint.io.resources` helper is removed; the canonical root examples and built-in
+  CLI demo remain.
 
 ### Migration notes
 

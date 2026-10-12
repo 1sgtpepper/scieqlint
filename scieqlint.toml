@@ -50,6 +50,5 @@ files = [
   "docs/index.md",
   "docs/limitations.md",
   "examples/bad/**",
-  "src/scieqlint/examples/bad/**",
   "tests/fixtures/**",
 ]
