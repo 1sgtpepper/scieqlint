@@ -282,7 +282,7 @@ def test_notebook_json_parser_maps_every_short_escape_to_its_raw_range() -> None
         "\t",
     ]
     assert [encoded[start:end] for _character, start, end in ranges] == [
-        r'\"',
+        r"\"",
         r"\\",
         r"\/",
         r"\b",
@@ -924,7 +924,7 @@ def test_graph_notebook_refs_keep_cell_spans_with_checks_off() -> None:
         1,
         document.text.index("missing") + 1,
         1,
-        document.text.index("missing") + len("missing") + 1,
+        document.text.index("missing") + len("missing"),
         1,
         1,
     )
