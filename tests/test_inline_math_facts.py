@@ -808,9 +808,9 @@ def test_inline_dollar_environment_sweep_rejects_malformed_math_and_needs_closer
 
 
 def test_inline_math_range_merge_discards_empty_ranges_and_merges_overlaps() -> None:
-    from scieqlint.frontend.myst_math import _merge_occupied
+    from scieqlint.frontend.myst_shared import merge_occupied
 
-    assert _merge_occupied(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)
+    assert merge_occupied(((4, 4), (8, 10), (9, 12), (20, 19))) == ((8, 12),)
 
 
 class _IndexOnlyRanges(Sequence[tuple[int, int]]):
@@ -832,12 +832,12 @@ class _IndexOnlyRanges(Sequence[tuple[int, int]]):
 
 
 def test_inline_overlap_lookup_has_bounded_index_work_per_candidate() -> None:
-    from scieqlint.frontend.myst_math import _overlaps_occupied
+    from scieqlint.frontend.myst_inline_math import overlaps_occupied
 
     occupied = _IndexOnlyRanges(tuple((index * 4, index * 4 + 2) for index in range(128)))
     queries = tuple((index * 4 + 1, index * 4 + 3) for index in range(128))
 
-    assert all(_overlaps_occupied(start, end, occupied) for start, end in queries)
+    assert all(overlaps_occupied(start, end, occupied) for start, end in queries)
     assert occupied.accesses <= len(queries) * (len(occupied).bit_length() + 1)
 
 
@@ -905,12 +905,12 @@ class _CountingText(str):
 
 
 def test_plain_text_candidate_scan_has_linear_work_without_a_relation() -> None:
-    from scieqlint.frontend.myst_math import _plain_text_math_candidate_spans
+    from scieqlint.frontend.myst_inline_math import plain_text_math_candidate_spans
 
     body = _CountingText("a+" * 2_048 + "a")
     body.accesses = 0
 
-    assert tuple(_plain_text_math_candidate_spans(body)) == ()
+    assert tuple(plain_text_math_candidate_spans(body)) == ()
     assert len(body) <= body.accesses <= 10 * len(body) + 10
 
 
