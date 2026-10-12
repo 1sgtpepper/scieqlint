@@ -1,0 +1,384 @@
+name: MyST custom splitlines diagnostics
+
+on:
+  push:
+    branches: [cleanup-myst-counterfactual-diagnostics]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-source-variants:
+    name: Inspect pinned MyST source variants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+      - name: Install test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Fetch and verify pinned source variants
+        env:
+          BASELINE: 1e1267da22ffebd5348b2bcfdb32703a7c6ea193
+          INCORRECT_OPTIMIZATION: 61360997074e372c08195b6d8931dc0fe036e559
+          FINAL_LANDING_PREFIX: 60952880da7b86b4b270bb77319a96f0a0ddff36
+          EXPECTED_PREFIX: 60952880da7b86b4b270bb77319a96f0a0ddff36
+        run: |
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PREFIX"
+          git fetch --no-tags origin "$BASELINE" "$INCORRECT_OPTIMIZATION"
+          for revision in "$BASELINE" "$INCORRECT_OPTIMIZATION" "$FINAL_LANDING_PREFIX"; do
+            git cat-file -e "${revision}^{commit}"
+          done
+      - name: Capture every variant before comparing outcomes
+        env:
+          BASELINE: 1e1267da22ffebd5348b2bcfdb32703a7c6ea193
+          INCORRECT_OPTIMIZATION: 61360997074e372c08195b6d8931dc0fe036e559
+          FINAL_LANDING_PREFIX: 60952880da7b86b4b270bb77319a96f0a0ddff36
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          source_paths = (
+              Path("src/scieqlint/frontend/myst.py"),
+              Path("src/scieqlint/frontend/myst_display_math.py"),
+          )
+          test_path = Path("tests/test_myst_structure_facts.py")
+          nodes = (
+              "tests/test_myst_structure_facts.py::test_frontend_preserves_custom_splitlines_results_between_display_scans",
+              "tests/test_myst_structure_facts.py::test_display_facts_preserve_custom_tex_body_iteration_between_scans",
+          )
+          variants = (
+              ("baseline", os.environ["BASELINE"]),
+              ("incorrect-optimization", os.environ["INCORRECT_OPTIMIZATION"]),
+              ("final-landing-prefix", os.environ["FINAL_LANDING_PREFIX"]),
+          )
+          original_sources = {path: path.read_bytes() for path in source_paths}
+          original_hashes = {
+              str(path): hashlib.sha256(contents).hexdigest()
+              for path, contents in original_sources.items()
+          }
+          test_hash = hashlib.sha256(test_path.read_bytes()).hexdigest()
+
+          diagnostic_script = r'''
+          import json
+          from pathlib import PurePosixPath
+
+          from scieqlint import markdown as markdown_api
+          from scieqlint.frontend import myst as frontend
+          from scieqlint.frontend import myst_shared as shared
+          from scieqlint.frontend.myst import MySTFrontend
+          from scieqlint.io.source import DocumentKind, SourceDocument
+
+          source = "$$\n\\begin{equation}x=1\\end{equation}\n"
+          events = []
+
+          class ChangingSplitlinesText(str):
+              instances = []
+
+              def __new__(cls, value):
+                  obj = super().__new__(cls, value)
+                  obj.call_number = 0
+                  obj.instance_number = len(cls.instances) + 1
+                  cls.instances.append(obj)
+                  return obj
+
+              def replace(self, old, new, count=-1):
+                  result = type(self)(super().replace(old, new, count))
+                  events.append({
+                      "kind": "replace",
+                      "from_instance": self.instance_number,
+                      "to_instance": result.instance_number,
+                      "old": old,
+                      "new": new,
+                      "count": count,
+                  })
+                  return result
+
+              def splitlines(self, keepends=False):
+                  self.call_number += 1
+                  result = [] if self.call_number in {3, 6} else super().splitlines(keepends)
+                  events.append({
+                      "kind": "splitlines",
+                      "instance": self.instance_number,
+                      "call": self.call_number,
+                      "keepends": keepends,
+                      "returned_lines": result,
+                  })
+                  return result
+
+          def ranges(value):
+              return [list(item) for item in value]
+
+          def facts(value):
+              return [
+                  {
+                      "container": getattr(fact, "container", None),
+                      "body": getattr(fact, "body", None),
+                      "raw": getattr(fact, "raw", None),
+                      "span": None if fact.span is None else [fact.span.start, fact.span.end],
+                  }
+                  for fact in value
+              ]
+
+          def wrap(module, name, original, record):
+              def observed(*args, **kwargs):
+                  result = original(*args, **kwargs)
+                  events.append(record(args, kwargs, result))
+                  return result
+              setattr(module, name, observed)
+
+          def wrap_optional(module, name, record):
+              if hasattr(module, name):
+                  wrap(module, name, getattr(module, name), record)
+
+          wrap_optional(
+              frontend,
+              "_ordered_lexical_ranges",
+              lambda args, kwargs, result: {
+                  "kind": "ordered_lexical_projection",
+                  "text_type": type(args[0]).__name__,
+                  "occupied": ranges(args[1] if len(args) > 1 else kwargs.get("occupied", ())),
+                  "display": [list(item) for item in result.display],
+                  "openers": list(result.display_openers),
+              },
+          )
+          wrap(
+              markdown_api,
+              "_ordered_lexical_ranges",
+              markdown_api._ordered_lexical_ranges,
+              lambda args, kwargs, result: {
+                  "kind": "markdown_ordered_lexical_projection",
+                  "text_type": type(args[0]).__name__,
+                  "occupied": ranges(args[1] if len(args) > 1 else kwargs.get("occupied", ())),
+                  "display": [list(item) for item in result.display],
+                  "openers": list(result.display_openers),
+              },
+          )
+          wrap(
+              frontend,
+              "markdown_reference_snapshot",
+              frontend.markdown_reference_snapshot,
+              lambda args, kwargs, result: {
+                  "kind": "reference_snapshot",
+                  "occupied": ranges(kwargs.get("occupied", args[1] if len(args) > 1 else ())),
+                  "link_metadata_ranges": ranges(result.link_metadata_ranges),
+                  "non_math_opaque_ranges": ranges(result.non_math_opaque_ranges),
+                  "opaque_ranges": ranges(result.opaque_ranges),
+              },
+          )
+          wrap_optional(
+              frontend,
+              "dollar_display_ranges",
+              lambda args, kwargs, result: {
+                  "kind": "dollar_display_ranges",
+                  "occupied": ranges(args[1] if len(args) > 1 else kwargs.get("occupied", ())),
+                  "display": [list(item) for item in result],
+              },
+          )
+          wrap_optional(
+              shared,
+              "dollar_display_ranges",
+              lambda args, kwargs, result: {
+                  "kind": "shared_dollar_display_ranges",
+                  "occupied": ranges(args[1] if len(args) > 1 else kwargs.get("occupied", ())),
+                  "display": [list(item) for item in result],
+              },
+          )
+          wrap_optional(
+              frontend,
+              "dollar_display_opener_positions",
+              lambda args, kwargs, result: {
+                  "kind": "dollar_display_openers",
+                  "occupied": ranges(args[1] if len(args) > 1 else kwargs.get("occupied", ())),
+                  "openers": list(result),
+              },
+          )
+          wrap(
+              frontend,
+              "scan_raw_latex_math",
+              frontend.scan_raw_latex_math,
+              lambda args, kwargs, result: {
+                  "kind": "raw_latex_scan",
+                  "occupied": ranges(args[2]),
+                  "bracketed_occupied": ranges(kwargs.get("bracketed_occupied", ())),
+                  "display_math": facts(result[0]),
+              },
+          )
+
+          original_ranges = frontend.math_occupied_ranges
+          def observed_math_occupied(display_math):
+              result = original_ranges(display_math)
+              events.append({"kind": "math_occupied_ranges", "input": facts(display_math), "result": ranges(result)})
+              return result
+          frontend.math_occupied_ranges = observed_math_occupied
+
+          original_display_scan = frontend.scan_display_math
+          def observed_display_scan(*args, **kwargs):
+              result = original_display_scan(*args, **kwargs)
+              events.append({
+                  "kind": "display_math_scan",
+                  "dollar_ranges": [list(item) for item in args[3]],
+                  "occupied": ranges(kwargs.get("occupied", ())),
+                  "fence_occupied": ranges(kwargs.get("fence_occupied", ())),
+                  "display_math": facts(result[0]),
+                  "equation_labels": facts(result[1]),
+                  "equation_refs": facts(result[2]),
+              })
+              return result
+          frontend.scan_display_math = observed_display_scan
+
+          input_text = ChangingSplitlinesText(source)
+          input_instance = input_text.instance_number
+          document = SourceDocument.from_text(PurePosixPath("lecture.md"), input_text, DocumentKind.MARKDOWN)
+          stored_instance = getattr(document.text, "instance_number", None)
+          snapshot = MySTFrontend().lower((document,))
+          dollar_ranges = [
+              event
+              for event in events
+              if event["kind"] in {"dollar_display_ranges", "shared_dollar_display_ranges"}
+          ]
+          dollar_openers = [event for event in events if event["kind"] == "dollar_display_openers"]
+          unmatched_dollar_occupied = [
+              {
+                  "source": "separate-dollar-helpers",
+                  "occupied": [
+                      [start, len(document.text)]
+                      for start in openers["openers"]
+                      if start not in {item[0] for item in ranges_item["display"]}
+                  ],
+                  "openers": openers["openers"],
+                  "display_ranges": ranges_item["display"],
+              }
+              for ranges_item, openers in zip(dollar_ranges, dollar_openers)
+          ]
+          for projection in events:
+              if projection["kind"] not in {
+                  "ordered_lexical_projection",
+                  "markdown_ordered_lexical_projection",
+              }:
+                  continue
+              unmatched_dollar_occupied.append({
+                  "source": projection["kind"],
+                  "occupied": [
+                      [start, len(document.text)]
+                      for start in projection["openers"]
+                      if start not in {item[0] for item in projection["display"]}
+                  ],
+                  "openers": projection["openers"],
+                  "display_ranges": projection["display"],
+                  "projection_occupied": projection["occupied"],
+              })
+          print(json.dumps({
+              "source": source,
+              "from_text": {
+                  "input_instance": input_instance,
+                  "stored_instance": stored_instance,
+                  "same_object": document.text is input_text,
+              },
+              "splitlines_and_replacements": events[:],
+              "unmatched_dollar_occupied": unmatched_dollar_occupied,
+              "display_math": facts(snapshot.display_math),
+              "equation_labels": facts(snapshot.equation_labels),
+              "equation_refs": facts(snapshot.equation_refs),
+          }, indent=2))
+          '''
+
+          def source_at(revision: str, path: Path) -> bytes:
+              return subprocess.check_output(["git", "show", f"{revision}:{path.as_posix()}"])
+
+          def install_source(revision: str) -> None:
+              for path in source_paths:
+                  path.write_bytes(source_at(revision, path))
+                  for cached in (path.parent / "__pycache__").glob(f"{path.stem}.*.pyc"):
+                      cached.unlink()
+
+          records = [
+              {
+                  "variant": label,
+                  "revision": revision,
+                  "diagnostic_returncode": None,
+                  "diagnostic_output": "",
+                  "tests": [],
+              }
+              for label, revision in variants
+          ]
+          try:
+              for record in records:
+                  label = record["variant"]
+                  revision = record["revision"]
+                  install_source(revision)
+                  diagnostic = subprocess.run(
+                      [sys.executable, "-c", diagnostic_script],
+                      check=False,
+                      text=True,
+                      stdout=subprocess.PIPE,
+                      stderr=subprocess.STDOUT,
+                  )
+                  record["diagnostic_returncode"] = diagnostic.returncode
+                  record["diagnostic_output"] = diagnostic.stdout
+                  print(f"===== FOCUSED DIAGNOSTICS: {label} @ {revision} =====")
+                  print(diagnostic.stdout)
+                  print(f"instrumentation return code: {diagnostic.returncode}")
+
+              print("===== DIAGNOSTICS COMPLETE; PYTEST OUTCOMES FOLLOW =====")
+              for record in records:
+                  label = record["variant"]
+                  revision = record["revision"]
+                  install_source(revision)
+                  tests = []
+                  for node in nodes:
+                      result = subprocess.run(
+                          [sys.executable, "-m", "pytest", "-q", "--tb=long", node],
+                          check=False,
+                          text=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                      )
+                      tests.append({"node": node, "returncode": result.returncode, "output": result.stdout})
+                  record["tests"] = tests
+                  for test in tests:
+                      print(f"----- {test['node']} (exit {test['returncode']}) -----")
+                      print(test["output"])
+          finally:
+              for path, contents in original_sources.items():
+                  path.write_bytes(contents)
+                  for cached in (path.parent / "__pycache__").glob(f"{path.stem}.*.pyc"):
+                      cached.unlink()
+
+          restored_hashes = {
+              str(path): hashlib.sha256(path.read_bytes()).hexdigest()
+              for path in source_paths
+          }
+          report = {
+              "variants_run_in_order": [label for label, _revision in variants],
+              "records": records,
+              "restored_source_hashes": restored_hashes,
+              "expected_source_hashes": original_hashes,
+              "test_hash_unchanged": hashlib.sha256(test_path.read_bytes()).hexdigest() == test_hash,
+          }
+          rendered = json.dumps(report, indent=2)
+          print("===== COMPLETE DIAGNOSTIC MATRIX =====")
+          print(rendered)
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as summary:
+              summary.write("## MyST source-variant diagnostic matrix\n\n```json\n")
+              summary.write(rendered)
+              summary.write("\n```\n")
+
+          assert len(records) == len(variants), "all pinned variants must be captured before comparison"
+          assert all(len(record["tests"]) == len(nodes) for record in records)
+          assert all(record["diagnostic_returncode"] == 0 for record in records), "focused instrumentation failed"
+          assert restored_hashes == original_hashes, "source restoration hash mismatch"
+          assert report["test_hash_unchanged"], "the final candidate test file changed"
+          PY
