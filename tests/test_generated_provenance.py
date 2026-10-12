@@ -106,7 +106,13 @@ def test_source_origin_rejects_blank_programmatic_projection_metadata() -> None:
 
 @pytest.mark.parametrize("retired_field", ["source_sha", "tool", "tool_version"])
 def test_source_origin_rejects_retired_producer_metadata(retired_field: str) -> None:
-    with pytest.raises(TypeError):
+    origin = SourceOrigin(source_document_id="source/input.xml")
+    assert origin.source_document_id == "source/input.xml"
+
+    with pytest.raises(
+        TypeError,
+        match=rf"unexpected keyword argument '{retired_field}'$",
+    ):
         SourceOrigin(source_document_id="source/input.xml", **{retired_field: "value"})
 
 
@@ -120,7 +126,18 @@ def test_source_origin_accepts_only_the_source_id_positionally() -> None:
 def test_generated_provenance_fact_rejects_retired_producer_metadata(
     retired_field: str,
 ) -> None:
-    with pytest.raises(TypeError):
+    fact = GeneratedProvenanceFact(
+        fact_id="origin",
+        document_id="out/generated.md",
+        span=None,
+        generated_document_id="out/generated.md",
+    )
+    assert fact.generated_document_id == "out/generated.md"
+
+    with pytest.raises(
+        TypeError,
+        match=rf"unexpected keyword argument '{retired_field}'$",
+    ):
         GeneratedProvenanceFact(
             fact_id="origin",
             document_id="out/generated.md",
