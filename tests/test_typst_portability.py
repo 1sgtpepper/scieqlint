@@ -121,10 +121,13 @@ def test_typst_math_risks_skips_source_maps_without_displays(
 ) -> None:
     snapshot = MySTFrontend().lower((doc("ordinary source text"),))
 
-    def unexpected_source_map(self: SourceMap, document: SourceDocument) -> None:
+    def unexpected_source_map(document: SourceDocument) -> SourceMap:
         raise AssertionError(f"unexpected SourceMap for {document.path}")
 
-    monkeypatch.setattr(SourceMap, "__init__", unexpected_source_map)
+    monkeypatch.setattr(
+        "scieqlint.parse.typst_portability.SourceMap",
+        unexpected_source_map,
+    )
 
     assert MathHost().typst_portability(snapshot) == ()
 

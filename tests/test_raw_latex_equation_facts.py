@@ -56,13 +56,13 @@ def test_math_host_builds_source_maps_only_for_complete_raw_display_documents(
         generated_formulas=(),
     )
     calls: list[str] = []
-    make_source_map = SourceMap.for_document
+    make_source_map = SourceMap
 
-    def record_source_map(cls, document: SourceDocument) -> SourceMap:
+    def record_source_map(document: SourceDocument) -> SourceMap:
         calls.append(document.path.as_posix())
         return make_source_map(document)
 
-    monkeypatch.setattr(SourceMap, "for_document", classmethod(record_source_map))
+    monkeypatch.setattr("scieqlint.parse.math.SourceMap", record_source_map)
 
     classified = MathHost().classify(snapshot)
 

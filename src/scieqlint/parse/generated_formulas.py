@@ -26,7 +26,6 @@ _GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?
 
 
 def classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormulaFact, ...]:
-
     if not snapshot.generated_formulas:
         return ()
 

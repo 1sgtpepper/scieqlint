@@ -35,10 +35,13 @@ def test_generated_formula_classifier_skips_source_maps_without_candidates(
 ) -> None:
     snapshot = MySTFrontend().lower((doc("ordinary source text"),))
 
-    def unexpected_source_map(cls, document: SourceDocument) -> SourceMap:
+    def unexpected_source_map(document: SourceDocument) -> SourceMap:
         raise AssertionError(f"unexpected SourceMap for {document.path}")
 
-    monkeypatch.setattr(SourceMap, "for_document", classmethod(unexpected_source_map))
+    monkeypatch.setattr(
+        "scieqlint.parse.generated_formulas.SourceMap",
+        unexpected_source_map,
+    )
 
     assert classify_generated_formulas(snapshot) == ()
 
