@@ -708,7 +708,11 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert metadata.target_span == anchor.label_span
     assert metadata.span is not None
 
-    assert document.text[metadata.span.start : metadata.span.end] == output.raw
+    assert document.text[metadata.span.start : metadata.span.end] == (
+        '{"data": {"image/png": "payload"}, "metadata": '
+        '{"fig-cap": "Output caption", "label": "fig-output"}, '
+        '"output_type": "display_data"}'
+    )
 
 
 @pytest.mark.parametrize(
@@ -1304,7 +1308,11 @@ def test_notebook_display_resolution_aggregates_cross_cell_targets() -> None:
         )
     )
 
-    snapshot = _profile_snapshot((document,), config("reference-display"))
+    snapshot = _profile_snapshot(
+        (document,),
+        config("reference-display"),
+        **profile_scan_inputs((document,)),
+    )
 
     by_target = {fact.normalized_target: fact for fact in snapshot.reference_display_text}
     [cell] = snapshot.code_cells
@@ -1607,7 +1615,11 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
         notebook_payload({"cell_type": "markdown", "metadata": {}, "source": source})
     )
 
-    snapshot = _profile_snapshot((document,), config("reference-display"))
+    snapshot = _profile_snapshot(
+        (document,),
+        config("reference-display"),
+        **profile_scan_inputs((document,)),
+    )
 
     [anchor] = snapshot.target_anchors
     [generic_ref] = snapshot.generic_refs

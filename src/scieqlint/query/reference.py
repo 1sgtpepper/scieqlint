@@ -357,13 +357,17 @@ def _equation_index(
 def _equation_target_summaries(
     labels: Iterable[EquationLabelFact],
 ) -> dict[str, tuple[int, EquationLabelFact]]:
-    summaries: dict[str, tuple[int, EquationLabelFact]] = {}
+    summaries: dict[str, tuple[int, EquationLabelFact, tuple[str, int, int, str]]] = {}
     for label in labels:
-        count, example = summaries.get(label.normalized_label, (0, label))
-        if count == 0 or _equation_label_source_key(label) < _equation_label_source_key(example):
-            example = label
-        summaries[label.normalized_label] = (count + 1, example)
-    return summaries
+        source_key = _equation_label_source_key(label)
+        count, example, example_key = summaries.get(
+            label.normalized_label,
+            (0, label, source_key),
+        )
+        if count and source_key < example_key:
+            example, example_key = label, source_key
+        summaries[label.normalized_label] = (count + 1, example, example_key)
+    return {target: (count, example) for target, (count, example, _source_key) in summaries.items()}
 
 
 def _equation_label_source_key(fact: EquationLabelFact) -> tuple[str, int, int, str]:

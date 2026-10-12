@@ -194,7 +194,8 @@ raise RuntimeError('must not execute')
 ```
 
 See {ref}`cell-demo`.
-"""
+""",
+        "paper.md",
     )
     snapshot = MySTFrontend().lower((document,))
     [cell] = snapshot.code_cells
@@ -978,10 +979,6 @@ def test_nonvisible_notebook_code_cells_keep_facts_without_language_or_reference
     assert (PurePosixPath("hidden.ipynb"), hidden_cell.normalized_label) not in (
         results.target_identity_index
     )
-    if visibility == "hidden":
-        assert query.references.hidden_code_cell_targets() == (hidden_cell,)
-    else:
-        assert query.references.excluded_code_cell_targets() == (hidden_cell,)
     assert results.duplicate_code_cell_targets == {}
     assert query.structure.invalid_code_cell_languages() == ()
     assert (

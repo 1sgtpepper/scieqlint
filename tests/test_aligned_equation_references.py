@@ -365,7 +365,7 @@ def test_public_duplicate_diagnostic_uses_normalized_label_text() -> None:
 
 def test_notebook_fact_ids_and_source_keys_include_cell_identity() -> None:
     from scieqlint.app import _legacy_equation_label_fact
-    from scieqlint.engine.reference import _fact_source_key
+    from scieqlint.query.reference import _query_fact_source_key
 
     source = "$$\nx = 1 \\label{same}\n$$\n"
     document = SourceDocument.from_text(
@@ -390,7 +390,7 @@ def test_notebook_fact_ids_and_source_keys_include_cell_identity() -> None:
     assert [fact.span.cell for fact in facts if fact.span is not None] == [0, 1]
     assert len({fact.fact_id for fact in facts}) == 2
     assert all(f"::cell-{cell}" in fact.fact_id for fact, cell in zip(facts, (0, 1), strict=True))
-    assert [_fact_source_key(fact)[:2] for fact in facts] == [
+    assert [_query_fact_source_key(fact)[:2] for fact in facts] == [
         ("notes.ipynb", 0),
         ("notes.ipynb", 1),
     ]
