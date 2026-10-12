@@ -10,6 +10,7 @@ from scieqlint.config.model import Config
 from scieqlint.diag.catalog import CATALOG
 from scieqlint.diag.model import Diagnostic, SourceSpan
 from scieqlint.io.source import SourceDocument
+from scieqlint.markdown import is_escaped, range_contains
 from scieqlint.scan.base import (
     EquationLabel,
     EquationReference,
@@ -38,22 +39,32 @@ class LatexScanner:
         blocks: list[MathBlock] = []
         labels: list[EquationLabel] = []
         diagnostics: list[Diagnostic] = []
+        # Subclass find overrides can be stateful; share ranges only for built-in text.
+        reusable_ranges = type(document.text) is str
+        latex_ranges = (
+            tuple(_delimiter_ranges(document, ignored, r"\[", r"\]")) if reusable_ranges else None
+        )
 
         blocks.extend(
             _delimited_blocks(
                 document,
                 source_aligned_text,
                 ignored,
+                latex_ranges,
                 r"\[",
                 r"\]",
                 MathContainer.LATEX_DISPLAY,
             )
+        )
+        dollar_ranges = (
+            tuple(_delimiter_ranges(document, ignored, "$$", "$$")) if reusable_ranges else None
         )
         blocks.extend(
             _delimited_blocks(
                 document,
                 source_aligned_text,
                 ignored,
+                dollar_ranges,
                 "$$",
                 "$$",
                 MathContainer.LATEX_DISPLAY,
@@ -62,8 +73,8 @@ class LatexScanner:
         env_blocks, env_diagnostics = _environment_blocks(document, source_aligned_text, ignored)
         blocks.extend(env_blocks)
         diagnostics.extend(env_diagnostics)
-        diagnostics.extend(_unterminated_delimiters(document, ignored, r"\[", r"\]"))
-        diagnostics.extend(_unterminated_delimiters(document, ignored, "$$", "$$"))
+        diagnostics.extend(_unterminated_delimiters(document, ignored, latex_ranges, r"\[", r"\]"))
+        diagnostics.extend(_unterminated_delimiters(document, ignored, dollar_ranges, "$$", "$$"))
         labels.extend(_labels(document, blocks, ignored))
         references = tuple(_references(document, ignored))
         symbol_directives, symbol_diagnostics = _symbol_directives(document, comments)
@@ -82,19 +93,33 @@ def _delimited_blocks(
     document: SourceDocument,
     source_aligned_text: str,
     ignored: tuple[tuple[int, int], ...],
+    closed: tuple[tuple[int, int], ...] | None,
     opening: str,
     closing: str,
     container: MathContainer,
 ) -> Iterable[MathBlock]:
+    if closed is not None:
+        for start, end in closed:
+            block = _math_block(
+                document,
+                source_aligned_text,
+                start + len(opening),
+                end - len(closing),
+                container,
+            )
+            if block is not None:
+                yield block
+        return
+
     cursor = 0
     while True:
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored):
+        if range_contains(start, ignored):
             cursor = start + len(opening)
             continue
-        if _is_escaped(document.text, start):
+        if is_escaped(document.text, start):
             cursor = start + 1
             continue
         body_start = start + len(opening)
@@ -116,7 +141,7 @@ def _environment_blocks(
     blocks: list[MathBlock] = []
     diagnostics: list[Diagnostic] = []
     for match in ENV_RE.finditer(document.text):
-        if _in_ranges(match.start(), ignored) or _is_escaped(document.text, match.start()):
+        if range_contains(match.start(), ignored) or is_escaped(document.text, match.start()):
             continue
         name = match.group("name")
         close_pattern = f"\\end{{{name}}}"
@@ -149,7 +174,7 @@ def _align_blocks(
         if not text:
             continue
         aligned_row = "".join(
-            " " if char == "&" and not _is_escaped(aligned_row, index) else char
+            " " if char == "&" and not is_escaped(aligned_row, index) else char
             for index, char in enumerate(aligned_row)
         )
         span = _span(document, row_start, row_end)
@@ -232,6 +257,9 @@ def _source_aligned_math_text(
     text: str,
     comments: tuple[tuple[int, int], ...],
 ) -> str:
+    # Subclasses may override iteration, so retain their list/join behavior.
+    if not comments and type(text) is str:
+        return text
     aligned = list(text)
     for start, end in comments:
         for index in range(start, end):
@@ -248,14 +276,14 @@ def _labels(
     for block in blocks:
         source_text = document.text[block.span.start : block.span.end]
         for match in LABEL_RE.finditer(source_text):
-            if _is_escaped(source_text, match.start()):
+            if is_escaped(source_text, match.start()):
                 continue
             label = match.group("label")
             if not label.strip():
                 continue
             label_start = block.span.start + match.start("label")
             label_end = block.span.start + match.end("label")
-            if _in_ranges(match.start() + block.span.start, ignored):
+            if range_contains(match.start() + block.span.start, ignored):
                 continue
             yield EquationLabel(
                 label=_normalize_label(label),
@@ -270,7 +298,7 @@ def _references(
     ignored: tuple[tuple[int, int], ...],
 ) -> Iterable[EquationReference]:
     for match in REFERENCE_RE.finditer(document.text):
-        if _in_ranges(match.start(), ignored) or _is_escaped(document.text, match.start()):
+        if range_contains(match.start(), ignored) or is_escaped(document.text, match.start()):
             continue
         target = _normalize_label(match.group("target"))
         if not target:
@@ -319,29 +347,23 @@ def _symbol_directives(
 def _unterminated_delimiters(
     document: SourceDocument,
     ignored: tuple[tuple[int, int], ...],
+    closed_ranges: tuple[tuple[int, int], ...] | None,
     opening: str,
     closing: str,
 ) -> Iterable[Diagnostic]:
-    closed = {
-        (start, end)
-        for start, _body_start, _body_end, end in _delimiter_ranges(
-            document,
-            ignored,
-            opening,
-            closing,
-        )
-    }
+    if closed_ranges is None:
+        closed = tuple(_delimiter_ranges(document, ignored, opening, closing))
+    else:
+        closed = closed_ranges
     cursor = 0
     while True:
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored) or any(
-            range_start <= start < range_end for range_start, range_end in closed
-        ):
+        if range_contains(start, ignored) or range_contains(start, closed):
             cursor = start + len(opening)
             continue
-        if _is_escaped(document.text, start):
+        if is_escaped(document.text, start):
             cursor = start + 1
             continue
         if _find_close(document, start + len(opening), closing, ignored) == -1:
@@ -354,16 +376,16 @@ def _delimiter_ranges(
     ignored: tuple[tuple[int, int], ...],
     opening: str,
     closing: str,
-) -> Iterable[tuple[int, int, int, int]]:
+) -> Iterable[tuple[int, int]]:
     cursor = 0
     while True:
         start = document.text.find(opening, cursor)
         if start == -1:
             return
-        if _in_ranges(start, ignored):
+        if range_contains(start, ignored):
             cursor = start + len(opening)
             continue
-        if _is_escaped(document.text, start):
+        if is_escaped(document.text, start):
             cursor = start + 1
             continue
         body_start = start + len(opening)
@@ -371,7 +393,7 @@ def _delimiter_ranges(
         if close == -1:
             cursor = body_start
             continue
-        yield start, body_start, close, close + len(closing)
+        yield start, close + len(closing)
         cursor = close + len(closing)
 
 
@@ -386,10 +408,10 @@ def _find_close(
         close = document.text.find(closing, cursor)
         if close == -1:
             return -1
-        if _in_ranges(close, ignored):
+        if range_contains(close, ignored):
             cursor = close + len(closing)
             continue
-        if _is_escaped(document.text, close):
+        if is_escaped(document.text, close):
             cursor = close + 1
             continue
         return close
@@ -418,7 +440,7 @@ def _lexical_ranges(
                 active_start = None
             index = match.end()
             continue
-        if text[index] == "%" and not _is_escaped(text, index):
+        if text[index] == "%" and not is_escaped(text, index):
             line_end = index + 1
             while line_end < len(text) and text[line_end] != "\n":
                 line_end += 1
@@ -428,7 +450,7 @@ def _lexical_ranges(
             index = line_end
             continue
         match = VERBATIM_CONTROL_RE.match(text, index)
-        if match is not None and match.group("kind") == "begin" and not _is_escaped(text, index):
+        if match is not None and match.group("kind") == "begin" and not is_escaped(text, index):
             active_start = index
             active_star = match.group("star") or ""
             index = match.end()
@@ -454,19 +476,6 @@ def _row_break_end(text: str, start: int, end: int) -> int:
         if close != -1 and (newline == -1 or close < newline):
             return close + 1
     return start
-
-
-def _is_escaped(text: str, index: int) -> bool:
-    slash_count = 0
-    cursor = index - 1
-    while cursor >= 0 and text[cursor] == "\\":
-        slash_count += 1
-        cursor -= 1
-    return slash_count % 2 == 1
-
-
-def _in_ranges(position: int, ranges: tuple[tuple[int, int], ...]) -> bool:
-    return any(start <= position < end for start, end in ranges)
 
 
 def _normalize_label(value: str) -> str:
