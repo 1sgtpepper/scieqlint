@@ -63,20 +63,18 @@ class SchemaHost:
         if version not in cls._SUPPORTED_PROJECTION_VERSIONS:
             raise ValueError(f"unsupported diagnostic projection version: {version}")
         projected_profile = diagnostic.profile if profile is None else profile
-        provenance_ids = tuple(dict.fromkeys(diagnostic.provenance_ids))
+        provenance_ids = dict.fromkeys(diagnostic.provenance_ids)
         provenances_by_id: dict[str, _GeneratedProvenance] = {}
         for provenance in provenances:
             provenances_by_id.setdefault(provenance.fact_id, provenance)
-        unique_provenances = tuple(provenances_by_id.values())
+        provenance_count = len(provenances_by_id)
         generated_properties: list[tuple[str, str]] = []
-        if unique_provenances:
-            provenance_ids = tuple(
-                dict.fromkeys(
-                    (*provenance_ids, *(provenance.fact_id for provenance in unique_provenances))
-                )
+        if provenance_count:
+            provenance_ids.update(
+                (provenance.fact_id, None) for provenance in provenances_by_id.values()
             )
-            for index, provenance in enumerate(unique_provenances, start=1):
-                prefix = "" if len(unique_provenances) == 1 else f"provenance_{index}_"
+            for index, provenance in enumerate(provenances_by_id.values(), start=1):
+                prefix = "" if provenance_count == 1 else f"provenance_{index}_"
                 generated_properties.extend(
                     cls.generated_provenance_properties(provenance, prefix=prefix)
                 )
@@ -96,7 +94,7 @@ class SchemaHost:
         return DiagnosticProjection(
             version=version,
             profile=projected_profile,
-            provenance_ids=provenance_ids,
+            provenance_ids=tuple(provenance_ids),
             properties=properties,
         )
 
