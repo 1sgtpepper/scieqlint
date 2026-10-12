@@ -25,52 +25,6 @@ SOURCE_REFERENCE_KINDS = {
 }
 
 
-def without_profile_owned_legacy_reference_diagnostics(
-    diagnostics: list[Diagnostic],
-    query: QueryHost,
-) -> list[Diagnostic]:
-    references = query.references
-    results = references.results()
-    profile_owned_spans = {
-        span
-        for fact in query.snapshot.equation_refs
-        if (span := fact.target_span or fact.span) is not None
-    }
-    unresolved_generic_ids = {fact.fact_id for fact in results.unresolved_generic_refs}
-    profile_owned_spans.update(
-        span
-        for fact in query.snapshot.generic_refs
-        if not (
-            fact.fact_id in unresolved_generic_ids
-            and fact.role_kind == "markdown-link"
-            and fact.raw_target_path is None
-        )
-        if (span := fact.target_span or fact.span) is not None
-    )
-    owned_spans = tuple(profile_owned_spans)
-    return [
-        diagnostic
-        for diagnostic in diagnostics
-        if not (
-            diagnostic.code == "REF002"
-            and diagnostic.span is not None
-            and span_is_within_any(diagnostic.span, owned_spans)
-        )
-    ]
-
-
-def span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
-    """Return whether a fact span belongs to one of the source-owned ranges."""
-
-    return any(
-        container.path == span.path
-        and container.cell == span.cell
-        and container.start <= span.start
-        and span.end <= container.end
-        for container in containers
-    )
-
-
 def raw_missing_label_diagnostics(
     query: QueryHost,
     visible_document_ids: set[str],

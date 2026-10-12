@@ -22,7 +22,7 @@ def test_graph_does_not_derive_reference_display_facts(
         raise AssertionError("graph lowering must not derive display-only facts")
 
     monkeypatch.setattr(
-        "scieqlint.frontend.myst.reference_display_text_facts",
+        "scieqlint.app_profile.reference_display_text_facts",
         unexpected_derivation,
     )
     document = _markdown(

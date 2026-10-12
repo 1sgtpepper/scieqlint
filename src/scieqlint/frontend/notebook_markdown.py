@@ -25,10 +25,7 @@ def markdown_cell_references(
     source_ranges: tuple[tuple[tuple[int, int], ...], ...],
 ) -> FactSnapshot:
     cell_document = notebook_cell_document(document, cell_index, source)
-    snapshot = MySTFrontend(workspace=workspace).lower(
-        (cell_document,),
-        _include_reference_display=False,
-    )
+    snapshot = MySTFrontend(workspace=workspace).lower((cell_document,))
     prefix = f"{document.path.as_posix()}::notebook-cell::{cell_index}::"
 
     def span(value: SourceSpan | None) -> SourceSpan | None:

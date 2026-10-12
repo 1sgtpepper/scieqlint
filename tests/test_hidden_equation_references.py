@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -193,6 +194,30 @@ def test_hidden_only_target_remains_unresolved_and_reports_visibility_impact() -
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF008"]
     assert diagnostics[0].provenance_ids == ("ref", "hidden")
     assert dict(diagnostics[0].properties)["visible_target_count"] == "0"
+
+
+def test_query_fact_source_key_includes_notebook_cell_before_fact_id() -> None:
+    cell_zero_span = replace(span("paper.ipynb", 20), cell=0)
+    cell_one_span = replace(span("paper.ipynb", 20), cell=1)
+    cell_one = replace(
+        reference("a-first-by-id", document="paper.ipynb", start=20),
+        span=cell_one_span,
+        target_span=cell_one_span,
+        role_span=cell_one_span,
+    )
+    cell_zero = replace(
+        reference("z-last-by-id", document="paper.ipynb", start=20),
+        span=cell_zero_span,
+        target_span=cell_zero_span,
+        role_span=cell_zero_span,
+    )
+
+    assert reference_query._query_fact_source_key(cell_zero)[:2] == ("paper.ipynb", 0)
+    assert reference_query._query_fact_source_key(cell_one)[:2] == ("paper.ipynb", 1)
+    assert sorted((cell_one, cell_zero), key=reference_query._query_fact_source_key) == [
+        cell_zero,
+        cell_one,
+    ]
 
 
 def test_hidden_equation_references_are_not_checked_against_any_target_visibility() -> None:

@@ -101,10 +101,7 @@ def generated_profile_snapshot(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     snapshot = (
-        MySTFrontend(workspace=workspace).lower(
-            markdown_documents,
-            _include_reference_display=False,
-        )
+        MySTFrontend(workspace=workspace).lower(markdown_documents)
         if frontend_snapshot is None
         else frontend_snapshot
     )
@@ -138,7 +135,6 @@ def generated_profile_snapshot(
             _include_markdown=(
                 config.scanner.markdown or config.profile.name == "reference-display"
             ),
-            _include_reference_display=False,
         )
         if notebook_full_profile:
             snapshot = replace(
@@ -189,33 +185,34 @@ def generated_profile_snapshot(
         fact.fact_id for fact in snapshot.display_math if fact.container == "raw-latex"
     )
     snapshot = MathHost().classify(snapshot)
-    raw_labels_by_document: dict[str, list[EquationLabelFact]] = {}
-    raw_refs_by_document: dict[str, list[EquationRefFact]] = {}
-    for label in snapshot.equation_labels:
-        if label.source_block_id in raw_math_fact_ids:
-            raw_labels_by_document.setdefault(label.document_id, []).append(label)
-    for reference in snapshot.equation_refs:
-        if reference.source_block_id in raw_math_fact_ids:
-            raw_refs_by_document.setdefault(reference.document_id, []).append(reference)
-    raw_crossref_metadata: list[CrossrefMetadataFact] = []
-    documents_by_id = {document.path.as_posix(): document for document in documents}
-    raw_document_ids = tuple(dict.fromkeys((*raw_labels_by_document, *raw_refs_by_document)))
-    for document_id in raw_document_ids:
-        document = documents_by_id[document_id]
-        raw_crossref_metadata.extend(
-            crossref_metadata_facts(
-                document,
-                (),
-                raw_refs_by_document.get(document_id, ()),
-                workspace=workspace,
-                equation_labels=raw_labels_by_document.get(document_id, ()),
+    if raw_math_fact_ids:
+        raw_labels_by_document: dict[str, list[EquationLabelFact]] = {}
+        raw_refs_by_document: dict[str, list[EquationRefFact]] = {}
+        for label in snapshot.equation_labels:
+            if label.source_block_id in raw_math_fact_ids:
+                raw_labels_by_document.setdefault(label.document_id, []).append(label)
+        for reference in snapshot.equation_refs:
+            if reference.source_block_id in raw_math_fact_ids:
+                raw_refs_by_document.setdefault(reference.document_id, []).append(reference)
+        raw_crossref_metadata: list[CrossrefMetadataFact] = []
+        documents_by_id = {document.path.as_posix(): document for document in documents}
+        raw_document_ids = tuple(dict.fromkeys((*raw_labels_by_document, *raw_refs_by_document)))
+        for document_id in raw_document_ids:
+            document = documents_by_id[document_id]
+            raw_crossref_metadata.extend(
+                crossref_metadata_facts(
+                    document,
+                    (),
+                    raw_refs_by_document.get(document_id, ()),
+                    workspace=workspace,
+                    equation_labels=raw_labels_by_document.get(document_id, ()),
+                )
             )
-        )
-    if raw_crossref_metadata:
-        snapshot = replace(
-            snapshot,
-            crossref_metadata=(*snapshot.crossref_metadata, *raw_crossref_metadata),
-        )
+        if raw_crossref_metadata:
+            snapshot = replace(
+                snapshot,
+                crossref_metadata=(*snapshot.crossref_metadata, *raw_crossref_metadata),
+            )
     snapshot = workspace.apply_visibility(snapshot, profile_visibility)
     snapshot = replace(
         snapshot,

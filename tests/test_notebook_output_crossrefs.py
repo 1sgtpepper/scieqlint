@@ -1305,7 +1305,9 @@ def test_notebook_display_resolution_aggregates_cross_cell_targets() -> None:
         )
     )
 
-    snapshot = NotebookFrontend().lower((document,))
+    snapshot = _profile_snapshot(
+        (document,), config("reference-display"), **profile_scan_inputs((document,))
+    )
 
     by_target = {fact.normalized_target: fact for fact in snapshot.reference_display_text}
     [cell] = snapshot.code_cells
@@ -1608,7 +1610,9 @@ def test_notebook_markdown_preserves_targets_metadata_display_and_json_spans() -
         notebook_payload({"cell_type": "markdown", "metadata": {}, "source": source})
     )
 
-    snapshot = NotebookFrontend().lower((document,))
+    snapshot = _profile_snapshot(
+        (document,), config("reference-display"), **profile_scan_inputs((document,))
+    )
 
     [anchor] = snapshot.target_anchors
     [generic_ref] = snapshot.generic_refs

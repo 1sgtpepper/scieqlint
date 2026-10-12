@@ -7,7 +7,6 @@ import pytest
 
 from scieqlint import markdown as markdown_module
 from scieqlint.api import check_documents
-from scieqlint.check.references import check_references
 from scieqlint.config.model import ChecksConfig, Config, ScannerConfig, SymbolsConfig
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
@@ -1191,7 +1190,7 @@ def test_public_tex_comment_labels_do_not_duplicate_live_labels() -> None:
     result = MarkdownScanner().scan(document, Config())
 
     assert [label.label for label in result.labels] == ["live"]
-    assert check_references(result.labels, result.references) == ()
+    assert check_documents([document], config=Config()).diagnostics == ()
 
 
 def test_malformed_markdown_symbol_directive_warns_and_code_fence_is_ignored() -> None:

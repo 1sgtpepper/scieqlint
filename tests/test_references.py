@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import replace
 from pathlib import Path, PurePosixPath
 
 import pytest
 
 from scieqlint import markdown as markdown_module
 from scieqlint.api import check_documents, graph_documents
-from scieqlint.check.references import check_references
-from scieqlint.config.model import Config, ScannerConfig
+from scieqlint.config.model import ChecksConfig, Config, ReferencesConfig, ScannerConfig
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
+from scieqlint.query.reference import ReferenceQueryView
 from scieqlint.scan.markdown import MarkdownScanner
 
 
@@ -70,15 +69,6 @@ class _CopyCountingList(list[object]):
         items = tuple(values)
         type(self).copied_items += len(items)
         super().extend(items)
-
-
-def _scan(text: str):
-    document = SourceDocument.from_text(
-        PurePosixPath("paper.md"),
-        text,
-        DocumentKind.MARKDOWN,
-    )
-    return MarkdownScanner().scan(document, Config())
 
 
 def _link_tokens(text: str):
@@ -343,28 +333,6 @@ def test_ordered_range_membership_bounds_item_reads() -> None:
     assert ranges.item_reads <= 16 * query_count
 
 
-def test_missing_reference_is_warning() -> None:
-    scan = _scan("See {eq}`missing`.\n")
-    diagnostics = check_references(scan.labels, scan.references)
-    assert [diagnostic.code for diagnostic in diagnostics] == ["REF002"]
-    assert diagnostics[0].severity is Severity.WARNING
-    assert diagnostics[0].message == "equation reference target not found: missing"
-
-
-def test_strict_reference_check_reports_unlabeled_display_blocks() -> None:
-    scan = _scan("$$\nE = m c^2\n$$\n")
-
-    diagnostics = check_references(
-        scan.labels,
-        scan.references,
-        blocks=scan.blocks,
-        strict_missing_labels=True,
-    )
-
-    assert [diagnostic.code for diagnostic in diagnostics] == ["REF003"]
-    assert diagnostics[0].equation == "E = m c^2"
-
-
 @pytest.mark.public_regression
 def test_issue_226_code_contexts_are_inert_across_reference_and_math_paths() -> None:
     document = SourceDocument.from_text(
@@ -460,9 +428,82 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_block_html() -> Non
 
     assert [reference.target for reference in legacy.references] == ["missing"]
     assert [reference.target for reference in frontend.equation_refs] == ["missing"]
-    assert [
-        diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
-    ] == ["REF002"]
+    public_diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in public_diagnostics] == ["REF002"]
+
+
+def test_reference_resolution_follows_enabled_gate_once_with_exact_spans(monkeypatch) -> None:
+    source = "See {eq}`missing`.\n\n$$\nx = 1\n$$\n"
+    path = PurePosixPath("dispatch.md")
+    document = SourceDocument.from_text(path, source, DocumentKind.MARKDOWN)
+    target_indexes = ReferenceQueryView._target_indexes
+    reference_engine_run = ReferenceEngine.run
+    counts = {"engine_runs": 0, "pre_dispatch_indexes": 0}
+    in_engine = False
+
+    def count_target_indexes(view: ReferenceQueryView, targets: tuple):
+        if not in_engine:
+            counts["pre_dispatch_indexes"] += 1
+        return target_indexes(view, targets)
+
+    def count_engine_run(engine: ReferenceEngine, query: QueryHost):
+        nonlocal in_engine
+        counts["engine_runs"] += 1
+        in_engine = True
+        try:
+            return reference_engine_run(engine, query)
+        finally:
+            in_engine = False
+
+    monkeypatch.setattr(ReferenceQueryView, "_target_indexes", count_target_indexes)
+    monkeypatch.setattr(ReferenceEngine, "run", count_engine_run)
+
+    for enabled, expected_codes, expected_engine_runs in (
+        (True, ["REF002", "REF003"], 1),
+        (False, [], 0),
+    ):
+        counts.update(engine_runs=0, pre_dispatch_indexes=0)
+        result = check_documents(
+            (document,),
+            config=Config(
+                checks=ChecksConfig(
+                    references=ReferencesConfig(
+                        enabled=enabled,
+                        missing_label_strict=True,
+                    )
+                )
+            ),
+        )
+
+        assert counts == {
+            "engine_runs": expected_engine_runs,
+            "pre_dispatch_indexes": 0,
+        }
+        assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+        if enabled:
+            reference_start = source.index("missing")
+            equation_start = source.index("x = 1")
+            equation_end = equation_start + len("x = 1")
+            assert [diagnostic.span for diagnostic in result.diagnostics] == [
+                SourceSpan(
+                    path=path,
+                    start=reference_start,
+                    end=reference_start + len("missing"),
+                    line=1,
+                    col=reference_start + 1,
+                    end_line=1,
+                    end_col=reference_start + len("missing"),
+                ),
+                SourceSpan(
+                    path=path,
+                    start=equation_start,
+                    end=equation_end,
+                    line=4,
+                    col=1,
+                    end_line=4,
+                    end_col=len("x = 1"),
+                ),
+            ]
 
 
 def test_equation_roles_follow_equal_length_and_multiline_code_spans() -> None:
@@ -910,47 +951,43 @@ def test_unclosed_block_html_ends_at_a_blank_line() -> None:
 
 
 def test_duplicate_label_is_error() -> None:
-    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n")
-    diagnostics = check_references(scan.labels, scan.references)
-    assert [diagnostic.code for diagnostic in diagnostics] == ["REF001"]
-    assert diagnostics[0].severity is Severity.ERROR
+    text = "$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+    public_diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in public_diagnostics] == ["REF001"]
+    assert public_diagnostics[0].severity is Severity.ERROR
 
 
 def test_existing_reference_is_quiet() -> None:
-    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n")
-    assert check_references(scan.labels, scan.references) == ()
-
-
-def test_legacy_reference_checker_defers_path_bearing_references() -> None:
-    scan = _scan("See {eq}`missing`.\n")
-    [reference] = scan.references
-    path_bearing_reference = replace(
-        reference,
-        normalized_target_path=PurePosixPath("other.md"),
-    )
-
-    assert check_references((), (path_bearing_reference,)) == ()
-
-
-def test_legacy_reference_checker_resolves_local_fragments_by_document() -> None:
-    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n")
-    [reference] = scan.references
-    local_fragment_reference = replace(reference, target_fragment="energy")
-
-    assert check_references(scan.labels, (local_fragment_reference,)) == ()
+    text = "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+    assert check_documents([document], config=Config()).diagnostics == ()
 
 
 def test_latex_missing_reference_warns() -> None:
+    source = "See \\eqref{missing}.\n"
     document = SourceDocument.from_text(
         PurePosixPath("paper.tex"),
-        "See \\eqref{missing}.\n",
+        source,
         DocumentKind.LATEX,
     )
 
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
-    assert result.diagnostics[0].detail == r"reference text: \eqref{missing}"
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.message == "equation reference target not found: missing"
+    assert diagnostic.detail == r"reference text: \eqref{missing}"
+    target_start = source.index("missing")
+    assert diagnostic.span == SourceSpan(
+        path=PurePosixPath("paper.tex"),
+        start=target_start,
+        end=target_start + len("missing"),
+        line=1,
+        col=target_start + 1,
+        end_line=1,
+        end_col=target_start + len("missing"),
+    )
 
 
 def test_cross_format_reference_is_quiet() -> None:
@@ -1297,9 +1334,8 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
         "a)b",
         "foo&bar",
     ]
-    assert [
-        diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
-    ] == [
+    diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in diagnostics] == [
         "REF002",
         "REF002",
         "REF002",
