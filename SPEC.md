@@ -1048,7 +1048,6 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 | Concern | Use | Earliest release | Boundary |
 |---|---|---:|---|
 | CLI | `click` | v0.0.1 | command parsing only |
-
 | JSON Schema validation | `jsonschema` dev dependency | v0.1.0 | golden-output/schema tests only |
 | Package resources | `importlib.resources` | v0.0.1 | schemas and presets |
 | Type checking | `pyright` | v0.0.1 | CI gate |
@@ -1146,7 +1145,6 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 `scan` may import `io.source`, `diag.model`, and `scan.base`. It must not import `parse`, `check`, or `report`.
 
 `parse` may import `diag.model` and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
-
 
 `check` may import `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
 
@@ -1368,7 +1366,6 @@ JSON, and SARIF.
 ---
 
 ## 10. Unsupported math diagnostics
-
 
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
@@ -2155,6 +2152,7 @@ Every diagnostic code page/table must include:
 - example output,
 - config knobs.
 
+
 ### OSS contributor experience
 
 Contributor documentation covers repository layout, local checks, live issue routes, and review flow.
@@ -2394,6 +2392,7 @@ v0.2.0 contributor acceptance:
 - docs explain how to add a preset safely,
 - docs explain how suppressions are tested,
 - at least one `good second issue` exists for aliases or presets if those features ship.
+
 
 ### Contribution rules
 
