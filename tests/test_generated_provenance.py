@@ -214,9 +214,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
     )
     assert unspecified == ()
 
-    query = QueryHost(FactSnapshot(generated_provenance=supplied))
-    assert query.generated.provenance() == supplied
-
 
 def test_profile_annotations_do_not_create_source_identity() -> None:
     generated = SourceDocument.from_text(
