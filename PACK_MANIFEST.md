@@ -23,7 +23,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 
 - `.editorconfig`
 - `.github/CODEOWNERS`
-- `.github/FUNDING.yml`
 - `.github/ISSUE_TEMPLATE/0_bug.yml`
 - `.github/ISSUE_TEMPLATE/1_feature.md`
 - `.github/ISSUE_TEMPLATE/2_task.md`
@@ -35,7 +34,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `.github/release-constraints.txt`
 - `.github/workflows/ci.yml`
 - `.github/workflows/codeql.yml`
-- `.github/workflows/docs.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/sarif-upload-example.yml`
 - `.github/workflows/scorecard.yml`
@@ -113,7 +111,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `schemas/scieqlint-result-0.1.schema.json`
 - `schemas/scieqlint-result-0.2.schema.json`
 - `scieqlint.toml`
-- `scripts/check_pack.py`
 - `src/scieqlint/__init__.py`
 - `src/scieqlint/__main__.py`
 - `src/scieqlint/api.py`

@@ -846,22 +846,6 @@ def _fence_candidate(line: str) -> tuple[str, int, bool, bool] | None:
     return marker, length, line.endswith("\n"), not candidate[length:].strip(" \t")
 
 
-def _fence_opener(line: str) -> tuple[str, int] | None:
-    candidate = _fence_candidate(line)
-    if candidate is None or not candidate[2]:
-        return None
-    marker, length, _is_opener, _is_closer = candidate
-    return marker, length
-
-
-def _is_fence_closer(line: str, opener: tuple[str, int]) -> bool:
-    marker, length = opener
-    candidate = _fence_candidate(line)
-    return (
-        candidate is not None and candidate[0] == marker and candidate[1] >= length and candidate[3]
-    )
-
-
 def base_report(
     loaded: list[LoadedInput],
     violations: list[dict[str, Any]],
