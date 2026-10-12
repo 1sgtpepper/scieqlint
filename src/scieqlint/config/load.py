@@ -184,7 +184,7 @@ def _optional_nonempty_str(data: dict[str, Any], key: str) -> str | None:
         return None
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{key} must be a non-empty string")
-    return value.strip()
+    return value
 
 
 _PROFILE_NAMES = frozenset(get_args(ValidationProfile))

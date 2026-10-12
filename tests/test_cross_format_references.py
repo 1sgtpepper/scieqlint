@@ -868,7 +868,7 @@ def test_policy_rejects_missing_and_unknown_output_profiles() -> None:
         PolicyHost().cross_format_reference_risks(snapshot)
 
     with pytest.raises(ValueError, match="unsupported output profile: pdf"):
-        PolicyHost().cross_format_reference_risks(snapshot, "pdf")
+        PolicyHost(output_profile="pdf").cross_format_reference_risks(snapshot)
 
     with pytest.raises(ValueError, match=r"^unsupported output profile: $"):
-        PolicyHost(output_profile="myst").cross_format_reference_risks(snapshot, "")
+        PolicyHost(output_profile="").cross_format_reference_risks(snapshot)
