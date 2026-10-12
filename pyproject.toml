@@ -29,8 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "coverage[toml]>=7.6",
-  "hatchling>=1.25",
+  "coverage>=7.6",
   "hypothesis>=6.100",
   "import-linter>=2.0",
   "jsonschema>=4.23",
@@ -46,17 +45,6 @@ docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
 ]
-v010 = [
-  "markdown-it-py>=3.0",
-  "mdit-py-plugins>=0.4",
-  "pathspec>=0.12",
-  "lark>=1.2",
-  "sympy>=1.13",
-]
-notebook = [
-  "nbformat>=5.10",
-]
-
 [project.urls]
 Homepage = "https://github.com/1sgtpepper/scieqlint"
 Repository = "https://github.com/1sgtpepper/scieqlint"
@@ -68,10 +56,6 @@ scieqlint = "scieqlint.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/scieqlint"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"README.md" = "scieqlint/package/README.md"
-"SPEC.md" = "scieqlint/package/SPEC.md"
 
 [tool.hatch.build.targets.sdist]
 include = [

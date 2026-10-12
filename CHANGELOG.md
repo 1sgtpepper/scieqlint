@@ -339,6 +339,10 @@ Release notes must use these sections:
   argument and pass all surviving optional metadata by keyword.
 - Remove the scanner-side notebook input and JSON compatibility import modules;
   notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
+- Retire the `v010` and `notebook` optional dependency groups. The wheel no longer
+  ships duplicate source examples or forced README/SPEC copies, and the unreferenced
+  `scieqlint.io.resources` helper is removed; the canonical root examples and built-in
+  CLI demo remain.
 
 ### Migration notes
 

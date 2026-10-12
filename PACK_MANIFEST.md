@@ -145,11 +145,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/engine/portability.py`
 - `src/scieqlint/engine/reference.py`
 - `src/scieqlint/engine/structure.py`
-- `src/scieqlint/examples/__init__.py`
-- `src/scieqlint/examples/bad/__init__.py`
-- `src/scieqlint/examples/bad/famous_bad.md`
-- `src/scieqlint/examples/good/__init__.py`
-- `src/scieqlint/examples/good/algebra_good.md`
 - `src/scieqlint/facts/__init__.py`
 - `src/scieqlint/facts/base.py`
 - `src/scieqlint/facts/generated.py`
@@ -185,7 +180,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/io/discover.py`
 - `src/scieqlint/io/identity.py`
 - `src/scieqlint/io/limits.py`
-- `src/scieqlint/io/resources.py`
 - `src/scieqlint/io/source.py`
 - `src/scieqlint/io/workspace.py`
 - `src/scieqlint/ir/__init__.py`
