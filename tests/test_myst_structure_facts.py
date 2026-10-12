@@ -35,13 +35,25 @@ def fixture_doc(path: Path) -> SourceDocument:
 
 
 def test_malformed_heading_is_issue_only():
-    snapshot = MySTFrontend().lower((doc("####Title\n\n```python\nprint(1)\n```\n"),))
+    source = "####Title\n\n```python\nprint(1)\n```\n"
+    snapshot = MySTFrontend().lower((doc(source),))
     assert snapshot.headings == ()
-    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
-        ("atx-heading", "missing_space_after_atx_marker")
-    ]
+    [issue] = snapshot.structure_syntax_issues
+    assert (issue.kind, issue.raw) == ("atx-heading", "####Title")
+    assert issue.span is not None
+    assert source[issue.span.start : issue.span.end] == "####"
+
     diagnostics = StructureEngine().run(QueryHost(snapshot))
-    assert [d.code for d in diagnostics if d.code == "STR001"] == ["STR001"]
+    assert [
+        (diagnostic.code, diagnostic.message, diagnostic.detail) for diagnostic in diagnostics
+    ] == [
+        (
+            "STR001",
+            "ATX heading marker must be followed by a space",
+            "####Title",
+        )
+    ]
+    assert diagnostics[0].span == issue.span
 
 
 def test_malformed_heading_keeps_heading_diagnostic_order_and_span():
@@ -70,22 +82,20 @@ def test_six_hash_line_remains_an_atx_heading():
 def test_bare_atx_heading_accepts_an_attached_target() -> None:
     snapshot = MySTFrontend().lower((doc("(empty)=\n#\n\nSee {ref}`empty`.\n"),))
 
-    assert [
-        (heading.level, heading.text, heading.slug_candidate) for heading in snapshot.headings
-    ] == [(1, "", "")]
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [(1, "")]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("empty", "before_heading")
     ]
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
 
-def test_closing_only_atx_heading_is_empty_without_a_text_span() -> None:
+def test_closing_only_atx_heading_is_empty() -> None:
     snapshot = MySTFrontend().lower((doc("# #\n## ##\n### ###\n"),))
 
-    assert [(heading.raw, heading.text, heading.text_span) for heading in snapshot.headings] == [
-        ("# #", "", None),
-        ("## ##", "", None),
-        ("### ###", "", None),
+    assert [(heading.raw, heading.text) for heading in snapshot.headings] == [
+        ("# #", ""),
+        ("## ##", ""),
+        ("### ###", ""),
     ]
 
 
@@ -93,9 +103,6 @@ def test_malformed_atx_candidates_do_not_affect_heading_semantics() -> None:
     snapshot = MySTFrontend().lower((doc("#Bad\n### Child\n\n(bad)=\n#AlsoBad\n"),))
 
     assert [heading.raw for heading in snapshot.headings] == ["### Child"]
-    assert [section.heading_fact_id for section in snapshot.sections] == [
-        snapshot.headings[0].fact_id
-    ]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("bad", "orphaned")
     ]
@@ -185,11 +192,14 @@ def test_scanner_markdown_gate_disables_frontend_reference_diagnostics() -> None
 
 
 def test_four_space_fence_closer_remains_inside_the_fence():
-    snapshot = MySTFrontend().lower((doc("```{math}\nx = x\n    ```\ny = y\n```\n"),))
+    document = doc("```{math}\nx = x\n    ```\ny = y\n```\n")
+    snapshot = MySTFrontend().lower((document,))
 
     assert len(snapshot.fences) == 1
     assert snapshot.fences[0].is_closed is True
-    assert "    ```" in snapshot.fences[0].raw
+    body_span = snapshot.fences[0].body_span
+    assert body_span is not None
+    assert "    ```\ny = y\n" in document.text[body_span.start : body_span.end]
 
 
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
@@ -363,17 +373,9 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
         )
     )
 
-    assert [(cell.language, cell.label, cell.tags) for cell in snapshot.code_cells] == [
-        ("python", "cell-demo", ("hide-input", "remove-output")),
-        ("python", "fig-demo", ()),
-    ]
-    assert [
-        (directive.name, directive.argument, directive.option_dict())
-        for directive in snapshot.directives
-    ] == [
-        ("code-cell", "python", {"label": "cell-demo", "tags": "hide-input, remove-output"}),
-        ("note", None, {"class": "tip"}),
-        ("math", None, {"name": "eq-directive-name", "label": "eq-directive"}),
+    assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [
+        ("python", "cell-demo"),
+        ("python", "fig-demo"),
     ]
     assert [
         (anchor.label, anchor.placement, anchor.target_kind) for anchor in snapshot.target_anchors
@@ -486,19 +488,9 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
         (2, "Child"),
         (1, "Part Two"),
     ]
-    assert [(section.depth, section.parent_section_id) for section in snapshot.sections] == [
-        (3, None),
-        (1, None),
-        (2, snapshot.sections[1].fact_id),
-        (1, None),
-    ]
     assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [
         ("python", None),
         (None, None),
-    ]
-    assert [(directive.name, directive.options) for directive in snapshot.directives] == [
-        ("note", ()),
-        ("code-cell", ()),
     ]
     assert [(ref.target, ref.normalized_target) for ref in snapshot.generic_refs] == [
         ("#part-one", "part-one")
@@ -691,47 +683,53 @@ def test_block_interrupted_link_title_does_not_hide_structure() -> None:
 
 
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
-    snapshot = MySTFrontend().lower(
-        (
-            doc(
-                "\n".join(
-                    [
-                        "```{note",
-                        "Broken directive opener.",
-                        "```",
-                        "",
-                        "```{note}",
-                        ":class tip",
-                        "Broken option.",
-                        "```",
-                        "",
-                        "```{code-cell} python",
-                        ":tags: [hide-input, bad tag]",
-                        "print(1)",
-                        "```",
-                        "",
-                        "See {ref}target and {eq}`missing.",
-                    ]
-                )
-            ),
-        )
+    source = "\n".join(
+        [
+            "```{note",
+            "Broken directive opener.",
+            "```",
+            "",
+            "```{note}",
+            ":class tip",
+            "Broken option.",
+            "```",
+            "",
+            "```{code-cell} python",
+            ":tags: [hide-input, bad tag]",
+            "print(1)",
+            "```",
+            "",
+            "See {ref}target and {eq}`missing.",
+        ]
     )
+    snapshot = MySTFrontend().lower((doc(source),))
 
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
-    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
-        ("myst-directive", "malformed directive fence info string"),
-        ("myst-option", "malformed directive option line"),
-        ("code-cell-tags", "malformed code-cell tags option"),
-        ("myst-role", "malformed MyST role syntax"),
-        ("myst-role", "malformed MyST role syntax"),
+    assert [(issue.kind, issue.raw) for issue in snapshot.structure_syntax_issues] == [
+        ("myst-directive", "{note"),
+        ("myst-option", ":class tip"),
+        ("code-cell-tags", ":tags: [hide-input, bad tag]"),
+        ("myst-role", "{ref}target and {eq}`missing."),
+        ("myst-role", "{eq}`missing."),
     ]
-    assert [diagnostic.code for diagnostic in diagnostics] == [
-        "DIR001",
-        "DIR002",
-        "DIR012",
-        "DIR011",
-        "DIR011",
+    assert all(
+        issue.span is not None
+        and issue.raw is not None
+        and issue.raw in source[issue.span.start : issue.span.end]
+        for issue in snapshot.structure_syntax_issues
+    )
+    assert [
+        (diagnostic.code, diagnostic.message, diagnostic.detail) for diagnostic in diagnostics
+    ] == [
+        ("DIR001", "MyST directive fence info string is malformed", "{note"),
+        ("DIR002", "MyST directive option line is malformed", ":class tip"),
+        ("DIR012", "code-cell tags option is malformed", ":tags: [hide-input, bad tag]"),
+        ("DIR011", "MyST role syntax is malformed", "{ref}target and {eq}`missing."),
+        ("DIR011", "MyST role syntax is malformed", "{eq}`missing."),
+    ]
+    assert [diagnostic.span for diagnostic in diagnostics] == [
+        issue.span for issue in snapshot.structure_syntax_issues
     ]
 
 
@@ -759,9 +757,7 @@ def test_valid_myst_roles_options_and_bracketed_code_cell_tags_are_quiet():
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
     assert snapshot.structure_syntax_issues == ()
-    assert [(cell.language, cell.tags) for cell in snapshot.code_cells] == [
-        ("python", ("hide-input", "remove-output"))
-    ]
+    assert [cell.language for cell in snapshot.code_cells] == ["python"]
     assert [diagnostic.code for diagnostic in diagnostics] == []
 
 

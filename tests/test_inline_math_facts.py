@@ -358,7 +358,6 @@ def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
         fact_id="prose",
         document_id="generated.md",
         span=None,
-        raw="ordinary prose",
         body="ordinary prose",
         delimiter_kind="plain-text",
     )
@@ -366,7 +365,6 @@ def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
         fact_id="mismatched",
         document_id="generated.md",
         span=None,
-        raw="(x]",
         body="(x]",
         delimiter_kind="dollar",
     )
@@ -514,12 +512,18 @@ def test_myst_roles_own_overlapping_latex_parens_without_hiding_adjacent_math(
 ) -> None:
     snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
-    assert [(fact.delimiter_kind, fact.body, fact.raw) for fact in snapshot.inline_math] == list(
-        expected
-    )
-    for fact in snapshot.inline_math:
+    assert [(fact.delimiter_kind, fact.body) for fact in snapshot.inline_math] == [
+        (delimiter, body) for delimiter, body, _raw in expected
+    ]
+    cursor = 0
+    for fact, (_, body, raw) in zip(snapshot.inline_math, expected, strict=True):
         assert fact.span is not None
-        assert source[fact.span.start : fact.span.end] == fact.body
+        raw_start = source.index(raw, cursor)
+        body_start = raw_start + raw.index(body)
+        assert fact.span.start == body_start
+        assert fact.span.end == body_start + len(body)
+        assert source[raw_start : raw_start + len(raw)] == raw
+        cursor = raw_start + len(raw)
 
 
 @pytest.mark.parametrize(
@@ -547,8 +551,9 @@ def test_opaque_ranges_reset_unclosed_latex_parens_without_hiding_later_math(
     fact = snapshot.inline_math[0]
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == "x = 1"
-    assert fact.raw == r"\(x = 1\)"
-    assert fact.fact_id == f"generated.md::inline-math::{source.index(fact.raw)}"
+    opener = r"\(x = 1\)"
+    assert source[fact.span.start - 2 : fact.span.end + 2] == opener
+    assert fact.fact_id == f"generated.md::inline-math::{source.index(opener)}"
 
 
 @pytest.mark.parametrize(

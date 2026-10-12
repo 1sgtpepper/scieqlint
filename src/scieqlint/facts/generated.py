@@ -33,7 +33,8 @@ GeneratedBracketDelimiter = Literal["escaped", "literal"]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class GeneratedProvenanceFact(FactBase):
+class GeneratedProvenanceFact:
+    fact_id: str
     generated_document_id: str
     source_document_id: str | None = None
     source_kind: str | None = None

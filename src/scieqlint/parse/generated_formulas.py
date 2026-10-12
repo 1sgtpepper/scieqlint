@@ -26,10 +26,7 @@ _GARBLED_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])(?P<artifact>/C0[ \t]+apod)(?
 
 
 def classify_generated_formulas(snapshot: FactSnapshot) -> tuple[GeneratedFormulaFact, ...]:
-    source_maps = {
-        document.path.as_posix(): SourceMap.for_document(document)
-        for document in snapshot.documents
-    }
+    source_maps = {document.path.as_posix(): SourceMap(document) for document in snapshot.documents}
     inline_math = {fact.fact_id: fact for fact in snapshot.inline_math}
     facts: list[GeneratedFormulaFact] = []
     for candidate in snapshot.generated_formulas:
@@ -83,7 +80,6 @@ def _classify_generated_candidate(
             candidate,
             kind="equation-like-text",
             candidate_kind=None,
-            confidence="inferred",
         ),
     )
 
@@ -146,8 +142,6 @@ def _suspicious_formula_facts(
                     fact_id=fact_id,
                     document_id=candidate.document_id,
                     span=artifact_span,
-                    raw=artifact,
-                    confidence="inferred",
                     kind=kind,
                     text=artifact,
                     candidate_kind=None,

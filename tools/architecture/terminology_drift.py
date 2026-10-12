@@ -32,7 +32,6 @@ TERMS = (
     "QueryHost",
     "EngineHost",
     "PolicyHost",
-    "AnalysisResult",
     "SchemaHost",
     "PackHost",
     "CompatibilityShell",

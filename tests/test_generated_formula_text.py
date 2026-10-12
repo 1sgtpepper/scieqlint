@@ -245,16 +245,11 @@ def test_generated_formula_engine_keeps_provenance_as_ids_and_rule_properties() 
         fact_id="out/generated.md::formula::1",
         document_id="out/generated.md",
         span=None,
-        raw=r"\A t t e n t {x}",
-        confidence="inferred",
         kind="spaced-token",
         text=r"\A t t e n t {x}",
     )
     first = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/a.xml",
         source_kind="jats-xml",
@@ -262,9 +257,6 @@ def test_generated_formula_engine_keeps_provenance_as_ids_and_rule_properties() 
     )
     second = GeneratedProvenanceFact(
         fact_id="origin-b",
-        document_id="out/generated.md",
-        span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/b.tex",
         source_kind="latex",
@@ -304,8 +296,6 @@ def test_generated_bracketed_diagnostic_uses_fact_delimiter_kind() -> None:
             fact_id="generated.md::formula::bracketed",
             document_id="generated.md",
             span=None,
-            raw=text,
-            confidence="source",
             kind="bracketed-block",
             text=text,
             complete=True,
@@ -452,8 +442,6 @@ def test_generated_formula_fact_requires_bracketed_completeness_metadata() -> No
         fact_id="generated.md::formula::suspicious",
         document_id="generated.md",
         span=None,
-        raw="/C0 apod",
-        confidence="inferred",
         kind="garbled-marker",
         text="/C0 apod",
     )

@@ -1,8 +1,4 @@
-"""SchemaHost-owned diagnostic metadata projection.
-
-This is the small projection seam needed by generated provenance. The complete
-AnalysisResult registry and serializer migration remain owned by #190/#191.
-"""
+"""SchemaHost-owned diagnostic metadata projection for generated provenance."""
 
 from __future__ import annotations
 

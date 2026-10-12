@@ -91,9 +91,6 @@ def metadata(
         fact_id=fact_id,
         document_id=document,
         span=span(document),
-        raw=None,
-        source_fact_id=f"{fact_id}-source",
-        logical_target=logical_target,
         normalized_target=logical_target,
         source_format=source_format,
         output_boundary=boundary,
@@ -119,16 +116,12 @@ def test_myst_frontend_lowers_source_neutral_crossref_metadata() -> None:
         "eq-energy",
     ]
     generic, equation = snapshot.crossref_metadata
-    assert generic.reference_role == "ref"
-    assert generic.display_title == "Energy balance"
     assert generic.resolved_target_kind is None
     assert generic.metadata_kind == "reference-use"
     assert generic.source_format == "markdown"
     assert generic.output_boundary == "paper.md"
     assert generic.normalized_target_path is None
     assert generic.target_metadata == ()
-    assert equation.reference_role == "eq"
-    assert equation.display_title is None
     assert equation.resolved_target_kind is None
     assert equation.metadata_kind == "reference-use"
     assert equation.normalized_target_path is None
@@ -148,9 +141,9 @@ def test_myst_frontend_preserves_equation_role_display_titles() -> None:
         ("eq", "eq-energy", "Energy balance"),
         ("numref", "eq-energy", "Eq. %s"),
     ]
-    assert [fact.display_title for fact in snapshot.crossref_metadata] == [
-        "Energy balance",
-        "Eq. %s",
+    assert [fact.normalized_target for fact in snapshot.crossref_metadata] == [
+        "eq-energy",
+        "eq-energy",
     ]
 
 
@@ -165,16 +158,15 @@ def test_profile_adds_metadata_for_raw_equation_labels_and_references() -> None:
     [label] = snapshot.equation_labels
     [reference] = snapshot.equation_refs
     label_metadata = next(
-        fact for fact in snapshot.crossref_metadata if fact.source_fact_id == label.fact_id
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
     )
     reference_metadata = next(
-        fact for fact in snapshot.crossref_metadata if fact.source_fact_id == reference.fact_id
+        fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "reference-use"
     )
     assert label_metadata.metadata_kind == "target-definition"
     assert label_metadata.resolved_target_kind == "equation"
     assert label_metadata.normalized_target == "raw-energy"
     assert reference_metadata.metadata_kind == "reference-use"
-    assert reference_metadata.reference_role == "tex-ref"
     assert reference_metadata.normalized_target == "raw-energy"
     assert label_metadata.target_span == label.label_span
     assert reference_metadata.target_span == reference.target_span
@@ -463,23 +455,21 @@ def test_reference_use_titles_do_not_become_target_metadata_conflicts() -> None:
     assert not any(item.code == "REF007" for item in result.diagnostics)
     assert [
         (
-            fact.logical_target,
-            fact.reference_role,
-            fact.display_title,
+            fact.normalized_target,
             fact.normalized_target_path,
             fact.target_metadata,
         )
         for fact in snapshot.crossref_metadata
         if fact.metadata_kind == "reference-use"
     ] == [
-        ("fig-energy", "ref", "Overview", None, ()),
-        ("eq-energy", "eq", None, None, ()),
-        ("fig-energy", "ref", "Energy balance", None, ()),
-        ("eq-energy", "eq", None, None, ()),
+        ("fig-energy", None, ()),
+        ("eq-energy", None, ()),
+        ("fig-energy", None, ()),
+        ("eq-energy", None, ()),
     ]
     assert [
         (
-            fact.logical_target,
+            fact.normalized_target,
             fact.resolved_target_kind,
             fact.normalized_target_path,
             fact.target_metadata,
@@ -529,7 +519,7 @@ def test_notebook_member_paths_keep_equal_labels_separate() -> None:
     assert [
         (
             fact.normalized_target_path,
-            fact.logical_target,
+            fact.normalized_target,
             fact.resolved_target_kind,
             fact.target_metadata,
         )
@@ -553,7 +543,7 @@ def test_notebook_member_paths_keep_equal_labels_separate() -> None:
     assert [
         (
             fact.normalized_target_path,
-            fact.logical_target,
+            fact.normalized_target,
             fact.resolved_target_kind,
             fact.target_metadata,
         )
@@ -795,7 +785,7 @@ def test_public_check_documents_reports_listing_alias_output_metadata_conflict()
 
     assert len(definitions) == 2
     assert len(anchors) == 2
-    assert [fact.logical_target for fact in definitions] == ["lst-shared", "lst-shared"]
+    assert [fact.normalized_target for fact in definitions] == ["lst-shared", "lst-shared"]
     assert [fact.target_metadata for fact in definitions] == [
         (("lst-cap", "Shared listing"),),
         (("lst-cap", "Different listing"),),

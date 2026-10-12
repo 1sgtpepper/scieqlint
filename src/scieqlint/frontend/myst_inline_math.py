@@ -40,7 +40,7 @@ def scan_inline_math(
     lines = tuple(line_ranges(document.text))
     dollar_ranges = tuple(dollar_inline_ranges(document.text, occupied))
     dollar_occupied = tuple((start, end) for start, _body_start, _body_end, end in dollar_ranges)
-    for start, body_start, body_end, end in dollar_ranges:
+    for start, body_start, body_end, _end in dollar_ranges:
         body = document.text[body_start:body_end]
         text = body.strip()
         if not text:
@@ -53,7 +53,6 @@ def scan_inline_math(
                 fact_id=f"{document.path.as_posix()}::inline-math::{start}",
                 document_id=document.path.as_posix(),
                 span=smap.span(span_start, span_end),
-                raw=document.text[start:end],
                 body=text,
                 delimiter_kind="dollar",
                 surrounding_text_role=role,
@@ -159,7 +158,6 @@ def _delimited_inline_candidates(
                 fact_id=f"{document.path.as_posix()}::inline-math::{match.start()}",
                 document_id=document.path.as_posix(),
                 span=smap.span(body_start, body_end),
-                raw=match.group(0),
                 body=text,
                 delimiter_kind=delimiter_kind,
                 surrounding_text_role=role,
@@ -205,7 +203,6 @@ def _latex_paren_facts(
                     fact_id=f"{document.path.as_posix()}::inline-math::{opener}",
                     document_id=document.path.as_posix(),
                     span=smap.span(body_start, body_end),
-                    raw=text[opener : close + 2],
                     body=stripped,
                     delimiter_kind="latex-paren",
                     surrounding_text_role=reference_snapshot.text_role_at(opener),
@@ -243,11 +240,9 @@ def _plain_text_math_facts(
                 fact_id=f"{document.path.as_posix()}::inline-math-leak::{start}",
                 document_id=document.path.as_posix(),
                 span=smap.span(start, end),
-                raw=body,
                 body=body,
                 delimiter_kind="plain-text",
                 surrounding_text_role=role,
-                confidence="inferred",
             )
 
 

@@ -9,7 +9,6 @@ from typing import cast
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.reference import CrossrefMetadataFact, TargetAnchorFact
 from scieqlint.facts.structure import CodeCellFact, NotebookOutputFact
-from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 
 from .myst_shared import normalize_label
@@ -21,11 +20,10 @@ _OUTPUT_LABEL_KEYS = ("label", "lst-label")
 
 
 def notebook_output_facts(
-    document: SourceDocument,
-    cell_index: int,
     cell: Mapping[str, object],
     *,
     cell_fact_id: str,
+    document_id: str,
     output_spans: Sequence[SourceSpan | None],
 ) -> tuple[NotebookOutputFact, ...]:
     raw_outputs = cell.get("outputs")
@@ -38,23 +36,14 @@ def notebook_output_facts(
             continue
         output = cast(Mapping[str, object], raw_output)
         output_metadata = _mapping(output.get("metadata"))
-        data = _mapping(output.get("data"))
         output_span = output_spans[output_index] if output_index < len(output_spans) else None
         facts.append(
             NotebookOutputFact(
                 fact_id=f"{cell_fact_id}::output::{output_index}",
-                document_id=document.path.as_posix(),
+                document_id=document_id,
                 span=output_span,
-                raw=(
-                    document.text[output_span.start : output_span.end]
-                    if output_span is not None
-                    else None
-                ),
                 cell_fact_id=cell_fact_id,
-                cell_index=cell_index,
                 output_index=output_index,
-                output_type=_nonempty_string(output.get("output_type")) or "unknown",
-                mime_types=tuple(sorted(str(key) for key in data)),
                 metadata=_metadata_items(output_metadata),
             )
         )
@@ -102,9 +91,6 @@ def crossref_facts(
                 fact_id=f"{boundary}::crossref-metadata",
                 document_id=cell.document_id,
                 span=output.span if output is not None else cell.span,
-                raw=output.raw if output is not None else cell.raw,
-                source_fact_id=cell.fact_id,
-                logical_target=label,
                 normalized_target=normalize_label(label),
                 source_format="notebook",
                 output_boundary=boundary,
@@ -140,11 +126,9 @@ def output_target_anchors(
                 fact_id=f"{output.fact_id}::target",
                 document_id=cell.document_id,
                 span=output.span,
-                raw=output.raw,
                 label=label,
                 normalized_label=normalize_label(label),
                 target_kind=_crossref_target_kind(label, metadata=metadata),
-                attaches_to_fact_id=output.fact_id,
                 placement="standalone",
                 label_span=_output_label_span(output, output_label_spans),
             )
@@ -221,9 +205,3 @@ def _mapping(value: object) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         return {}
     return cast(Mapping[str, object], value)
-
-
-def _nonempty_string(value: object) -> str | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    return value.strip()

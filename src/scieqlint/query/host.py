@@ -8,7 +8,6 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.query.generated import GeneratedOutputQueryView
 from scieqlint.query.math import MathContainerQueryView
 from scieqlint.query.portability import PortabilityQueryView
-from scieqlint.query.project import ProjectGraphQueryView
 from scieqlint.query.reference import ReferenceQueryView
 from scieqlint.query.structure import StructureQueryView
 
@@ -32,10 +31,6 @@ class QueryHost:
     @property
     def generated(self) -> GeneratedOutputQueryView:
         return GeneratedOutputQueryView(self.snapshot)
-
-    @property
-    def project(self) -> ProjectGraphQueryView:
-        return ProjectGraphQueryView(self.snapshot)
 
     @property
     def portability(self) -> PortabilityQueryView:

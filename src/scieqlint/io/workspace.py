@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from pathlib import PurePath, PurePosixPath, PureWindowsPath
 from urllib.parse import unquote_to_bytes, urlsplit
 
-from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
+from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.facts.reference import TargetVisibility
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
@@ -47,7 +47,7 @@ class WorkspaceHost:
         visibility: (
             Mapping[str, TargetVisibility] | Sequence[tuple[str, TargetVisibility]] | None
         ) = None,
-    ) -> tuple[tuple[ProjectMemberFact, ...], tuple[HiddenExcludedFact, ...]]:
+    ) -> tuple[ProjectMemberFact, ...]:
         """Project configured visibility into immutable member facts.
 
         The workspace does not infer visibility from filenames or target labels.
@@ -134,7 +134,6 @@ class WorkspaceHost:
             raise ValueError("unknown project visibility member(s): " + ", ".join(unknown_paths))
 
         members: list[ProjectMemberFact] = []
-        hidden_excluded: list[HiddenExcludedFact] = []
         for document in documents:
             path = document.path
             document_id = path.as_posix()
@@ -144,27 +143,12 @@ class WorkspaceHost:
                 document_id=document_id,
                 span=None,
                 path=path,
-                project_root=self.project_root,
-                declared=True,
-                discovered=True,
-                explicit_input=True,
                 visibility=state,
                 normalized_path=self.normalize_project_path(path),
             )
             members.append(member)
-            if state != "visible":
-                hidden_excluded.append(
-                    HiddenExcludedFact(
-                        fact_id=f"{document_id}::workspace::{state}",
-                        document_id=document_id,
-                        span=None,
-                        raw=None,
-                        path=path,
-                        reason=state,
-                        references_may_target=True,
-                    )
-                )
-        return tuple(members), tuple(hidden_excluded)
+
+        return tuple(members)
 
     def project_visibility(
         self,
@@ -199,7 +183,7 @@ class WorkspaceHost:
     ) -> FactSnapshot:
         """Apply configured project state before reference resolution."""
 
-        members, hidden_excluded = self.project_facts(snapshot.documents, visibility)
+        members = self.project_facts(snapshot.documents, visibility)
         states = {member.document_id: member.visibility for member in members}
         anchors = tuple(
             replace(anchor, visibility=states.get(anchor.document_id, "visible"))
@@ -229,7 +213,6 @@ class WorkspaceHost:
             equation_refs=refs,
             code_cells=code_cells,
             project_members=members,
-            hidden_excluded=hidden_excluded,
         )
 
     def _visibility_path(self, path: str | PurePath) -> PurePosixPath:

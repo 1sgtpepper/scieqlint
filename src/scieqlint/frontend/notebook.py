@@ -81,7 +81,7 @@ class NotebookFrontend:
         all_equation_refs = tuple(fact for part in parts for fact in part.equation_refs)
         return FactSnapshot(
             documents=tuple(document for part in parts for document in part.documents),
-            project_members=self.workspace.project_facts(documents)[0],
+            project_members=self.workspace.project_facts(documents),
             inline_math=all_inline_math,
             display_math=all_display_math,
             generated_formulas=all_generated_formulas,
@@ -191,10 +191,9 @@ def _lower_document(
             option_spans=option_spans,
         )
         cell_outputs = _notebook_output_facts(
-            document,
-            cell_index,
             cell,
             cell_fact_id=cell_fact.fact_id,
+            document_id=document.path.as_posix(),
             output_spans=(
                 notebook_input.output_spans[cell_index]
                 if cell_index < len(notebook_input.output_spans)

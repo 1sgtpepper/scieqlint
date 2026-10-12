@@ -49,6 +49,7 @@ class InlineMathFact(FactBase):
 class DisplayMathFact(FactBase):
     body: str
     container: DisplayContainer
+    raw: str | None = None
     # Source width of recognized directive options, excluded from TeX interpretation.
     option_prefix_length: int = 0
     # Equation labels and references use this enclosing display as their owner;
