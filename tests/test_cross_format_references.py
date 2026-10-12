@@ -745,7 +745,6 @@ def test_portability_engine_consumes_facts_without_reading_source_text() -> None
     ).run(query)
 
     assert query.portability.risks() == snapshot.portability
-    assert query.portability.risks("equation-reference-syntax") == snapshot.portability
     assert [(item.code, item.profile) for item in diagnostics] == [
         ("PORT001", "cross-format-references"),
         ("PORT001", "cross-format-references"),

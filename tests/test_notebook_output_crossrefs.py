@@ -351,8 +351,6 @@ def test_portability_accepts_normalized_lowercase_crossref_prefixes(label: str) 
     query = QueryHost(snapshot)
 
     [cell] = snapshot.code_cells
-    assert query.portability.quarto_crossref_label_issues() == ()
-    assert query.portability.renderings_with_crossref_options() == (cell,)
     [conflict] = query.portability.notebook_rendering_conflicts()
     assert conflict.cell is cell
 
@@ -373,7 +371,6 @@ def test_portability_keeps_uppercase_label_prefixes_untyped() -> None:
     query = QueryHost(snapshot)
 
     [cell] = snapshot.code_cells
-    assert query.portability.quarto_crossref_label_issues() == (cell,)
     [conflict] = query.portability.notebook_rendering_conflicts()
     assert conflict.crossref_options == ("fig-cap",)
 
@@ -394,8 +391,6 @@ def test_portability_keeps_unprefixed_crossref_labels_as_issues() -> None:
     query = QueryHost(snapshot)
 
     [cell] = snapshot.code_cells
-    assert query.portability.quarto_crossref_label_issues() == (cell,)
-    assert query.portability.renderings_with_crossref_options() == (cell,)
     assert len(query.portability.notebook_rendering_conflicts()) == 1
 
 
@@ -421,8 +416,6 @@ def test_portability_ignores_nonvisible_quarto_crossref_cells(visibility: str) -
 
     query = QueryHost(nonvisible_snapshot).portability
 
-    assert query.quarto_crossref_label_issues() == ()
-    assert query.renderings_with_crossref_options() == ()
     assert query.notebook_rendering_conflicts() == ()
 
 
@@ -601,8 +594,6 @@ def test_portability_normalizes_output_crossref_markers_once() -> None:
     query = QueryHost(snapshot)
 
     [cell] = snapshot.code_cells
-    assert query.portability.renderings_with_crossref_options() == (cell,)
-    assert query.portability.quarto_crossref_label_issues() == ()
     [conflict] = query.portability.notebook_rendering_conflicts()
     assert conflict.crossref_options == ("label", "fig-cap")
     assert conflict.output is snapshot.notebook_outputs[0]

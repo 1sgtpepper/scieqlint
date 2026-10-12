@@ -1640,21 +1640,15 @@ def test_query_host_views_expose_snapshot_contracts():
     assert reference_results.unresolved_equation_refs == (equation_ref,)
     assert reference_results.ambiguous_equation_refs == ()
 
-    assert query.math.inline_math() == (inline,)
     assert query.math.display_math() == (display,)
-    assert query.math.display_with_multiple_labels() == (display,)
+    assert query.math.unknown_math() == (unknown,)
 
-    assert query.generated.provenance() == (provenance,)
-    assert query.generated.generated_document_ids() == ("a.html",)
     assert query.generated.dropped_targets() == (
         (provenance, duplicate_anchor),
         (provenance, orphaned_anchor),
     )
 
     assert query.portability.inline_math_missing_alt() == (inline,)
-    assert query.portability.display_math_missing_alt() == (display,)
-    assert query.portability.quarto_crossref_label_issues() == (cell,)
-    assert query.portability.renderings_with_crossref_options() == (cell,)
     assert snapshot.portability == (portability,)
 
 

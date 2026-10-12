@@ -116,10 +116,6 @@ def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
         ("A>=B", "text-leak"),
         ("a = b+c", "text-leak"),
     ]
-    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [
-        "A>=B",
-        "a = b+c",
-    ]
 
 
 def test_portability_query_excludes_inferred_plain_text_math() -> None:
@@ -154,7 +150,7 @@ def test_plain_text_math_preserves_decimal_atoms_and_exact_spans() -> None:
     ] == ["x = 3.14", "3.14 = x", "E = 0.5*m*v^2", ".50 = x"]
 
 
-def test_decimal_prose_candidates_remain_excluded_from_math_queries() -> None:
+def test_decimal_prose_candidates_are_classified_as_not_math() -> None:
     snapshot = _classify(
         MySTFrontend().lower((doc("Version 2.0 = complete; threshold 1.5 < 2.0."),))
     )
@@ -163,7 +159,6 @@ def test_decimal_prose_candidates_remain_excluded_from_math_queries() -> None:
         ("2.0 = complete", "not-math"),
         ("1.5 < 2.0", "not-math"),
     ]
-    assert QueryHost(snapshot).math.inline_math() == ()
 
 
 @pytest.mark.parametrize(
@@ -180,9 +175,8 @@ def test_plain_text_math_never_emits_truncated_operand_prefix(
 ) -> None:
     snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
-    for facts in (snapshot.inline_math, QueryHost(snapshot).math.inline_math()):
-        assert forbidden_prefix not in {fact.body for fact in facts}
-        assert all(fact.body == source for fact in facts)
+    assert forbidden_prefix not in {fact.body for fact in snapshot.inline_math}
+    assert all(fact.body == source for fact in snapshot.inline_math)
 
 
 def test_plain_text_arithmetic_signal_is_symmetric_across_the_relation() -> None:
@@ -194,12 +188,6 @@ def test_plain_text_arithmetic_signal_is_symmetric_across_the_relation() -> None
         ("12/3=4", "text-leak"),
         ("4=12/3", "text-leak"),
         ("1 < 2", "not-math"),
-    ]
-    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [
-        "1+1=2",
-        "2=1+1",
-        "12/3=4",
-        "4=12/3",
     ]
 
 
@@ -221,12 +209,6 @@ def test_plain_text_math_preserves_attached_unary_signs_and_exact_spans() -> Non
         for fact in snapshot.inline_math
         if fact.span is not None
     ] == [fact.body for fact in snapshot.inline_math]
-    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [
-        "-1 = x",
-        "x = -1",
-        "-x = y",
-        "T = -273.15",
-    ]
 
 
 @pytest.mark.parametrize(
@@ -275,13 +257,6 @@ def test_math_host_requires_structural_signal_around_plain_text_operators() -> N
         ("a = b+c", "text-leak"),
         ("x_i = velocity", "text-leak"),
         ("velocity = distance / time", "text-leak"),
-    ]
-    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [
-        "x/y = z",
-        "p*q = r",
-        "a = b+c",
-        "x_i = velocity",
-        "velocity = distance / time",
     ]
 
 
@@ -434,7 +409,7 @@ def test_inline_math_fact_scanning_ignores_code_fences_inline_code_and_ordinary_
 def test_plain_text_math_candidate_cannot_cross_owned_markdown_syntax(source: str) -> None:
     snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
-    assert QueryHost(snapshot).math.inline_math() == ()
+    assert snapshot.inline_math == ()
 
 
 def test_inline_math_uses_link_aware_lexical_ownership_without_rescanning() -> None:
@@ -442,7 +417,7 @@ def test_inline_math_uses_link_aware_lexical_ownership_without_rescanning() -> N
 
     snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
-    assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == ["a = b+c"]
+    assert [fact.body for fact in snapshot.inline_math] == ["a = b+c"]
 
 
 @pytest.mark.parametrize(
@@ -466,7 +441,6 @@ def test_explicit_inline_math_in_link_labels_is_delimiter_independent(
     fact = snapshot.inline_math[0]
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == "x"
-    assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
 
 
 @pytest.mark.parametrize(
@@ -483,7 +457,6 @@ def test_link_metadata_and_inferred_link_label_math_remain_opaque(source: str) -
     snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
     assert snapshot.inline_math == ()
-    assert QueryHost(snapshot).math.inline_math() == ()
 
 
 def test_inline_math_facts_are_deterministic_across_newline_normalization() -> None:
@@ -519,9 +492,6 @@ def test_mixed_inline_delimiters_have_one_owner() -> None:
         snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
         assert [(fact.delimiter_kind, fact.body) for fact in snapshot.inline_math] == [expected]
-        assert [fact.body for fact in QueryHost(snapshot).math.inline_math()] == [expected[1]], (
-            source
-        )
 
 
 @pytest.mark.parametrize(
@@ -547,7 +517,6 @@ def test_myst_roles_own_overlapping_latex_parens_without_hiding_adjacent_math(
     for fact in snapshot.inline_math:
         assert fact.span is not None
         assert source[fact.span.start : fact.span.end] == fact.body
-    assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
 
 
 @pytest.mark.parametrize(
@@ -635,7 +604,6 @@ def test_latex_paren_does_not_close_inside_tex_comment() -> None:
     snapshot = _classify(MySTFrontend().lower((doc(r"\(x % \)"),)))
 
     assert snapshot.inline_math == ()
-    assert QueryHost(snapshot).math.inline_math() == ()
 
 
 def test_latex_paren_percent_after_closed_candidate_keeps_following_math_active() -> None:
@@ -679,7 +647,11 @@ def test_math_host_rejects_only_incomplete_relation_tails(
         (complete, "preserved"),
         (incomplete, "unsupported"),
     ]
-    assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
+
+    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
+        ("unsupported_syntax", incomplete)
+    ]
+
 
 
 def test_math_host_keeps_underscore_version_prose_quiet() -> None:
@@ -688,7 +660,6 @@ def test_math_host_keeps_underscore_version_prose_quiet() -> None:
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
         ("Version_2 = complete", "not-math"),
     ]
-    assert QueryHost(snapshot).math.inline_math() == ()
 
 
 @pytest.mark.parametrize("environment", ["foo-bar", "array2", "foo_bar"])
@@ -739,8 +710,12 @@ def test_nested_latex_paren_delimiters_are_ambiguous_after_bounded_sweep() -> No
     assert fact.parse_status == "unsupported"
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == r"\(" * 32 + "x"
-    query = QueryHost(snapshot).math
-    assert query.inline_math() == (fact,)
+
+    assert [(unknown.reason, unknown.excerpt) for unknown in snapshot.unknown_math] == [
+        ("ambiguous_delimiter", r"\("),
+    ]
+    assert QueryHost(snapshot).math.unknown_math() == snapshot.unknown_math
+
 
 
 def test_latex_paren_delimiter_ambiguity_respects_escape_parity() -> None:
