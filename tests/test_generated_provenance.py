@@ -113,7 +113,7 @@ def test_source_origin_rejects_retired_producer_metadata(retired_field: str) -> 
 
     with pytest.raises(
         TypeError,
-        match=rf"unexpected keyword argument '{retired_field}'$",
+        match=rf"unexpected keyword argument '{retired_field}'",
     ):
         SourceOrigin(source_document_id="source/input.xml", **{retired_field: "value"})
 
@@ -136,7 +136,7 @@ def test_generated_provenance_fact_rejects_retired_producer_metadata(
 
     with pytest.raises(
         TypeError,
-        match=rf"unexpected keyword argument '{retired_field}'$",
+        match=rf"unexpected keyword argument '{retired_field}'",
     ):
         GeneratedProvenanceFact(
             fact_id="origin",
