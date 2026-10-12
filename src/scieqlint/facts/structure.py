@@ -24,10 +24,8 @@ StructureSyntaxKind = Literal[
 class HeadingFact(FactBase):
     level: int
     text: str
-    slug_candidate: str
-    explicit_anchor_ids: tuple[str, ...] = ()
+    raw: str | None = None
     marker_span: SourceSpan | None = None
-    text_span: SourceSpan | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -43,14 +41,11 @@ class SectionFact(FactBase):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class FenceFact(FactBase):
     opener: str
-    fence_char: str
-    fence_length: int
     info_string: str
     language: str | None
     kind: FenceKind
     is_closed: bool
     opener_span: SourceSpan
-    closer_span: SourceSpan | None
     body_span: SourceSpan | None
 
 
@@ -60,8 +55,6 @@ class DirectiveFact(FactBase):
     argument: str | None
     options: tuple[tuple[str, str], ...]
     fence_fact_id: str
-    known: bool | None = None
-    parse_error: str | None = None
 
     def option_dict(self) -> dict[str, str]:
         return dict(self.options)
@@ -78,10 +71,7 @@ def _canonical_code_cell_label(value: str) -> str:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CodeCellFact(FactBase):
-    fence_fact_id: str
-    directive_fact_id: str | None
     language: str | None
-    engine: str | None
     options: tuple[tuple[str, str], ...]
     label: str | None = None
     normalized_label: str | None
@@ -89,8 +79,6 @@ class CodeCellFact(FactBase):
     language_span: SourceSpan | None = None
     source_format: CodeCellSourceFormat = "markdown"
     visibility: TargetVisibility = "visible"
-    tags: tuple[str, ...] = ()
-    output_target_labels: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (self.label is None) != (self.normalized_label is None):
@@ -110,14 +98,11 @@ class CodeCellFact(FactBase):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class NotebookOutputFact(FactBase):
     cell_fact_id: str
-    cell_index: int
     output_index: int
-    output_type: str
-    mime_types: tuple[str, ...] = ()
     metadata: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class StructureSyntaxIssueFact(FactBase):
     kind: StructureSyntaxKind
-    reason: str
+    raw: str | None = None

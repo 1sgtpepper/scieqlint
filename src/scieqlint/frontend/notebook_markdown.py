@@ -139,7 +139,6 @@ def markdown_cell_references(
             document_id=document.path.as_posix(),
             span=span(anchor.span),
             label_span=span(anchor.label_span),
-            attaches_to_fact_id=optional_fact_id(anchor.attaches_to_fact_id),
         )
         for anchor in snapshot.target_anchors
     )
@@ -189,7 +188,6 @@ def markdown_cell_references(
             fact_id=remapped_fact_id(metadata.fact_id),
             document_id=document.path.as_posix(),
             span=span(metadata.span),
-            source_fact_id=remapped_fact_id(metadata.source_fact_id),
             output_boundary=f"{document.path.as_posix()}#cell-{cell_index}",
             target_span=span(metadata.target_span),
         )

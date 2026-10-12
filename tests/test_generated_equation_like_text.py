@@ -53,7 +53,6 @@ def test_equation_like_text_facts_require_their_source_math_fact(
             fact_id="generated.md::generated-formula::equation-like-text::0",
             document_id="generated.md",
             span=None,
-            raw="x = y",
             kind=kind,
             text="x = y",
             candidate_kind=candidate_kind,

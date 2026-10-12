@@ -144,10 +144,6 @@ class WorkspaceHost:
                 document_id=document_id,
                 span=None,
                 path=path,
-                project_root=self.project_root,
-                declared=True,
-                discovered=True,
-                explicit_input=True,
                 visibility=state,
                 normalized_path=self.normalize_project_path(path),
             )
@@ -158,10 +154,8 @@ class WorkspaceHost:
                         fact_id=f"{document_id}::workspace::{state}",
                         document_id=document_id,
                         span=None,
-                        raw=None,
                         path=path,
                         reason=state,
-                        references_may_target=True,
                     )
                 )
         return tuple(members), tuple(hidden_excluded)

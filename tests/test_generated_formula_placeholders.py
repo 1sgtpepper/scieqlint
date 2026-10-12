@@ -680,7 +680,7 @@ def test_placeholder_scanner_does_not_duplicate_an_empty_dollar_marker() -> None
 
     facts = scan_formula_placeholders(
         document,
-        SourceMap.for_document(document),
+        SourceMap(document),
         (),
         (),
         ((0, 2, 2, 4),),
@@ -789,7 +789,7 @@ def test_marker_opaque_ownership_sweep_has_bounded_work() -> None:
 
     facts = scan_formula_placeholders(
         document,
-        SourceMap.for_document(document),
+        SourceMap(document),
         (),
         (),
         (),

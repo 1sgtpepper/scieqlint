@@ -577,7 +577,9 @@ def test_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None
     assert reference.target_span.cell == 0
     assert reference.target_span.cell_line == 2
     assert document.text[reference.target_span.start : reference.target_span.end] == "eq-raw"
-    assert [(fact.metadata_kind, fact.logical_target) for fact in snapshot.crossref_metadata] == [
+    assert [
+        (fact.metadata_kind, fact.normalized_target) for fact in snapshot.crossref_metadata
+    ] == [
         ("target-definition", "eq-raw"),
         ("reference-use", "eq-raw"),
     ]

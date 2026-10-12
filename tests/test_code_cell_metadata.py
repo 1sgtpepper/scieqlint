@@ -135,10 +135,7 @@ def code_cell_fact_for_label(*, label: str | None, normalized_label: str | None)
         fact_id="cell",
         document_id="cells.md",
         span=None,
-        fence_fact_id="fence",
-        directive_fact_id=None,
         language="python",
-        engine="python",
         options=(),
         label=label,
         normalized_label=normalized_label,
@@ -1126,7 +1123,6 @@ def test_large_notebook_code_source_does_not_materialize_character_ranges(
 
     [cell] = NotebookFrontend().lower((document,)).code_cells
 
-    assert cell.raw == source
     assert cell.label is None
     assert cell.label_span is None
 
@@ -1202,7 +1198,6 @@ def test_notebook_code_cell_without_source_keeps_metadata_label() -> None:
     [cell] = NotebookFrontend().lower((document,)).code_cells
 
     assert not any(diagnostic.code == "INP001" for diagnostic in result.diagnostics)
-    assert cell.raw is None
     assert cell.label == "metadata-only"
     assert source_slice(document, cell.label_span) == "metadata-only"
 

@@ -23,7 +23,6 @@ from .myst_shared import (
     OffsetRange,
     in_ranges,
     normalize_label,
-    slug,
 )
 
 
@@ -48,7 +47,6 @@ def scan_headings(
         text = _heading_text(body)
 
         indent = len(line) - len(line.lstrip(" \t"))
-        text_start = start + indent + len(hashes) + (len(space) if space else 0)
         yield HeadingFact(
             fact_id=f"{document.path.as_posix()}::heading::{start}",
             document_id=document.path.as_posix(),
@@ -56,9 +54,7 @@ def scan_headings(
             raw=line,
             level=len(hashes),
             text=text,
-            slug_candidate=slug(text),
             marker_span=smap.span(start + indent, start + indent + len(hashes)),
-            text_span=smap.span(text_start, text_start + len(body.lstrip())) if text else None,
         )
 
 
@@ -83,7 +79,6 @@ def scan_heading_syntax_issues(
             ),
             raw=line,
             kind="atx-heading",
-            reason="missing_space_after_atx_marker",
         )
 
 
@@ -105,11 +100,9 @@ def scan_anchors(
             fact_id=f"{document.path.as_posix()}::anchor::{start}",
             document_id=document.path.as_posix(),
             span=smap.span(start, end),
-            raw=line,
             label=label,
             normalized_label=normalize_label(label),
             target_kind=None,
-            attaches_to_fact_id=None,
             placement="standalone",
             label_span=smap.span(label_start, label_start + len(label)),
         )
@@ -144,7 +137,6 @@ def attach_anchors(
         yield replace(
             anchor,
             target_kind=kind,
-            attaches_to_fact_id=next_fact.fact_id,
             placement=placement,
         )
 
@@ -177,7 +169,6 @@ def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFa
             fact_id=fact_id,
             document_id=heading.document_id,
             span=heading.span,
-            raw=heading.raw,
             heading_fact_id=heading.fact_id,
             parent_section_id=parent,
             depth=level,

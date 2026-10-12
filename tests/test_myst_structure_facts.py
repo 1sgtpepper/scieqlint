@@ -69,9 +69,7 @@ def test_six_hash_line_remains_an_atx_heading():
 def test_bare_atx_heading_accepts_an_attached_target() -> None:
     snapshot = MySTFrontend().lower((doc("(empty)=\n#\n\nSee {ref}`empty`.\n"),))
 
-    assert [
-        (heading.level, heading.text, heading.slug_candidate) for heading in snapshot.headings
-    ] == [(1, "", "")]
+    assert [(heading.level, heading.text) for heading in snapshot.headings] == [(1, "")]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("empty", "before_heading")
     ]
@@ -81,10 +79,10 @@ def test_bare_atx_heading_accepts_an_attached_target() -> None:
 def test_closing_only_atx_heading_is_empty_without_a_text_span() -> None:
     snapshot = MySTFrontend().lower((doc("# #\n## ##\n### ###\n"),))
 
-    assert [(heading.raw, heading.text, heading.text_span) for heading in snapshot.headings] == [
-        ("# #", "", None),
-        ("## ##", "", None),
-        ("### ###", "", None),
+    assert [(heading.raw, heading.text) for heading in snapshot.headings] == [
+        ("# #", ""),
+        ("## ##", ""),
+        ("### ###", ""),
     ]
 
 
@@ -188,7 +186,7 @@ def test_four_space_fence_closer_remains_inside_the_fence():
 
     assert len(snapshot.fences) == 1
     assert snapshot.fences[0].is_closed is True
-    assert "    ```" in snapshot.fences[0].raw
+    assert snapshot.fences[0].body_span is not None
 
 
 def test_valid_myst_structure_fixture_has_attached_anchor_and_no_diagnostics():
@@ -362,9 +360,9 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
         )
     )
 
-    assert [(cell.language, cell.label, cell.tags) for cell in snapshot.code_cells] == [
-        ("python", "cell-demo", ("hide-input", "remove-output")),
-        ("python", "fig-demo", ()),
+    assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [
+        ("python", "cell-demo"),
+        ("python", "fig-demo"),
     ]
     assert [
         (directive.name, directive.argument, directive.option_dict())
@@ -674,9 +672,7 @@ def test_valid_myst_roles_options_and_bracketed_code_cell_tags_are_quiet():
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
     assert snapshot.structure_syntax_issues == ()
-    assert [(cell.language, cell.tags) for cell in snapshot.code_cells] == [
-        ("python", ("hide-input", "remove-output"))
-    ]
+    assert [cell.language for cell in snapshot.code_cells] == ["python"]
     assert [diagnostic.code for diagnostic in diagnostics] == []
 
 

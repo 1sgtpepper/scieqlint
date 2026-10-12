@@ -153,16 +153,12 @@ def _make_fence_fact(
         fact_id=fact_id,
         document_id=document.path.as_posix(),
         span=smap.span(start, end),
-        raw=document.text[start:end],
         opener=marker,
-        fence_char=marker[0],
-        fence_length=len(marker),
         info_string=info,
         language=language,
         kind=kind,
         is_closed=is_closed,
         opener_span=opener_span,
-        closer_span=closer_span,
         body_span=smap.span(body_start, body_end) if body_end >= body_start else None,
     )
 
@@ -181,11 +177,7 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
         span=fence.span,
-        raw=fence.raw,
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=None,
         language=language,
-        engine=language,
         options=options,
         label=label,
         normalized_label=normalized_label,
@@ -207,7 +199,6 @@ def _directive_fact(
         fact_id=f"{fence.fact_id}::directive",
         document_id=fence.document_id,
         span=fence.opener_span,
-        raw=fence.info_string,
         name=directive_match.group("name"),
         argument=directive_match.group("arg").strip() or None,
         options=options,
@@ -230,7 +221,6 @@ def _directive_code_cell_fact(
     options = directive.options if is_myst_code_cell else quarto_options(document, fence)
     option_map = dict(options)
     language = directive.argument if is_myst_code_cell else name
-    tags = _parse_code_cell_tags(option_map.get("tags", ""))
     label_key = "label" if option_map.get("label") else "name"
     label = option_map.get(label_key) or None
     normalized_label = normalize_label(label) if label is not None else None
@@ -246,11 +236,7 @@ def _directive_code_cell_fact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
         span=fence.span,
-        raw=fence.raw,
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=directive.fact_id,
         language=language,
-        engine=language,
         options=options,
         label=label,
         normalized_label=normalized_label,
@@ -262,7 +248,6 @@ def _directive_code_cell_fact(
             else None
         ),
         language_span=language_span,
-        tags=tags,
     )
 
 
@@ -278,7 +263,6 @@ def _malformed_directive_issues(fences: Sequence[FenceFact]) -> Iterable[Structu
             span=fence.opener_span,
             raw=fence.info_string,
             kind="myst-directive",
-            reason="malformed directive fence info string",
         )
 
 
@@ -299,7 +283,6 @@ def _malformed_myst_option_issues(
                 span=smap.span(start, end),
                 raw=line,
                 kind="myst-option",
-                reason="malformed directive option line",
             )
 
 
@@ -324,7 +307,6 @@ def _malformed_code_cell_tag_issues(
                 span=smap.span(start, end),
                 raw=line,
                 kind="code-cell-tags",
-                reason="malformed code-cell tags option",
             )
 
 
@@ -350,7 +332,6 @@ def _malformed_role_issues(
             span=smap.span(match.start(), line_end),
             raw=document.text[match.start() : line_end],
             kind="myst-role",
-            reason="malformed MyST role syntax",
         )
 
 
@@ -376,16 +357,6 @@ def directive_option_prefix_lines(
         if MYST_OPTION_RE.match(line_without_newline) is None:
             break
         cursor = end
-
-
-def _parse_code_cell_tags(value: str) -> tuple[str, ...]:
-    if not value:
-        return ()
-    normalized = _strip_bracketed_tag_list(value) if value.startswith("[") else value
-    if normalized is None:
-        return ()
-    tags = [_clean_tag(tag) for tag in normalized.split(",")]
-    return tuple(tag for tag in tags if tag)
 
 
 def _code_cell_tags_error(value: str) -> str | None:
@@ -448,7 +419,7 @@ def _option_value_span(
             if value:
                 leading = len(raw_value) - len(raw_value.lstrip())
                 start = offset + match.start("value") + leading
-                selected = SourceMap.for_document(document).span(start, start + len(value))
+                selected = SourceMap(document).span(start, start + len(value))
         offset += len(line)
     return selected
 
@@ -462,7 +433,7 @@ def _fence_info_span(
     info_start = opener.index(fence.info_string)
     value_start = fence.info_string.index(value)
     start = fence.opener_span.start + info_start + value_start
-    return SourceMap.for_document(document).span(start, start + len(value))
+    return SourceMap(document).span(start, start + len(value))
 
 
 def _directive_group_span(
@@ -479,7 +450,7 @@ def _directive_group_span(
     info_start = opener.index(fence.info_string)
     leading = len(raw_value) - len(raw_value.lstrip())
     start = fence.opener_span.start + info_start + match.start(group) + leading
-    return SourceMap.for_document(document).span(start, start + len(value))
+    return SourceMap(document).span(start, start + len(value))
 
 
 def myst_options(document: SourceDocument, fence: FenceFact) -> tuple[tuple[str, str], ...]:

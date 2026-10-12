@@ -114,7 +114,7 @@ def _flatten(parts: Sequence[FactSnapshot], name: str) -> tuple[Any, ...]:
 
 
 def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> FactSnapshot:
-    smap = SourceMap.for_document(document)
+    smap = SourceMap(document)
     lines = line_ranges(document.text)
     reference_snapshot = markdown_reference_snapshot(document.text)
     live_fence_ranges = code_fence_ranges(

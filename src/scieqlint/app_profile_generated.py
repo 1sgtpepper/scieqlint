@@ -28,8 +28,6 @@ def generated_provenance_facts(
             fact_id=f"{document.path.as_posix()}{GENERATED_PROVENANCE_FACT_SUFFIX}",
             document_id=document.path.as_posix(),
             span=None,
-            raw=None,
-            confidence="generated",
             generated_document_id=document.path.as_posix(),
             source_document_id=document.origin.source_document_id,
             source_kind=(

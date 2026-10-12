@@ -253,7 +253,6 @@ def test_display_facts_omit_identityless_references() -> None:
         fact_id="identityless-ref",
         document_id="paper.md",
         span=None,
-        raw=None,
         role_kind="markdown-link",
         target="target",
         normalized_target="target",
@@ -269,7 +268,6 @@ def test_resolved_heading_kind_wins_over_figure_prefix_in_display_resolution() -
     [fact] = snapshot.reference_display_text
 
     assert fact.target_type == "heading"
-    assert fact.target_type_source == "resolved"
     assert QueryHost(snapshot).references.unclear_nonheading_display_text() == ()
 
 
@@ -281,7 +279,6 @@ def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
         label="fig-raw",
         normalized_label="fig-raw",
         target_kind=None,
-        attaches_to_fact_id=None,
         placement="standalone",
     )
     unknown_target = TargetAnchorFact(
@@ -291,7 +288,6 @@ def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
         label="custom-target",
         normalized_label="custom-target",
         target_kind=None,
-        attaches_to_fact_id=None,
         placement="standalone",
     )
     refs = tuple(
@@ -299,7 +295,6 @@ def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
             fact_id=f"ref-{target}",
             document_id="paper.md",
             span=None,
-            raw=None,
             role_kind="ref",
             target=target,
             normalized_target=target,
@@ -314,11 +309,9 @@ def test_untyped_targets_fall_back_to_prefix_inference_or_unresolved() -> None:
         (),
     )
 
-    assert [
-        (fact.normalized_target, fact.target_type, fact.target_type_source) for fact in facts
-    ] == [
-        ("custom-target", None, "unresolved"),
-        ("fig-raw", "figure", "inferred"),
+    assert [(fact.normalized_target, fact.target_type) for fact in facts] == [
+        ("custom-target", None),
+        ("fig-raw", "figure"),
     ]
 
 
@@ -336,7 +329,6 @@ def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() ->
     [fact] = snapshot.reference_display_text
 
     assert fact.target_type == "table"
-    assert fact.target_type_source == "explicit"
 
 
 def test_code_cell_listing_and_generic_caption_metadata_resolve_display_types() -> None:
@@ -356,11 +348,10 @@ def test_code_cell_listing_and_generic_caption_metadata_resolve_display_types() 
     snapshot = MySTFrontend().lower((source,))
 
     assert [
-        (fact.normalized_target, fact.target_type, fact.target_type_source)
-        for fact in snapshot.reference_display_text
+        (fact.normalized_target, fact.target_type) for fact in snapshot.reference_display_text
     ] == [
-        ("lst-cell", "listing", "explicit"),
-        ("block-cell", "block", "explicit"),
+        ("lst-cell", "listing"),
+        ("block-cell", "block"),
     ]
 
 
@@ -384,7 +375,6 @@ def test_code_cell_subcaption_metadata_resolves_display_types(
     [fact] = MySTFrontend().lower((source,)).reference_display_text
 
     assert fact.target_type == expected_type
-    assert fact.target_type_source == "explicit"
 
 
 def test_display_resolution_includes_labeled_code_cells() -> None:
@@ -392,11 +382,7 @@ def test_display_resolution_includes_labeled_code_cells() -> None:
         fact_id="cell-figure",
         document_id="paper.md",
         span=None,
-        raw=None,
-        fence_fact_id="fence-figure",
-        directive_fact_id=None,
         language="python",
-        engine="jupyter",
         options=(("label", "fig-cell"),),
         label="fig-cell",
         normalized_label="fig-cell",
@@ -405,7 +391,6 @@ def test_display_resolution_includes_labeled_code_cells() -> None:
         fact_id="reference-figure",
         document_id="paper.md",
         span=None,
-        raw=None,
         role_kind="ref",
         target="fig-cell",
         normalized_target="fig-cell",
@@ -414,7 +399,6 @@ def test_display_resolution_includes_labeled_code_cells() -> None:
     [display] = reference_display_text_facts((reference,), (), (), (), code_cells=(cell,))
 
     assert display.target_type == "figure"
-    assert display.target_type_source == "inferred"
     assert display.target_fact_ids == (cell.fact_id,)
 
 
@@ -434,11 +418,7 @@ def test_code_cell_fact_rejects_partial_label_identity(
             fact_id="cell-figure",
             document_id="paper.md",
             span=None,
-            raw=None,
-            fence_fact_id="fence-figure",
-            directive_fact_id=None,
             language="python",
-            engine="jupyter",
             options=(),
             label=label,
             normalized_label=normalized_label,
@@ -828,7 +808,6 @@ def test_pathless_role_with_duplicate_member_targets_is_ambiguous() -> None:
     result = check_documents((source, first, second), config=profile_config())
 
     [display] = snapshot.reference_display_text
-    assert display.target_type_source == "ambiguous"
     assert display.target_identity is None
     assert display.target_fact_ids == ()
     assert [item.code for item in result.diagnostics if item.code == "REF005"] == ["REF005"]
@@ -864,12 +843,7 @@ def test_display_resolution_indexes_label_and_member_identities_once(
     selected = snapshot.reference_display_text[target_count:]
     assert len(snapshot.reference_display_text) == target_count * 2
     assert normalize_calls <= target_count * 2
-    assert all(
-        fact.target_type_source == "ambiguous"
-        and fact.target_identity is None
-        and fact.target_fact_ids == ()
-        for fact in ambiguous
-    )
+    assert all(fact.target_identity is None and fact.target_fact_ids == () for fact in ambiguous)
     assert [(fact.target_identity, fact.target_fact_ids) for fact in selected] == [
         (
             (PurePosixPath(f"target-{index:02d}.md"), "shared"),

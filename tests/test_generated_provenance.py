@@ -175,8 +175,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
             fact_id="out/generated.md::generated-provenance",
             document_id="out/generated.md",
             span=None,
-            raw=None,
-            confidence="generated",
             generated_document_id="out/generated.md",
             source_document_id="source/original.xml",
             source_kind="jats-xml",
@@ -187,8 +185,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
             fact_id="out/other.md::generated-provenance",
             document_id="out/other.md",
             span=None,
-            raw=None,
-            confidence="generated",
             generated_document_id="out/other.md",
             source_document_id="source/other.tex",
             source_kind="latex",
@@ -378,8 +374,6 @@ def test_generated_query_ignores_provenance_without_a_source_document() -> None:
         fact_id="out/generated.md::generated-provenance",
         document_id="out/generated.md",
         span=None,
-        raw=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
     )
 
@@ -410,7 +404,6 @@ def test_projection_keeps_ordinary_fact_ids_out_of_generated_provenance_lookup()
         fact_id="out/generated.md::generated-provenance",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )
@@ -455,7 +448,6 @@ def test_json_reporter_uses_schema_host_names_for_multiple_origins() -> None:
         fact_id="origin-a",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/a.xml",
         source_kind="jats-xml",
@@ -464,7 +456,6 @@ def test_json_reporter_uses_schema_host_names_for_multiple_origins() -> None:
         fact_id="origin-b",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/b.tex",
         source_kind="latex",
@@ -513,7 +504,6 @@ def test_projection_deduplicates_origins_and_owns_colliding_reporter_fields() ->
         fact_id="origin-a",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )

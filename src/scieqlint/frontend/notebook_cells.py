@@ -47,7 +47,6 @@ def code_cell_fact(
     options = _cell_options(metadata, source)
     option_map = dict(options)
     language = option_map.get("language", default_language)
-    engine = option_map.get("engine") or language
     label = option_map.get("label") or None
     normalized_label = normalize_label(label) if label is not None else None
     if not normalized_label:
@@ -58,18 +57,13 @@ def code_cell_fact(
         fact_id=cell_id,
         document_id=document.path.as_posix(),
         span=cell_span,
-        raw=source,
-        fence_fact_id=cell_id,
-        directive_fact_id=None,
         language=language,
-        engine=engine,
         options=options,
         label=label,
         normalized_label=normalized_label,
         label_span=option_spans.get("label") if label is not None else None,
         language_span=option_spans.get("language") if language else None,
         source_format="notebook",
-        tags=_tags(metadata.get("tags")),
     )
 
 
@@ -127,14 +121,6 @@ def notebook_language(metadata: object) -> str | None:
     return _nonempty_string(kernelspec.get("language")) or _nonempty_string(
         language_info.get("name")
     )
-
-
-def _tags(value: object) -> tuple[str, ...]:
-    if isinstance(value, str):
-        return tuple(item.strip() for item in value.split(",") if item.strip())
-    if isinstance(value, list):
-        return tuple(item for item in cast(list[object], value) if isinstance(item, str) and item)
-    return ()
 
 
 def _mapping(value: object) -> Mapping[str, object]:

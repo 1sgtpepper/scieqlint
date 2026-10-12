@@ -45,8 +45,6 @@ def test_schema_host_owns_generated_provenance_property_names() -> None:
         fact_id="out/generated.md::generated-provenance",
         document_id="out/generated.md",
         span=None,
-        raw=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/paper.tex",
         source_kind="latex",
@@ -80,7 +78,6 @@ def test_schema_host_appends_origin_properties_without_dropping_rule_metadata() 
         fact_id="origin-a",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )
@@ -142,7 +139,6 @@ def test_schema_host_normalizes_rule_properties_before_schema_precedence() -> No
         fact_id="origin-a",
         document_id="out/generated.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/generated.md",
     )
     diagnostic = Diagnostic(
@@ -178,7 +174,6 @@ def test_schema_host_names_multiple_origins_deterministically() -> None:
         fact_id="first-origin",
         document_id="out/first.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/first.md",
         source_document_id="source/first.md",
     )
@@ -186,7 +181,6 @@ def test_schema_host_names_multiple_origins_deterministically() -> None:
         fact_id="second-origin",
         document_id="out/second.md",
         span=None,
-        confidence="generated",
         generated_document_id="out/second.md",
         source_document_id="source/second.md",
     )

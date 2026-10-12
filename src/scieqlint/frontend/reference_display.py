@@ -15,7 +15,6 @@ from scieqlint.facts.reference import (
     ReferenceDisplayIntent,
     ReferenceDisplayTextFact,
     TargetAnchorFact,
-    TargetTypeSource,
     generic_reference_identity,
     member_target_identity,
 )
@@ -118,10 +117,7 @@ def _display_fact(
     typed_number: bool,
     project_root: PurePosixPath,
 ) -> ReferenceDisplayTextFact:
-    target_type, target_type_source = _resolved_target_type(
-        ref.normalized_target,
-        matched_targets,
-    )
+    target_type = _resolved_target_type(ref.normalized_target, matched_targets)
     display_intent: ReferenceDisplayIntent
     if explicit_text is not None:
         display_intent = "explicit"
@@ -134,16 +130,12 @@ def _display_fact(
         fact_id=f"{ref.fact_id}::display-text",
         document_id=ref.document_id,
         span=ref.span,
-        raw=ref.raw,
-        origin=ref.origin,
-        confidence=ref.confidence,
         source_fact_id=ref.fact_id,
         normalized_target=ref.normalized_target,
         reference_kind=reference_kind,
         explicit_text=explicit_text,
         target_type=target_type,
         display_intent=display_intent,
-        target_type_source=target_type_source,
         target_identity=target_identity,
         target_fact_ids=(matched_targets[0].fact_id,) if len(matched_targets) == 1 else (),
         display_text_span=display_text_span,
@@ -153,25 +145,25 @@ def _display_fact(
 def _resolved_target_type(
     normalized_target: str,
     targets: tuple[TargetFact, ...],
-) -> tuple[str | None, TargetTypeSource]:
+) -> str | None:
     if not targets:
-        return None, "unresolved"
+        return None
     if len(targets) != 1:
-        return None, "ambiguous"
+        return None
     target = targets[0]
     if isinstance(target, EquationLabelFact):
-        return "equation", "resolved"
+        return "equation"
     if isinstance(target, TargetAnchorFact) and target.target_kind is not None:
-        return target.target_kind, "resolved"
+        return target.target_kind
     if isinstance(target, CodeCellFact):
         explicit = _explicit_code_cell_target_type(target)
         if explicit is not None:
-            return explicit, "explicit"
+            return explicit
     lowered = normalized_target.casefold()
     for prefix, target_type in _TARGET_PREFIX_TYPES:
         if lowered.startswith(prefix):
-            return target_type, "inferred"
-    return None, "unresolved"
+            return target_type
+    return None
 
 
 def _selected_target_identity(

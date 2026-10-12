@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from scieqlint.facts.base import FactBase
 from scieqlint.facts.generated import GeneratedFormulaFact, GeneratedProvenanceFact
@@ -52,7 +52,6 @@ class FactSnapshot:
     generated_provenance: tuple[GeneratedProvenanceFact, ...] = ()
     generated_formulas: tuple[GeneratedFormulaFact, ...] = ()
     portability: tuple[OutputPortabilityFact, ...] = ()
-    metadata: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
     def all_facts(self) -> tuple[FactBase, ...]:
         return (

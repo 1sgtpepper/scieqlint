@@ -1418,7 +1418,6 @@ def test_fact_snapshot_is_deterministic_and_immutable():
         fact_id="a.md::inline-math::16",
         document_id="a.md",
         span=None,
-        raw="$x$",
         body="x",
         delimiter_kind="dollar",
     )
@@ -1434,12 +1433,11 @@ def test_fact_snapshot_is_deterministic_and_immutable():
 
 def test_source_map_spans_use_document_offsets():
     document = doc("chapter.md", "alpha\nbeta\n")
-    source_map = SourceMap.for_document(document)
+    source_map = SourceMap(document)
 
     span = source_map.span(6, 10)
 
-    assert source_map.identity.document_id == "chapter.md"
-    assert source_map.identity.kind == DocumentKind.MARKDOWN.value
+    assert source_map.document is document
     assert span.path.as_posix() == "chapter.md"
     assert (span.start, span.end) == (6, 10)
     assert (span.line, span.col, span.end_line, span.end_col) == (2, 1, 2, 4)
@@ -1457,7 +1455,6 @@ def test_query_host_views_expose_snapshot_contracts():
         raw="# Title",
         level=1,
         text="Title",
-        slug_candidate="title",
     )
     section = SectionFact(
         fact_id="section-1",
@@ -1473,14 +1470,11 @@ def test_query_host_views_expose_snapshot_contracts():
         document_id="a.md",
         span=span(),
         opener="```",
-        fence_char="`",
-        fence_length=3,
         info_string="{python}",
         language="python",
         kind="code-cell",
         is_closed=False,
         opener_span=span(start=0, end=3),
-        closer_span=None,
         body_span=span(start=4, end=8),
     )
     directive = DirectiveFact(
@@ -1496,10 +1490,7 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="cell-1",
         document_id="a.md",
         span=span(),
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=directive.fact_id,
         language="python",
-        engine="jupyter",
         options=directive.options,
         label="plot",
         normalized_label="plot",
@@ -1508,10 +1499,7 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="cell-unlabeled",
         document_id="a.md",
         span=span(),
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=None,
         language="python",
-        engine="jupyter",
         options=(),
         label=None,
         normalized_label=None,
@@ -1520,10 +1508,7 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="cell-non-crossref",
         document_id="a.md",
         span=span(),
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=None,
         language="python",
-        engine="jupyter",
         options=(),
         label="plot-plain",
         normalized_label="plot-plain",
@@ -1532,10 +1517,7 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="cell-prefixed",
         document_id="a.md",
         span=span(),
-        fence_fact_id=fence.fact_id,
-        directive_fact_id=None,
         language="python",
-        engine="jupyter",
         options=(),
         label="fig-plot",
         normalized_label="fig-plot",
@@ -1547,7 +1529,6 @@ def test_query_host_views_expose_snapshot_contracts():
         label="Intro",
         normalized_label="intro",
         target_kind="heading",
-        attaches_to_fact_id=heading.fact_id,
         placement="before_heading",
     )
     duplicate_anchor = TargetAnchorFact(
@@ -1557,7 +1538,6 @@ def test_query_host_views_expose_snapshot_contracts():
         label="intro",
         normalized_label="intro",
         target_kind="heading",
-        attaches_to_fact_id=heading.fact_id,
         placement="standalone",
     )
     orphaned_anchor = TargetAnchorFact(
@@ -1567,7 +1547,6 @@ def test_query_host_views_expose_snapshot_contracts():
         label="Lonely",
         normalized_label="lonely",
         target_kind=None,
-        attaches_to_fact_id=None,
         placement="orphaned",
     )
     ref = GenericRefFact(
@@ -1608,7 +1587,6 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="inline-1",
         document_id="a.md",
         span=span(),
-        raw="$x$",
         body="x",
         delimiter_kind="dollar",
     )
@@ -1626,9 +1604,6 @@ def test_query_host_views_expose_snapshot_contracts():
         document_id="a.md",
         span=None,
         path=PurePosixPath("a.md"),
-        project_root=PurePosixPath("."),
-        declared=True,
-        discovered=True,
         normalized_path=PurePosixPath("chapter.md"),
     )
     duplicate_member = ProjectMemberFact(
@@ -1636,9 +1611,6 @@ def test_query_host_views_expose_snapshot_contracts():
         document_id="b.md",
         span=None,
         path=PurePosixPath("./a.md"),
-        project_root=PurePosixPath("."),
-        declared=False,
-        discovered=True,
         normalized_path=PurePosixPath("chapter.md"),
     )
     hidden = HiddenExcludedFact(
@@ -1676,7 +1648,6 @@ def test_query_host_views_expose_snapshot_contracts():
         span=span(),
         raw="{ref}target",
         kind="myst-role",
-        reason="malformed MyST role syntax",
     )
 
     snapshot = FactSnapshot(

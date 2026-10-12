@@ -61,7 +61,7 @@ def test_representative_generated_fixture_covers_literal_wrapper_raw_fact_and_di
 
     frontend = MySTFrontend().lower((generated,))
     assert [
-        (fact.kind, fact.candidate_kind, fact.complete, fact.delimiter_kind, fact.raw)
+        (fact.kind, fact.candidate_kind, fact.complete, fact.delimiter_kind)
         for fact in frontend.generated_formulas
         if fact.candidate_kind == "bracketed-block"
     ] == [

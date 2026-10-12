@@ -37,8 +37,7 @@ class MathHost:
             fact.fact_id for fact in snapshot.display_math if fact.container == "raw-latex"
         }
         source_maps = {
-            document.path.as_posix(): SourceMap.for_document(document)
-            for document in snapshot.documents
+            document.path.as_posix(): SourceMap(document) for document in snapshot.documents
         }
         for fact in snapshot.display_math:
             if fact.container == "raw-latex" and is_non_math_tex_environment(fact.environment):
