@@ -7,8 +7,8 @@ from pathlib import PurePosixPath
 
 import pytest
 
-from scieqlint.api import check_documents
-from scieqlint.config.model import ChecksConfig, Config, SymbolsConfig
+from scieqlint.api import check_documents, graph_documents
+from scieqlint.config.model import ChecksConfig, Config, ReferencesConfig, SymbolsConfig
 from scieqlint.diag.model import Severity, SourceSpan
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.limits import DEFAULT_MAX_FILE_BYTES
@@ -262,6 +262,45 @@ def test_notebook_json_parser_exposes_decoded_character_ranges() -> None:
         ("\n", 2, 4),
         ("é", 4, 10),
     )
+
+
+def test_notebook_json_parser_maps_every_short_escape_to_its_raw_range() -> None:
+    from scieqlint.frontend.notebook_json import iter_json_string_character_ranges
+
+    encoded = r'"\"\\\/\b\f\n\r\t"'
+
+    ranges = list(iter_json_string_character_ranges(encoded, 0, len(encoded)))
+
+    assert [character for character, _start, _end in ranges] == [
+        '"',
+        "\\",
+        "/",
+        "\b",
+        "\f",
+        "\n",
+        "\r",
+        "\t",
+    ]
+    assert [encoded[start:end] for _character, start, end in ranges] == [
+        r'\"',
+        r"\\",
+        r"\/",
+        r"\b",
+        r"\f",
+        r"\n",
+        r"\r",
+        r"\t",
+    ]
+    assert [(start, end) for _character, start, end in ranges] == [
+        (1, 3),
+        (3, 5),
+        (5, 7),
+        (7, 9),
+        (9, 11),
+        (11, 13),
+        (13, 15),
+        (15, 17),
+    ]
 
 
 def test_notebook_source_list_items_remain_valid_when_facts_do_not_cross_boundary() -> None:
@@ -855,6 +894,45 @@ def test_notebook_references_preserve_cell_metadata() -> None:
     assert result.diagnostics[0].span is not None
     assert result.diagnostics[0].span.cell == 1
     assert result.diagnostics[0].span.cell_line == 1
+
+
+def test_graph_notebook_refs_keep_cell_spans_with_checks_off() -> None:
+    document = _notebook(
+        [
+            _markdown_cell("Heading\n"),
+            _markdown_cell("See {eq}`missing`.\n"),
+        ]
+    )
+    config = Config(checks=ChecksConfig(references=ReferencesConfig(enabled=False)))
+
+    graph = graph_documents((document,), config=config)
+
+    [reference] = [node for node in graph.nodes if node.kind == "reference"]
+    [edge] = graph.edges
+    assert (
+        reference.label,
+        reference.span.path,
+        reference.span.line,
+        reference.span.col,
+        reference.span.end_line,
+        reference.span.end_col,
+        reference.span.cell,
+        reference.span.cell_line,
+    ) == (
+        "missing",
+        document.path,
+        1,
+        document.text.index("missing") + 1,
+        1,
+        document.text.index("missing") + len("missing") + 1,
+        1,
+        1,
+    )
+    assert (edge.target_label, edge.raw, edge.source_kind) == (
+        "missing",
+        "{eq}`missing`",
+        "myst_eq_role",
+    )
 
 
 def test_notebook_symbol_directives_preserve_cell_metadata() -> None:
