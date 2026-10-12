@@ -704,8 +704,7 @@ def test_fragment_only_reference_selects_source_member_when_labels_repeat() -> N
 
     result = check_documents((source, other), config=Config())
 
-    assert not [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "REF005"]
-    assert not [diagnostic for diagnostic in result.diagnostics if diagnostic.code == "REF001"]
+    assert result.diagnostics == ()
 
 
 def test_duplicate_targets_in_one_member_make_markdown_link_ambiguous() -> None:
