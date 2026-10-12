@@ -1718,7 +1718,6 @@ def test_query_host_views_expose_snapshot_contracts():
         span=None,
         generated_document_id="a.html",
         source_document_id="a.md",
-        source_sha="abc123",
     )
     portability = OutputPortabilityFact(
         fact_id="portability-1",
