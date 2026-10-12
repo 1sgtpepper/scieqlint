@@ -7,8 +7,6 @@ from collections.abc import Sequence
 from urllib.parse import quote
 
 from scieqlint.facts.math import InlineDelimiter
-from scieqlint.markdown import dollar_display_ranges as _dollar_display_ranges
-from scieqlint.markdown import dollar_inline_ranges as _dollar_inline_ranges
 from scieqlint.markdown import range_contains
 
 LineRange = tuple[int, int, str]
@@ -53,20 +51,6 @@ def merge_occupied(ranges: Sequence[OffsetRange]) -> tuple[OffsetRange, ...]:
         else:
             merged.append((start, end))
     return tuple(merged)
-
-
-def dollar_display_ranges(
-    text: str,
-    occupied: Sequence[OffsetRange],
-) -> tuple[tuple[int, int, int, int], ...]:
-    return _dollar_display_ranges(text, occupied)
-
-
-def dollar_inline_ranges(
-    text: str,
-    occupied: Sequence[OffsetRange],
-) -> tuple[tuple[int, int, int, int], ...]:
-    return _dollar_inline_ranges(text, occupied)
 
 
 def extract_role_target_and_title(body: str) -> tuple[str, str | None]:
