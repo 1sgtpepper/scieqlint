@@ -34,7 +34,6 @@ from scieqlint.scan.base import (
     ReferenceSource,
     ScanResult,
     SymbolDirective,
-    SymbolDirectiveSource,
 )
 from scieqlint.scan.symbols import parse_symbol_directive
 
@@ -434,9 +433,7 @@ def _symbol_directives(
     for match in SYMBOL_DIRECTIVE_RE.finditer(scan_text):
         directive, diagnostic = parse_symbol_directive(
             body=match.group("body"),
-            raw=match.group(0),
             span=_span(document, match.start(), match.end()),
-            source=SymbolDirectiveSource.MARKDOWN_COMMENT,
             make_span=lambda start, end: _span(document, start, end),
             body_start=match.start("body"),
         )

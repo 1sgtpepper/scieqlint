@@ -5,11 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
-from typing import Protocol
 
-from scieqlint.config.model import Config
 from scieqlint.diag.model import Diagnostic, SourceSpan
-from scieqlint.io.source import SourceDocument
 
 
 class MathContainer(Enum):
@@ -35,11 +32,6 @@ class ReferenceSource(Enum):
     MYST_NUMREF_ROLE = "myst_numref_role"
     LATEX_REF = "latex_ref"
     LATEX_EQREF = "latex_eqref"
-
-
-class SymbolDirectiveSource(Enum):
-    MARKDOWN_COMMENT = "markdown_comment"
-    LATEX_COMMENT = "latex_comment"
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,11 +65,7 @@ class EquationReference:
 @dataclass(frozen=True, slots=True)
 class SymbolDirective:
     symbol: str
-    description: str
-    dimension: str | None
     span: SourceSpan
-    raw: str
-    source: SymbolDirectiveSource
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +75,3 @@ class ScanResult:
     references: tuple[EquationReference, ...] = ()
     symbol_directives: tuple[SymbolDirective, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
-
-
-class Scanner(Protocol):
-    def scan(self, document: SourceDocument, config: Config) -> ScanResult: ...

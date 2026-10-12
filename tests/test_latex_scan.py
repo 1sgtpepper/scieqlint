@@ -14,7 +14,6 @@ from scieqlint.scan.base import (
     LabelSource,
     MathContainer,
     ReferenceSource,
-    SymbolDirectiveSource,
 )
 from scieqlint.scan.latex import LatexScanner
 
@@ -900,11 +899,7 @@ def test_latex_symbol_directive_fixture_is_extracted() -> None:
 
     result = LatexScanner().scan(document, Config())
 
-    assert [
-        (directive.symbol, directive.description, directive.dimension)
-        for directive in result.symbol_directives
-    ] == [("F", "force", "M L T^-2")]
-    assert result.symbol_directives[0].source is SymbolDirectiveSource.LATEX_COMMENT
+    assert [directive.symbol for directive in result.symbol_directives] == ["F"]
     span = result.symbol_directives[0].span
     assert document.text[span.start : span.end] == "F"
     assert result.diagnostics == ()
@@ -945,10 +940,8 @@ def test_latex_symbol_directive_accepts_tex_macro_symbol(ending: str) -> None:
         Config(),
     )
 
-    assert [
-        (directive.symbol, directive.description, directive.dimension)
-        for directive in result.symbol_directives
-    ] == [(r"\alpha", "angle", "1")]
+    assert [directive.symbol for directive in result.symbol_directives] == [r"\alpha"]
+    assert result.diagnostics == ()
 
 
 def test_latex_symbol_directive_must_start_comment_content() -> None:
