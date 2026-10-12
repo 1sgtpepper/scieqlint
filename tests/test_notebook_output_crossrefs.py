@@ -6,7 +6,6 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-import scieqlint.frontend.notebook_input as notebook_input_module
 from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
