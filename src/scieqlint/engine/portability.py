@@ -12,9 +12,6 @@ from scieqlint.query.portability import NotebookRenderingConflict
 
 
 class PortabilityEngine:
-    name = "portability"
-    rule_codes = frozenset({"PORT001", "PORT002", "PORT003", "PORT004"})
-
     def __init__(self, *, profile: str, policy: PolicyHost) -> None:
         self.profile = profile
         self.policy = policy
@@ -68,8 +65,6 @@ class PortabilityEngine:
             ),
             hint="Use reference syntax supported by the configured publishing target.",
             rule="portability.equation_reference_syntax",
-            profile_gated=True,
-            false_positive_risk="medium",
             profile=self.profile,
             properties=(
                 ("output_profile", fact.output_profile),
@@ -100,8 +95,6 @@ class PortabilityEngine:
                 "a display equation form that supports it."
             ),
             rule="portability.inline_math_accessible_text",
-            profile_gated=True,
-            false_positive_risk="medium",
             profile=self.profile,
             properties=(
                 ("accessibility_requirement", "accessible-text"),
@@ -148,8 +141,6 @@ class PortabilityEngine:
                 "the labeled figure/table structure outside the rendered cell."
             ),
             rule="portability.notebook_renderings_crossref",
-            profile_gated=True,
-            false_positive_risk="low",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=(
@@ -206,8 +197,6 @@ class PortabilityEngine:
                 "generated Typst with the publishing toolchain."
             ),
             rule="portability.typst_equation_syntax",
-            profile_gated=True,
-            false_positive_risk="medium",
             profile=self.profile,
             properties=properties,
         )

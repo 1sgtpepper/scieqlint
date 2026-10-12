@@ -136,7 +136,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/diag/ir.py`
 - `src/scieqlint/diag/model.py`
 - `src/scieqlint/engine/__init__.py`
-- `src/scieqlint/engine/base.py`
 - `src/scieqlint/engine/generated.py`
 - `src/scieqlint/engine/portability.py`
 - `src/scieqlint/engine/reference.py`
@@ -210,7 +209,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `src/scieqlint/query/reference.py`
 - `src/scieqlint/query/structure.py`
 - `src/scieqlint/report/__init__.py`
-- `src/scieqlint/report/base.py`
 - `src/scieqlint/report/github.py`
 - `src/scieqlint/report/json.py`
 - `src/scieqlint/report/sarif.py`

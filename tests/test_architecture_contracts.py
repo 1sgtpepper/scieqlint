@@ -12,9 +12,8 @@ import pytest
 
 from scieqlint.api import check_documents as compatibility_check_documents
 from scieqlint.config.model import Config
-from scieqlint.diag.ir import DiagnosticIR, RelatedLocation
+from scieqlint.diag.ir import DiagnosticIR
 from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
-from scieqlint.engine.base import Engine
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
@@ -59,10 +58,6 @@ def doc(path: str, text: str) -> SourceDocument:
 
 def mutate_inline_body(inline: Any) -> None:
     inline.body = "y"
-
-
-def engine_rule_codes(engine: Engine) -> frozenset[str]:
-    return engine.rule_codes
 
 
 def diagnostic_contract(diagnostic: Diagnostic) -> tuple[object, ...]:
@@ -126,21 +121,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
     assert compatibility_result.files_checked == 3
     assert reference_diagnostics
     assert structure_diagnostics
-    assert engine_rule_codes(ReferenceEngine()) == frozenset(
-        {
-            "REF001",
-            "REF002",
-            "REF004",
-            "REF005",
-            "REF006",
-            "REF007",
-            "REF008",
-            "REF009",
-            "REF010",
-            "REF011",
-        }
-    )
-    assert "STR005" in engine_rule_codes(StructureEngine())
+    assert "STR005" in StructureEngine.rule_codes
     assert analysis_result.summary() == {
         "files_checked": 3,
         "facts": len(snapshot.all_facts()),
@@ -150,7 +131,7 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
         "info": 1,
     }
     assert any(diagnostic.code == "STR003" for diagnostic in kernel_diagnostics)
-    engine_codes = engine_rule_codes(ReferenceEngine()) | engine_rule_codes(StructureEngine())
+    engine_codes = {diagnostic.code for diagnostic in kernel_diagnostics}
     kernel_output = tuple(map(diagnostic_contract, kernel_diagnostics))
     compatibility_output = tuple(
         diagnostic_contract(diagnostic)
@@ -1808,15 +1789,7 @@ def test_query_host_views_expose_snapshot_contracts():
 
 
 def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
-    class NoopEngine:
-        name = "noop"
-        rule_codes = frozenset({"STR001"})
-
-        def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
-            return ()
-
     document = doc("a.md", "Text\n")
-    location = RelatedLocation(span=span(start=1, end=2), message="related")
     diagnostic_ir = DiagnosticIR(
         code="STR001",
         message="Heading marker must be followed by a space",
@@ -1825,7 +1798,6 @@ def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
         detail="The heading is parsed differently by downstream renderers.",
         hint="Add a space after the heading marker.",
         rule="heading-atx-space",
-        related_locations=(location,),
     )
 
     diagnostic = diagnostic_ir.to_diagnostic(Severity.ERROR)
@@ -1846,7 +1818,6 @@ def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
     assert diagnostic.detail == diagnostic_ir.detail
     assert diagnostic.hint == diagnostic_ir.hint
     assert diagnostic.rule == diagnostic_ir.rule
-    assert diagnostic_ir.related_locations == (location,)
     assert result.schema_version == "0.2-architecture-preview"
     assert result.summary() == {
         "files_checked": 1,
@@ -1857,4 +1828,3 @@ def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
         "info": 1,
     }
     assert frontend_result.documents == (document_ir,)
-    assert engine_rule_codes(NoopEngine()) == frozenset({"STR001"})

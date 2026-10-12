@@ -1837,12 +1837,11 @@ Rules:
 - No color or ANSI codes.
 - JSON output must validate against checked-in schema artifacts in tests.
 
-### Reporter interface
+### Reporters
 
-```python
-class Reporter(Protocol):
-    def render(self, result: CheckResult) -> str: ...
-```
+Concrete renderers define `render` in the [text](src/scieqlint/report/text.py),
+[JSON](src/scieqlint/report/json.py), [GitHub](src/scieqlint/report/github.py), and
+[SARIF](src/scieqlint/report/sarif.py) modules; the runtime has no shared `Reporter` protocol.
 
 Reporters must not mutate diagnostics.
 Reporters must not read files.
