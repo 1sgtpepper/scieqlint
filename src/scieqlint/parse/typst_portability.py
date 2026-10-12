@@ -21,6 +21,9 @@ def typst_math_risks(
 ) -> tuple[OutputPortabilityFact, ...]:
     """Return focused, source-spanned risks for Typst display-math export."""
 
+    if not snapshot.display_math:
+        return ()
+
     documents = {document.path.as_posix(): document for document in snapshot.documents}
     risks: list[OutputPortabilityFact] = []
     for display in snapshot.display_math:
@@ -65,8 +68,12 @@ def _mask_non_math_tex_ranges(
 ) -> str:
     """Mask opaque TeX environments without changing source offsets."""
 
+    ranges_to_mask = ranges
+    if type(text) is str and type(ranges) is tuple and not ranges:
+        return text
+
     masked = list(text)
-    for start, end in ranges:
+    for start, end in ranges_to_mask:
         masked[start:end] = [" "] * (end - start)
     return "".join(masked)
 

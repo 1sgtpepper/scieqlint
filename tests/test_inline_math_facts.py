@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import SupportsIndex, overload
 
@@ -104,6 +105,33 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
     assert [
         (fact.span.start, fact.span.end) for fact in snapshot.inline_math if fact.span is not None
     ] == [(source.index(body), source.index(body) + len(body)) for body, _ in expected]
+
+
+def test_math_host_returns_the_snapshot_when_no_math_candidates_remain() -> None:
+    classified = _classify(
+        MySTFrontend().lower(
+            (
+                doc(
+                    r"\begin{equation}x=1 \label{eq-kept} \eqref{eq-kept}"
+                    r"\end{equation}"
+                ),
+            )
+        )
+    )
+    assert classified.equation_labels
+    assert classified.equation_refs
+    snapshot = replace(
+        classified,
+        inline_math=(),
+        display_math=(),
+        generated_formulas=(),
+    )
+
+    result = _classify(snapshot)
+
+    assert result is snapshot
+    assert result.equation_labels == classified.equation_labels
+    assert result.equation_refs == classified.equation_refs
 
 
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
@@ -855,7 +883,7 @@ def test_plain_text_candidate_scan_has_linear_work_without_a_relation() -> None:
 
 
 def test_required_arity_validation_has_linear_index_work_for_nested_arguments() -> None:
-    from scieqlint.parse.math import _has_missing_required_argument
+    from scieqlint.parse.math_classification import has_missing_required_argument
 
     depth = 128
     nested = "1"
@@ -864,7 +892,7 @@ def test_required_arity_validation_has_linear_index_work_for_nested_arguments() 
     body = _CountingText(nested)
     body.accesses = 0
 
-    assert not _has_missing_required_argument(body)
+    assert not has_missing_required_argument(body)
     assert body.accesses <= len(body) + 10 * depth
 
 
