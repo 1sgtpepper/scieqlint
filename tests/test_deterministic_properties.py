@@ -214,8 +214,11 @@ def test_raw_newline_ingress_preserves_reference_semantics(
     _assert_span_coordinates(document.text, equation_ref.target_span)
 
     query = QueryHost(snapshot)
-    assert query.references.equation_target_index() == {normalized_label: (equation_label,)}
-    assert query.references.unresolved_equation_refs() == ()
+    results = query.references.results()
+    assert results.unresolved_equation_refs == ()
+    assert results.target_identity_index[(PurePosixPath("property.md"), normalized_label)] == (
+        equation_label,
+    )
 
 
 @st.composite
@@ -314,5 +317,8 @@ def test_code_cell_frontend_preserves_fence_and_reference_semantics(
     )
     assert _span_text(document, reference.target_span) == label
     _assert_span_coordinates(document.text, reference.target_span)
-    assert query.references.target_index()[normalized_label] == (cell,)
-    assert query.references.unresolved_generic_refs() == ()
+    results = query.references.results()
+    assert results.target_identity_index[(PurePosixPath("property.md"), normalized_label)] == (
+        cell,
+    )
+    assert results.unresolved_generic_refs == ()

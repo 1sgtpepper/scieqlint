@@ -116,8 +116,8 @@ $$
         ("tex-eqref", "eq:first", snapshot.display_math[0].fact_id),
         ("eq", "eq:first", None),
     ]
-    assert query.references.unresolved_equation_refs() == ()
-    assert query.references.equation_refs() == snapshot.equation_refs
+    assert query.references.results().unresolved_equation_refs == ()
+    assert query.snapshot.equation_refs == snapshot.equation_refs
     assert ReferenceEngine().run(query) == ()
     assert all(fact.target_span is not None for fact in snapshot.equation_refs)
     assert [
@@ -183,14 +183,16 @@ $$
     engine = ReferenceEngine().run(query)
     result = check_documents([document], config=without_algebra())
 
-    assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
+    assert query.references.results().duplicate_equation_targets == {
+        "dup": snapshot.equation_labels
+    }
     assert [(diagnostic.code, diagnostic.message) for diagnostic in engine] == [
         ("REF001", "duplicate equation label: dup"),
         ("REF011", "ambiguous equation reference: dup"),
     ]
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF001") == 1
     assert [diagnostic.code for diagnostic in result.diagnostics].count("REF011") == 1
-    assert query.references.ambiguous_equation_refs() == (snapshot.equation_refs[0],)
+    assert query.references.results().ambiguous_equation_refs == (snapshot.equation_refs[0],)
 
 
 def test_latex_reference_diagnostics_do_not_depend_on_markdown_scanning() -> None:
@@ -361,9 +363,10 @@ def test_public_duplicate_diagnostic_uses_normalized_label_text() -> None:
     ]
 
 
-def test_notebook_fact_ids_and_source_keys_include_cell_identity() -> None:
+def test_notebook_fact_ids_and_duplicate_order_include_cell_identity() -> None:
     from scieqlint.app import _legacy_equation_label_fact
-    from scieqlint.engine.reference import _fact_source_key
+    from scieqlint.facts.snapshot import FactSnapshot
+    from scieqlint.query.reference import _query_fact_source_key
 
     source = "$$\nx = 1 \\label{same}\n$$\n"
     document = SourceDocument.from_text(
@@ -388,10 +391,17 @@ def test_notebook_fact_ids_and_source_keys_include_cell_identity() -> None:
     assert [fact.span.cell for fact in facts if fact.span is not None] == [0, 1]
     assert len({fact.fact_id for fact in facts}) == 2
     assert all(f"::cell-{cell}" in fact.fact_id for fact, cell in zip(facts, (0, 1), strict=True))
-    assert [_fact_source_key(fact)[:2] for fact in facts] == [
+    assert [_query_fact_source_key(fact)[:2] for fact in facts] == [
         ("notes.ipynb", 0),
         ("notes.ipynb", 1),
     ]
+    diagnostics = ReferenceEngine().run(
+        QueryHost(FactSnapshot(equation_labels=tuple(reversed(facts))))
+    )
+    assert [
+        (diagnostic.code, diagnostic.span.cell if diagnostic.span is not None else None)
+        for diagnostic in diagnostics
+    ] == [("REF001", 1)]
 
 
 @pytest.mark.public_regression
@@ -506,7 +516,9 @@ def test_duplicate_equation_labels_across_documents_report_duplicate_and_ambigui
         diagnostic for diagnostic in result.diagnostics if diagnostic.code.startswith("REF")
     )
 
-    assert query.references.duplicate_equation_targets() == {"dup": snapshot.equation_labels}
+    assert query.references.results().duplicate_equation_targets == {
+        "dup": snapshot.equation_labels
+    }
     assert [(diagnostic.code, diagnostic.message) for diagnostic in reference_diagnostics] == [
         ("REF001", "duplicate equation label: dup"),
         ("REF011", "ambiguous equation reference: dup"),
@@ -758,4 +770,4 @@ $$
     snapshot = lower(doc(source))
     query = QueryHost(snapshot)
 
-    assert query.references.ambiguous_equation_refs() == snapshot.equation_refs
+    assert query.references.results().ambiguous_equation_refs == snapshot.equation_refs
