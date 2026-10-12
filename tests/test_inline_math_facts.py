@@ -99,10 +99,12 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
         "unsupported",
         "unsupported",
     ]
+
     assert all(fact.span is not None for fact in snapshot.inline_math)
     assert [
         source[fact.span.start : fact.span.end] for fact in snapshot.inline_math if fact.span
     ] == [fact.body for fact in snapshot.inline_math]
+
 
 
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
