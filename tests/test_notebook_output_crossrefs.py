@@ -6,7 +6,6 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-import scieqlint.frontend.notebook_input as notebook_input_module
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
@@ -1189,7 +1188,7 @@ def test_notebook_output_label_spans_preserve_json_unicode_escapes() -> None:
     )
 
 
-def test_large_output_label_span_does_not_materialize_decoded_char_ranges(monkeypatch) -> None:
+def test_large_output_label_span_preserves_exact_label_span() -> None:
     label = "fig-" + "x" * 100_000
     document = notebook(
         notebook_payload(
@@ -1200,17 +1199,6 @@ def test_large_output_label_span_does_not_materialize_decoded_char_ranges(monkey
         )
     )
 
-    def fail_if_materialized(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("output label spans do not need decoded character ranges")
-
-    monkeypatch.setattr(
-        notebook_input_module,
-        "json_string_character_ranges",
-        fail_if_materialized,
-        # The sparse mapper no longer imports this compatibility wrapper. Keep
-        # the sentinel active if the former full-list path is reintroduced.
-        raising=False,
-    )
     snapshot = NotebookFrontend().lower((document,))
 
     [anchor] = snapshot.target_anchors

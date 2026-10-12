@@ -41,18 +41,21 @@ def markdown_cell_references(
             source_ranges=source_ranges,
         )
 
-    source_facts = (
-        *snapshot.inline_math,
-        *snapshot.display_math,
-        *snapshot.unknown_math,
-        *snapshot.generated_formulas,
-        *snapshot.target_anchors,
-        *snapshot.generic_refs,
-        *snapshot.equation_labels,
-        *snapshot.equation_refs,
-        *snapshot.crossref_metadata,
-    )
-    fact_ids = {fact.fact_id: f"{prefix}{fact.fact_id}" for fact in source_facts}
+    fact_ids = {
+        fact.fact_id: f"{prefix}{fact.fact_id}"
+        for facts in (
+            snapshot.inline_math,
+            snapshot.display_math,
+            snapshot.unknown_math,
+            snapshot.generated_formulas,
+            snapshot.target_anchors,
+            snapshot.generic_refs,
+            snapshot.equation_labels,
+            snapshot.equation_refs,
+            snapshot.crossref_metadata,
+        )
+        for fact in facts
+    }
     equation_label_spans = {
         fact.fact_id: span(fact.label_span) for fact in snapshot.equation_labels
     }

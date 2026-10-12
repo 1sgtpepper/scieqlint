@@ -176,7 +176,7 @@ def test_notebook_span_mapping_rejects_invalid_logical_source_contracts(
     end: int,
     message: str,
 ) -> None:
-    from scieqlint.scan.notebook_input import (
+    from scieqlint.frontend.notebook_input import (
         NotebookSourceLocationError,
         map_notebook_span,
     )
@@ -251,28 +251,17 @@ def test_notebook_frontend_drops_unmappable_markdown_cell_without_partial_facts(
     assert str(error) == "notebook cell 0 source has no character ranges"
 
 
-def test_notebook_json_parser_keeps_scan_compatibility_export() -> None:
+def test_notebook_json_parser_exposes_decoded_character_ranges() -> None:
     from scieqlint.frontend import notebook_json as frontend_json
-    from scieqlint.scan import notebook_json as scan_json
 
-    assert scan_json.__all__ == (
-        "json_array_ranges",
-        "json_decoder",
-        "json_object_members",
-        "json_string_character_ranges",
-        "parse_json_document",
-    )
-    assert all(
-        getattr(scan_json, name) is getattr(frontend_json, name) for name in scan_json.__all__
-    )
-    parsed, _source_range = scan_json.parse_json_document('{"cells": []}')
+    parsed, _source_range = frontend_json.parse_json_document('{"cells": []}')
     assert parsed == {"cells": []}
     encoded = r'"a\n\u00e9"'
-    assert scan_json.json_string_character_ranges(encoded, 0, len(encoded)) == [
+    assert tuple(frontend_json.iter_json_string_character_ranges(encoded, 0, len(encoded))) == (
         ("a", 1, 2),
         ("\n", 2, 4),
         ("é", 4, 10),
-    ]
+    )
 
 
 def test_notebook_source_list_items_remain_valid_when_facts_do_not_cross_boundary() -> None:

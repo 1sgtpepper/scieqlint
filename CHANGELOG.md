@@ -341,6 +341,8 @@ Release notes must use these sections:
   ships duplicate source examples or forced README/SPEC copies, and the unreferenced
   `scieqlint.io.resources` helper is removed; the canonical root examples and built-in
   CLI demo remain.
+- Remove the scanner-side notebook input and JSON compatibility import modules;
+  notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
 
 ### Migration notes
 

@@ -122,9 +122,8 @@ def _lower_document(
     if parsed is not None and parsed.document is not document:
         raise ValueError("parsed notebook input belongs to a different SourceDocument")
     notebook_input = parsed if parsed is not None else parse_notebook_input(document)
-    if not notebook_input.valid:
+    if notebook_input.root is None:
         return FactSnapshot(documents=(document,))
-    assert notebook_input.root is not None
     notebook = notebook_input.root
 
     default_language = _notebook_language(notebook.get("metadata"))
