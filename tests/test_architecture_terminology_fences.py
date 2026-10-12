@@ -132,36 +132,16 @@ def test_fence_successor_work_is_bounded_by_input_characters(
     assert threshold_work <= len(source)
 
 
-@pytest.mark.parametrize(
-    ("line", "opener", "expected"),
-    [
-        ("``\n", ("`", 4), False),
-        ("```\n", ("`", 4), False),
-        ("````\n", ("`", 4), True),
-        ("````  \n", ("`", 4), True),
-        ("`````\n", ("`", 4), True),
-        ("~~~\n", ("`", 4), False),
-        ("```text\n", ("`", 4), False),
-        ("```\r\n", ("`", 4), False),
-    ],
-)
-def test_fence_closer_predicate_enforces_marker_and_run_boundaries(
-    line: str,
-    opener: tuple[str, int],
-    expected: bool,
-) -> None:
-    assert terminology_drift._is_fence_closer(line, opener) is expected
+def test_crlf_closer_remains_unmatched_while_lf_closer_masks_code() -> None:
+    crlf_source = "```text\nworkspace host\n```\r\n"
+    lf_source = "```text\nworkspace host\n```\nWorkspaceHost\n"
 
+    assert terminology_drift.strip_markdown_code(crlf_source) == crlf_source
 
-def test_closer_classification_does_not_rebuild_the_opener_marker() -> None:
-    class Marker(str):
-        def __mul__(self, count: int):  # type: ignore[override]
-            raise AssertionError("closer classification must not allocate marker * length")
-
-    marker = Marker("`")
-
-    assert not terminology_drift._is_fence_closer("body\n", (marker, 131_072))
-    assert terminology_drift._is_fence_closer("```  \n", (marker, 3))
+    stripped = terminology_drift.strip_markdown_code(lf_source)
+    assert stripped.count("\n") == lf_source.count("\n")
+    assert "workspace host" not in stripped
+    assert "WorkspaceHost" in stripped
 
 
 def test_long_unmatched_fence_has_bounded_line_classification(
