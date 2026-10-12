@@ -1652,15 +1652,7 @@ def test_query_host_views_expose_snapshot_contracts():
     assert snapshot.portability == (portability,)
 
 
-def test_diagnostic_ir_contracts_are_projected():
-    class NoopEngine:
-        name = "noop"
-        rule_codes = frozenset({"STR001"})
-
-        def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
-            return ()
-
-    document = doc("a.md", "Text\n")
+def test_diagnostic_ir_projects_public_fields():
     diagnostic_ir = DiagnosticIR(
         code="STR001",
         message="Heading marker must be followed by a space",
@@ -1672,7 +1664,6 @@ def test_diagnostic_ir_contracts_are_projected():
     )
 
     diagnostic = diagnostic_ir.to_diagnostic(Severity.ERROR)
-
 
     assert diagnostic.severity is Severity.ERROR
     assert diagnostic.detail == diagnostic_ir.detail
