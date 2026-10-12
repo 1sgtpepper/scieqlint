@@ -598,13 +598,13 @@ def test_frontend_preserves_custom_splitlines_results_between_display_scans() ->
     custom_document = doc(ChangingSplitlinesText(source))
     custom_snapshot = MySTFrontend().lower((custom_document,))
 
-    assert custom_document.text.empty_splitlines_calls == [3, 6]
     # The third scan is the reference snapshot's final lexical projection and
     # the sixth is the independent opener query. Their empty results leave the
     # later raw environment available to this frontend.
     assert [(fact.container, fact.body) for fact in custom_snapshot.display_math] == [
         ("raw-latex", "x=1")
     ]
+    assert custom_document.text.empty_splitlines_calls == [3, 6]
 
     ordinary_snapshot = MySTFrontend().lower((doc(source),))
     assert ordinary_snapshot.display_math == ()
