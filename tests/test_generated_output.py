@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import PurePosixPath
 
-from scieqlint.app import check_documents, check_paths
+from scieqlint.api import check_paths
+from scieqlint.app import check_documents
 from scieqlint.config.load import load_config
 from scieqlint.config.model import Config, ProfileConfig, ScannerConfig
 from scieqlint.config.presets import read_preset_text

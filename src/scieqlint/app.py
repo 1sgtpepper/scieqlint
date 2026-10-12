@@ -89,27 +89,7 @@ class _AnalysisRun(Generic[_ResultT]):
     input_identities_complete: bool
 
 
-def check_paths(
-    paths: Sequence[Path | str],
-    *,
-    config_path: Path | str | None = None,
-    no_algebra: bool = False,
-    inline_math: bool = False,
-    strict_unknowns: bool = False,
-    absolute_paths: bool = False,
-) -> CheckResult:
-    """Load supported files and check them."""
-    return _run_check_paths(
-        paths,
-        config_path=config_path,
-        no_algebra=no_algebra,
-        inline_math=inline_math,
-        strict_unknowns=strict_unknowns,
-        absolute_paths=absolute_paths,
-    ).result
-
-
-def _run_check_paths(
+def _run_check_paths(  # pyright: ignore[reportUnusedFunction]
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
@@ -520,16 +500,7 @@ def _normalize_accessibility_metadata(metadata: object) -> dict[str, str] | None
     return dict(cast(Mapping[str, str], candidate))
 
 
-def graph_paths(
-    paths: Sequence[Path | str],
-    *,
-    config_path: Path | str | None = None,
-) -> Graph:
-    """Load supported files and build the label/reference graph."""
-    return _run_graph_paths(paths, config_path=config_path).result
-
-
-def _run_graph_paths(
+def _run_graph_paths(  # pyright: ignore[reportUnusedFunction]
     paths: Sequence[Path | str],
     *,
     config_path: Path | str | None = None,
