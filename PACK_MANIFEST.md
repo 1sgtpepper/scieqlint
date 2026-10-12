@@ -76,7 +76,6 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `docs/contributing/index.md`
 - `docs/contributing/issue-guide.md`
 - `docs/contributing/pr-dependency-checks.md`
-- `docs/contributing/release-scope.md`
 - `docs/contributing/review-guide.md`
 - `docs/contributing/testing.md`
 - `docs/diagnostics.md`
