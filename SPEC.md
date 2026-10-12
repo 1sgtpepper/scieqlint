@@ -1300,26 +1300,17 @@ Rules:
 ```python
 @dataclass(frozen=True, slots=True)
 class MathBlock:
-    document: SourceDocument
-    raw: str
-    normalized: str
+    text: str
     source_aligned_text: str
     span: SourceSpan
-    syntax: MathSyntax
     container: MathContainer
     block_id: str
 ```
 
-`raw` is the original math payload without delimiters where possible. `normalized` is scanner-level cleanup only. Parser-level normalization belongs in `parse.normalize`.
-`source_aligned_text` is a same-length source projection for `span`: scanner cleanup
-replaces removed lexical content with whitespace while retaining source positions and
-newlines for diagnostics. It is not parser input.
-
-```python
-class MathSyntax(Enum):
-    TEX = "tex"
-    PLAIN = "plain"
-```
+`text` is the scanner-provided math content consumed by parsers and checkers.
+`source_aligned_text` is a same-length source projection for `span`; it preserves
+source positions and newlines for diagnostics and symbol-span mapping, and is not
+parser input.
 
 ```python
 class MathContainer(Enum):
@@ -1456,12 +1447,10 @@ This sort must be used before all reporters.
 
 ## 9. Scanner contracts
 
-Every scanner implements:
-
-```python
-class Scanner(Protocol):
-    def scan(self, document: SourceDocument, config: Config) -> ScanResult: ...
-```
+Concrete scanners return a shared result value; the application selects and invokes
+the scanner for each document kind. A shared typing `Scanner` Protocol is not
+required and scanner implementation types are not part of the stable Python API.
+The stable Python API is listed in `docs/api.md`.
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -1469,6 +1458,7 @@ class ScanResult:
     blocks: tuple[MathBlock, ...]
     labels: tuple[EquationLabel, ...] = ()
     references: tuple[EquationReference, ...] = ()
+    symbol_directives: tuple[SymbolDirective, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
 ```
 
@@ -1482,7 +1472,7 @@ Scanners must not emit algebra, dimension, duplicate-label, or missing-reference
 
 ## 10. Parser and AST
 
-Parser input is `MathBlock.normalized`.
+Parser input is `MathBlock.text`.
 
 Parser output is either:
 

@@ -19,7 +19,6 @@ from scieqlint.scan.base import (
     ReferenceSource,
     ScanResult,
     SymbolDirective,
-    SymbolDirectiveSource,
 )
 from scieqlint.scan.symbols import parse_symbol_directive
 
@@ -303,9 +302,7 @@ def _symbol_directives(
         body_start = start + 1 + len(comment[1:]) - len(comment_body) + len(SYMBOL_PREFIX)
         directive, diagnostic = parse_symbol_directive(
             body=document.text[body_start:line_end],
-            raw=comment,
             span=_span(document, start, line_end),
-            source=SymbolDirectiveSource.LATEX_COMMENT,
             make_span=lambda span_start, span_end: _span(document, span_start, span_end),
             body_start=body_start,
         )
