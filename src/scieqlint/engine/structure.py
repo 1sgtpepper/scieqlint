@@ -11,7 +11,6 @@ from scieqlint.query.host import QueryHost
 
 
 class StructureEngine:
-    name = "structure"
     rule_codes = frozenset(
         {
             "STR001",
@@ -57,8 +56,6 @@ class StructureEngine:
             detail=issue.raw,
             hint="Use '# Title' rather than '#Title'.",
             rule="structure.heading_spacing",
-            profile_gated=True,
-            false_positive_risk="low",
         )
 
     def _heading_hierarchy_diagnostics(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
@@ -83,8 +80,6 @@ class StructureEngine:
                                 detail=heading.raw,
                                 hint="Use one level-1 heading and nest later sections below it.",
                                 rule="structure.single_top_level_heading",
-                                profile_gated=True,
-                                false_positive_risk="medium",
                             )
                         )
                 if previous_level and heading.level > previous_level + 1:
@@ -100,8 +95,6 @@ class StructureEngine:
                                 f"level-{heading.level} heading."
                             ),
                             rule="structure.heading_hierarchy",
-                            profile_gated=True,
-                            false_positive_risk="medium",
                         )
                     )
                 previous_level = heading.level
@@ -121,7 +114,6 @@ class StructureEngine:
                     detail=fence.info_string or fence.opener,
                     hint="Close the block with a matching fence line.",
                     rule="structure.fence_closed",
-                    false_positive_risk="low",
                 )
             )
         for fence in query.structure.fences():
@@ -135,8 +127,6 @@ class StructureEngine:
                         hint="Add a language, or disable this rule for intentionally "
                         "generic fences.",
                         rule="structure.fence_language",
-                        profile_gated=True,
-                        false_positive_risk="medium",
                     )
                 )
         return tuple(out)
@@ -157,8 +147,6 @@ class StructureEngine:
                         "```{code-cell} python or notebook metadata language='python'."
                     ),
                     rule="directive.code_cell_language",
-                    profile_gated=True,
-                    false_positive_risk="medium",
                     profile=metadata_profile,
                     provenance_ids=(cell.fact_id,) if metadata_profile else (),
                     properties=(
@@ -193,8 +181,6 @@ class StructureEngine:
                         "declares [project].code_cell_languages, include it in that catalog."
                     ),
                     rule="directive.code_cell_language",
-                    profile_gated=True,
-                    false_positive_risk="low",
                     profile=metadata_profile,
                     provenance_ids=(cell.fact_id,),
                     properties=(
@@ -219,8 +205,6 @@ class StructureEngine:
                         detail=issue.raw,
                         hint="Use a directive opener such as ```{note} or ```{code-cell} python.",
                         rule="directive.syntax",
-                        profile_gated=True,
-                        false_positive_risk="low",
                     )
                 )
             elif issue.kind == "myst-option":
@@ -233,8 +217,6 @@ class StructureEngine:
                         detail=issue.raw,
                         hint="Use ':name: value' option syntax before directive content.",
                         rule="directive.option_syntax",
-                        profile_gated=True,
-                        false_positive_risk="low",
                     )
                 )
             elif issue.kind == "myst-role":
@@ -247,8 +229,6 @@ class StructureEngine:
                         detail=issue.raw,
                         hint="Use role syntax such as {ref}`target` or {ref}`Title <target>`.",
                         rule="directive.role_syntax",
-                        profile_gated=True,
-                        false_positive_risk="low",
                     )
                 )
             elif issue.kind == "code-cell-tags":
@@ -261,8 +241,6 @@ class StructureEngine:
                         detail=issue.raw,
                         hint="Use comma-separated tags or a bracketed list such as [hide-input].",
                         rule="directive.code_cell_tags",
-                        profile_gated=True,
-                        false_positive_risk="low",
                     )
                 )
         return tuple(out)

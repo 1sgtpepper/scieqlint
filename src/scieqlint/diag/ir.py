@@ -8,12 +8,6 @@ from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 
 
 @dataclass(frozen=True, slots=True)
-class RelatedLocation:
-    span: SourceSpan
-    message: str
-
-
-@dataclass(frozen=True, slots=True)
 class DiagnosticIR:
     code: str
     message: str
@@ -22,9 +16,6 @@ class DiagnosticIR:
     detail: str | None = None
     hint: str | None = None
     rule: str | None = None
-    profile_gated: bool = False
-    false_positive_risk: str | None = None
-    related_locations: tuple[RelatedLocation, ...] = ()
     profile: str | None = None
     provenance_ids: tuple[str, ...] = ()
     properties: tuple[tuple[str, str], ...] = ()

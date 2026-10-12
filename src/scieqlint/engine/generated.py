@@ -14,9 +14,6 @@ class GeneratedOutputEngine:
     def __init__(self, *, profile: str | None = None) -> None:
         self.profile = profile
 
-    name = "generated-output"
-    rule_codes = frozenset({"GEN001", "GEN002", "GEN003", "GEN004", "GEN005"})
-
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
         for provenance, source_anchor in query.generated.dropped_targets():
@@ -33,7 +30,6 @@ class GeneratedOutputEngine:
                     ),
                     hint="Keep the MyST target anchor in the generated output before building.",
                     rule="generated.preserved_anchor",
-                    false_positive_risk="low",
                     profile=self.profile,
                     provenance_ids=(provenance.fact_id,),
                 )
@@ -74,8 +70,6 @@ class GeneratedOutputEngine:
             detail=f"{fact.kind} artifact: {fact.text!r}",
             hint="Restore the intended LaTeX formula before publishing or conversion.",
             rule="generated.suspicious_formula_text",
-            profile_gated=True,
-            false_positive_risk="low",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=properties,
@@ -118,8 +112,6 @@ class GeneratedOutputEngine:
             detail=detail,
             hint="Use a supported $$ block or a MyST math directive.",
             rule="generated.bracketed_latex_block",
-            profile_gated=True,
-            false_positive_risk="low",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=properties,
@@ -152,8 +144,6 @@ class GeneratedOutputEngine:
             detail=details[fact.placeholder_kind],
             hint="Restore source math before publishing; SciEqLint does not guess the formula.",
             rule="generated.formula_placeholder",
-            profile_gated=True,
-            false_positive_risk="low",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=properties,
@@ -177,8 +167,6 @@ class GeneratedOutputEngine:
             detail=f"equation-like text was emitted outside a math container: {fact.text!r}",
             hint="Emit the source expression as supported math; SciEqLint will not rewrite it.",
             rule="generated.equation_like_text",
-            profile_gated=True,
-            false_positive_risk="medium",
             profile=self.profile,
             provenance_ids=provenance_ids,
             properties=properties,
