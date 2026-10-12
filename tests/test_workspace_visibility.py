@@ -76,13 +76,12 @@ def test_workspace_visibility_uses_project_root_for_in_memory_documents() -> Non
     target = target_document()
     workspace = WorkspaceHost(project_root=PurePosixPath("book"))
 
-    members, hidden_excluded = workspace.project_facts(
+    members = workspace.project_facts(
         (target,),
         (("target.md", "hidden"),),
     )
 
     assert members[0].visibility == "hidden"
-    assert tuple(fact.path for fact in hidden_excluded) == (PurePosixPath("target.md"),)
 
 
 def test_workspace_visibility_uses_windows_case_insensitive_path_identity() -> None:
@@ -93,14 +92,13 @@ def test_workspace_visibility_uses_windows_case_insensitive_path_identity() -> N
     )
     workspace = WorkspaceHost(project_root=PureWindowsPath("c:/book"))
 
-    members, hidden_excluded = workspace.project_facts(
+    members = workspace.project_facts(
         (target,),
         ((r"c:\book\TARGET.md", "hidden"),),
     )
 
     assert members[0].normalized_path == PurePosixPath("target.md")
     assert members[0].visibility == "hidden"
-    assert tuple(fact.path for fact in hidden_excluded) == (target.path,)
 
 
 @pytest.mark.parametrize(
@@ -166,7 +164,7 @@ def test_workspace_visibility_keeps_distinct_identities_assignable() -> None:
         ),
     )
 
-    members, _hidden_excluded = WorkspaceHost(project_root=PurePosixPath("book")).project_facts(
+    members = WorkspaceHost(project_root=PurePosixPath("book")).project_facts(
         documents,
         (("target.md", "hidden"),),
     )
@@ -187,9 +185,7 @@ def test_workspace_visibility_aliases_preserve_general_path_identity_without_con
         ),
     )
 
-    members, _hidden_excluded = WorkspaceHost(project_root=PurePosixPath("book")).project_facts(
-        documents
-    )
+    members = WorkspaceHost(project_root=PurePosixPath("book")).project_facts(documents)
 
     assert tuple(member.normalized_path for member in members) == (
         PurePosixPath("../target.md"),

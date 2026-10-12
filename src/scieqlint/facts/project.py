@@ -14,9 +14,3 @@ class ProjectMemberFact(FactBase):
     path: PurePosixPath
     visibility: TargetVisibility = "visible"
     normalized_path: PurePosixPath | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class HiddenExcludedFact(FactBase):
-    path: PurePosixPath
-    reason: str

@@ -8,11 +8,8 @@ from dataclasses import dataclass
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import (
     CodeCellFact,
-    DirectiveFact,
     FenceFact,
     HeadingFact,
-    NotebookOutputFact,
-    SectionFact,
     StructureSyntaxIssueFact,
 )
 
@@ -24,23 +21,11 @@ class StructureQueryView:
     def headings(self) -> tuple[HeadingFact, ...]:
         return self.snapshot.headings
 
-    def sections(self) -> tuple[SectionFact, ...]:
-        return self.snapshot.sections
-
     def fences(self) -> tuple[FenceFact, ...]:
         return self.snapshot.fences
 
-    def directives(self) -> tuple[DirectiveFact, ...]:
-        return self.snapshot.directives
-
-    def code_cells(self) -> tuple[CodeCellFact, ...]:
-        return self.snapshot.code_cells
-
     def visible_code_cells(self) -> tuple[CodeCellFact, ...]:
         return tuple(cell for cell in self.snapshot.code_cells if cell.visibility == "visible")
-
-    def notebook_outputs(self) -> tuple[NotebookOutputFact, ...]:
-        return self.snapshot.notebook_outputs
 
     def syntax_issues(self) -> tuple[StructureSyntaxIssueFact, ...]:
         return self.snapshot.structure_syntax_issues

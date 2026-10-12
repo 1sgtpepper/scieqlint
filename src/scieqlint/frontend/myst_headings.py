@@ -1,4 +1,4 @@
-"""Heading, section, and target-anchor lowering for MyST/Markdown."""
+"""Heading and target-anchor fact production for MyST/Markdown."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from scieqlint.facts.reference import TargetAnchorFact
 from scieqlint.facts.structure import (
     FenceFact,
     HeadingFact,
-    SectionFact,
     StructureSyntaxIssueFact,
 )
 from scieqlint.io.source import SourceDocument
@@ -152,29 +151,6 @@ def _attached_target_kind(fact: HeadingFact | FenceFact) -> str:
     }.get(directive, "block")
 
 
-def sections_for_headings(headings: Sequence[HeadingFact]) -> Iterable[SectionFact]:
-    stack: list[tuple[int, str]] = []
-    counters = [0] * 7
-    for heading in headings:
-        level = heading.level
-        counters[level] += 1
-        for idx in range(level + 1, 7):
-            counters[idx] = 0
-        while stack and stack[-1][0] >= level:
-            stack.pop()
-        parent = stack[-1][1] if stack else None
-        fact_id = f"{heading.fact_id}::section"
-        stack.append((level, fact_id))
-        yield SectionFact(
-            fact_id=fact_id,
-            document_id=heading.document_id,
-            span=heading.span,
-            heading_fact_id=heading.fact_id,
-            parent_section_id=parent,
-            depth=level,
-            ordinal_path=tuple(counters[1 : level + 1]),
-            starts_at=heading.span,
-        )
 
 
 def _heading_text(body: str) -> str:

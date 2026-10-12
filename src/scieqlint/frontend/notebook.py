@@ -81,7 +81,7 @@ class NotebookFrontend:
         all_equation_refs = tuple(fact for part in parts for fact in part.equation_refs)
         return FactSnapshot(
             documents=tuple(document for part in parts for document in part.documents),
-            project_members=self.workspace.project_facts(documents)[0],
+            project_members=self.workspace.project_facts(documents),
             inline_math=all_inline_math,
             display_math=all_display_math,
             generated_formulas=all_generated_formulas,

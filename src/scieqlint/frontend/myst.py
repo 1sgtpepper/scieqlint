@@ -29,7 +29,7 @@ from .generated import (
     scan_formula_placeholders,
 )
 from .myst_blocks import (
-    directive_and_code_cell_facts,
+    code_cell_facts,
     directive_option_prefix_lines,
     myst_options,
     quarto_options,
@@ -43,7 +43,6 @@ from .myst_headings import (
     scan_anchors,
     scan_heading_syntax_issues,
     scan_headings,
-    sections_for_headings,
 )
 from .myst_inline_math import scan_inline_math
 from .myst_refs import scan_refs
@@ -76,11 +75,9 @@ class MySTFrontend:
         code_cells = _flatten(parts, "code_cells")
         return FactSnapshot(
             documents=tuple(documents),
-            project_members=self.workspace.project_facts(documents)[0],
+            project_members=self.workspace.project_facts(documents),
             headings=_flatten(parts, "headings"),
-            sections=_flatten(parts, "sections"),
             fences=_flatten(parts, "fences"),
-            directives=_flatten(parts, "directives"),
             code_cells=code_cells,
             structure_syntax_issues=_flatten(parts, "structure_syntax_issues"),
             target_anchors=target_anchors,
@@ -198,7 +195,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
         )
     fences = scan_fences(document, smap, lines, live_fence_ranges)
     occupied_structure_ranges = reference_snapshot.opaque_ranges
-    directives, code_cells = directive_and_code_cell_facts(document, fences)
+    code_cells = code_cell_facts(document, fences)
     structure_syntax_issues = (
         *scan_structure_syntax_issues(document, smap, occupied_structure_ranges, fences),
         *scan_heading_syntax_issues(document, smap, lines, occupied_structure_ranges),
@@ -206,7 +203,6 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     headings = tuple(scan_headings(document, smap, lines, occupied_structure_ranges))
     anchors = tuple(scan_anchors(document, smap, lines, occupied_structure_ranges))
     target_anchors = tuple(attach_anchors(document, anchors, headings, fences))
-    sections = tuple(sections_for_headings(headings))
     display_math, equation_labels, display_equation_refs = scan_display_math(
         document,
         smap,
@@ -311,9 +307,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     return FactSnapshot(
         documents=(document,),
         headings=headings,
-        sections=sections,
         fences=fences,
-        directives=directives,
         code_cells=code_cells,
         structure_syntax_issues=structure_syntax_issues,
         target_anchors=target_anchors,

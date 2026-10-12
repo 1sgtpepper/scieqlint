@@ -90,9 +90,6 @@ def test_malformed_atx_candidates_do_not_affect_heading_semantics() -> None:
     snapshot = MySTFrontend().lower((doc("#Bad\n### Child\n\n(bad)=\n#AlsoBad\n"),))
 
     assert [heading.raw for heading in snapshot.headings] == ["### Child"]
-    assert [section.heading_fact_id for section in snapshot.sections] == [
-        snapshot.headings[0].fact_id
-    ]
     assert [(anchor.label, anchor.placement) for anchor in snapshot.target_anchors] == [
         ("bad", "orphaned")
     ]
@@ -365,14 +362,6 @@ def test_frontend_lowers_myst_cell_reference_and_math_facts():
         ("python", "fig-demo"),
     ]
     assert [
-        (directive.name, directive.argument, directive.option_dict())
-        for directive in snapshot.directives
-    ] == [
-        ("code-cell", "python", {"label": "cell-demo", "tags": "hide-input, remove-output"}),
-        ("note", None, {"class": "tip"}),
-        ("math", None, {"name": "eq-directive-name", "label": "eq-directive"}),
-    ]
-    assert [
         (anchor.label, anchor.placement, anchor.target_kind) for anchor in snapshot.target_anchors
     ] == [("intro", "before_heading", "heading")]
     assert [(ref.role_kind, ref.target, ref.title) for ref in snapshot.generic_refs] == [
@@ -483,19 +472,9 @@ def test_frontend_distinguishes_occupied_markup_and_sparse_cells():
         (2, "Child"),
         (1, "Part Two"),
     ]
-    assert [(section.depth, section.parent_section_id) for section in snapshot.sections] == [
-        (3, None),
-        (1, None),
-        (2, snapshot.sections[1].fact_id),
-        (1, None),
-    ]
     assert [(cell.language, cell.label) for cell in snapshot.code_cells] == [
         ("python", None),
         (None, None),
-    ]
-    assert [(directive.name, directive.options) for directive in snapshot.directives] == [
-        ("note", ()),
-        ("code-cell", ()),
     ]
     assert [(ref.target, ref.normalized_target) for ref in snapshot.generic_refs] == [
         ("#part-one", "part-one")

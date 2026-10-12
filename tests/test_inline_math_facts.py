@@ -13,7 +13,6 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
-from scieqlint.schema.result import AnalysisResult
 
 
 def doc(text: str) -> SourceDocument:
@@ -89,24 +88,21 @@ def test_plain_text_math_in_setext_heading_keeps_heading_role() -> None:
 
 
 def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
-    snapshot = _classify(
-        MySTFrontend().lower(
-            (
-                doc(
-                    r"Bad $\frac{1}{$ and trailing $x +$ and unsupported "
-                    r"$\begin{aligned}x&=1\end{aligned}$.",
-                ),
-            )
-        )
+    source = (
+        r"Bad $\frac{1}{$ and trailing $x +$ and unsupported "
+        r"$\begin{aligned}x&=1\end{aligned}$."
     )
+    snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
     assert [fact.parse_status for fact in snapshot.inline_math] == [
         "unsupported",
         "unsupported",
         "unsupported",
     ]
-    result = AnalysisResult(snapshot=snapshot, diagnostics=(), profiles=())
-    assert result.summary()["facts"] == 3
+    assert all(fact.span is not None for fact in snapshot.inline_math)
+    assert [
+        source[fact.span.start : fact.span.end] for fact in snapshot.inline_math if fact.span
+    ] == [fact.body for fact in snapshot.inline_math]
 
 
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:

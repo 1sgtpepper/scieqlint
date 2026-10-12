@@ -29,16 +29,6 @@ class HeadingFact(FactBase):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionFact(FactBase):
-    heading_fact_id: str
-    parent_section_id: str | None
-    depth: int
-    ordinal_path: tuple[int, ...]
-    starts_at: SourceSpan | None = None
-    ends_before: SourceSpan | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class FenceFact(FactBase):
     opener: str
     info_string: str
@@ -49,15 +39,6 @@ class FenceFact(FactBase):
     body_span: SourceSpan | None
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class DirectiveFact(FactBase):
-    name: str
-    argument: str | None
-    options: tuple[tuple[str, str], ...]
-    fence_fact_id: str
-
-    def option_dict(self) -> dict[str, str]:
-        return dict(self.options)
 
 
 def _canonical_code_cell_label(value: str) -> str:

@@ -134,8 +134,9 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
         "tags": '["hide-input"]',
     }
     assert [output.output_index for output in snapshot.notebook_outputs] == [0, 1]
-    assert snapshot.notebook_outputs[0] in snapshot.all_facts()
-    assert QueryHost(snapshot).structure.notebook_outputs() == snapshot.notebook_outputs
+
+    assert snapshot.notebook_outputs[0].mime_types == ("image/png", "text/plain")
+
     assert snapshot.notebook_outputs[0].metadata == (("needs_background", "light"),)
     assert all(output.span is not None for output in snapshot.notebook_outputs)
     assert [output.span.cell for output in snapshot.notebook_outputs if output.span] == [0, 0]

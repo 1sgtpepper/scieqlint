@@ -1,4 +1,4 @@
-"""Fence, directive, code-cell, and structure-syntax lowering."""
+"""Fence, code-cell, and structure-syntax lowering."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from collections.abc import Iterable, Sequence
 from scieqlint.diag.model import SourceSpan
 from scieqlint.facts.structure import (
     CodeCellFact,
-    DirectiveFact,
     FenceFact,
     StructureSyntaxIssueFact,
 )
@@ -76,11 +75,10 @@ def scan_fences(
     return tuple(facts)
 
 
-def directive_and_code_cell_facts(
+def code_cell_facts(
     document: SourceDocument,
     fences: Sequence[FenceFact],
-) -> tuple[tuple[DirectiveFact, ...], tuple[CodeCellFact, ...]]:
-    directives: list[DirectiveFact] = []
+) -> tuple[CodeCellFact, ...]:
     code_cells: list[CodeCellFact] = []
     for fence in fences:
         directive_match = DIRECTIVE_INFO_RE.match(fence.info_string)
@@ -90,12 +88,10 @@ def directive_and_code_cell_facts(
                 code_cells.append(code_cell)
             continue
 
-        directive = _directive_fact(fence, directive_match, myst_options(document, fence))
-        directives.append(directive)
-        code_cell = _directive_code_cell_fact(document, fence, directive, directive_match)
+        code_cell = _directive_code_cell_fact(document, fence, directive_match)
         if code_cell is not None:
             code_cells.append(code_cell)
-    return tuple(directives), tuple(code_cells)
+    return tuple(code_cells)
 
 
 def scan_structure_syntax_issues(
@@ -190,26 +186,9 @@ def _plain_code_cell_fact(document: SourceDocument, fence: FenceFact) -> CodeCel
     )
 
 
-def _directive_fact(
-    fence: FenceFact,
-    directive_match: re.Match[str],
-    options: tuple[tuple[str, str], ...],
-) -> DirectiveFact:
-    return DirectiveFact(
-        fact_id=f"{fence.fact_id}::directive",
-        document_id=fence.document_id,
-        span=fence.opener_span,
-        name=directive_match.group("name"),
-        argument=directive_match.group("arg").strip() or None,
-        options=options,
-        fence_fact_id=fence.fact_id,
-    )
-
-
 def _directive_code_cell_fact(
     document: SourceDocument,
     fence: FenceFact,
-    directive: DirectiveFact,
     directive_match: re.Match[str],
 ) -> CodeCellFact | None:
     name = directive_match.group("name")
@@ -218,9 +197,13 @@ def _directive_code_cell_fact(
     if not (is_myst_code_cell or is_quarto_code_cell):
         return None
 
-    options = directive.options if is_myst_code_cell else quarto_options(document, fence)
+    options = (
+        myst_options(document, fence) if is_myst_code_cell else quarto_options(document, fence)
+    )
     option_map = dict(options)
-    language = directive.argument if is_myst_code_cell else name
+
+    language = (directive_match.group("arg").strip() or None) if is_myst_code_cell else name
+
     label_key = "label" if option_map.get("label") else "name"
     label = option_map.get(label_key) or None
     normalized_label = normalize_label(label) if label is not None else None
@@ -236,6 +219,8 @@ def _directive_code_cell_fact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
         span=fence.span,
+
+
         language=language,
         options=options,
         label=label,

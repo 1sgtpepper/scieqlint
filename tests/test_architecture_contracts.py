@@ -19,7 +19,7 @@ from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
 from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
-from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
+from scieqlint.facts.project import ProjectMemberFact
 from scieqlint.facts.reference import (
     EquationLabelFact,
     EquationRefFact,
@@ -29,17 +29,14 @@ from scieqlint.facts.reference import (
 from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.facts.structure import (
     CodeCellFact,
-    DirectiveFact,
     FenceFact,
     HeadingFact,
-    SectionFact,
     StructureSyntaxIssueFact,
 )
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
-from scieqlint.schema.result import AnalysisResult
 from scieqlint.source.maps import SourceMap
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -110,25 +107,12 @@ def test_pure_core_layers_execute_through_compatibility_shell_and_kernel():
         diagnostic.to_diagnostic()
         for diagnostic in (*reference_diagnostics, *structure_diagnostics)
     )
-    analysis_result = AnalysisResult(
-        snapshot=snapshot,
-        diagnostics=kernel_diagnostics,
-        profiles=("scientific-myst",),
-    )
     compatibility_result = compatibility_check_documents(documents, config=Config())
 
     assert compatibility_result.files_checked == 3
     assert reference_diagnostics
     assert structure_diagnostics
-    assert "STR005" in StructureEngine.rule_codes
-    assert analysis_result.summary() == {
-        "files_checked": 3,
-        "facts": len(snapshot.all_facts()),
-        "diagnostics": 3,
-        "errors": 0,
-        "warnings": 2,
-        "info": 1,
-    }
+
     assert any(diagnostic.code == "STR003" for diagnostic in kernel_diagnostics)
     engine_codes = {diagnostic.code for diagnostic in kernel_diagnostics}
     kernel_output = tuple(map(diagnostic_contract, kernel_diagnostics))
@@ -365,7 +349,6 @@ def test_architecture_terminology_scanner_emits_stable_machine_report():
         "QueryHost",
         "EngineHost",
         "PolicyHost",
-        "AnalysisResult",
         "SchemaHost",
         "PackHost",
         "CompatibilityShell",
@@ -1362,7 +1345,7 @@ def write_architecture_term_fixture(root: Path, *, ci_gate: bool) -> Path:
         encoding="utf-8",
     )
     (docs / "deterministic-snapshot-kernel-adr.md").write_text(
-        "# ADR\n\nFrontendHost MathHost FactHost QueryHost EngineHost PolicyHost AnalysisResult\n",
+        "# ADR\n\nFrontendHost MathHost FactHost QueryHost EngineHost PolicyHost\n",
         encoding="utf-8",
     )
     (docs / "module-ownership.md").write_text(
@@ -1425,7 +1408,7 @@ def test_fact_snapshot_is_deterministic_and_immutable():
 
     assert snapshot == FactSnapshot(documents=(document,), inline_math=(inline,))
     assert snapshot.documents[0].path.as_posix() == "a.md"
-    assert snapshot.all_facts() == (inline,)
+    assert snapshot.inline_math == (inline,)
     with pytest.raises(FrozenInstanceError):
         mutate_inline_body(inline)
 
@@ -1455,15 +1438,6 @@ def test_query_host_views_expose_snapshot_contracts():
         level=1,
         text="Title",
     )
-    section = SectionFact(
-        fact_id="section-1",
-        document_id="a.md",
-        span=span(),
-        heading_fact_id=heading.fact_id,
-        parent_section_id=None,
-        depth=1,
-        ordinal_path=(1,),
-    )
     fence = FenceFact(
         fact_id="fence-1",
         document_id="a.md",
@@ -1476,21 +1450,14 @@ def test_query_host_views_expose_snapshot_contracts():
         opener_span=span(start=0, end=3),
         body_span=span(start=4, end=8),
     )
-    directive = DirectiveFact(
-        fact_id="directive-1",
-        document_id="a.md",
-        span=span(),
-        name="code-cell",
-        argument="python",
-        options=(("renderings", "html"), ("fig-cap", "Plot")),
-        fence_fact_id=fence.fact_id,
-    )
     cell = CodeCellFact(
         fact_id="cell-1",
         document_id="a.md",
         span=span(),
+
         language="python",
         options=directive.options,
+
         label="plot",
         normalized_label="plot",
     )
@@ -1612,20 +1579,6 @@ def test_query_host_views_expose_snapshot_contracts():
         path=PurePosixPath("./a.md"),
         normalized_path=PurePosixPath("chapter.md"),
     )
-    hidden = HiddenExcludedFact(
-        fact_id="hidden-1",
-        document_id=".secret.md",
-        span=None,
-        path=PurePosixPath(".secret.md"),
-        reason="hidden",
-    )
-    excluded = HiddenExcludedFact(
-        fact_id="excluded-1",
-        document_id="build/out.md",
-        span=None,
-        path=PurePosixPath("build/out.md"),
-        reason="excluded",
-    )
     provenance = GeneratedProvenanceFact(
         fact_id="generated-1",
         document_id="a.html",
@@ -1652,9 +1605,7 @@ def test_query_host_views_expose_snapshot_contracts():
     snapshot = FactSnapshot(
         documents=(document, generated_document),
         headings=(heading,),
-        sections=(section,),
         fences=(fence,),
-        directives=(directive,),
         code_cells=(cell, unlabeled_cell, non_crossref_cell, prefixed_cell),
         structure_syntax_issues=(syntax_issue,),
         target_anchors=(source_anchor, duplicate_anchor, orphaned_anchor),
@@ -1664,21 +1615,17 @@ def test_query_host_views_expose_snapshot_contracts():
         inline_math=(inline,),
         display_math=(display,),
         project_members=(member, duplicate_member),
-        hidden_excluded=(hidden, excluded),
         generated_provenance=(provenance,),
         portability=(portability,),
     )
     query = QueryHost(snapshot)
 
     assert query.structure.headings() == (heading,)
-    assert query.structure.sections() == (section,)
     assert query.structure.fences() == (fence,)
-    assert query.structure.directives() == (directive,)
-    assert query.structure.code_cells() == (cell, unlabeled_cell, non_crossref_cell, prefixed_cell)
     assert query.structure.syntax_issues() == (syntax_issue,)
     assert query.structure.unclosed_fences() == (fence,)
-    assert directive.option_dict() == {"renderings": "html", "fig-cap": "Plot"}
-    assert cell.option_dict() == directive.option_dict()
+    assert snapshot.code_cells == (cell, unlabeled_cell, non_crossref_cell, prefixed_cell)
+    assert cell.option_dict() == {"renderings": "html", "fig-cap": "Plot"}
 
     reference_results = query.references.results()
     assert reference_results.target_identity_index[(PurePosixPath("chapter.md"), "intro")] == (
@@ -1704,21 +1651,14 @@ def test_query_host_views_expose_snapshot_contracts():
         (provenance, orphaned_anchor),
     )
 
-    assert query.project.members() == (member, duplicate_member)
-    assert query.project.hidden_files() == (hidden,)
-    assert query.project.excluded_files() == (excluded,)
-    assert query.project.duplicate_normalized_paths() == {
-        PurePosixPath("chapter.md"): (member, duplicate_member)
-    }
-
     assert query.portability.inline_math_missing_alt() == (inline,)
     assert query.portability.display_math_missing_alt() == (display,)
     assert query.portability.quarto_crossref_label_issues() == (cell,)
     assert query.portability.renderings_with_crossref_options() == (cell,)
-    assert snapshot.all_facts()[-1] == portability
+    assert snapshot.portability == (portability,)
 
 
-def test_diagnostic_ir_and_result_contracts_are_projected():
+def test_diagnostic_ir_contracts_are_projected():
     class NoopEngine:
         name = "noop"
         rule_codes = frozenset({"STR001"})
@@ -1738,28 +1678,9 @@ def test_diagnostic_ir_and_result_contracts_are_projected():
     )
 
     diagnostic = diagnostic_ir.to_diagnostic(Severity.ERROR)
-    snapshot = FactSnapshot(documents=(document,))
-    result = AnalysisResult(
-        snapshot=snapshot,
-        diagnostics=(
-            diagnostic,
-            Diagnostic("REF001", Severity.WARNING, "missing target", None),
-            Diagnostic("INF001", Severity.INFO, "note", None),
-        ),
-        profiles=("scientific-myst",),
-    )
+
 
     assert diagnostic.severity is Severity.ERROR
     assert diagnostic.detail == diagnostic_ir.detail
     assert diagnostic.hint == diagnostic_ir.hint
     assert diagnostic.rule == diagnostic_ir.rule
-    assert result.schema_version == "0.2-architecture-preview"
-    assert result.summary() == {
-        "files_checked": 1,
-        "facts": 0,
-        "diagnostics": 3,
-        "errors": 1,
-        "warnings": 1,
-        "info": 1,
-    }
-    assert engine_rule_codes(NoopEngine()) == frozenset({"STR001"})

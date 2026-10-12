@@ -191,7 +191,7 @@ def check_documents(
             raise ValueError(f"duplicate document path(s): {paths}")
 
     workspace = WorkspaceHost(project_root=_workspace_root(config, documents))
-    members, _hidden_excluded = workspace.project_facts(
+    members = workspace.project_facts(
         documents,
         config.project.visibility,
     )
