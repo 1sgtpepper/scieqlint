@@ -28,7 +28,7 @@ from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
 
-FIXTURE = Path("tests/fixtures/bad/famous_bad.md")
+FAMOUS_BAD_EXAMPLE = Path("examples/bad/famous_bad.md")
 AMBIGUOUS_REFERENCE_FIXTURE = Path("tests/fixtures/bad/ambiguous_equation_reference.md")
 REFERENCE_DISPLAY_FIXTURE = Path("tests/fixtures/bad/reference_display_bad.md")
 CODE_CELL_FIXTURE = Path("tests/fixtures/bad/duplicate_code_cell_label.md")
@@ -40,7 +40,7 @@ NOTEBOOK_CROSSREF_GOOD_FIXTURE = Path("tests/fixtures/good/notebook_crossrefs_go
 
 
 def test_text_golden_output_matches_famous_bad_fixture() -> None:
-    result = check_paths([FIXTURE])
+    result = check_paths([FAMOUS_BAD_EXAMPLE])
 
     assert TextReporter().render(result) == Path("tests/golden/text/famous_bad.txt").read_text(
         encoding="utf-8"
@@ -91,7 +91,7 @@ def test_text_golden_output_matches_duplicate_code_cell_label_fixture() -> None:
 
 
 def test_json_golden_output_matches_schema_and_famous_bad_fixture() -> None:
-    rendered = JsonReporter().render(check_paths([FIXTURE]))
+    rendered = JsonReporter().render(check_paths([FAMOUS_BAD_EXAMPLE]))
     schema = _schema("scieqlint-result-0.1.schema.json")
     diagnostic_schema = _schema("scieqlint-diagnostic-0.1.schema.json")
     registry = Registry().with_resources(
@@ -135,7 +135,7 @@ def test_json_golden_output_includes_suppressed_diagnostics_when_enabled() -> No
 
 
 def test_github_golden_output_matches_famous_bad_fixture() -> None:
-    result = check_paths([FIXTURE])
+    result = check_paths([FAMOUS_BAD_EXAMPLE])
 
     assert GitHubReporter().render(result) == Path("tests/golden/github/famous_bad.txt").read_text(
         encoding="utf-8"
@@ -151,7 +151,7 @@ def test_github_golden_output_matches_duplicate_code_cell_label_fixture() -> Non
 
 
 def test_sarif_golden_output_matches_famous_bad_fixture() -> None:
-    result = check_paths([FIXTURE])
+    result = check_paths([FAMOUS_BAD_EXAMPLE])
 
     assert SarifReporter().render(result) == Path("tests/golden/sarif/famous_bad.sarif").read_text(
         encoding="utf-8"
