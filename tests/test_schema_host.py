@@ -108,6 +108,35 @@ def test_schema_host_appends_origin_properties_without_dropping_rule_metadata() 
     )
 
 
+def test_schema_host_preserves_order_when_generated_origin_overlaps_input_id() -> None:
+    provenance = GeneratedProvenanceFact(
+        fact_id="shared",
+        document_id="out/generated.md",
+        span=None,
+        generated_document_id="out/generated.md",
+    )
+    generated = GeneratedProvenanceFact(
+        fact_id="origin",
+        document_id="out/other.md",
+        span=None,
+        generated_document_id="out/other.md",
+    )
+    diagnostic = Diagnostic(
+        "GEN001",
+        Severity.WARNING,
+        "missing anchor",
+        None,
+        provenance_ids=("shared", "ordinary", "shared"),
+    )
+
+    projection = SchemaHost.project_diagnostic(
+        diagnostic,
+        provenances=(provenance, generated),
+    )
+
+    assert projection.provenance_ids == ("shared", "ordinary", "origin")
+
+
 def test_schema_host_normalizes_rule_properties_before_schema_precedence() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="origin-a",
