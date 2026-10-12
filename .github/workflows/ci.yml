@@ -138,7 +138,10 @@ jobs:
                   raise RuntimeError(f"{label} should fail by assertion (exit 1):\n{output}")
               if f"FAILED {node}[" not in output:
                   raise RuntimeError(f"{label} did not report the targeted parameter node:\n{output}")
-              if "DID NOT RAISE <class 'TypeError'>" not in output:
+              if not any(
+                  message in output
+                  for message in ("DID NOT RAISE TypeError", "DID NOT RAISE <class 'TypeError'>")
+              ):
                   raise RuntimeError(f"{label} did not fail because the mutant was accepted:\n{output}")
               if "ERROR" in output:
                   raise RuntimeError(f"{label} produced a pytest error instead of a test failure:\n{output}")
