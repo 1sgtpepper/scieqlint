@@ -38,7 +38,6 @@ from scieqlint.facts.structure import (
 )
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
-from scieqlint.ir.model import DocumentIR, FrontendResult
 from scieqlint.query.host import QueryHost
 from scieqlint.report.json import JsonReporter
 from scieqlint.schema.result import AnalysisResult
@@ -1815,7 +1814,7 @@ def test_query_host_views_expose_snapshot_contracts():
     assert snapshot.all_facts()[-1] == portability
 
 
-def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
+def test_diagnostic_ir_and_result_contracts_are_projected():
     class NoopEngine:
         name = "noop"
         rule_codes = frozenset({"STR001"})
@@ -1847,8 +1846,6 @@ def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
         ),
         profiles=("scientific-myst",),
     )
-    document_ir = DocumentIR(document_id="a.md", document=document, facts=())
-    frontend_result = FrontendResult(documents=(document_ir,))
 
     assert diagnostic.severity is Severity.ERROR
     assert diagnostic.detail == diagnostic_ir.detail
@@ -1864,5 +1861,4 @@ def test_diagnostic_ir_result_and_frontend_contracts_are_projected():
         "warnings": 1,
         "info": 1,
     }
-    assert frontend_result.documents == (document_ir,)
     assert engine_rule_codes(NoopEngine()) == frozenset({"STR001"})
