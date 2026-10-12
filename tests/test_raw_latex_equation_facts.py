@@ -20,6 +20,7 @@ from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str) -> SourceDocument:
@@ -32,6 +33,44 @@ def doc(text: str) -> SourceDocument:
 
 def lower(document: SourceDocument):
     return MathHost().classify(MySTFrontend().lower((document,)))
+
+
+def test_math_host_builds_source_maps_only_for_complete_raw_display_documents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plain = SourceDocument.from_text(
+        PurePosixPath("plain.md"), "A document without math.\n", DocumentKind.MARKDOWN
+    )
+    equation = SourceDocument.from_text(
+        PurePosixPath("equation.md"),
+        "\\begin{equation}x=1\\label{eq}\n\\end{equation}\n",
+        DocumentKind.MARKDOWN,
+    )
+    partial = SourceDocument.from_text(
+        PurePosixPath("partial.md"),
+        "\\begin{mystery}x=1\n",
+        DocumentKind.MARKDOWN,
+    )
+    snapshot = replace(
+        MySTFrontend().lower((plain, equation, partial)),
+        generated_formulas=(),
+    )
+    calls: list[str] = []
+    make_source_map = SourceMap.for_document
+
+    def record_source_map(cls, document: SourceDocument) -> SourceMap:
+        calls.append(document.path.as_posix())
+        return make_source_map(document)
+
+    monkeypatch.setattr(SourceMap, "for_document", classmethod(record_source_map))
+
+    classified = MathHost().classify(snapshot)
+
+    assert calls == ["equation.md"]
+    assert [(fact.document_id, fact.complete) for fact in classified.display_math] == [
+        ("equation.md", True),
+        ("partial.md", False),
+    ]
 
 
 @pytest.mark.parametrize("newline", ["\n", "\r\n"])

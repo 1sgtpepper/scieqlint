@@ -14,9 +14,11 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.frontend.notebook import NotebookFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument, SourceOrigin
+from scieqlint.parse.generated_formulas import classify_generated_formulas
 from scieqlint.parse.math import MathHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.text import TextReporter
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
@@ -26,6 +28,19 @@ def doc(text: str, *, origin: SourceOrigin | None = None) -> SourceDocument:
         DocumentKind.MARKDOWN,
         origin=origin,
     )
+
+
+def test_generated_formula_classifier_skips_source_maps_without_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = MySTFrontend().lower((doc("ordinary source text"),))
+
+    def unexpected_source_map(cls, document: SourceDocument) -> SourceMap:
+        raise AssertionError(f"unexpected SourceMap for {document.path}")
+
+    monkeypatch.setattr(SourceMap, "for_document", classmethod(unexpected_source_map))
+
+    assert classify_generated_formulas(snapshot) == ()
 
 
 def test_directive_options_are_not_generated_formula_content() -> None:

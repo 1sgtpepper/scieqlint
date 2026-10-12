@@ -64,7 +64,6 @@ def classify_display(
 def _complete_ams_environment(body: str) -> str | None:
     stack: list[str] = []
     selected: str | None = None
-    selected_closed = False
     for kind, environment, _start, _end in scan_tex_lexically(body).environment_tokens:
         if kind == "begin":
             stack.append(environment)
@@ -74,9 +73,7 @@ def _complete_ams_environment(body: str) -> str | None:
         if not stack or stack[-1] != environment:
             return None
         stack.pop()
-        if selected == environment:
-            selected_closed = True
-    if selected is None or not selected_closed or stack:
+    if selected is None or stack:
         return None
     return selected
 
