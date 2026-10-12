@@ -1353,8 +1353,17 @@ def markdown_reference_snapshot(
     # Metadata that starts before a lexical opener owns that opener. Conversely,
     # a link-like candidate cannot escape an owner that started before the link
     # or its metadata.
-    candidate_metadata = _merge_ranges((*occupied, *candidate_metadata_ranges))
-    lexical = _ordered_lexical_ranges(text, candidate_metadata)
+    reusable_occupied = type(occupied) is tuple
+    if reusable_occupied:
+        for item in occupied:
+            if type(item) is not tuple or type(item[0]) is not int or type(item[1]) is not int:
+                reusable_occupied = False
+                break
+    if not candidate_metadata_ranges and type(text) is str and reusable_occupied:
+        lexical = baseline_lexical
+    else:
+        candidate_metadata = _merge_ranges((*occupied, *candidate_metadata_ranges))
+        lexical = _ordered_lexical_ranges(text, candidate_metadata)
     lexical_opaque = _merge_ranges((*occupied, *_opaque_ranges_from_lexical(lexical, len(text))))
     protected = (*lexical_opaque, *lexical.roles)
     links = _markdown_link_tokens_from_lexical(text, protected)
