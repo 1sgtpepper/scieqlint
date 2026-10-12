@@ -68,11 +68,12 @@ def _mask_non_math_tex_ranges(
 ) -> str:
     """Mask opaque TeX environments without changing source offsets."""
 
+    ranges_to_mask = ranges
     if type(text) is str and type(ranges) is tuple and not ranges:
         return text
 
     masked = list(text)
-    for start, end in ranges:
+    for start, end in ranges_to_mask:
         masked[start:end] = [" "] * (end - start)
     return "".join(masked)
 
