@@ -1,0 +1,232 @@
+name: MyST custom-text compatibility control
+
+on:
+  push:
+    branches: [cleanup-myst-hook-validation]
+
+permissions:
+  contents: read
+
+jobs:
+  custom-text-counterfactual:
+    name: MyST custom-text counterfactual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.11"
+      - name: Install test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Verify corrected #397 prefix
+        env:
+          EXPECTED_PREFIX: 0cfd05037c1180366e0e3542dd7aab7d649b3613
+        run: |
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PREFIX"
+          test "$(git diff --name-only "$EXPECTED_PREFIX" HEAD)" = ".github/workflows/myst-hook-validation.yml"
+      - name: Fetch exact counterfactual source revisions
+        env:
+          ORIGINAL_397: 61360997074e372c08195b6d8931dc0fe036e559
+          BASELINE: 1e1267da22ffebd5348b2bcfdb32703a7c6ea193
+        run: |
+          git fetch --no-tags origin "$ORIGINAL_397" "$BASELINE"
+          git cat-file -e "${ORIGINAL_397}^{commit}"
+          git cat-file -e "${BASELINE}^{commit}"
+      - name: Compare regression witnesses and normative control across package trees
+        env:
+          ORIGINAL_397: 61360997074e372c08195b6d8931dc0fe036e559
+          BASELINE: 1e1267da22ffebd5348b2bcfdb32703a7c6ea193
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import os
+          import shutil
+          import subprocess
+          import sys
+          import tarfile
+          import tempfile
+          from pathlib import Path
+
+          package_root = Path("src/scieqlint")
+          test_paths = (
+              Path("tests/test_myst_structure_facts.py"),
+              Path("tests/test_markdown_scan.py"),
+          )
+          regression_witnesses = (
+              (
+                  "tests/test_myst_structure_facts.py::test_frontend_preserves_custom_splitlines_results_between_display_scans",
+                  "assert opener_results == [(0,)]",
+              ),
+              (
+                  "tests/test_myst_structure_facts.py::test_display_facts_preserve_custom_tex_body_iteration_between_scans",
+                  "assert custom_snapshot.equation_refs == ()",
+              ),
+              (
+                  "tests/test_markdown_scan.py::test_opener_lines_query_custom_fences_after_display_body_trimming",
+                  "assert opener_lines == {display_block_id: 1}",
+              ),
+          )
+          normative_controls = (
+              "tests/test_markdown_scan.py::test_scanner_preserves_custom_splitlines_results_between_display_scans",
+              "tests/test_markdown_scan.py::test_scanner_masks_custom_text_before_scanning_display_math",
+          )
+          behavior_nodes = tuple(node for node, _ in regression_witnesses) + normative_controls
+
+          def clear_package_bytecode() -> None:
+              for cache in package_root.rglob("__pycache__"):
+                  shutil.rmtree(cache)
+
+          def tree_manifest(root: Path) -> dict[str, str]:
+              manifest: dict[str, str] = {}
+              for path in sorted(root.rglob("*")):
+                  relative = path.relative_to(root).as_posix()
+                  if path.is_symlink():
+                      manifest[relative] = f"symlink:{os.readlink(path)}"
+                  elif path.is_file():
+                      manifest[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+              return manifest
+
+          def package_from_revision(revision: str, destination: Path) -> Path:
+              archive = subprocess.check_output(
+                  ["git", "archive", "--format=tar", revision, "src/scieqlint"]
+              )
+              destination.mkdir()
+              with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as tar:
+                  members = tar.getmembers()
+                  for member in members:
+                      member_path = Path(member.name)
+                      assert not member_path.is_absolute() and ".." not in member_path.parts
+                      if member_path.parts == ("src",):
+                          assert member.isdir()
+                          continue
+                      assert member_path.parts[:2] == ("src", "scieqlint")
+                      assert member.isdir() or member.isfile()
+                  tar.extractall(destination)
+              package = destination / "src/scieqlint"
+              assert package.is_dir()
+              return package
+
+          def install_package(source: Path) -> None:
+              clear_package_bytecode()
+              shutil.rmtree(package_root)
+              shutil.copytree(source, package_root, symlinks=True)
+              clear_package_bytecode()
+
+          def run_pytest(nodes_to_run: tuple[str, ...], *, long_traceback: bool) -> subprocess.CompletedProcess[str]:
+              environment = os.environ.copy()
+              environment["PYTHONDONTWRITEBYTECODE"] = "1"
+              command = [sys.executable, "-m", "pytest", "-q"]
+              command.append("--tb=long" if long_traceback else "--tb=short")
+              command.extend(nodes_to_run)
+              return subprocess.run(
+                  command,
+                  check=False,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT,
+                  env=environment,
+              )
+
+          def assert_passed(nodes_to_run: tuple[str, ...], label: str) -> None:
+              result = run_pytest(nodes_to_run, long_traceback=False)
+              print(result.stdout)
+              assert result.returncode == 0, f"{label} source must pass all five behavior tests"
+              assert "5 passed" in result.stdout
+
+          def assert_failed_at(node: str, expected_assertion: str) -> None:
+              result = run_pytest((node,), long_traceback=True)
+              print(result.stdout)
+              assert result.returncode != 0, f"old #397 source unexpectedly passed {node}"
+              assert f"FAILED {node}" in result.stdout, f"{node} failed outside its test body"
+              assert "AssertionError" in result.stdout, f"{node} did not fail an assertion"
+              failed_assertions = [
+                  line[1:].lstrip()
+                  for line in result.stdout.splitlines()
+                  if line.startswith(">") and line[1:].lstrip().startswith("assert ")
+              ]
+              assert failed_assertions == [expected_assertion], (
+                  f"{node} failed at {failed_assertions!r}, not its semantic assertion"
+              )
+              assert "ERROR collecting" not in result.stdout
+              assert f"ERROR {node}" not in result.stdout
+
+          clear_package_bytecode()
+          test_hashes = {
+              path.as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+              for path in test_paths
+          }
+
+          with tempfile.TemporaryDirectory(prefix="myst-counterfactual-") as temporary:
+              temporary_root = Path(temporary)
+              head_snapshot = temporary_root / "head"
+              shutil.copytree(package_root, head_snapshot, symlinks=True)
+              head_manifest = tree_manifest(head_snapshot)
+              assert head_manifest, "head package snapshot must contain files"
+
+              try:
+                  assert_passed(
+                      behavior_nodes,
+                      "corrected #397",
+                  )
+
+                  wrong_source = package_from_revision(
+                      "${{ env.ORIGINAL_397 }}", temporary_root / "wrong-397"
+                  )
+                  install_package(wrong_source)
+                  for path, expected_hash in test_hashes.items():
+                      assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == expected_hash
+                  for node, expected_assertion in regression_witnesses:
+                      assert_failed_at(node, expected_assertion)
+
+                  # These controls cover scanner behavior that already worked in old #397.
+                  for control_node in normative_controls:
+                      control_result = run_pytest((control_node,), long_traceback=False)
+                      print(control_result.stdout)
+                      assert control_result.returncode == 0, (
+                          f"old #397 source must pass normative control {control_node}"
+                      )
+                      assert "1 passed" in control_result.stdout
+                      print(f"Old #397 normative control passed: {control_node}")
+
+                  baseline_source = package_from_revision(
+                      "${{ env.BASELINE }}", temporary_root / "baseline"
+                  )
+                  install_package(baseline_source)
+                  for path, expected_hash in test_hashes.items():
+                      assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == expected_hash
+                  assert_passed(
+                      behavior_nodes,
+                      "baseline 1e1267",
+                  )
+              finally:
+                  clear_package_bytecode()
+                  shutil.rmtree(package_root)
+                  shutil.copytree(head_snapshot, package_root, symlinks=True)
+
+              restored_manifest = tree_manifest(package_root)
+              assert restored_manifest == head_manifest, "package tree restoration hash manifest mismatch"
+              manifest_proof = {
+                  "corrected_head": head_manifest,
+                  "restored": restored_manifest,
+              }
+              manifest_proof_path = temporary_root / "package-manifest-proof.json"
+              manifest_proof_path.write_text(
+                  json.dumps(manifest_proof, indent=2, sort_keys=True) + "\n"
+              )
+              canonical_manifest = json.dumps(head_manifest, sort_keys=True, separators=(",", ":"))
+              manifest_digest = hashlib.sha256(canonical_manifest.encode()).hexdigest()
+              print(f"Package manifest: files={len(head_manifest)} sha256={manifest_digest}")
+              for path, expected_hash in test_hashes.items():
+                  actual_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+                  assert actual_hash == expected_hash, f"test restoration hash mismatch: {path}"
+              print(f"Restored test hashes: {json.dumps(test_hashes, sort_keys=True)}")
+          PY
+          git diff --exit-code -- src/scieqlint tests/test_myst_structure_facts.py tests/test_markdown_scan.py
