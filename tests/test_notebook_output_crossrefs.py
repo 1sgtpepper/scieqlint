@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
@@ -645,7 +646,11 @@ def test_caption_only_crossref_option_conflicts_with_renderings() -> None:
         )
     )
 
-    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    snapshot = _profile_snapshot(
+        (document,),
+        notebook_crossrefs_config(),
+        **profile_scan_inputs((document,)),
+    )
     conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
     diagnostics = PortabilityEngine(
         profile="notebook-crossrefs",
@@ -668,7 +673,11 @@ def test_output_metadata_is_a_rendering_conflict_input_with_an_exact_location() 
         )
     )
 
-    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    snapshot = _profile_snapshot(
+        (document,),
+        notebook_crossrefs_config(),
+        **profile_scan_inputs((document,)),
+    )
     conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
     diagnostics = PortabilityEngine(
         profile="notebook-crossrefs",
@@ -1134,7 +1143,11 @@ def test_output_crossref_aliases_keep_their_output_identity() -> None:
         )
     )
 
-    snapshot = _profile_snapshot((document,), notebook_crossrefs_config())
+    snapshot = _profile_snapshot(
+        (document,),
+        notebook_crossrefs_config(),
+        **profile_scan_inputs((document,)),
+    )
     conflicts = QueryHost(snapshot).portability.notebook_rendering_conflicts()
 
     assert [
@@ -1425,7 +1438,7 @@ def test_notebook_markdown_references_feed_the_profile_fact_snapshot() -> None:
         )
     )
 
-    snapshot = _profile_snapshot((document,), config())
+    snapshot = _profile_snapshot((document,), config(), **profile_scan_inputs((document,)))
 
     assert [label.normalized_label for label in snapshot.equation_labels] == ["eq-notebook"]
     assert [reference.ref_kind for reference in snapshot.equation_refs] == ["eq"]
@@ -1444,7 +1457,7 @@ def test_notebook_profile_composition_preserves_cross_boundary_cell_facts() -> N
         )
     )
 
-    snapshot = _profile_snapshot((document,), config())
+    snapshot = _profile_snapshot((document,), config(), **profile_scan_inputs((document,)))
     result = check_documents((document,), config=config())
 
     assert len(snapshot.display_math) == 1
@@ -1475,7 +1488,7 @@ def test_notebook_profile_reports_split_missing_generic_ref_once() -> None:
         )
     )
 
-    snapshot = _profile_snapshot((document,), config())
+    snapshot = _profile_snapshot((document,), config(), **profile_scan_inputs((document,)))
     result = check_documents((document,), config=config())
 
     assert [reference.normalized_target for reference in snapshot.generic_refs] == [
@@ -1535,7 +1548,7 @@ def test_notebook_profile_keeps_inline_math_identity_distinct_per_cell() -> None
         path="accessible-math.ipynb",
     )
 
-    snapshot = _profile_snapshot((document,), config())
+    snapshot = _profile_snapshot((document,), config(), **profile_scan_inputs((document,)))
 
     assert [fact.accessibility_id for fact in snapshot.inline_math] == [
         "accessible-math.ipynb::notebook-cell::0::inline-math::dollar::x",

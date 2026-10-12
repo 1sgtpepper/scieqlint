@@ -8,6 +8,7 @@ import pytest
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, _source_reference_facts, check_documents
 from scieqlint.config.model import (
@@ -81,7 +82,11 @@ $$
 
 def test_cross_format_profile_materializes_source_spanned_reference_risks() -> None:
     document = doc(_SOURCE)
-    snapshot = _profile_snapshot((document,), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (document,),
+        config("commonmark"),
+        **profile_scan_inputs((document,)),
+    )
 
     assert [(fact.risk_kind, fact.output_profile) for fact in snapshot.portability] == [
         ("equation-reference-syntax", "commonmark"),
@@ -98,7 +103,7 @@ def test_cross_format_profile_materializes_source_spanned_reference_risks() -> N
     ] == ["{eq}`eq-one`", r"\eqref{eq-one}"]
 
 
-def test_profile_snapshot_scans_latex_references_when_caller_has_no_scan_result() -> None:
+def test_profile_snapshot_uses_caller_owned_latex_scan_products() -> None:
     source = (
         r"\begin{equation}"
         "\n"
@@ -114,7 +119,11 @@ def test_profile_snapshot_scans_latex_references_when_caller_has_no_scan_result(
         DocumentKind.LATEX,
     )
 
-    snapshot = _profile_snapshot((document,), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (document,),
+        config("commonmark"),
+        **profile_scan_inputs((document,)),
+    )
 
     [reference] = snapshot.equation_refs
     assert (reference.ref_kind, reference.target, reference.raw) == (
@@ -129,7 +138,11 @@ def test_profile_snapshot_scans_latex_references_when_caller_has_no_scan_result(
 def test_cross_format_profile_materializes_notebook_reference_risks() -> None:
     source = "$$\nx = 1\n$$ {#eq-one}\n\n{eq}`eq-one`\n\n{numref}`eq-one`\n"
 
-    snapshot = _profile_snapshot((notebook_doc(source),), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (notebook_doc(source),),
+        config("commonmark"),
+        **profile_scan_inputs((notebook_doc(source),)),
+    )
 
     assert [fact.label for fact in snapshot.equation_labels] == ["eq-one"]
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
@@ -520,7 +533,11 @@ def test_cross_format_notebook_raw_equation_preserves_json_owned_facts() -> None
         r"\end{equation}"
     )
     document = notebook_doc(source)
-    snapshot = _profile_snapshot((document,), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (document,),
+        config("commonmark"),
+        **profile_scan_inputs((document,)),
+    )
 
     assert len(snapshot.display_math) == 1
     assert len(snapshot.equation_labels) == 1
@@ -659,7 +676,11 @@ def test_notebook_raw_equation_ids_are_stable_across_json_formatting() -> None:
 
     identities: list[tuple[str, str, str]] = []
     for document in documents:
-        snapshot = _profile_snapshot((document,), config("commonmark"))
+        snapshot = _profile_snapshot(
+            (document,),
+            config("commonmark"),
+            **profile_scan_inputs((document,)),
+        )
         [display] = snapshot.display_math
         [label] = snapshot.equation_labels
         [reference] = snapshot.equation_refs
@@ -684,10 +705,18 @@ def test_notebook_raw_equation_ids_are_stable_across_json_formatting() -> None:
 def test_reference_portability_matrix_is_conservative_and_explicit() -> None:
     document = doc(_SOURCE)
 
-    commonmark = _profile_snapshot((document,), config("commonmark"))
-    notebook = _profile_snapshot((document,), config("notebook"))
-    myst = _profile_snapshot((document,), config("myst"))
-    typst = _profile_snapshot((document,), config("typst"))
+    commonmark = _profile_snapshot(
+        (document,),
+        config("commonmark"),
+        **profile_scan_inputs((document,)),
+    )
+    notebook = _profile_snapshot(
+        (document,),
+        config("notebook"),
+        **profile_scan_inputs((document,)),
+    )
+    myst = _profile_snapshot((document,), config("myst"), **profile_scan_inputs((document,)))
+    typst = _profile_snapshot((document,), config("typst"), **profile_scan_inputs((document,)))
 
     assert [dict(fact.metadata)["ref_kind"] for fact in commonmark.portability] == [
         "eq",
@@ -702,7 +731,11 @@ def test_reference_portability_matrix_is_conservative_and_explicit() -> None:
 
 
 def test_portability_engine_consumes_facts_without_reading_source_text() -> None:
-    snapshot = _profile_snapshot((doc(_SOURCE),), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (doc(_SOURCE),),
+        config("commonmark"),
+        **profile_scan_inputs((doc(_SOURCE),)),
+    )
     query = QueryHost(snapshot)
     diagnostics = PortabilityEngine(
         profile="cross-format-references",
@@ -789,15 +822,27 @@ def test_malformed_and_code_owned_reference_text_do_not_create_risks() -> None:
 \eqref{code-only}
 ```
 """
-    snapshot = _profile_snapshot((doc(source),), config("commonmark"))
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        config("commonmark"),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert snapshot.equation_refs == ()
     assert snapshot.portability == ()
 
 
 def test_portability_facts_are_stable_after_newline_normalization() -> None:
-    lf = _profile_snapshot((doc(_SOURCE),), config("commonmark"))
-    crlf = _profile_snapshot((doc(_SOURCE.replace("\n", "\r\n")),), config("commonmark"))
+    lf = _profile_snapshot(
+        (doc(_SOURCE),),
+        config("commonmark"),
+        **profile_scan_inputs((doc(_SOURCE),)),
+    )
+    crlf = _profile_snapshot(
+        (doc(_SOURCE.replace("\n", "\r\n")),),
+        config("commonmark"),
+        **profile_scan_inputs((doc(_SOURCE.replace("\n", "\r\n")),)),
+    )
 
     assert lf.equation_refs == crlf.equation_refs
     assert lf.portability == crlf.portability

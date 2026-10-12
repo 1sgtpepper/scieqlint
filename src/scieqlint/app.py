@@ -392,6 +392,7 @@ def check_documents(
             config,
             source_references=tuple(non_markdown_references),
             source_labels=tuple(non_markdown_labels),
+            source_blocks=blocks,
             policy=policy,
             generated_provenance=generated_provenance,
             frontend_snapshot=frontend_snapshot,

@@ -11,6 +11,7 @@ import pytest
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.model import (
@@ -74,7 +75,11 @@ Inferred text x = y; it is not an owned inline-math container.
 
 `$code$`
 """
-    snapshot = _profile_snapshot((doc(source),), accessibility_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        accessibility_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert [fact.delimiter_kind for fact in snapshot.inline_math] == [
         "dollar",
@@ -206,6 +211,7 @@ def test_accessibility_metadata_owner_rejects_ambiguous_fact_ids() -> None:
                 inline_math=(inline, duplicate),
             ),
             accessibility_metadata={inline.accessibility_id: "the variable x"},
+            **profile_scan_inputs((document,)),
         )
 
 
@@ -283,7 +289,11 @@ def test_ordinary_markdown_accessibility_ids_keep_the_documented_format() -> Non
 
 def test_accessibility_engine_emits_fact_backed_metadata_in_source_order() -> None:
     source = "Use $x$ and {math}`y`.\n"
-    snapshot = _profile_snapshot((doc(source),), accessibility_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        accessibility_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
     diagnostics = PortabilityEngine(
         profile="math-accessibility",
         policy=PolicyHost(),
@@ -337,7 +347,11 @@ def test_check_documents_accepts_direct_profile_config() -> None:
 
 def test_unsupported_inline_environment_keeps_accessibility_span_and_status() -> None:
     source = r"Before {math}`\begin{cases}x\end{cases}` after."
-    snapshot = _profile_snapshot((doc(source),), accessibility_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        accessibility_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
     [inline] = QueryHost(snapshot).portability.inline_math_missing_alt()
     [diagnostic] = PortabilityEngine(
         profile="math-accessibility",
@@ -372,10 +386,15 @@ def test_accessibility_json_and_sarif_outputs_do_not_rescan_source() -> None:
 
 def test_accessibility_facts_are_deterministic_after_newline_normalization() -> None:
     source = "One $x$.\n\n- Two {math}`y`.\n"
-    lf = _profile_snapshot((doc(source),), accessibility_config())
+    lf = _profile_snapshot(
+        (doc(source),),
+        accessibility_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
     crlf = _profile_snapshot(
         (doc(source.replace("\n", "\r\n")),),
         accessibility_config(),
+        **profile_scan_inputs((doc(source.replace("\n", "\r\n")),)),
     )
 
     assert lf.inline_math == crlf.inline_math
@@ -388,7 +407,11 @@ def test_accessibility_facts_are_deterministic_after_newline_normalization() -> 
 
 def test_inline_math_at_eof_keeps_exact_accessibility_span() -> None:
     source = "Ends with $x + y$"
-    snapshot = _profile_snapshot((doc(source),), accessibility_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        accessibility_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
     [inline] = QueryHost(snapshot).portability.inline_math_missing_alt()
 
     assert inline.span is not None

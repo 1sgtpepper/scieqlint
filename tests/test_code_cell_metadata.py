@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents as public_check_documents
 from scieqlint.app import _profile_snapshot, check_documents
 from scieqlint.config.load import load_config
@@ -822,7 +823,7 @@ def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> 
         )
     )
     md = markdown("See {ref}`cell-notebook`.\n", "chapter.md")
-    snapshot = _profile_snapshot((md, nb), profile_config())
+    snapshot = _profile_snapshot((md, nb), profile_config(), **profile_scan_inputs((md, nb)))
     [cell] = [fact for fact in snapshot.code_cells if fact.source_format == "notebook"]
 
     assert cell.label == "cell-notebook"
@@ -961,7 +962,11 @@ def test_nonvisible_notebook_code_cells_keep_facts_without_language_or_reference
         ),
     )
 
-    snapshot = _profile_snapshot((hidden_document, visible_document), config)
+    snapshot = _profile_snapshot(
+        (hidden_document, visible_document),
+        config,
+        **profile_scan_inputs((hidden_document, visible_document)),
+    )
     query = QueryHost(snapshot)
     hidden_cell, visible_cell = snapshot.code_cells
 

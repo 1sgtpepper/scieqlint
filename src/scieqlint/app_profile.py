@@ -20,8 +20,7 @@ from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.parse.math import MathHost
 from scieqlint.policy import PolicyHost
-from scieqlint.scan.base import EquationLabel, EquationReference, MathContainer
-from scieqlint.scan.latex import LatexScanner
+from scieqlint.scan.base import EquationLabel, EquationReference, MathBlock, MathContainer
 
 from .app_profile_crossref import source_label_facts, source_reference_facts
 from .app_profile_generated import generated_provenance_facts
@@ -31,8 +30,9 @@ def profile_snapshot(
     documents: Sequence[SourceDocument],
     config: Config,
     *,
-    source_references: Sequence[EquationReference] | None = None,
-    source_labels: Sequence[EquationLabel] | None = None,
+    source_references: Sequence[EquationReference],
+    source_labels: Sequence[EquationLabel],
+    source_blocks: Sequence[MathBlock],
     policy: PolicyHost | None = None,
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
@@ -48,6 +48,7 @@ def profile_snapshot(
         config,
         source_references=source_references,
         source_labels=source_labels,
+        source_blocks=source_blocks,
         generated_provenance=generated_provenance,
         frontend_snapshot=frontend_snapshot,
         accessibility_metadata=accessibility_metadata,
@@ -71,8 +72,9 @@ def generated_profile_snapshot(
     documents: Sequence[SourceDocument],
     config: Config,
     *,
-    source_references: Sequence[EquationReference] | None = None,
-    source_labels: Sequence[EquationLabel] | None = None,
+    source_references: Sequence[EquationReference],
+    source_labels: Sequence[EquationLabel],
+    source_blocks: Sequence[MathBlock],
     generated_provenance: Sequence[GeneratedProvenanceFact] | None = None,
     frontend_snapshot: FactSnapshot | None = None,
     accessibility_metadata: Mapping[str, str] | None = None,
@@ -116,7 +118,7 @@ def generated_profile_snapshot(
             snapshot,
             display_math=(
                 *snapshot.display_math,
-                *latex_display_facts(latex_math_documents, config),
+                *latex_display_facts(latex_math_documents, source_blocks=source_blocks),
             ),
         )
     labels = source_label_facts(documents, source_labels, config)
@@ -243,30 +245,32 @@ def generated_profile_snapshot(
 
 def latex_display_facts(
     documents: Sequence[SourceDocument],
-    config: Config,
+    *,
+    source_blocks: Sequence[MathBlock],
 ) -> tuple[DisplayMathFact, ...]:
-    """Adapt complete LatexScanner blocks for source-owned Typst analysis."""
+    """Adapt caller-scanned blocks while preserving their source-document spans."""
 
-    scanner = LatexScanner()
+    documents_by_path = {document.path: document for document in documents}
     facts: list[DisplayMathFact] = []
-    for document in documents:
-        scan = scanner.scan(document, config)
-        for block in scan.blocks:
-            environment = {
-                MathContainer.LATEX_EQUATION: "equation",
-                MathContainer.LATEX_ALIGN: "align",
-            }.get(block.container)
-            facts.append(
-                DisplayMathFact(
-                    fact_id=f"{document.path.as_posix()}::latex-display::{block.span.start}",
-                    document_id=document.path.as_posix(),
-                    span=block.span,
-                    raw=document.text[block.span.start : block.span.end],
-                    body=block.text,
-                    container="latex-display",
-                    environment=environment,
-                )
+    for block in source_blocks:
+        document = documents_by_path.get(block.span.path)
+        if document is None:
+            continue
+        environment = {
+            MathContainer.LATEX_EQUATION: "equation",
+            MathContainer.LATEX_ALIGN: "align",
+        }.get(block.container)
+        facts.append(
+            DisplayMathFact(
+                fact_id=f"{document.path.as_posix()}::latex-display::{block.span.start}",
+                document_id=document.path.as_posix(),
+                span=block.span,
+                raw=document.text[block.span.start : block.span.end],
+                body=block.text,
+                container="latex-display",
+                environment=environment,
             )
+        )
     return tuple(facts)
 
 
