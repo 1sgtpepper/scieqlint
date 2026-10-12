@@ -11,6 +11,7 @@ from scieqlint.facts.math import InlineDelimiter, InlineMathFact
 from scieqlint.io.source import SourceDocument
 from scieqlint.markdown import (
     MarkdownReferenceSnapshot,
+    dollar_inline_ranges,
     is_escaped,
 )
 from scieqlint.source.maps import SourceMap
@@ -18,7 +19,6 @@ from scieqlint.source.maps import SourceMap
 from .myst_shared import (
     LineRange,
     OffsetRange,
-    dollar_inline_ranges,
     in_ranges,
     inline_math_accessibility_id,
     line_ranges,

@@ -36,6 +36,7 @@ from .myst_blocks import (
     scan_fences,
     scan_structure_syntax_issues,
 )
+from .myst_display_math import math_occupied_ranges, scan_display_math, scan_raw_latex_math
 from .myst_headings import (
     attach_anchors,
     is_immediate_attachment,
@@ -44,12 +45,7 @@ from .myst_headings import (
     scan_headings,
     sections_for_headings,
 )
-from .myst_math import (
-    math_occupied_ranges,
-    scan_display_math,
-    scan_inline_math,
-    scan_raw_latex_math,
-)
+from .myst_inline_math import scan_inline_math
 from .myst_refs import scan_refs
 from .myst_shared import in_ranges, line_ranges
 from .reference_display import reference_display_text_facts
@@ -168,7 +164,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     bracketed_occupied = tuple(
         (fact.span.start, fact.span.end) for fact in bracketed_candidates if fact.span is not None
     )
-    raw_display_math, raw_labels, raw_refs = scan_raw_latex_math(
+    raw_display_math = scan_raw_latex_math(
         document,
         smap,
         (*math_ownership_occupied, *dollar_occupied, *inline_math_occupied),
@@ -226,7 +222,6 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     # extend that contract without reordering pre-existing buckets.
     display_math = (*display_math, *raw_display_math)
     display_math_occupied = math_occupied_ranges(display_math)
-    equation_labels = (*equation_labels, *raw_labels)
     generic_refs, prose_equation_refs = scan_refs(
         document,
         smap,
@@ -236,7 +231,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     )
     equation_refs = tuple(
         sorted(
-            (*display_equation_refs, *raw_refs, *prose_equation_refs),
+            (*display_equation_refs, *prose_equation_refs),
             key=lambda fact: (
                 fact.span.start if fact.span is not None else -1,
                 fact.fact_id,

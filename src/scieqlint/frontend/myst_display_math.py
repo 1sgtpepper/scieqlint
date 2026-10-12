@@ -83,11 +83,7 @@ def scan_raw_latex_math(
     smap: SourceMap,
     occupied: Sequence[OffsetRange],
     bracketed_occupied: Sequence[OffsetRange] = (),
-) -> tuple[
-    tuple[DisplayMathFact, ...],
-    tuple[EquationLabelFact, ...],
-    tuple[EquationRefFact, ...],
-]:
+) -> tuple[DisplayMathFact, ...]:
     """Lower top-level raw-LaTeX environment candidates without classifying them."""
 
     displays: list[DisplayMathFact] = []
@@ -113,7 +109,7 @@ def scan_raw_latex_math(
         displays.append(display)
     # Raw environments are lexical candidates only. MathHost decides the final
     # classification and preserves parseable facts for complete non-opaque forms.
-    return tuple(displays), (), ()
+    return tuple(displays)
 
 
 def _raw_math_environment_ranges(
