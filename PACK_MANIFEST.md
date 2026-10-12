@@ -321,6 +321,7 @@ docs, examples, tests, schemas, CI templates, and release checks.
 - `tests/golden/text/notebook_crossrefs_bad.txt`
 - `tests/golden/text/reference_display_bad.txt`
 - `tests/golden/text/typst_portability_bad.txt`
+- `tests/profile_scan_inputs.py`
 - `tests/test_accuracy_benchmarks.py`
 - `tests/test_action_metadata.py`
 - `tests/test_agents_instructions.py`

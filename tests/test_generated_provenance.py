@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents
 from scieqlint.app import (
     _generated_profile_snapshot,
@@ -57,8 +58,9 @@ def test_profile_compatibility_preserves_project_identity_and_visibility(
         project_root=PurePosixPath(root.as_posix()) if absolute_source else PurePosixPath("book")
     )
 
-    automatic = operation((source,), config)
-    supplied = operation((source,), config, workspace=workspace)
+    scan_inputs = profile_scan_inputs((source,))
+    automatic = operation((source,), config, **scan_inputs)
+    supplied = operation((source,), config, **scan_inputs, workspace=workspace)
 
     assert automatic == supplied
     [member] = automatic.project_members
@@ -248,6 +250,7 @@ def test_generated_myst_provenance_excludes_auxiliary_notebook_inputs() -> None:
     snapshot = _generated_profile_snapshot(
         (generated, notebook),
         Config(profile=ProfileConfig(name="generated-myst")),
+        **profile_scan_inputs((generated, notebook)),
     )
 
     assert tuple(fact.generated_document_id for fact in snapshot.generated_provenance) == (

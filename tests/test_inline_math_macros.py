@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig
 from scieqlint.facts.snapshot import FactSnapshot
@@ -100,6 +101,7 @@ def test_notebook_markdown_cells_preserve_macro_scope_and_encoded_source_spans()
     snapshot = _profile_snapshot(
         (document,),
         Config(profile=ProfileConfig(name="notebook-crossrefs")),
+        **profile_scan_inputs((document,)),
     )
 
     [declaration] = snapshot.math_macro_declarations
@@ -153,6 +155,7 @@ def test_notebook_source_list_boundaries_preserve_exact_macro_segments() -> None
     snapshot = _profile_snapshot(
         (document,),
         Config(profile=ProfileConfig(name="notebook-crossrefs")),
+        **profile_scan_inputs((document,)),
     )
 
     [declaration] = snapshot.math_macro_declarations

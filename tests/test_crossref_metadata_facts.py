@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents
 from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
@@ -159,7 +160,7 @@ def test_profile_adds_metadata_for_raw_equation_labels_and_references() -> None:
         "\\begin{equation}\nx = 1 \\label{raw-energy}\nSee \\ref{raw-energy}\n\\end{equation}\n",
     )
 
-    snapshot = _profile_snapshot((source,), cross_format_config())
+    snapshot = _profile_snapshot((source,), cross_format_config(), **profile_scan_inputs((source,)))
 
     [label] = snapshot.equation_labels
     [reference] = snapshot.equation_refs
@@ -457,7 +458,7 @@ def test_reference_use_titles_do_not_become_target_metadata_conflicts() -> None:
     )
 
     result = check_documents(documents, config=cross_format_config())
-    snapshot = _profile_snapshot(documents, cross_format_config())
+    snapshot = _profile_snapshot(documents, cross_format_config(), **profile_scan_inputs(documents))
 
     assert not any(item.code == "REF007" for item in result.diagnostics)
     assert [
@@ -512,8 +513,16 @@ def test_notebook_member_paths_keep_equal_labels_separate() -> None:
     )
     equivalent = check_documents(equivalent_documents, config=cross_format_config())
     conflicting = check_documents(conflicting_documents, config=cross_format_config())
-    equivalent_snapshot = _profile_snapshot(equivalent_documents, cross_format_config())
-    conflicting_snapshot = _profile_snapshot(conflicting_documents, cross_format_config())
+    equivalent_snapshot = _profile_snapshot(
+        equivalent_documents,
+        cross_format_config(),
+        **profile_scan_inputs(equivalent_documents),
+    )
+    conflicting_snapshot = _profile_snapshot(
+        conflicting_documents,
+        cross_format_config(),
+        **profile_scan_inputs(conflicting_documents),
+    )
 
     assert not any(item.code == "REF007" for item in equivalent.diagnostics)
     assert not any(item.code == "REF007" for item in conflicting.diagnostics)
@@ -774,7 +783,11 @@ def test_public_check_documents_reports_listing_alias_output_metadata_conflict()
 
     conflicting = document("Different listing")
     result = check_documents((conflicting,), config=cross_format_config())
-    snapshot = _profile_snapshot((conflicting,), cross_format_config())
+    snapshot = _profile_snapshot(
+        (conflicting,),
+        cross_format_config(),
+        **profile_scan_inputs((conflicting,)),
+    )
     definitions = tuple(
         fact for fact in snapshot.crossref_metadata if fact.metadata_kind == "target-definition"
     )

@@ -9,6 +9,7 @@ import pytest
 from jsonschema.validators import Draft202012Validator
 from referencing import Registry, Resource
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents
 from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import AlgebraConfig, ChecksConfig, Config, ProfileConfig
@@ -91,7 +92,11 @@ def test_typst_checks_math_body_after_myst_option_prefix(
 ) -> None:
     prefix = f":{option}: \\dfrac \\argmin \\left(\\begin{{matrix}}x\\end{{matrix}}\\right)\n\n"
     source = f"```{{math}}\n{prefix}{body}\n```\n"
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
     result = check_documents((doc(source),), config=typst_config())
 
     risks = snapshot.portability
@@ -105,7 +110,11 @@ def test_typst_checks_math_body_after_myst_option_prefix(
 
 
 def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
-    snapshot = _profile_snapshot((doc(_SOURCE),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(_SOURCE),),
+        typst_config(),
+        **profile_scan_inputs((doc(_SOURCE),)),
+    )
 
     assert [fact.risk_kind for fact in snapshot.portability] == [
         "typst-fragile-environment",
@@ -159,7 +168,8 @@ def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
     ids=("bracketed", "dollar", "equation"),
 )
 def test_typst_profile_uses_latex_scanner_for_tex_display_forms(source: str) -> None:
-    snapshot = _profile_snapshot((latex_doc(source),), typst_config())
+    documents = (latex_doc(source),)
+    snapshot = _profile_snapshot(documents, typst_config(), **profile_scan_inputs(documents))
 
     assert [(fact.container, fact.body) for fact in snapshot.display_math] == [
         ("latex-display", r"\dfrac{x}{2}")
@@ -243,7 +253,8 @@ x &= y
 \end{equation}
 """
 
-    snapshot = _profile_snapshot((latex_doc(source),), typst_config())
+    documents = (latex_doc(source),)
+    snapshot = _profile_snapshot(documents, typst_config(), **profile_scan_inputs(documents))
 
     assert [(fact.container, fact.environment) for fact in snapshot.display_math] == [
         ("latex-display", "equation")
@@ -259,8 +270,18 @@ x = 1
 """
     unterminated = r"\[\dfrac{x}{2}"
 
-    commented_snapshot = _profile_snapshot((latex_doc(commented),), typst_config())
-    unterminated_snapshot = _profile_snapshot((latex_doc(unterminated),), typst_config())
+    commented_documents = (latex_doc(commented),)
+    unterminated_documents = (latex_doc(unterminated),)
+    commented_snapshot = _profile_snapshot(
+        commented_documents,
+        typst_config(),
+        **profile_scan_inputs(commented_documents),
+    )
+    unterminated_snapshot = _profile_snapshot(
+        unterminated_documents,
+        typst_config(),
+        **profile_scan_inputs(unterminated_documents),
+    )
 
     assert commented_snapshot.portability == ()
     assert unterminated_snapshot.display_math == ()
@@ -268,7 +289,11 @@ x = 1
 
 
 def test_typst_engine_emits_fact_backed_metadata_in_source_order() -> None:
-    snapshot = _profile_snapshot((doc(_SOURCE),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(_SOURCE),),
+        typst_config(),
+        **profile_scan_inputs((doc(_SOURCE),)),
+    )
     diagnostics = PortabilityEngine(
         profile="typst-portability",
         policy=PolicyHost(),
@@ -310,7 +335,11 @@ $$
 \\dfrac + \argminimum
 $$
 """
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert snapshot.display_math
     assert snapshot.portability == ()
@@ -341,7 +370,11 @@ def test_typst_portability_preserves_escape_parity_for_commands_and_environments
         + "$$\n"
     )
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert [fact.raw for fact in snapshot.portability] == [
         r"\dfrac",
@@ -363,8 +396,16 @@ x & y
 $$
 """
 
-    quiet = _profile_snapshot((doc(without_delimiter),), typst_config())
-    risky = _profile_snapshot((doc(with_left_only),), typst_config())
+    quiet = _profile_snapshot(
+        (doc(without_delimiter),),
+        typst_config(),
+        **profile_scan_inputs((doc(without_delimiter),)),
+    )
+    risky = _profile_snapshot(
+        (doc(with_left_only),),
+        typst_config(),
+        **profile_scan_inputs((doc(with_left_only),)),
+    )
 
     assert quiet.portability == ()
     [risk] = risky.portability
@@ -386,7 +427,11 @@ a &= b
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert [fact.raw for fact in snapshot.portability] == [r"\begin{aligned}"]
     [risk] = snapshot.portability
@@ -408,7 +453,11 @@ y &= z
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert [fact.raw for fact in snapshot.portability] == [
         r"\begin{array}",
@@ -428,7 +477,11 @@ def test_typst_environment_metadata_preserves_relevant_delimiter_order() -> None
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     [risk] = snapshot.portability
     assert dict(risk.metadata)["delimiter_commands"] == "right,left"
@@ -471,7 +524,7 @@ $$
 )
 def test_typst_profile_bounds_mismatched_environment_closers(source: str) -> None:
     document = doc(source)
-    snapshot = _profile_snapshot((document,), typst_config())
+    snapshot = _profile_snapshot((document,), typst_config(), **profile_scan_inputs((document,)))
 
     assert [(fact.raw, dict(fact.metadata)) for fact in snapshot.portability] == [
         (
@@ -503,7 +556,7 @@ def test_typst_profile_extends_unclosed_fragile_environment_to_display_end() -> 
 $$
 """
     document = doc(source)
-    snapshot = _profile_snapshot((document,), typst_config())
+    snapshot = _profile_snapshot((document,), typst_config(), **profile_scan_inputs((document,)))
 
     assert [(fact.raw, dict(fact.metadata)) for fact in snapshot.portability] == [
         (
@@ -535,7 +588,11 @@ x
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     [risk] = snapshot.portability
     assert dict(risk.metadata)["delimiter_commands"] == "right"
@@ -551,7 +608,11 @@ def test_typst_portability_ignores_verbatim_environment_contents() -> None:
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert snapshot.portability == ()
 
@@ -568,7 +629,11 @@ def test_typst_portability_masks_nested_non_math_environment_contents() -> None:
 $$
 """
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert [fact.raw for fact in snapshot.portability] == [
         r"\begin{array}",
@@ -590,7 +655,11 @@ def test_typst_portability_resumes_after_exact_verbatim_closer(closer_prefix: st
         "$$\n"
     )
 
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     [risk] = snapshot.portability
     assert risk.raw == r"\begin{matrix}"
@@ -602,7 +671,11 @@ def test_unclosed_raw_environment_preserves_typst_risk_to_eof() -> None:
 \begin{matrix}
 \left. x &= y
 """
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     [display] = snapshot.display_math
     assert display.span is not None
@@ -622,7 +695,11 @@ x &= y
 \end{aligned}\right.
 \end{equation}
 """
-    snapshot = _profile_snapshot((doc(source),), typst_config())
+    snapshot = _profile_snapshot(
+        (doc(source),),
+        typst_config(),
+        **profile_scan_inputs((doc(source),)),
+    )
 
     assert len(snapshot.display_math) == 1
     [risk] = snapshot.portability
@@ -730,10 +807,11 @@ def _validate_typst_json_result(rendered: str) -> None:
 
 
 def test_typst_portability_is_deterministic_after_newline_normalization() -> None:
-    lf = _profile_snapshot((doc(_SOURCE),), typst_config())
+    lf = _profile_snapshot((doc(_SOURCE),), typst_config(), **profile_scan_inputs((doc(_SOURCE),)))
     crlf = _profile_snapshot(
         (doc(_SOURCE.replace("\n", "\r\n")),),
         typst_config(),
+        **profile_scan_inputs((doc(_SOURCE.replace("\n", "\r\n")),)),
     )
 
     assert lf.display_math == crlf.display_math

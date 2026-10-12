@@ -6,6 +6,7 @@ from typing import Literal
 
 import pytest
 
+from profile_scan_inputs import profile_scan_inputs
 from scieqlint.api import check_documents, check_paths, graph_documents
 from scieqlint.app import _profile_snapshot
 from scieqlint.config.model import Config, ProfileConfig, ProjectConfig, ValidationProfile
@@ -66,7 +67,7 @@ def test_notebook_frontend_can_exclude_markdown_cells_without_dropping_identity(
 
 
 def test_markdown_profile_applies_project_members_once() -> None:
-    snapshot = _profile_snapshot((document(),), Config())
+    snapshot = _profile_snapshot((document(),), Config(), **profile_scan_inputs((document(),)))
 
     assert tuple(member.document_id for member in snapshot.project_members) == ("source.md",)
 
@@ -324,7 +325,7 @@ def test_profile_snapshot_rejects_duplicate_visibility_entries_with_different_st
     )
 
     with pytest.raises(ValueError, match="conflicting project visibility entries"):
-        _profile_snapshot((target_document(),), config)
+        _profile_snapshot((target_document(),), config, **profile_scan_inputs((target_document(),)))
 
 
 def test_visibility_keys_remain_project_relative_under_configured_root(
@@ -506,7 +507,7 @@ def test_nonvisible_code_cell_target_is_not_resolvable_from_visible_reference(
     )
 
     config = Config(project=ProjectConfig(visibility=(("target.md", visibility),)))
-    snapshot = _profile_snapshot((source, target), config)
+    snapshot = _profile_snapshot((source, target), config, **profile_scan_inputs((source, target)))
     query = QueryHost(snapshot)
     [cell] = snapshot.code_cells
 
