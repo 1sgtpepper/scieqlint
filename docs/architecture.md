@@ -19,7 +19,7 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 
 - Frontends extract lexical math candidates, labels, references, and source spans. They do not
   assign final generated-formula kinds, classify AMS/unsupported math, or apply portability policy.
-- MathHost owns final math classification, parser recovery, macro scope facts, and Typst math
+- MathHost owns final math classification, unsupported-math facts, macro scope facts, and Typst
   portability facts. It does not call SymPy. Inline-math macro declarations and use sites are
   currently a facts-only snapshot slice: QueryHost, engines, diagnostics, and public APIs do not
   expose or consume them, and full TeX expansion remains deferred.
