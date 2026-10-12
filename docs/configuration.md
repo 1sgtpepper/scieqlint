@@ -220,6 +220,8 @@ silently running a different rule set.
   are optional annotations used when an explicit `SourceOrigin` omits those
   fields; they do not identify the source document or prove a producer
   relationship. SciEqLint never reconstructs missing origin metadata.
+  `SourceOrigin` requires the source document ID as its positional argument; its
+  optional metadata fields are keyword-only.
 - `cross-format-references` enables equation-reference portability diagnostics
   and requires `output_profile`. For notebooks it lowers recorded cell/output metadata
   without executing the notebook, and includes Markdown-cell references while

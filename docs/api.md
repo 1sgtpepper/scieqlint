@@ -127,6 +127,9 @@ result = check_documents(
 
 Programmatic provenance identifiers, source kinds, and conversion stages are
 trimmed when constructed; blank values raise `ValueError` before analysis.
+`SourceOrigin.source_document_id` is the only positional argument. The optional
+`source_kind`, `conversion_stage`, and `preserved_anchor_inventory` fields are
+keyword-only.
 
 An absent origin means that source-to-generated identity is unknown, so the generated
 profile does not manufacture a provenance relationship.

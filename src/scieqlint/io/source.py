@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PurePosixPath
 
@@ -20,12 +20,9 @@ class SourceOrigin:
     """Caller-supplied identity for the source of generated document content."""
 
     source_document_id: str
-    source_sha: str | None = None
-    tool: str | None = None
-    tool_version: str | None = None
-    preserved_anchor_inventory: tuple[str, ...] = ()
-    source_kind: str | None = None
-    conversion_stage: str | None = None
+    preserved_anchor_inventory: tuple[str, ...] = field(default=(), kw_only=True)
+    source_kind: str | None = field(default=None, kw_only=True)
+    conversion_stage: str | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if not self.source_document_id.strip():

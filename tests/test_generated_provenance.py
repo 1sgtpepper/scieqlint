@@ -104,6 +104,32 @@ def test_source_origin_rejects_blank_programmatic_projection_metadata() -> None:
         SourceOrigin(source_document_id="source/input.xml", conversion_stage="\t")
 
 
+@pytest.mark.parametrize("retired_field", ["source_sha", "tool", "tool_version"])
+def test_source_origin_rejects_retired_producer_metadata(retired_field: str) -> None:
+    with pytest.raises(TypeError):
+        SourceOrigin(source_document_id="source/input.xml", **{retired_field: "value"})
+
+
+def test_source_origin_accepts_only_the_source_id_positionally() -> None:
+    assert SourceOrigin("source/input.xml").source_document_id == "source/input.xml"
+    with pytest.raises(TypeError):
+        SourceOrigin("source/input.xml", "abc123")
+
+
+@pytest.mark.parametrize("retired_field", ["source_sha", "tool", "tool_version"])
+def test_generated_provenance_fact_rejects_retired_producer_metadata(
+    retired_field: str,
+) -> None:
+    with pytest.raises(TypeError):
+        GeneratedProvenanceFact(
+            fact_id="origin",
+            document_id="out/generated.md",
+            span=None,
+            generated_document_id="out/generated.md",
+            **{retired_field: "value"},
+        )
+
+
 def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> None:
     generated = SourceDocument.from_text(
         PurePosixPath("out/generated.md"),
@@ -113,9 +139,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
             source_document_id="source/original.xml",
             source_kind="jats-xml",
             conversion_stage="xml-to-markdown",
-            source_sha="abc123",
-            tool="converter",
-            tool_version="2.1",
             preserved_anchor_inventory=("energy",),
         ),
     )
@@ -156,9 +179,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
             source_document_id="source/original.xml",
             source_kind="jats-xml",
             conversion_stage="xml-to-markdown",
-            source_sha="abc123",
-            tool="converter",
-            tool_version="2.1",
             preserved_anchor_inventory=("energy",),
         ),
         GeneratedProvenanceFact(
@@ -317,7 +337,6 @@ def _provenance_diagnostic_result():
         DocumentKind.MARKDOWN,
         origin=SourceOrigin(
             source_document_id=source.path.as_posix(),
-            tool="translator",
             preserved_anchor_inventory=("energy",),
         ),
     )

@@ -42,9 +42,6 @@ def generated_provenance_facts(
                 if document.origin.conversion_stage is not None
                 else config.profile.conversion_stage
             ),
-            source_sha=document.origin.source_sha,
-            tool=document.origin.tool,
-            tool_version=document.origin.tool_version,
             preserved_anchor_inventory=document.origin.preserved_anchor_inventory,
         )
         for document in documents

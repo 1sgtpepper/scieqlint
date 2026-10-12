@@ -38,9 +38,6 @@ class GeneratedProvenanceFact(FactBase):
     source_document_id: str | None = None
     source_kind: str | None = None
     conversion_stage: str | None = None
-    source_sha: str | None = None
-    tool: str | None = None
-    tool_version: str | None = None
     preserved_anchor_inventory: tuple[str, ...] = ()
 
 
