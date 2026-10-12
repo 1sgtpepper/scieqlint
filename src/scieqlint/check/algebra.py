@@ -87,18 +87,13 @@ class UnsupportedExpressionError(ValueError):
         self.code = code
 
 
-@dataclass(frozen=True, slots=True)
-class Token:
-    value: str
-
-
 class _Parser:
     def __init__(self, text: str) -> None:
         cleaned = text.replace("{", "(").replace("}", ")")
         tokens = TOKEN_RE.findall(cleaned)
-        if "".join(tokens).replace(" ", "") != re.sub(r"\s+", "", cleaned):
+        if "".join(tokens) != re.sub(r"\s+", "", cleaned):
             raise UnsupportedExpressionError(text)
-        self.tokens = tuple(Token(token) for token in tokens)
+        self.tokens = tuple(tokens)
         self.index = 0
 
     def parse(self) -> Polynomial:
@@ -111,8 +106,8 @@ class _Parser:
 
     def _expr(self) -> Polynomial:
         value = self._term()
-        while self._peek_value() in {"+", "-"}:
-            op = self._take().value
+        while self._peek() in {"+", "-"}:
+            op = self._take()
             rhs = self._term()
             value = _add(value, rhs) if op == "+" else _sub(value, rhs)
         return value
@@ -120,7 +115,7 @@ class _Parser:
     def _term(self) -> Polynomial:
         value = self._power()
         while True:
-            peek = self._peek_value()
+            peek = self._peek()
             if peek == "*" or peek in TEX_MULTIPLY:
                 self._take()
                 value = _mul(value, self._power())
@@ -135,21 +130,20 @@ class _Parser:
 
     def _power(self) -> Polynomial:
         sign = 1
-        while self._peek_value() in {"+", "-"}:
-            if self._take().value == "-":
+        while self._peek() in {"+", "-"}:
+            if self._take() == "-":
                 sign = -sign
         value = self._atom()
-        if self._peek_value() == "^":
+        if self._peek() == "^":
             self._take()
             value = _pow(value, self._signed_integer())
         return _neg(value) if sign == -1 else value
 
     def _atom(self) -> Polynomial:
-        token = self._take()
-        value = token.value
+        value = self._take()
         if value == "(":
             expression = self._expr()
-            if self._peek_value() != ")":
+            if self._peek() != ")":
                 raise UnsupportedExpressionError("missing closing parenthesis")
             self._take()
             return expression
@@ -162,7 +156,7 @@ class _Parser:
             # Preserve the original root operand's symbol information before
             # normalization can erase it through cancellation or exponent zero.
             if any(
-                re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token.value)
+                re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", token)
                 for token in self.tokens[operand_start : self.index]
             ):
                 raise UnsupportedExpressionError("sqrt of symbolic expression")
@@ -188,21 +182,20 @@ class _Parser:
 
     def _signed_integer(self) -> int:
         sign = 1
-        if self._peek_value() in {"(", "{"}:
-            opening = self._take().value
+        if self._peek() == "(":
+            self._take()
             sign = self._sign()
             number = self._take()
-            closing = ")" if opening == "(" else "}"
-            if self._peek_value() != closing:
+            if self._peek() != ")":
                 raise UnsupportedExpressionError("missing exponent close")
             self._take()
         else:
             sign = self._sign()
             number = self._take()
-        if not number.value.isdigit():
+        if not number.isdigit():
             raise UnsupportedExpressionError("non-integer exponent")
         try:
-            exponent = int(number.value)
+            exponent = int(number)
         except ValueError as exc:
             raise UnsupportedExpressionError("invalid integer exponent") from exc
         exponent *= sign
@@ -211,27 +204,23 @@ class _Parser:
         return exponent
 
     def _group(self) -> Polynomial:
-        if self._peek_value() != "(":
+        if self._peek() != "(":
             raise UnsupportedExpressionError("missing TeX group")
         return self._atom()
 
     def _sign(self) -> int:
-        if self._peek_value() == "+":
+        if self._peek() == "+":
             self._take()
             return 1
-        if self._peek_value() == "-":
+        if self._peek() == "-":
             self._take()
             return -1
         return 1
 
-    def _peek(self) -> Token | None:
+    def _peek(self) -> str | None:
         return self.tokens[self.index] if self.index < len(self.tokens) else None
 
-    def _peek_value(self) -> str | None:
-        token = self._peek()
-        return token.value if token is not None else None
-
-    def _take(self) -> Token:
+    def _take(self) -> str:
         token = self._peek()
         if token is None:
             raise UnsupportedExpressionError("unexpected end of expression")

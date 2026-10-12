@@ -109,7 +109,7 @@ class _Parser:
         exponent = self._signed_integer()
         if exponent is None or value.value is None:
             return self._combine(value, self._skipped())
-        return self._with_diagnostics(_scale(value.value, exponent), value.diagnostics)
+        return _DimensionResult(_scale(value.value, exponent), value.diagnostics)
 
     def _atom(self) -> _DimensionResult:
         token = self._take()
@@ -149,7 +149,7 @@ class _Parser:
             return value
         if any(exponent % 2 for exponent in value.value.exponents):
             return self._combine(value, self._skipped())
-        return self._with_diagnostics(_scale(value.value, 1, divisor=2), value.diagnostics)
+        return _DimensionResult(_scale(value.value, 1, divisor=2), value.diagnostics)
 
     def _symbol(self, name: str) -> _DimensionResult:
         canonical = self.aliases.get(name, name)
@@ -198,13 +198,6 @@ class _Parser:
             None,
             (_diagnostic(self.block, self.equation, "DIM020", detail),),
         )
-
-    def _with_diagnostics(
-        self,
-        value: DimVector,
-        diagnostics: tuple[Diagnostic, ...],
-    ) -> _DimensionResult:
-        return _DimensionResult(value, diagnostics)
 
     def _signed_integer(self) -> int | None:
         sign = 1
