@@ -15,7 +15,7 @@ import scieqlint.app_profile_generated as _app_profile_generated
 from scieqlint import __version__
 from scieqlint.check.algebra import check_algebra
 from scieqlint.check.dimensions import check_dimensions
-from scieqlint.check.references import check_missing_labels, check_references
+from scieqlint.check.references import check_missing_labels
 from scieqlint.check.suppressions import apply_suppressions
 from scieqlint.check.symbols import check_symbols
 from scieqlint.config.load import _load_config_with_inputs  # pyright: ignore[reportPrivateUsage]
@@ -73,10 +73,6 @@ _project_generated_diagnostic = _app_profile_generated.project_generated_diagnos
 _raw_missing_label_diagnostics = _app_profile_crossref.raw_missing_label_diagnostics
 _source_reference_facts = _app_profile_crossref.source_reference_facts
 _source_role_fact_id = _app_profile_crossref.source_role_fact_id
-_without_profile_owned_legacy_reference_diagnostics = (
-    _app_profile_crossref.without_profile_owned_legacy_reference_diagnostics
-)
-
 _ResultT = TypeVar("_ResultT")
 
 
@@ -207,10 +203,7 @@ def check_documents(
     if config.scanner.markdown or config.profile.name == "reference-display":
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
-        frontend_snapshot = MySTFrontend(workspace=workspace).lower(
-            markdown_documents,
-            _include_reference_display=False,
-        )
+        frontend_snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
         raw_opaque_spans = tuple(
             fact.span
             for fact in frontend_snapshot.display_math
@@ -226,7 +219,6 @@ def check_documents(
     labels: list[EquationLabel] = []
     non_markdown_labels: list[EquationLabel] = []
     non_markdown_references: list[EquationReference] = []
-    references: list[EquationReference] = []
     symbol_directives: list[SymbolDirective] = []
     diagnostics: list[Diagnostic] = []
     profile_documents = tuple(
@@ -255,6 +247,11 @@ def check_documents(
             )
         )
     )
+    profile_notebook_paths = {
+        document.path.as_posix()
+        for document in profile_documents
+        if document.kind is DocumentKind.NOTEBOOK
+    }
     if not profile_documents and normalized_accessibility_metadata is not None:
         _apply_accessibility_metadata((), normalized_accessibility_metadata)
 
@@ -265,16 +262,17 @@ def check_documents(
             scan = scanner.scan(_legacy_markdown_document(document, raw_opaque_spans), config)
         elif document.kind is DocumentKind.NOTEBOOK:
             parsed = notebook_scanner.parse(document)
-            parsed_notebooks[document.path.as_posix()] = parsed
             scan = notebook_scanner.scan(document, config, parsed=parsed)
+            document_path = document.path.as_posix()
+            if document_path in profile_notebook_paths:
+                parsed_notebooks[document_path] = parsed
         else:
             raise _unsupported_source_kind(document.path)
         blocks.extend(scan.blocks)
         labels.extend(scan.labels)
-        if document.kind is not DocumentKind.MARKDOWN:
+        if document.kind is DocumentKind.LATEX:
             non_markdown_labels.extend(scan.labels)
             non_markdown_references.extend(scan.references)
-        references.extend(scan.references)
         symbol_directives.extend(scan.symbol_directives)
         diagnostics.extend(scan.diagnostics)
         for block in scan.blocks:
@@ -289,55 +287,20 @@ def check_documents(
                 )
             diagnostics.extend(check_dimensions(block, config))
 
-    canonical_reference_path = bool(
-        (
-            markdown_documents
-            and (config.scanner.markdown or config.profile.name == "reference-display")
-        )
-        or non_markdown_labels
-        or non_markdown_references
-    )
+    canonical_reference_path = bool(non_markdown_labels or non_markdown_references)
     if config.parser.strict_unknowns:
         diagnostics = [_strict_unknown(diagnostic) for diagnostic in diagnostics]
-    if config.checks.references.enabled:
-        if canonical_reference_path:
-            if config.checks.references.missing_label_strict:
-                diagnostics.extend(
-                    check_missing_labels(
-                        tuple(
-                            block
-                            for block in blocks
-                            if _span_document_id(block.span) in visible_document_ids
-                        ),
-                        tuple(
-                            label
-                            for label in labels
-                            if _span_document_id(label.span) in visible_document_ids
-                        ),
-                    )
-                )
-        else:
-            diagnostics.extend(
-                check_references(
-                    tuple(
-                        label
-                        for label in labels
-                        if _span_document_id(label.span) in visible_document_ids
-                    ),
-                    tuple(
-                        reference
-                        for reference in references
-                        if _span_document_id(reference.span) in visible_document_ids
-                    ),
-                    blocks=tuple(
-                        block
-                        for block in blocks
-                        if _span_document_id(block.span) in visible_document_ids
-                    ),
-                    strict_missing_labels=config.checks.references.missing_label_strict,
-                    project_root=config.project.root,
-                )
+    if config.checks.references.enabled and config.checks.references.missing_label_strict:
+        diagnostics.extend(
+            check_missing_labels(
+                tuple(
+                    block for block in blocks if block.span.path.as_posix() in visible_document_ids
+                ),
+                tuple(
+                    label for label in labels if label.span.path.as_posix() in visible_document_ids
+                ),
             )
+        )
     if config.checks.symbols.enabled:
         diagnostics.extend(
             check_symbols(
@@ -347,12 +310,6 @@ def check_documents(
             )
         )
     generated_provenance = _generated_provenance_facts(markdown_documents, config)
-    generated_provenance_by_id = {
-        provenance.fact_id: provenance for provenance in generated_provenance
-    }
-    generated_provenance_by_document = {
-        provenance.generated_document_id: provenance for provenance in generated_provenance
-    }
     if not config.scanner.inline_math and config.profile.name != "math-accessibility":
         # Inline math is opt-in, and candidate facts are lowered before scanner
         # options are applied. Standalone equation-like candidates are generated
@@ -410,10 +367,6 @@ def check_documents(
             if diagnostic not in diagnostics:
                 diagnostics.append(diagnostic)
         query = QueryHost(snapshot)
-        diagnostics = _without_profile_owned_legacy_reference_diagnostics(
-            diagnostics,
-            query,
-        )
         if config.checks.references.enabled:
             diagnostics.extend(
                 diagnostic.to_diagnostic()
@@ -453,7 +406,13 @@ def check_documents(
             raw_display_spans=raw_opaque_spans,
         )
     )
-    if config.profile.name == "generated-myst":
+    if config.profile.name == "generated-myst" and generated_provenance and diagnostics:
+        generated_provenance_by_id = {
+            provenance.fact_id: provenance for provenance in generated_provenance
+        }
+        generated_provenance_by_document = {
+            provenance.generated_document_id: provenance for provenance in generated_provenance
+        }
         diagnostics = [
             _project_generated_diagnostic(
                 diagnostic,
@@ -594,10 +553,7 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend(workspace=workspace).lower(
-        documents,
-        _include_reference_display=False,
-    )
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math
@@ -727,7 +683,15 @@ def _source_read_diagnostic(
         code="INP001",
         severity=info.severity,
         message=f"{info.message}: {display_path}",
-        span=_file_start_span(path, absolute_paths=absolute_paths),
+        span=SourceSpan(
+            path=display_path,
+            start=0,
+            end=0,
+            line=1,
+            col=1,
+            end_line=1,
+            end_col=1,
+        ),
         detail=detail,
     )
 
@@ -1011,19 +975,6 @@ def _unsupported_source_kind(path: PurePath) -> ValueError:
     return ValueError(f"unsupported source kind {suffix!r}: {path.as_posix()}")
 
 
-def _file_start_span(path: Path, *, absolute_paths: bool) -> SourceSpan:
-    display_path = _display_path(path, absolute_paths=absolute_paths)
-    return SourceSpan(
-        path=display_path,
-        start=0,
-        end=0,
-        line=1,
-        col=1,
-        end_line=1,
-        end_col=1,
-    )
-
-
 def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, str]:
     span = diagnostic.span
     if span is None:
@@ -1037,7 +988,3 @@ def _diagnostic_key(diagnostic: Diagnostic) -> tuple[str, int, int, int, str, st
         diagnostic.code,
         diagnostic.message,
     )
-
-
-def _span_document_id(span: SourceSpan) -> str:
-    return span.path.as_posix()

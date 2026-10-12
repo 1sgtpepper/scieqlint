@@ -352,15 +352,104 @@ def test_check_documents_honors_disabled_algebra_check() -> None:
     assert result.diagnostics == ()
 
 
-def test_check_documents_honors_strict_missing_label_config() -> None:
+@pytest.mark.parametrize(
+    ("references", "expected_codes"),
+    [
+        (ReferencesConfig(missing_label_strict=False), ["REF002"]),
+        (ReferencesConfig(missing_label_strict=True), ["REF003", "REF002"]),
+        (ReferencesConfig(enabled=False, missing_label_strict=True), []),
+    ],
+    ids=("canonical-nonstrict", "canonical-strict", "references-disabled"),
+)
+def test_canonical_reference_path_preserves_missing_reference_and_label_checks(
+    references: ReferencesConfig,
+    expected_codes: list[str],
+) -> None:
     document = SourceDocument.from_text(
         PurePosixPath("paper.md"),
-        "$$\na = a\n$$\n",
+        "$$\nx = 1\n$$\n\nSee {eq}`missing`.\n",
         DocumentKind.MARKDOWN,
     )
-    config = Config(checks=ChecksConfig(references=ReferencesConfig(missing_label_strict=True)))
+    config = Config(checks=ChecksConfig(references=references))
     result = check_documents([document], config=config)
-    assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF003"]
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+    if "REF002" in expected_codes:
+        missing_reference = result.diagnostics[-1]
+        assert missing_reference.message == "equation reference target not found: missing"
+        assert missing_reference.detail == "reference text: {eq}`missing`"
+        assert missing_reference.span == SourceSpan(
+            path=PurePosixPath("paper.md"),
+            start=22,
+            end=29,
+            line=5,
+            col=10,
+            end_line=5,
+            end_col=16,
+        )
+    if "REF003" in expected_codes:
+        missing_label = result.diagnostics[0]
+        assert missing_label.message == "missing equation label in strict mode"
+        assert missing_label.span == SourceSpan(
+            path=PurePosixPath("paper.md"),
+            start=3,
+            end=8,
+            line=2,
+            col=1,
+            end_line=2,
+            end_col=5,
+        )
+        assert missing_label.equation == "x = 1"
+
+
+@pytest.mark.parametrize(
+    ("references", "expected_codes"),
+    [
+        (ReferencesConfig(missing_label_strict=True), ["REF003"]),
+        (ReferencesConfig(enabled=False, missing_label_strict=True), []),
+        (ReferencesConfig(missing_label_strict=False), []),
+    ],
+    ids=("strict-enabled", "references-disabled", "strict-disabled"),
+)
+def test_strict_latex_missing_label_without_markdown_scan_obeys_reference_guards(
+    references: ReferencesConfig,
+    expected_codes: list[str],
+) -> None:
+    source = "\\begin{equation}\nx = 1\n\\end{equation}\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.tex"),
+        source,
+        DocumentKind.LATEX,
+    )
+    config = Config(
+        scanner=ScannerConfig(markdown=False),
+        checks=ChecksConfig(references=references),
+    )
+
+    result = check_documents([document], config=config)
+
+    assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+    assert result.math_blocks_checked == 1
+    if expected_codes:
+        math_start = source.index("x = 1")
+        assert result.diagnostics == (
+            Diagnostic(
+                code="REF003",
+                severity=Severity.INFO,
+                message="missing equation label in strict mode",
+                span=SourceSpan(
+                    path=PurePosixPath("paper.tex"),
+                    start=math_start,
+                    end=math_start + len("x = 1"),
+                    line=2,
+                    col=1,
+                    end_line=2,
+                    end_col=len("x = 1"),
+                ),
+                equation="x = 1",
+                rule="references",
+            ),
+        )
 
 
 def test_strict_missing_label_check_keeps_fenced_math() -> None:

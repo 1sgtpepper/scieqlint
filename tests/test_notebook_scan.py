@@ -561,10 +561,18 @@ def test_notebook_scanner_rejects_parsed_input_from_another_document() -> None:
 
 
 @pytest.mark.parametrize("text", ["{", "", " \n\t", "{} {}"])
-def test_invalid_notebook_json_emits_input_diagnostic(text: str) -> None:
+@pytest.mark.parametrize(
+    "references_enabled",
+    [True, False],
+    ids=["profile-selected", "unselected"],
+)
+def test_invalid_notebook_json_emits_input_diagnostic(text: str, references_enabled: bool) -> None:
     document = SourceDocument.from_text(PurePosixPath("broken.ipynb"), text, DocumentKind.NOTEBOOK)
 
-    result = check_documents([document], config=Config())
+    config = Config(
+        checks=ChecksConfig(references=ReferencesConfig(enabled=references_enabled)),
+    )
+    result = check_documents([document], config=config)
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["INP001"]
     assert result.diagnostics[0].span is not None
@@ -1077,6 +1085,80 @@ def test_notebook_scanner_preserves_label_cell_metadata() -> None:
     assert scan.labels[0].span.cell_line == 3
     assert scan.labels[0].block_id is not None
     assert "#cell-0" in scan.labels[0].block_id
+
+
+@pytest.mark.parametrize(
+    ("source", "references", "expected_codes"),
+    [
+        (
+            "$$\nx = 1\n$$\n",
+            ReferencesConfig(missing_label_strict=True),
+            ["REF003"],
+        ),
+        (
+            "$$\nx = 1\n$$ {#equation}\n",
+            ReferencesConfig(missing_label_strict=True),
+            [],
+        ),
+        (
+            "$$\nx = 1\n$$\n",
+            ReferencesConfig(enabled=False, missing_label_strict=True),
+            [],
+        ),
+    ],
+    ids=("unlabeled-strict", "labeled-strict", "references-disabled"),
+)
+def test_notebook_strict_missing_label_check_uses_scanner_labels_and_spans(
+    source: str,
+    references: ReferencesConfig,
+    expected_codes: list[str],
+) -> None:
+    document = _notebook([_markdown_cell(source)])
+    config = Config(checks=ChecksConfig(references=references))
+
+    result = check_documents((document,), config=config)
+
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+    if expected_codes:
+        [diagnostic] = result.diagnostics
+        start = document.text.index("x = 1")
+        end = start + len("x = 1")
+        assert (
+            diagnostic.severity,
+            diagnostic.message,
+            diagnostic.equation,
+            diagnostic.rule,
+        ) == (
+            Severity.INFO,
+            "missing equation label in strict mode",
+            "x = 1",
+            "references",
+        )
+        span = diagnostic.span
+        assert span is not None
+        assert (
+            span.path,
+            span.start,
+            span.end,
+            span.line,
+            span.col,
+            span.end_line,
+            span.end_col,
+            span.cell,
+            span.cell_line,
+        ) == (
+            document.path,
+            start,
+            end,
+            1,
+            start + 1,
+            1,
+            end,
+            0,
+            2,
+        )
+        assert _raw_segments(document, span) == list("x = 1")
 
 
 def _notebook(cells: list[dict[str, object]]) -> SourceDocument:

@@ -49,7 +49,6 @@ from .myst_headings import (
 from .myst_inline_math import scan_inline_math
 from .myst_refs import scan_refs
 from .myst_shared import in_ranges, line_ranges
-from .reference_display import reference_display_text_facts
 
 _directive_option_prefix_lines = directive_option_prefix_lines
 _myst_options = myst_options
@@ -66,8 +65,6 @@ class MySTFrontend:
     def lower(
         self,
         documents: Sequence[SourceDocument],
-        *,
-        _include_reference_display: bool = True,
     ) -> FactSnapshot:
         parts = tuple(_lower_document(document, workspace=self.workspace) for document in documents)
         target_anchors = _flatten(parts, "target_anchors")
@@ -87,18 +84,6 @@ class MySTFrontend:
             equation_labels=equation_labels,
             equation_refs=equation_refs,
             crossref_metadata=_flatten(parts, "crossref_metadata"),
-            reference_display_text=(
-                reference_display_text_facts(
-                    generic_refs,
-                    equation_refs,
-                    target_anchors,
-                    equation_labels,
-                    project_root=self.workspace.project_root,
-                    code_cells=code_cells,
-                )
-                if _include_reference_display
-                else ()
-            ),
             inline_math=_flatten(parts, "inline_math"),
             display_math=_flatten(parts, "display_math"),
             generated_formulas=_flatten(parts, "generated_formulas"),
