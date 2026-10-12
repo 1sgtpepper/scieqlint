@@ -43,6 +43,56 @@ def test_align_row_scanning_bounds_backslash_character_work() -> None:
     assert source.character_work <= 10 * len(source)
 
 
+def test_latex_scanner_preserves_str_subclass_iteration_for_alignment() -> None:
+    class IterationText(str):
+        def replace(self, old: str, new: str, count: int = -1) -> IterationText:
+            return type(self)(super().replace(old, new, count))
+
+        def __iter__(self):
+            return iter(str(self).replace("x", "y"))
+
+    source = "$$\nx = x\n$$\n"
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.tex"),
+        IterationText(source),
+        DocumentKind.LATEX,
+    )
+    result = LatexScanner().scan(document, Config())
+
+    [block] = result.blocks
+    assert block.text == "y = y"
+    assert document.text == source
+    assert document.text[block.span.start : block.span.end] == "x = x"
+
+
+def test_latex_scanner_preserves_stateful_str_find_schedule() -> None:
+    class SecondCloseMiss(str):
+        def __new__(cls, value: str):
+            instance = super().__new__(cls, value)
+            instance.close_calls = 0
+            return instance
+
+        def replace(self, old: str, new: str, count: int = -1) -> SecondCloseMiss:
+            return type(self)(super().replace(old, new, count))
+
+        def find(self, sub: str, start: int = 0, end: int | None = None) -> int:
+            if sub == r"\]":
+                self.close_calls += 1
+                if self.close_calls == 2:
+                    return -1
+            if end is None:
+                return super().find(sub, start)
+            return super().find(sub, start, end)
+
+    text = SecondCloseMiss(r"\[x\]" + "\n% \\[comment\n\\\\[escaped\n")
+    document = _document(text)
+    result = LatexScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == ["x"]
+    assert result.diagnostics == ()
+    assert document.text.close_calls == 3
+
+
 def test_latex_equation_environment_is_extracted() -> None:
     result = LatexScanner().scan(
         _document("\\begin{equation}\nE = m c^2\n\\end{equation}\n"),
@@ -760,6 +810,85 @@ def test_latex_unterminated_display_delimiter_warns() -> None:
 
     assert result.blocks == ()
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["SCAN001"]
+
+
+@pytest.mark.parametrize(
+    (
+        "source",
+        "opening",
+        "expected_blocks",
+        "expected_unterminated_starts",
+        "expected_close_searches",
+    ),
+    [
+        (r"\[\[x", r"\[", [], [0, 2], 4),
+        (r"$$x", "$$", [], [0], 2),
+        (r"\[\[x\]", r"\[", [r"\[x"], [], 1),
+        ("$$$$", "$$", [], [], 1),
+        (r"\[a\]\[b", r"\[", ["a"], [5], 3),
+        ("$$a$$\n$$b", "$$", ["a"], [6], 3),
+        (r"\[x \\]", r"\[", [], [0], 2),
+        (r"$$x \$$", "$$", [], [0], 2),
+        (r"\[x % \]", r"\[", [], [0], 2),
+        ("$$x % $$", "$$", [], [0], 2),
+        (r"\[x \begin{verbatim}\]\end{verbatim}", r"\[", [], [0], 2),
+        (r"$$x \begin{verbatim}$$\end{verbatim}", "$$", [], [0], 2),
+        (r"\\[x", r"\[", [], [], 0),
+        (r"% \[x", r"\[", [], [], 0),
+        (r"\begin{verbatim}\[x\end{verbatim}", r"\[", [], [], 0),
+    ],
+)
+def test_unterminated_display_diagnostics_cover_unmatched_delimiter_cases(
+    source: str,
+    opening: str,
+    expected_blocks: list[str],
+    expected_unterminated_starts: list[int],
+    expected_close_searches: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    close_searches = 0
+    find_close = latex_module._find_close
+
+    def count_close_searches(*args, **kwargs):
+        nonlocal close_searches
+        close_searches += 1
+        return find_close(*args, **kwargs)
+
+    monkeypatch.setattr(latex_module, "_find_close", count_close_searches)
+    document = _document(source)
+    result = LatexScanner().scan(document, Config())
+
+    assert [block.text for block in result.blocks] == expected_blocks
+    assert result.diagnostics == tuple(
+        _expected_unterminated_diagnostic(document, start, opening)
+        for start in expected_unterminated_starts
+    )
+    assert close_searches == expected_close_searches
+
+
+def _expected_unterminated_diagnostic(
+    document: SourceDocument,
+    start: int,
+    opening: str,
+) -> Diagnostic:
+    end = start + len(opening)
+    line, col = document.line_index.position(start)
+    end_line, end_col = document.line_index.position(end - 1)
+    return Diagnostic(
+        code="SCAN001",
+        severity=Severity.WARNING,
+        message="unterminated math container",
+        span=SourceSpan(
+            path=document.path,
+            start=start,
+            end=end,
+            line=line,
+            col=col,
+            end_line=end_line,
+            end_col=end_col,
+        ),
+        rule="scanner",
+    )
 
 
 def test_latex_symbol_directive_fixture_is_extracted() -> None:
