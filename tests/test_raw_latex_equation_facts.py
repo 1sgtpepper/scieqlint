@@ -157,7 +157,6 @@ E = mc^2
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("eq", "eq:energy")
     ]
-    assert snapshot.unknown_math == ()
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
     assert check_documents((doc(source),), config=Config()).diagnostics == ()
     assert snapshot.display_math[0].span is not None
@@ -707,7 +706,6 @@ x &= y \label{{flalign-label}}
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-eqref", "flalign-label")
     ]
-    assert snapshot.unknown_math == ()
 
 
 def test_starred_equation_environment_remains_supported_math() -> None:
@@ -726,7 +724,6 @@ x = 1 \label{starred-equation}
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-eqref", "starred-equation")
     ]
-    assert snapshot.unknown_math == ()
 
 
 def test_escaped_raw_equation_markers_and_empty_targets_are_not_facts() -> None:
@@ -739,7 +736,6 @@ x = y \\label{escaped} \\ref{escaped} \ref{ }
 
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert snapshot.unknown_math == ()
 
 
 def test_myst_and_raw_tex_labels_reject_blank_and_multiline_values() -> None:
@@ -797,7 +793,7 @@ def test_myst_and_raw_tex_labels_reject_blank_and_multiline_values() -> None:
 
 
 @pytest.mark.parametrize("environment", ["cases", "mystery"])
-def test_unknown_raw_environment_preserves_parseable_equation_facts(
+def test_unsupported_raw_environment_preserves_parseable_equation_facts(
     environment: str,
 ) -> None:
     source = rf"""\begin{{{environment}}}
@@ -814,9 +810,6 @@ x & \text{{if }} y \label{{piecewise}}
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-ref", "outside")
     ]
-    assert [
-        (fact.source_math_fact_id, fact.reason, fact.excerpt) for fact in snapshot.unknown_math
-    ] == [(snapshot.display_math[0].fact_id, "environment", environment)]
 
 
 def test_math_host_classification_is_idempotent_for_unsupported_raw_environment() -> None:
@@ -832,26 +825,23 @@ x = 1 \label{one} \ref{two}
 
 
 @pytest.mark.parametrize(
-    ("source", "expected_display", "expected_unknown", "expected_generated"),
+    ("source", "expected_display", "expected_generated"),
     [
         pytest.param(
             "\\begin{cases}\nformula-not-decoded\n\\end{cases}\n",
             (("raw-latex", "cases", True),),
-            (("environment", "cases"),),
             (),
             id="unsupported-complete",
         ),
         pytest.param(
             "\\begin{equation}\nformula-not-decoded\n",
             (("raw-latex", "equation", False),),
-            (("parse_limit", "equation"),),
             (),
             id="recognized-incomplete",
         ),
         pytest.param(
             "\\begin{equation}\nformula-not-decoded\n\\end{equation}\n",
             (("ams", "equation", True),),
-            (),
             (("placeholder", "formula-not-decoded"),),
             id="recognized-complete",
         ),
@@ -860,7 +850,6 @@ x = 1 \label{one} \ref{two}
 def test_raw_formula_markers_follow_classified_display_ownership(
     source: str,
     expected_display: tuple[tuple[str, str, bool], ...],
-    expected_unknown: tuple[tuple[str, str], ...],
     expected_generated: tuple[tuple[str, str], ...],
 ) -> None:
     snapshot = lower(doc(source))
@@ -868,7 +857,6 @@ def test_raw_formula_markers_follow_classified_display_ownership(
     assert [
         (fact.container, fact.environment, fact.complete) for fact in snapshot.display_math
     ] == list(expected_display)
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == list(expected_unknown)
     assert [(fact.kind, fact.placeholder_kind) for fact in snapshot.generated_formulas] == list(
         expected_generated
     )
@@ -891,13 +879,10 @@ x = 1 \label{{custom-label}}
     assert [(fact.ref_kind, fact.target) for fact in snapshot.equation_refs] == [
         ("tex-ref", "custom-label")
     ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("environment", environment)
-    ]
 
 
 @pytest.mark.parametrize("environment", ["equation1", "my-env:foo"])
-def test_unclosed_custom_raw_environment_is_unknown_without_equation_facts(
+def test_unclosed_custom_raw_environment_has_no_equation_facts(
     environment: str,
 ) -> None:
     source = rf"""\begin{{{environment}}}
@@ -912,9 +897,6 @@ x = 1 \label{{partial}}
     ]
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("environment", environment)
-    ]
 
 
 @pytest.mark.parametrize(
@@ -933,7 +915,6 @@ def test_nonmath_raw_environments_are_not_equation_candidates(environment: str) 
     assert snapshot.display_math == ()
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert snapshot.unknown_math == ()
     assert snapshot.generated_formulas == ()
 
 
@@ -980,7 +961,6 @@ def test_starred_nonmath_raw_environments_are_opaque(environment: str) -> None:
     assert snapshot.display_math == ()
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert snapshot.unknown_math == ()
     assert snapshot.generated_formulas == ()
 
 
@@ -1017,7 +997,6 @@ c &= d
 
     assert len(snapshot.display_math) == 1
     assert [fact.label for fact in snapshot.equation_labels] == ["nested"]
-    assert snapshot.unknown_math == ()
 
 
 def test_nested_verbatim_environment_does_not_leak_equation_facts() -> None:
@@ -1141,9 +1120,6 @@ def test_mismatched_nested_raw_environment_stays_partial_without_equation_facts(
     ]
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("parse_limit", "equation")
-    ]
 
 
 @pytest.mark.parametrize(
@@ -1161,8 +1137,6 @@ def test_inline_opener_before_raw_environment_owns_the_candidate(source: str) ->
     assert len(snapshot.inline_math) == 1
     assert snapshot.inline_math[0].delimiter_kind in {"dollar", "myst-role", "latex-paren"}
     assert snapshot.display_math == ()
-    assert len(snapshot.unknown_math) == 1
-    assert snapshot.unknown_math[0].reason == "environment"
 
 
 @pytest.mark.parametrize(
@@ -1300,12 +1274,9 @@ x = y \label{partial}
     assert snapshot.display_math[0].span.end == len(source)
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("parse_limit", "equation")
-    ]
 
 
-def test_mismatched_raw_environment_is_partial_unknown_without_equation_facts() -> None:
+def test_mismatched_raw_environment_is_partial_without_equation_facts() -> None:
     source = r"""\begin{mystery}
 x = y \label{partial-unknown}
 \end{equation}
@@ -1318,9 +1289,6 @@ x = y \label{partial-unknown}
     assert snapshot.display_math[0].complete is False
     assert snapshot.equation_labels == ()
     assert snapshot.equation_refs == ()
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("environment", "mystery")
-    ]
 
 
 def test_unmatched_raw_environment_closer_is_ignored_before_a_valid_environment() -> None:
@@ -1334,7 +1302,6 @@ x = y
     snapshot = lower(doc(source))
 
     assert [(fact.container, fact.body) for fact in snapshot.display_math] == [("ams", "x = y")]
-    assert snapshot.unknown_math == ()
 
 
 def test_raw_math_ignores_active_tex_comments_for_environment_labels_and_refs() -> None:
@@ -1420,4 +1387,3 @@ def test_raw_equation_facts_are_deterministic_after_newline_normalization() -> N
     assert lf.display_math == crlf.display_math
     assert lf.equation_labels == crlf.equation_labels
     assert lf.equation_refs == crlf.equation_refs
-    assert lf.unknown_math == crlf.unknown_math

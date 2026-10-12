@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import cast
 
 from scieqlint.facts.generated import GeneratedFormulaFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.reference import (
     CrossrefMetadataFact,
     EquationLabelFact,
@@ -73,7 +73,6 @@ class NotebookFrontend:
         )
         all_inline_math = tuple(fact for part in parts for fact in part.inline_math)
         all_display_math = tuple(fact for part in parts for fact in part.display_math)
-        all_unknown_math = tuple(fact for part in parts for fact in part.unknown_math)
         all_generated_formulas = tuple(fact for part in parts for fact in part.generated_formulas)
         all_code_cells = tuple(fact for part in parts for fact in part.code_cells)
         all_target_anchors = tuple(fact for part in parts for fact in part.target_anchors)
@@ -85,7 +84,6 @@ class NotebookFrontend:
             project_members=self.workspace.project_facts(documents)[0],
             inline_math=all_inline_math,
             display_math=all_display_math,
-            unknown_math=all_unknown_math,
             generated_formulas=all_generated_formulas,
             code_cells=all_code_cells,
             notebook_outputs=tuple(fact for part in parts for fact in part.notebook_outputs),
@@ -130,7 +128,6 @@ def _lower_document(
     cells: list[CodeCellFact] = []
     inline_math: list[InlineMathFact] = []
     display_math: list[DisplayMathFact] = []
-    unknown_math: list[UnknownMathFact] = []
     generated_formulas: list[GeneratedFormulaFact] = []
     outputs: list[NotebookOutputFact] = []
     generic_refs: list[GenericRefFact] = []
@@ -167,7 +164,6 @@ def _lower_document(
                 target_anchors.extend(markdown_snapshot.target_anchors)
                 inline_math.extend(markdown_snapshot.inline_math)
                 display_math.extend(markdown_snapshot.display_math)
-                unknown_math.extend(markdown_snapshot.unknown_math)
                 generated_formulas.extend(markdown_snapshot.generated_formulas)
                 generic_refs.extend(markdown_snapshot.generic_refs)
                 equation_labels.extend(markdown_snapshot.equation_labels)
@@ -231,7 +227,6 @@ def _lower_document(
         documents=(document,),
         inline_math=tuple(inline_math),
         display_math=tuple(display_math),
-        unknown_math=tuple(unknown_math),
         generated_formulas=tuple(generated_formulas),
         code_cells=tuple(cells),
         notebook_outputs=tuple(outputs),

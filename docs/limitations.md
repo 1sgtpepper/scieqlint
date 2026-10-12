@@ -49,9 +49,8 @@ text but stays on one source line. Empty bodies and unmatched delimiters are not
 core math facts. The generated-MyST profile additionally emits explicit GEN004
 placeholder facts for standalone formula-not-decoded markers and complete empty
 fenced, directive, and dollar-display containers, including accepted complete raw
-LaTeX displays. Markers inside unsupported or incomplete raw environments remain
-owned by their `UnknownMathFact` and do not become generated placeholders; unmatched
-containers remain unclassified.
+LaTeX displays. Markers inside unsupported or incomplete raw environments do not
+become generated placeholders; unmatched containers remain unclassified.
 
 Raw LaTeX environments embedded in Markdown are scanned outside opaque code and
 link regions. Complete `equation`, `align`, `flalign`, `gather`, and `multline`
@@ -63,11 +62,11 @@ Ownership is source ordered: a raw environment opened first makes later Markdown
 backticks, links, and MyST reference roles in its candidate literal. They cannot
 hide the raw closer or claim later source. Markdown code or a link opened first
 keeps ownership of its complete token, including any TeX-like controls inside it.
-Other raw environment candidates, including unsupported or incomplete forms, are
-preserved as `UnknownMathFact` candidates. Complete unsupported environments
-still preserve parseable equation label and reference facts; incomplete forms
-do not. Explicit non-math and verbatim environments remain opaque and produce
-neither math nor equation-reference facts. Markdown delimiters inside raw owners
+Other raw environment candidates, including unsupported or incomplete forms, remain
+unsupported display candidates. Complete unsupported environments still preserve
+parseable equation label and reference facts; incomplete forms do not. Explicit
+non-math and verbatim environments remain opaque and produce neither math nor
+equation-reference facts. Markdown delimiters inside raw owners
 cannot close or hide a math container or reference outside that source range.
 
 ## Core grammar subset
@@ -85,11 +84,7 @@ cannot close or hide a math container or reference outside that source range.
 | integrals/derivatives/limits | deferred |
 | matrices/vectors/tensors | deferred |
 | non-integer powers and symbolic square roots | deferred |
-| user TeX macro declarations/use sites | recorded in internal snapshots for explicit inline math; no public consumer; expansion deferred |
-
-Inline macro replacement text balances braces; interval brackets remain data.
-Optional defaults end at an unescaped closing bracket outside braces. These finite
-boundaries do not expand macros or implement general TeX argument processing.
+| TeX macro declarations/use sites | not expanded; general LaTeX macro expansion is deferred |
 
 Configured dimension aliases match complete surface tokens and do not split a
 longer identifier. This boundary also applies when an alias ends in punctuation,
@@ -99,7 +94,7 @@ Each non-empty line-separated equation in a math container is checked
 independently; line breaks do not create chained equalities. A line ending in
 `=` is treated as an incomplete equation rather than continued on the next line.
 
-Unsupported syntax must produce an unknown/skipped diagnostic, not a crash and not a guessed answer.
+Unsupported syntax must produce a skipped-math diagnostic, not a crash and not a guessed answer.
 
 ## Current integration outputs
 
@@ -189,12 +184,12 @@ unary signs. An unsupported attached group or malformed continuation rejects the
 candidate instead of publishing a truncated prefix. Candidates remain unclassified until
 `MathHost` classifies them symmetrically as `text-leak` or `not-math`; bare numeric
 comparisons and signed prose remain excluded from math queries. Malformed or
-unsupported inline math remains an `UnknownMath` fact rather than a guessed formula.
-Unsupported TeX environment names,
-including names with hyphens, digits, or underscores, are classified as unknown rather
-than preserved. Only complete Markdown block items become generated equation-like
-artifacts, so lazy container continuations remain non-artifacts. A candidate that overlaps code,
-HTML, link metadata, or another MyST role is rejected without hiding a later disjoint
+unsupported inline math retains its `unsupported` parse status rather than becoming
+a guessed formula. Unsupported TeX environment names, including names with hyphens,
+digits, or underscores, remain unsupported display candidates. Only complete Markdown
+block items become generated equation-like artifacts, so lazy container continuations
+remain non-artifacts. A candidate that overlaps code, HTML, link metadata, or another
+MyST role is rejected without hiding a later disjoint
 candidate, using the frontend's shared source-order ownership snapshot. Explicit math
 inside Markdown link text remains visible for every supported delimiter, while link
 destinations, titles, images, and inferred plain-text candidates in labels remain opaque.

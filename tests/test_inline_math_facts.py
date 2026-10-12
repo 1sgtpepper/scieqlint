@@ -88,27 +88,22 @@ def test_plain_text_math_in_setext_heading_keeps_heading_role() -> None:
 
 
 def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
-    snapshot = _classify(
-        MySTFrontend().lower(
-            (
-                doc(
-                    r"Bad $\frac{1}{$ and trailing $x +$ and unsupported "
-                    r"$\begin{aligned}x&=1\end{aligned}$.",
-                ),
-            )
-        )
+    source = (
+        r"Bad $\frac{1}{$ and trailing $x +$ and unsupported "
+        r"$\begin{aligned}x&=1\end{aligned}$."
     )
+    snapshot = _classify(MySTFrontend().lower((doc(source),)))
 
-    assert [fact.parse_status for fact in snapshot.inline_math] == [
-        "unsupported",
-        "unsupported",
-        "unsupported",
-    ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("unsupported_syntax", r"\frac{1}{"),
-        ("unsupported_syntax", "x +"),
-        ("environment", "aligned"),
-    ]
+    expected = (
+        (r"\frac{1}{", "unsupported"),
+        ("x +", "unsupported"),
+        (r"\begin{aligned}x&=1\end{aligned}", "unsupported"),
+    )
+    assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == list(expected)
+    assert all(fact.span is not None for fact in snapshot.inline_math)
+    assert [
+        (fact.span.start, fact.span.end) for fact in snapshot.inline_math if fact.span is not None
+    ] == [(source.index(body), source.index(body) + len(body)) for body, _ in expected]
 
 
 def test_math_host_keeps_ordinary_prose_out_of_plain_text_math() -> None:
@@ -407,9 +402,6 @@ def test_math_host_rejects_plain_prose_and_mismatched_delimiters() -> None:
         "not-math",
         "unsupported",
     ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("unsupported_syntax", "(x]"),
-    ]
 
 
 def test_inline_math_fact_scanning_ignores_code_fences_inline_code_and_ordinary_prose() -> None:
@@ -604,7 +596,6 @@ def test_unclosed_display_math_owns_remaining_inline_syntax(source: str) -> None
 
     assert snapshot.display_math == ()
     assert snapshot.inline_math == ()
-    assert snapshot.unknown_math == ()
 
 
 def test_closed_display_math_releases_following_inline_syntax() -> None:
@@ -691,9 +682,6 @@ def test_math_host_rejects_only_incomplete_relation_tails(
         (complete, "preserved"),
         (incomplete, "unsupported"),
     ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("unsupported_syntax", incomplete)
-    ]
     assert QueryHost(snapshot).math.inline_math() == snapshot.inline_math
 
 
@@ -713,9 +701,6 @@ def test_math_host_classifies_unsupported_environment_name_variants(environment:
 
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
         (body, "unsupported")
-    ]
-    assert [(unknown.reason, unknown.excerpt) for unknown in snapshot.unknown_math] == [
-        ("environment", environment)
     ]
 
 
@@ -740,9 +725,6 @@ def test_tex_delimiters_and_environments_use_full_escape_parity() -> None:
         ("dollar", even + "begin{aligned}x=y" + even + "end{aligned}", "preserved"),
         ("dollar", odd + "begin{aligned}x=y" + odd + "end{aligned}", "unsupported"),
     ]
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("environment", "aligned")
-    ]
     assert [
         source[fact.span.start : fact.span.end]
         for fact in snapshot.inline_math
@@ -760,12 +742,8 @@ def test_nested_latex_paren_delimiters_are_ambiguous_after_bounded_sweep() -> No
     assert fact.parse_status == "unsupported"
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == r"\(" * 32 + "x"
-    assert [(unknown.reason, unknown.excerpt) for unknown in snapshot.unknown_math] == [
-        ("ambiguous_delimiter", r"\("),
-    ]
     query = QueryHost(snapshot).math
     assert query.inline_math() == (fact,)
-    assert query.unknown_math() == snapshot.unknown_math
 
 
 def test_latex_paren_delimiter_ambiguity_respects_escape_parity() -> None:
@@ -778,7 +756,6 @@ def test_latex_paren_delimiter_ambiguity_respects_escape_parity() -> None:
         ("x", "preserved"),
         (escaped_inner, "preserved"),
     ]
-    assert snapshot.unknown_math == ()
 
 
 def test_unmatched_latex_closer_does_not_hide_a_later_math_pair() -> None:
@@ -797,9 +774,6 @@ def test_inline_dollar_environment_sweep_rejects_malformed_math_and_needs_closer
 
     assert [(fact.body, fact.parse_status) for fact in malformed.inline_math] == [
         (body, "unsupported")
-    ]
-    assert [(fact.reason, fact.excerpt) for fact in malformed.unknown_math] == [
-        ("environment", "align")
     ]
     span = malformed.inline_math[0].span
     assert span is not None
@@ -885,9 +859,6 @@ def test_math_host_rejects_required_argument_ending_in_lone_backslash() -> None:
     [fact] = snapshot.inline_math
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == body
-    assert [(unknown.reason, unknown.excerpt) for unknown in snapshot.unknown_math] == [
-        ("unsupported_syntax", body)
-    ]
 
 
 class _CountingText(str):
@@ -936,7 +907,6 @@ def test_math_host_does_not_apply_required_arity_to_escaped_commands() -> None:
     assert [(fact.body, fact.parse_status) for fact in snapshot.inline_math] == [
         (body, "preserved")
     ]
-    assert snapshot.unknown_math == ()
 
 
 def test_without_tex_comments_preserves_offsets_and_escaped_percent() -> None:

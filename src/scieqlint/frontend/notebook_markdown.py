@@ -41,21 +41,17 @@ def markdown_cell_references(
             source_ranges=source_ranges,
         )
 
-    fact_ids = {
-        fact.fact_id: f"{prefix}{fact.fact_id}"
-        for facts in (
-            snapshot.inline_math,
-            snapshot.display_math,
-            snapshot.unknown_math,
-            snapshot.generated_formulas,
-            snapshot.target_anchors,
-            snapshot.generic_refs,
-            snapshot.equation_labels,
-            snapshot.equation_refs,
-            snapshot.crossref_metadata,
-        )
-        for fact in facts
-    }
+    source_facts = (
+        *snapshot.inline_math,
+        *snapshot.display_math,
+        *snapshot.generated_formulas,
+        *snapshot.target_anchors,
+        *snapshot.generic_refs,
+        *snapshot.equation_labels,
+        *snapshot.equation_refs,
+        *snapshot.crossref_metadata,
+    )
+    fact_ids = {fact.fact_id: f"{prefix}{fact.fact_id}" for fact in source_facts}
     equation_label_spans = {
         fact.fact_id: span(fact.label_span) for fact in snapshot.equation_labels
     }
@@ -125,16 +121,6 @@ def markdown_cell_references(
             label_fact_ids=tuple(remapped_fact_id(value) for value in fact.label_fact_ids),
         )
         for fact in snapshot.display_math
-    )
-    remapped_unknown_math = tuple(
-        replace(
-            fact,
-            fact_id=remapped_fact_id(fact.fact_id),
-            document_id=document.path.as_posix(),
-            span=span(fact.span),
-            source_math_fact_id=remapped_fact_id(fact.source_math_fact_id),
-        )
-        for fact in snapshot.unknown_math
     )
     remapped_generated_formulas = tuple(
         replace(
@@ -212,7 +198,6 @@ def markdown_cell_references(
     return FactSnapshot(
         inline_math=tuple(remapped_inline_math),
         display_math=remapped_display_math,
-        unknown_math=remapped_unknown_math,
         target_anchors=remapped_anchors,
         generic_refs=remapped_generic_refs,
         equation_labels=tuple(remapped_equation_labels),

@@ -1,4 +1,4 @@
-"""Math facts and UnknownMath records."""
+"""Math facts."""
 
 from __future__ import annotations
 
@@ -33,21 +33,6 @@ DisplayContainer = Literal[
     "quarto-equation",
     "raw-latex",
 ]
-MathMacroDeclarationKind = Literal[
-    "newcommand",
-    "renewcommand",
-    "providecommand",
-    "def",
-]
-UnknownReason = Literal[
-    "unsupported_syntax",
-    "unsupported_function",
-    "unsupported_operator",
-    "macro",
-    "environment",
-    "ambiguous_delimiter",
-    "parse_limit",
-]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,28 +59,3 @@ class DisplayMathFact(FactBase):
     complete: bool = True
     environment: str | None = None
     source_syntax: Literal["raw-latex"] | None = None
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class UnknownMathFact(FactBase):
-    source_math_fact_id: str
-    reason: UnknownReason
-    excerpt: str
-    classifier: str = "MathHost"
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class MathMacroDeclarationFact(FactBase):
-    source_math_fact_id: str
-    macro_name: str
-    declaration_kind: MathMacroDeclarationKind
-    parameter_count: int
-    replacement: str
-    declaration_order: int
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class MathMacroUseFact(FactBase):
-    source_math_fact_id: str
-    macro_name: str
-    active_declaration_fact_id: str | None
