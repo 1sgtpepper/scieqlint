@@ -148,8 +148,8 @@ class StructureEngine:
         for cell in query.structure.missing_code_cell_languages():
             out.append(
                 DiagnosticIR(
-                    code=missing_info.code,
-                    severity_default=self.policy.severity(missing_info.code),
+                    code="DIR010",
+                    severity_default=self.policy.severity("DIR010"),
                     message=missing_info.message,
                     span=cell.span,
                     hint=(
@@ -184,8 +184,8 @@ class StructureEngine:
                 reason = "unknown"
             out.append(
                 DiagnosticIR(
-                    code=language_info.code,
-                    severity_default=self.policy.severity(language_info.code),
+                    code="DIR013",
+                    severity_default=self.policy.severity("DIR013"),
                     message=(f"{language_info.message}: {cell.language}"),
                     span=cell.language_span or cell.span,
                     hint=(

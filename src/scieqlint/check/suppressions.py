@@ -200,7 +200,7 @@ def _unknown_code_diagnostic(
 ) -> Diagnostic:
     info = CATALOG["SUP001"]
     return Diagnostic(
-        code=info.code,
+        code="SUP001",
         severity=info.severity,
         message=info.message,
         span=_span(document, start, end),

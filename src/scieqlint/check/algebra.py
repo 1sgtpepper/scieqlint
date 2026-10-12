@@ -53,7 +53,7 @@ def check_algebra(block: MathBlock) -> tuple[Diagnostic, ...]:
             info = CATALOG["ALG001"]
             diagnostics.append(
                 Diagnostic(
-                    code=info.code,
+                    code="ALG001",
                     severity=info.severity,
                     message=info.message,
                     span=span,
@@ -311,7 +311,7 @@ def _relative_position(block: MathBlock, offset: int) -> tuple[int, int]:
 def _unsupported_diagnostic(span: SourceSpan, equation: str, code: str) -> Diagnostic:
     info = CATALOG[code]
     return Diagnostic(
-        code=info.code,
+        code=code,
         severity=info.severity,
         message=info.message,
         span=span,

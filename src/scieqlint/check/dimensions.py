@@ -335,7 +335,7 @@ def _diagnostic(
 ) -> Diagnostic:
     info = CATALOG[code]
     return Diagnostic(
-        code=info.code,
+        code=code,
         severity=info.severity,
         message=info.message,
         span=block.span,

@@ -52,7 +52,7 @@ def parse_symbol_directive(
 def _malformed_symbol_directive(span: SourceSpan) -> Diagnostic:
     info = CATALOG["SCAN010"]
     return Diagnostic(
-        code=info.code,
+        code="SCAN010",
         severity=info.severity,
         message=info.message,
         span=span,
