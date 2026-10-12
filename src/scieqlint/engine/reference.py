@@ -17,25 +17,8 @@ _METADATA_PREVIEW_MAX_CHARS = 256
 
 
 class ReferenceEngine:
-    name = "references"
-
     def __init__(self, *, profile: str | None = None) -> None:
         self.profile = profile
-
-    rule_codes = frozenset(
-        {
-            "REF001",
-            "REF002",
-            "REF004",
-            "REF005",
-            "REF006",
-            "REF007",
-            "REF008",
-            "REF009",
-            "REF010",
-            "REF011",
-        }
-    )
 
     def run(self, query: QueryHost) -> tuple[DiagnosticIR, ...]:
         diagnostics: list[DiagnosticIR] = []
@@ -51,7 +34,6 @@ class ReferenceEngine:
                         message=f"{duplicate_equation_info.message}: {duplicate.normalized_label}",
                         span=duplicate.label_span or duplicate.span,
                         rule="references",
-                        false_positive_risk="low",
                     )
                 )
         duplicate_cell_info = CATALOG["REF010"]
@@ -73,7 +55,6 @@ class ReferenceEngine:
                         message=f"{duplicate_cell_info.message}: {target_label}",
                         span=duplicate.label_span or duplicate.span,
                         rule="references.code_cell_target",
-                        false_positive_risk="low",
                         provenance_ids=tuple(sorted((canonical_fact_id, duplicate.fact_id))),
                         properties=(
                             ("target", format_member_target_identity(target)),
@@ -100,7 +81,6 @@ class ReferenceEngine:
                     span=ref.target_span or ref.span,
                     detail=f"reference text: {ref.raw}",
                     rule="references",
-                    false_positive_risk="low",
                 )
             )
         ambiguous_equation_info = CATALOG["REF011"]
@@ -113,7 +93,6 @@ class ReferenceEngine:
                     span=ref.target_span or ref.span,
                     detail=f"reference text: {ref.raw}",
                     rule="references.equation_target_ambiguous",
-                    false_positive_risk="low",
                 )
             )
         nonvisible_info = CATALOG["REF008"]
@@ -154,7 +133,6 @@ class ReferenceEngine:
                         "the rendered project."
                     ),
                     rule="references.nonvisible_equation_target",
-                    false_positive_risk="low",
                     provenance_ids=provenance_ids,
                     properties=properties,
                 )
@@ -181,8 +159,6 @@ class ReferenceEngine:
                         ),
                         hint="Provide descriptive display text for this non-heading target.",
                         rule="references.display_text",
-                        profile_gated=True,
-                        false_positive_risk="medium",
                         profile=self.profile,
                         provenance_ids=(fact.source_fact_id, fact.fact_id, *fact.target_fact_ids),
                         properties=(
@@ -207,7 +183,6 @@ class ReferenceEngine:
                         span=ref.target_span or ref.span,
                         detail=f"reference text: {ref.raw}",
                         rule="references",
-                        false_positive_risk="low",
                     )
                 )
                 continue
@@ -221,7 +196,6 @@ class ReferenceEngine:
                     span=ref.target_span or ref.span,
                     detail=f"reference text: {ref.raw}",
                     rule="references.generic_target",
-                    false_positive_risk="low",
                 )
             )
         metadata_info = CATALOG["REF007"]
@@ -256,7 +230,6 @@ class ReferenceEngine:
                         ),
                         hint="Use consistent cross-reference metadata for this target.",
                         rule="references.crossref_metadata_conflict",
-                        false_positive_risk="low",
                         provenance_ids=(canonical.fact_id, fact.fact_id),
                         properties=(
                             ("target", display_target),
@@ -287,7 +260,6 @@ class ReferenceEngine:
                     ),
                     hint="Use the normalized project-relative path spelling.",
                     rule="references.project_path_normalization",
-                    false_positive_risk="low",
                     properties=(
                         ("target", format_member_target_identity(identity)),
                         ("raw_path", ref.resolved_raw_target_path),
@@ -309,7 +281,6 @@ class ReferenceEngine:
                     span=ref.target_span or ref.span,
                     detail=f"reference text: {ref.raw}",
                     rule="references.generic_target_ambiguous",
-                    false_positive_risk="low",
                 )
             )
         return tuple(sorted(diagnostics, key=_diagnostic_key))
