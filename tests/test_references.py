@@ -54,6 +54,15 @@ class _RangeWork(tuple[tuple[int, int], ...]):
         return super().__getitem__(index)
 
 
+class _RangePair(tuple[int, int]):
+    def __new__(cls, start: int, end: int):
+        return super().__new__(cls, (start, end))
+
+
+class _Offset(int):
+    pass
+
+
 class _CopyCountingList(list[object]):
     copied_items = 0
 
@@ -74,6 +83,106 @@ def _scan(text: str):
 
 def _link_tokens(text: str):
     return markdown_module.markdown_reference_snapshot(text).links
+
+
+@pytest.mark.parametrize(
+    "occupied",
+    [
+        pytest.param((), id="empty"),
+        pytest.param(((5, 5),), id="empty-range"),
+        pytest.param(((11, 17),), id="nonempty"),
+        pytest.param(((14, 17), (11, 15), (13, 14), (16, 16)), id="unsorted-overlapping"),
+    ],
+)
+def test_reference_snapshot_reuses_baseline_without_metadata_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    occupied: tuple[tuple[int, int], ...],
+) -> None:
+    source = "$$\nx = 1\n$$\nplain"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append((text, tuple(ranges)))
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == [(source, occupied)]
+    assert snapshot.links == ()
+    assert snapshot.link_metadata_ranges == ()
+
+
+def test_reference_snapshot_keeps_second_scan_for_link_metadata_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = "[x](#target)"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append((text, tuple(ranges)))
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source)
+
+    assert calls == [(source, ()), (source, ((4, 12),))]
+    assert [token.fragment_target for token in snapshot.links] == ["target"]
+    assert snapshot.link_metadata_ranges == ((4, 12),)
+
+
+def test_reference_snapshot_keeps_second_scan_for_custom_text_and_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _CharacterWorkText("$$\nx = 1\n$$\nplain")
+    occupied = _RangeWork(((0, 0),))
+    calls: list[str] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        calls.append(type(text).__name__)
+        return real_lexical_ranges(text, ranges)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == ["_CharacterWorkText", "_CharacterWorkText"]
+
+
+@pytest.mark.parametrize(
+    "occupied",
+    [
+        pytest.param([(0, 1)], id="list-sequence"),
+        pytest.param(_RangeWork(((0, 1),)), id="outer-tuple-subclass"),
+        pytest.param((_RangePair(0, 1),), id="range-tuple-subclass"),
+        pytest.param(((_Offset(0), 1),), id="integer-subclass-endpoint"),
+    ],
+)
+def test_reference_snapshot_preserves_noncanonical_occupied_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+    occupied: tuple[tuple[int, int], ...] | list[tuple[int, int]],
+) -> None:
+    source = "ordinary text without links"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        normalized = tuple(ranges)
+        calls.append((text, normalized))
+        return real_lexical_ranges(text, normalized)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == [(source, ((0, 1),)), (source, ((0, 1),))]
+    assert snapshot.opaque_ranges == ((0, 1),)
+    assert snapshot.links == ()
 
 
 def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:

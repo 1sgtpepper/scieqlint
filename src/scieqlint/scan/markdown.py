@@ -62,43 +62,48 @@ class MarkdownScanner:
         diagnostics: list[Diagnostic] = []
         reference_snapshot = markdown_reference_snapshot(document.text)
         link_metadata = reference_snapshot.link_metadata_ranges
-        metadata_masked_text = _mask_ranges(document.text, link_metadata)
-        symbol_scan_text = _mask_ranges(
-            metadata_masked_text,
-            (
-                *inline_code_ranges(metadata_masked_text),
-                *code_fence_ranges(metadata_masked_text),
-            ),
-        )
-
-        lexical = (
+        display_lexical = (
             _ordered_lexical_ranges(document.text, link_metadata)
             if type(document.text) is str
             else None
         )
+        metadata_masked_text = _mask_ranges(document.text, link_metadata)
+        if display_lexical is not None and not link_metadata:
+            symbol_lexical = display_lexical
+            symbol_ranges = (*symbol_lexical.code, *symbol_lexical.fences)
+        elif type(document.text) is str:
+            symbol_lexical = _ordered_lexical_ranges(metadata_masked_text, ())
+            symbol_ranges = (*symbol_lexical.code, *symbol_lexical.fences)
+        else:
+            symbol_ranges = (
+                *inline_code_ranges(metadata_masked_text),
+                *code_fence_ranges(metadata_masked_text),
+            )
+        symbol_scan_text = _mask_ranges(metadata_masked_text, symbol_ranges)
+
         display_ranges = (
-            lexical.display
-            if lexical is not None
+            display_lexical.display
+            if display_lexical is not None
             else dollar_display_ranges(document.text, link_metadata)
         )
         for block in _display_blocks(document, display_ranges):
             blocks.append(block)
             labels.extend(_tex_labels(document, block))
             labels.extend(_display_tail_labels(document, block))
-        if lexical is None:
+        if display_lexical is None:
             closed_display_ranges = dollar_display_ranges(document.text, link_metadata)
             display_openers = dollar_display_opener_positions(document.text, link_metadata)
         else:
             closed_display_ranges = display_ranges
-            display_openers = lexical.display_openers
+            display_openers = display_lexical.display_openers
         diagnostics.extend(
             _unterminated_display_diagnostics(document, closed_display_ranges, display_openers)
         )
 
         if config.scanner.math_fences:
             code_fences = (
-                lexical.fences
-                if lexical is not None
+                display_lexical.fences
+                if display_lexical is not None
                 else code_fence_ranges(document.text, link_metadata)
             )
             math_fences = _math_fence_ranges(document.text, code_fences)
@@ -125,9 +130,9 @@ class MarkdownScanner:
 
 def _display_blocks(
     document: SourceDocument,
-    ranges: Iterable[tuple[int, int, int, int]],
+    display_ranges: Iterable[tuple[int, int, int, int]],
 ) -> Iterable[MathBlock]:
-    for _start, body_start, body_end, _end in ranges:
+    for _start, body_start, body_end, _end in display_ranges:
         span_start, span_end = _trimmed_body_range(document, body_start, body_end)
         text = document.text[span_start:span_end]
         if not text:
@@ -157,21 +162,35 @@ def _unterminated_display_diagnostics(
 
 def _math_fence_ranges(
     text: str,
-    code_fences: Iterable[tuple[int, int]],
+    fence_ranges: Iterable[tuple[int, int]],
 ) -> tuple[_MathFenceRange, ...]:
-    """Derive supported math fences from the shared lexical ownership result."""
+    """Derive math fences from precomputed code-fence ranges."""
     ranges: list[_MathFenceRange] = []
-    for opener_start, range_end in code_fences:
-        source = text[opener_start:range_end]
-        opener_line, newline, _body = source.partition("\n")
+    for opener_start, range_end in fence_ranges:
+        source: str | None = None
+        if type(text) is str:
+            newline_start = text.find("\n", opener_start, range_end)
+            if newline_start == -1:
+                opener_end = range_end
+                newline_length = 0
+            else:
+                opener_end = newline_start
+                newline_length = 1
+            opener_line = text[opener_start:opener_end]
+        else:
+            source = text[opener_start:range_end]
+            opener_line, newline, _body = source.partition("\n")
+            opener_end = opener_start + len(opener_line)
+            newline_length = len(newline)
         opener = parse_fence_opener(opener_line)
         if opener is None:
             continue
         marker, info = opener
         if info.strip(" \t") not in {"math", "{math}"}:
             continue
-        opener_end = opener_start + len(opener_line)
-        body_start = opener_end + len(newline)
+        if source is None:
+            source = text[opener_start:range_end]
+        body_start = opener_end + newline_length
         lines = source.splitlines(keepends=True)
         body_end = range_end - len(lines[-1]) if is_fence_closer(lines[-1], marker) else None
         ranges.append((opener_start, opener_end, body_start, body_end))
@@ -451,6 +470,8 @@ def _mask_ranges(
     text: str,
     ranges: tuple[tuple[int, int], ...],
 ) -> str:
+    if type(text) is str and type(ranges) is tuple and not ranges:
+        return text
     masked = list(text)
     for start, end in ranges:
         for index in range(start, end):
