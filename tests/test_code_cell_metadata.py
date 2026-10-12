@@ -633,6 +633,25 @@ def test_notebook_language_metadata_preserves_malformed_values_and_decoder_spans
     assert diagnostics[3].span == empty_source.language_span
 
 
+def test_reused_notebook_input_reads_live_default_language_metadata() -> None:
+    document = notebook(notebook_payload(code_cell(), language="python"))
+    parsed = notebook_input.parse_notebook_input(document)
+    assert parsed.root is not None
+    metadata = parsed.root["metadata"]
+    assert isinstance(metadata, dict)
+
+    metadata["kernelspec"] = {"language": "custom.kernel", "name": "custom3"}
+    snapshot = NotebookFrontend().lower(
+        (document,),
+        parsed={document.path.as_posix(): parsed},
+    )
+
+    [cell] = snapshot.code_cells
+    assert cell.language == "custom.kernel"
+    assert cell.language_span is not None
+    assert source_slice(document, cell.language_span) == "python"
+
+
 def test_empty_source_label_clears_metadata_without_invalid_root_defaults() -> None:
     payload = notebook_payload(
         code_cell(metadata={"label": "metadata-label"}, source="#| label:\npass\n")
@@ -816,6 +835,49 @@ def test_notebook_cell_label_resolves_markdown_reference_without_execution() -> 
     assert source_slice(nb, cell.language_span) == "python"
     assert cell.language_span.cell == 0
     assert ReferenceEngine(profile="code-cell-metadata").run(QueryHost(snapshot)) == ()
+
+
+def test_notebook_nested_quarto_options_override_by_presence_and_fall_back() -> None:
+    document = notebook(
+        notebook_payload(
+            code_cell(
+                metadata={
+                    "label": "top-level-label",
+                    "language": "python",
+                    "quarto": {"label": "nested-label", "language": None},
+                }
+            ),
+            code_cell(
+                metadata={
+                    "label": "top-level-only",
+                    "language": "python",
+                    "quarto": {"fig-cap": "Figure"},
+                }
+            ),
+        )
+    )
+    snapshot = NotebookFrontend().lower((document,))
+    nested, fallback = snapshot.code_cells
+
+    assert (nested.label, nested.language) == ("nested-label", "<json:null>")
+    assert (fallback.label, fallback.language) == ("top-level-only", "python")
+    assert source_slice(document, nested.label_span) == "nested-label"
+    assert source_slice(document, nested.language_span) == "null"
+    assert source_slice(document, fallback.label_span) == "top-level-only"
+    assert source_slice(document, fallback.language_span) == "python"
+
+    result = public_check_documents(
+        (document,),
+        config=Config(
+            profile=ProfileConfig(name="code-cell-metadata"),
+            checks=ChecksConfig(algebra=AlgebraConfig(enabled=False)),
+            project=ProjectConfig(code_cell_languages=("python",)),
+        ),
+    )
+    [diagnostic] = [item for item in result.diagnostics if item.code == "DIR013"]
+    assert dict(diagnostic.properties)["reason"] == "invalid"
+    assert diagnostic.span == nested.language_span
+    assert source_slice(document, diagnostic.span) == "null"
 
 
 def test_notebook_source_language_overrides_kernel_and_preserves_cell_locations() -> None:

@@ -34,13 +34,25 @@ def fixture_doc(path: Path) -> SourceDocument:
 
 
 def test_malformed_heading_is_issue_only():
-    snapshot = MySTFrontend().lower((doc("####Title\n\n```python\nprint(1)\n```\n"),))
+    source = "####Title\n\n```python\nprint(1)\n```\n"
+    snapshot = MySTFrontend().lower((doc(source),))
     assert snapshot.headings == ()
-    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
-        ("atx-heading", "missing_space_after_atx_marker")
-    ]
+    [issue] = snapshot.structure_syntax_issues
+    assert (issue.kind, issue.raw) == ("atx-heading", "####Title")
+    assert issue.span is not None
+    assert source[issue.span.start : issue.span.end] == "####"
+
     diagnostics = StructureEngine().run(QueryHost(snapshot))
-    assert [d.code for d in diagnostics if d.code == "STR001"] == ["STR001"]
+    assert [
+        (diagnostic.code, diagnostic.message, diagnostic.detail) for diagnostic in diagnostics
+    ] == [
+        (
+            "STR001",
+            "ATX heading marker must be followed by a space",
+            "####Title",
+        )
+    ]
+    assert diagnostics[0].span == issue.span
 
 
 def test_malformed_heading_keeps_heading_diagnostic_order_and_span():
@@ -586,47 +598,53 @@ def test_block_interrupted_link_title_does_not_hide_structure() -> None:
 
 
 def test_myst_syntax_diagnostics_cover_directives_options_roles_and_tags():
-    snapshot = MySTFrontend().lower(
-        (
-            doc(
-                "\n".join(
-                    [
-                        "```{note",
-                        "Broken directive opener.",
-                        "```",
-                        "",
-                        "```{note}",
-                        ":class tip",
-                        "Broken option.",
-                        "```",
-                        "",
-                        "```{code-cell} python",
-                        ":tags: [hide-input, bad tag]",
-                        "print(1)",
-                        "```",
-                        "",
-                        "See {ref}target and {eq}`missing.",
-                    ]
-                )
-            ),
-        )
+    source = "\n".join(
+        [
+            "```{note",
+            "Broken directive opener.",
+            "```",
+            "",
+            "```{note}",
+            ":class tip",
+            "Broken option.",
+            "```",
+            "",
+            "```{code-cell} python",
+            ":tags: [hide-input, bad tag]",
+            "print(1)",
+            "```",
+            "",
+            "See {ref}target and {eq}`missing.",
+        ]
     )
+    snapshot = MySTFrontend().lower((doc(source),))
 
     diagnostics = StructureEngine().run(QueryHost(snapshot))
 
-    assert [(issue.kind, issue.reason) for issue in snapshot.structure_syntax_issues] == [
-        ("myst-directive", "malformed directive fence info string"),
-        ("myst-option", "malformed directive option line"),
-        ("code-cell-tags", "malformed code-cell tags option"),
-        ("myst-role", "malformed MyST role syntax"),
-        ("myst-role", "malformed MyST role syntax"),
+    assert [(issue.kind, issue.raw) for issue in snapshot.structure_syntax_issues] == [
+        ("myst-directive", "{note"),
+        ("myst-option", ":class tip"),
+        ("code-cell-tags", ":tags: [hide-input, bad tag]"),
+        ("myst-role", "{ref}target and {eq}`missing."),
+        ("myst-role", "{eq}`missing."),
     ]
-    assert [diagnostic.code for diagnostic in diagnostics] == [
-        "DIR001",
-        "DIR002",
-        "DIR012",
-        "DIR011",
-        "DIR011",
+    assert all(
+        issue.span is not None
+        and issue.raw is not None
+        and issue.raw in source[issue.span.start : issue.span.end]
+        for issue in snapshot.structure_syntax_issues
+    )
+    assert [
+        (diagnostic.code, diagnostic.message, diagnostic.detail) for diagnostic in diagnostics
+    ] == [
+        ("DIR001", "MyST directive fence info string is malformed", "{note"),
+        ("DIR002", "MyST directive option line is malformed", ":class tip"),
+        ("DIR012", "code-cell tags option is malformed", ":tags: [hide-input, bad tag]"),
+        ("DIR011", "MyST role syntax is malformed", "{ref}target and {eq}`missing."),
+        ("DIR011", "MyST role syntax is malformed", "{eq}`missing."),
+    ]
+    assert [diagnostic.span for diagnostic in diagnostics] == [
+        issue.span for issue in snapshot.structure_syntax_issues
     ]
 
 

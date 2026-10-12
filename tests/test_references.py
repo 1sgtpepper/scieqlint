@@ -52,6 +52,15 @@ class _RangeWork(tuple[tuple[int, int], ...]):
         return super().__getitem__(index)
 
 
+class _RangePair(tuple[int, int]):
+    def __new__(cls, start: int, end: int):
+        return super().__new__(cls, (start, end))
+
+
+class _Offset(int):
+    pass
+
+
 class _CopyCountingList(list[object]):
     copied_items = 0
 
@@ -132,6 +141,37 @@ def test_reference_snapshot_keeps_second_scan_for_custom_text_and_ranges(
     markdown_module.markdown_reference_snapshot(source, occupied=occupied)
 
     assert calls == ["_CharacterWorkText", "_CharacterWorkText"]
+
+
+@pytest.mark.parametrize(
+    "occupied",
+    [
+        pytest.param([(0, 1)], id="list-sequence"),
+        pytest.param(_RangeWork(((0, 1),)), id="outer-tuple-subclass"),
+        pytest.param((_RangePair(0, 1),), id="range-tuple-subclass"),
+        pytest.param(((_Offset(0), 1),), id="integer-subclass-endpoint"),
+    ],
+)
+def test_reference_snapshot_preserves_noncanonical_occupied_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+    occupied: tuple[tuple[int, int], ...] | list[tuple[int, int]],
+) -> None:
+    source = "ordinary text without links"
+    calls: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    real_lexical_ranges = markdown_module._ordered_lexical_ranges
+
+    def count_lexical_ranges(text, ranges):
+        normalized = tuple(ranges)
+        calls.append((text, normalized))
+        return real_lexical_ranges(text, normalized)
+
+    monkeypatch.setattr(markdown_module, "_ordered_lexical_ranges", count_lexical_ranges)
+
+    snapshot = markdown_module.markdown_reference_snapshot(source, occupied=occupied)
+
+    assert calls == [(source, ((0, 1),)), (source, ((0, 1),))]
+    assert snapshot.opaque_ranges == ((0, 1),)
+    assert snapshot.links == ()
 
 
 def _reference_targets(text: str) -> tuple[list[str], list[str], list[str]]:

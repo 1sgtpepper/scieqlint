@@ -602,11 +602,10 @@ def test_application_derives_display_facts_only_for_the_opt_in_profile(
     def unexpected_derivation(*args, **kwargs):
         raise AssertionError("default application profiles must not derive display facts")
 
-    for owner in (
+    monkeypatch.setattr(
         "scieqlint.app_profile.reference_display_text_facts",
-        "scieqlint.frontend.notebook.reference_display_text_facts",
-    ):
-        monkeypatch.setattr(owner, unexpected_derivation)
+        unexpected_derivation,
+    )
 
     config = profile_config(None)
     snapshot = _profile_snapshot(

@@ -214,6 +214,85 @@ def test_scanner_shares_lexical_projection_only_for_matching_symbol_input(
     assert result.diagnostics == ()
 
 
+def test_scanner_keeps_custom_text_results_and_fence_suppression_lines() -> None:
+    source = "$$\nx = 1\n$$\n\n```math\ny = 2\n```\n\n$$\n"
+    ordinary = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+    text = _HookFenceText(source)
+    custom = SourceDocument(
+        ordinary.path,
+        text,
+        ordinary.kind,
+        ordinary.line_index,
+        ordinary.display_path,
+    )
+
+    result = MarkdownScanner().scan(custom, Config())
+    expected = MarkdownScanner().scan(ordinary, Config())
+
+    assert result == expected
+    assert [(block.container, block.text) for block in result.blocks] == [
+        (MathContainer.MARKDOWN_DISPLAY, "x = 1"),
+        (MathContainer.MARKDOWN_FENCE, "y = 2"),
+    ]
+    assert [custom.text[block.span.start : block.span.end] for block in result.blocks] == [
+        "x = 1",
+        "y = 2",
+    ]
+    assert [
+        (diagnostic.code, diagnostic.span.start, diagnostic.span.end, diagnostic.span.line)
+        for diagnostic in result.diagnostics
+    ] == [("SCAN001", source.rindex("$$"), source.rindex("$$") + 2, 9)]
+    opener_lines = markdown_scan_module.math_container_opener_lines(custom, result.blocks)
+    assert [opener_lines[block.block_id] for block in result.blocks] == [1, 5]
+    assert text.find_calls > 0
+    assert text.slices > 0
+
+
+@pytest.mark.parametrize(
+    ("source", "body", "diagnostic_span"),
+    [
+        pytest.param("```math\nx = 1\n```\n", "x = 1", None, id="closed-with-terminal-lf"),
+        pytest.param("```math\nx = 1\n```", "x = 1", None, id="closed-at-eof"),
+        pytest.param("```math\nx = 1\n", None, (0, 7), id="unfinished-body"),
+        pytest.param("```math", None, (0, 7), id="opener-without-newline"),
+        pytest.param("```python\nx = 1\n```\n", None, None, id="non-math-fence"),
+    ],
+)
+def test_math_fence_terminal_and_info_branches_keep_scanner_outputs(
+    source: str,
+    body: str | None,
+    diagnostic_span: tuple[int, int] | None,
+) -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.md"),
+        source,
+        DocumentKind.MARKDOWN,
+    )
+
+    result = MarkdownScanner().scan(document, Config())
+
+    if body is None:
+        assert result.blocks == ()
+    else:
+        assert [(block.container, block.text) for block in result.blocks] == [
+            (MathContainer.MARKDOWN_FENCE, body)
+        ]
+        block = result.blocks[0]
+        assert source[block.span.start : block.span.end] == body
+        assert block.span.start == source.index(body)
+    if diagnostic_span is None:
+        assert result.diagnostics == ()
+    else:
+        assert [
+            (diagnostic.code, diagnostic.span.start, diagnostic.span.end)
+            for diagnostic in result.diagnostics
+        ] == [("SCAN001", *diagnostic_span)]
+
+
 def test_empty_masking_reuses_builtin_text_but_preserves_subclass_iteration() -> None:
     source = "plain text"
     assert markdown_scan_module._mask_ranges(source, ()) is source

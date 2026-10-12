@@ -1207,7 +1207,7 @@ carry the loaded document and caller-supplied generated-source identity.
 
 Rules:
 
-- `text` must be decoded UTF-8 unless config explicitly allows replacement.
+- `text` must be decoded as UTF-8; invalid byte sequences are rejected.
 - Newlines must be normalized to `\n` before scanning.
 - `path` must preserve the lexical POSIX path supplied to `SourceDocument`.
 - `display_path` must be stable across operating systems.
@@ -1317,10 +1317,25 @@ This sort must be used before all reporters.
 
 ## 9. Scanner contracts
 
-Concrete scanners return a shared result value; the application selects and invokes
-the scanner for each document kind. A shared typing `Scanner` Protocol is not
-required and scanner implementation types are not part of the stable Python API.
-The stable Python API is listed in `docs/api.md`.
+Each scanner returns the shared `ScanResult` value. The application selects the
+concrete scanner for a document kind; no shared `Scanner` Protocol is required,
+and scanner implementation types are not part of the stable Python API. The stable
+Python API is listed in `docs/api.md`.
+
+```python
+MarkdownScanner.scan(document: SourceDocument, config: Config) -> ScanResult
+LatexScanner.scan(document: SourceDocument, config: Config) -> ScanResult
+NotebookScanner.scan(
+    document: SourceDocument, config: Config, *, parsed: NotebookInput | None = None
+) -> ScanResult
+```
+
+Config files are validated before application scanning; unknown keys are errors,
+not ignored options. `MarkdownScanner` uses `scanner.markdown` to enable scanning,
+`scanner.math_fences` for fenced math, and `scanner.inline_math` for inline math.
+`LatexScanner` scans its supported forms without consulting those Markdown options.
+`NotebookScanner` delegates Markdown cells with the same config and maps each result
+back to the notebook's source spans.
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -1332,11 +1347,21 @@ class ScanResult:
     diagnostics: tuple[Diagnostic, ...] = ()
 ```
 
-Scanners must not parse math expressions. They extract math text, labels, references, and spans.
+`SourceDocument.text` has normalized `\n` line endings before scanning. Scanners
+extract math text, labels, references, symbol directives, spans, and lexical
+diagnostics; they do not parse math expressions or emit algebra, dimension,
+duplicate-label, or missing-reference diagnostics.
 
-Scanners must preserve source locations enough for local output, GitHub annotations, JSON, and SARIF.
+`MathBlock.text` contains parser-facing math and may include scanner-owned cleanup.
+Its `source_aligned_text` and `span` preserve the corresponding source positions for
+diagnostics and symbol spans. When lexical content is masked, replace non-newline
+characters with spaces so offsets and line breaks remain aligned. Notebook spans
+retain their raw-source segments for decoded cell text.
 
-Scanners must not emit algebra, dimension, duplicate-label, or missing-reference diagnostics.
+Scanner results must be deterministic. Source-position results retain their scanner
+order, and notebook results retain cell order. `CheckResult` applies the stable
+diagnostic ordering in §8.8 before reporting to local output, GitHub annotations,
+JSON, and SARIF.
 
 ---
 

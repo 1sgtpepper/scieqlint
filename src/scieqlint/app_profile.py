@@ -135,7 +135,6 @@ def generated_profile_snapshot(
             _include_markdown=(
                 config.scanner.markdown or config.profile.name == "reference-display"
             ),
-            _include_reference_display=False,
         )
         if notebook_full_profile:
             snapshot = replace(

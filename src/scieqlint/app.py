@@ -314,12 +314,6 @@ def check_documents(
             )
         )
     generated_provenance = _generated_provenance_facts(markdown_documents, config)
-    generated_provenance_by_id = {
-        provenance.fact_id: provenance for provenance in generated_provenance
-    }
-    generated_provenance_by_document = {
-        provenance.generated_document_id: provenance for provenance in generated_provenance
-    }
     if not config.scanner.inline_math and config.profile.name != "math-accessibility":
         # Inline math is opt-in, and candidate facts are lowered before scanner
         # options are applied. Standalone equation-like candidates are generated

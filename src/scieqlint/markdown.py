@@ -1356,12 +1356,7 @@ def markdown_reference_snapshot(
     reusable_occupied = type(occupied) is tuple
     if reusable_occupied:
         for item in occupied:
-            if (
-                type(item) is not tuple
-                or len(item) != 2
-                or type(item[0]) is not int
-                or type(item[1]) is not int
-            ):
+            if type(item) is not tuple or type(item[0]) is not int or type(item[1]) is not int:
                 reusable_occupied = False
                 break
     if not candidate_metadata_ranges and type(text) is str and reusable_occupied:
