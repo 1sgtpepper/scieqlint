@@ -207,10 +207,7 @@ def check_documents(
     if config.scanner.markdown or config.profile.name == "reference-display":
         # Capture candidates before MathHost drops non-math and incomplete forms;
         # the legacy scanner must not reinterpret any raw candidate's contents.
-        frontend_snapshot = MySTFrontend(workspace=workspace).lower(
-            markdown_documents,
-            _include_reference_display=False,
-        )
+        frontend_snapshot = MySTFrontend(workspace=workspace).lower(markdown_documents)
         raw_opaque_spans = tuple(
             fact.span
             for fact in frontend_snapshot.display_math
@@ -570,10 +567,7 @@ def _raw_graph_facts(
 ]:
     """Return raw graph facts and candidate spans for legacy ownership filtering."""
 
-    frontend_snapshot = MySTFrontend(workspace=workspace).lower(
-        documents,
-        _include_reference_display=False,
-    )
+    frontend_snapshot = MySTFrontend(workspace=workspace).lower(documents)
     raw_opaque_spans = tuple(
         fact.span
         for fact in frontend_snapshot.display_math

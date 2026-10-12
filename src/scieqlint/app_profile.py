@@ -101,10 +101,7 @@ def generated_profile_snapshot(
         document for document in documents if document.kind is DocumentKind.NOTEBOOK
     )
     snapshot = (
-        MySTFrontend(workspace=workspace).lower(
-            markdown_documents,
-            _include_reference_display=False,
-        )
+        MySTFrontend(workspace=workspace).lower(markdown_documents)
         if frontend_snapshot is None
         else frontend_snapshot
     )

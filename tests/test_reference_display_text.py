@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import PurePosixPath
 
 import pytest
@@ -33,6 +34,19 @@ _DEFAULT_PROJECT_CONFIG = ProjectConfig()
 
 def doc(text: str, path: str = "paper.md") -> SourceDocument:
     return SourceDocument.from_text(PurePosixPath(path), text, DocumentKind.MARKDOWN)
+
+
+def _with_display_facts(snapshot: FactSnapshot) -> FactSnapshot:
+    return replace(
+        snapshot,
+        reference_display_text=reference_display_text_facts(
+            snapshot.generic_refs,
+            snapshot.equation_refs,
+            snapshot.target_anchors,
+            snapshot.equation_labels,
+            code_cells=snapshot.code_cells,
+        ),
+    )
 
 
 def profile_config(
@@ -72,8 +86,8 @@ Titled equation {eq}`Energy equation <eq-energy>`.
 """
 
 
-def test_frontend_tracks_explicit_text_kind_target_type_and_intent() -> None:
-    snapshot = MySTFrontend().lower((doc(fixture_source()),))
+def test_reference_display_facts_track_text_kind_target_type_and_intent() -> None:
+    snapshot = _with_display_facts(MySTFrontend().lower((doc(fixture_source()),)))
     facts = snapshot.reference_display_text
 
     assert [fact.reference_kind for fact in facts] == [
@@ -147,7 +161,7 @@ def test_frontend_tracks_explicit_text_kind_target_type_and_intent() -> None:
 def test_markdown_display_text_preserves_trimmed_source_label(label: str) -> None:
     source = doc(f"(fig-source)=\n```{{figure}}\nplot.png\n```\n\nSee [{label}](#fig-source).\n")
 
-    [fact] = MySTFrontend().lower((source,)).reference_display_text
+    [fact] = _with_display_facts(MySTFrontend().lower((source,))).reference_display_text
 
     expected = label.strip()
     assert fact.explicit_text == expected
@@ -160,7 +174,7 @@ def test_role_display_text_preserves_trimmed_source_label() -> None:
         "(fig-source)=\n```{figure}\nplot.png\n```\n\nSee {ref}`  **Figure**  <fig-source>`.\n"
     )
 
-    [fact] = MySTFrontend().lower((source,)).reference_display_text
+    [fact] = _with_display_facts(MySTFrontend().lower((source,))).reference_display_text
 
     assert fact.explicit_text == "**Figure**"
     assert fact.display_text_span is not None
@@ -168,7 +182,7 @@ def test_role_display_text_preserves_trimmed_source_label() -> None:
 
 
 def test_query_flags_only_missing_or_generic_nonheading_display_text() -> None:
-    snapshot = MySTFrontend().lower((doc(fixture_source()),))
+    snapshot = _with_display_facts(MySTFrontend().lower((doc(fixture_source()),)))
 
     issues = QueryHost(snapshot).references.unclear_nonheading_display_text()
 
@@ -183,11 +197,13 @@ def test_query_flags_only_missing_or_generic_nonheading_display_text() -> None:
 
 
 def test_query_exposes_display_facts_and_classifies_generic_block_text() -> None:
-    snapshot = MySTFrontend().lower(
-        (
-            doc(
-                "(tip)=\n```{note}\nbody\n```\n\nSee [paragraph](#tip).\n",
-            ),
+    snapshot = _with_display_facts(
+        MySTFrontend().lower(
+            (
+                doc(
+                    "(tip)=\n```{note}\nbody\n```\n\nSee [paragraph](#tip).\n",
+                ),
+            )
         )
     )
     query = QueryHost(snapshot)
@@ -204,7 +220,7 @@ def test_query_exposes_display_facts_and_classifies_generic_block_text() -> None
 
 def test_unscoped_query_drives_display_diagnostic_from_stored_fact() -> None:
     source = doc("(fig-plot)=\n```{figure}\nplot.png\n```\n\nSee {ref}`fig-plot`.\n")
-    profiled = MySTFrontend().lower((source,))
+    profiled = _with_display_facts(MySTFrontend().lower((source,)))
     snapshot = FactSnapshot(reference_display_text=profiled.reference_display_text)
 
     [diagnostic] = ReferenceEngine(profile="reference-display").run(QueryHost(snapshot))
@@ -263,7 +279,7 @@ def test_display_facts_omit_identityless_references() -> None:
 
 def test_resolved_heading_kind_wins_over_figure_prefix_in_display_resolution() -> None:
     source = doc("(fig-intro)=\n# Introduction\n\nSee [](#fig-intro).\n")
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = _with_display_facts(MySTFrontend().lower((source,)))
 
     [fact] = snapshot.reference_display_text
 
@@ -324,7 +340,7 @@ def test_explicit_code_cell_metadata_wins_over_prefix_in_display_resolution() ->
         "```\n\n"
         "See [](#fig-table).\n"
     )
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = _with_display_facts(MySTFrontend().lower((source,)))
 
     [fact] = snapshot.reference_display_text
 
@@ -345,7 +361,7 @@ def test_code_cell_listing_and_generic_caption_metadata_resolve_display_types() 
         "```\n\n"
         "See [](#lst-cell) and [](#block-cell).\n"
     )
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = _with_display_facts(MySTFrontend().lower((source,)))
 
     assert [
         (fact.normalized_target, fact.target_type) for fact in snapshot.reference_display_text
@@ -372,7 +388,7 @@ def test_code_cell_subcaption_metadata_resolves_display_types(
         "See [](#plain-cell).\n"
     )
 
-    [fact] = MySTFrontend().lower((source,)).reference_display_text
+    [fact] = _with_display_facts(MySTFrontend().lower((source,))).reference_display_text
 
     assert fact.target_type == expected_type
 
@@ -588,7 +604,6 @@ def test_application_derives_display_facts_only_for_the_opt_in_profile(
 
     for owner in (
         "scieqlint.app_profile.reference_display_text_facts",
-        "scieqlint.frontend.myst.reference_display_text_facts",
         "scieqlint.frontend.notebook.reference_display_text_facts",
     ):
         monkeypatch.setattr(owner, unexpected_derivation)
@@ -654,7 +669,7 @@ $$
 {eq}`eq-dup` {ref}`missing` [](#eq-dup)
 """
     )
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = _with_display_facts(MySTFrontend().lower((source,)))
 
     assert [fact.target_type for fact in snapshot.reference_display_text] == [
         None,
@@ -670,7 +685,7 @@ $$
 
 def test_explicitly_titled_typed_equation_role_is_checked() -> None:
     source = doc("$$\nx = 1 \\label{eq-energy}\n$$\n\n{eq}`Equation <eq-energy>`.\n")
-    snapshot = MySTFrontend().lower((source,))
+    snapshot = _with_display_facts(MySTFrontend().lower((source,)))
 
     [fact] = snapshot.reference_display_text
     assert fact.target_type == "equation"
@@ -715,8 +730,8 @@ plot.png
         "target.md",
     )
     reference = doc("See [fig-plot](target.md#fig-plot).\n", "reference.md")
-    first = MySTFrontend().lower((target, reference))
-    second = MySTFrontend().lower((reference, target))
+    first = _with_display_facts(MySTFrontend().lower((target, reference)))
+    second = _with_display_facts(MySTFrontend().lower((reference, target)))
 
     [display] = first.reference_display_text
     assert display.target_type == "figure"
@@ -777,7 +792,7 @@ def test_display_uses_the_complete_path_and_fragment_identity() -> None:
     target = doc("(shared)=\n# Target heading\n", "target.md")
     other = doc("$$\nx = 1\n$$ {#shared}\n", "other.md")
 
-    snapshot = MySTFrontend().lower((source, target, other))
+    snapshot = _with_display_facts(MySTFrontend().lower((source, target, other)))
 
     [display] = snapshot.reference_display_text
     assert display.target_type == "heading"
@@ -789,7 +804,7 @@ def test_pathless_role_selects_a_cross_document_target_identity() -> None:
     source = doc("See {ref}`shared`.\n", "source.md")
     target = doc("(shared)=\n```{figure}\nplot.png\n```\n", "target.md")
 
-    snapshot = MySTFrontend().lower((source, target))
+    snapshot = _with_display_facts(MySTFrontend().lower((source, target)))
 
     [display] = snapshot.reference_display_text
     assert display.target_type == "figure"
@@ -804,7 +819,7 @@ def test_pathless_role_with_duplicate_member_targets_is_ambiguous() -> None:
     first = doc("(shared)=\n```{figure}\nfirst.png\n```\n", "first.md")
     second = doc("(shared)=\n```{figure}\nsecond.png\n```\n", "second.md")
 
-    snapshot = MySTFrontend().lower((source, first, second))
+    snapshot = _with_display_facts(MySTFrontend().lower((source, first, second)))
     result = check_documents((source, first, second), config=profile_config())
 
     [display] = snapshot.reference_display_text
@@ -837,7 +852,7 @@ def test_display_resolution_indexes_label_and_member_identities_once(
         for index in range(target_count)
     )
 
-    snapshot = MySTFrontend().lower((source, *reversed(targets)))
+    snapshot = _with_display_facts(MySTFrontend().lower((source, *reversed(targets))))
 
     ambiguous = snapshot.reference_display_text[:target_count]
     selected = snapshot.reference_display_text[target_count:]
