@@ -470,7 +470,7 @@ def _span(document: SourceDocument, start: int, end: int) -> SourceSpan:
 def _scan_diagnostic(document: SourceDocument, start: int, end: int) -> Diagnostic:
     info = CATALOG["SCAN001"]
     return Diagnostic(
-        code=info.code,
+        code="SCAN001",
         severity=info.severity,
         message=info.message,
         span=_span(document, start, end),

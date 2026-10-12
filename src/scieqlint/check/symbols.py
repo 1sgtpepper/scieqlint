@@ -176,7 +176,7 @@ def _event_key(
 def _undefined_symbol(symbol: str, span: SourceSpan) -> Diagnostic:
     info = CATALOG["SYM001"]
     return Diagnostic(
-        code=info.code,
+        code="SYM001",
         severity=info.severity,
         message=f"{info.message}: {symbol}",
         span=span,

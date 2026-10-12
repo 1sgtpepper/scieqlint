@@ -44,6 +44,19 @@ def test_catalog_has_core_codes() -> None:
         assert explain_code(code) is not None
 
 
+def test_explanations_preserve_every_catalog_key_and_metadata() -> None:
+    for code, info in CATALOG.items():
+        explanation = explain_code(code)
+
+        assert explanation is not None
+        assert explanation.startswith(f"{code} ({info.severity.value}, {info.release})\n")
+        assert f"Message: {info.message}\n" in explanation
+        assert f"Meaning: {info.meaning}" in explanation
+        assert explain_code(code.lower()) is None
+
+    assert explain_code("NOPE999") is None
+
+
 def test_new_accessibility_diagnostic_does_not_claim_a_published_release() -> None:
     assert CATALOG["PORT002"].release == "Unreleased"
     assert "(warning, Unreleased)" in (explain_code("PORT002") or "")

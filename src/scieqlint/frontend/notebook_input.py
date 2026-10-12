@@ -854,7 +854,7 @@ def input_diagnostic(document: SourceDocument, exc: ValueError | RecursionError)
         else str(exc)
     )
     return Diagnostic(
-        code=info.code,
+        code="INP001",
         severity=info.severity,
         message=info.message,
         span=span,
@@ -868,7 +868,7 @@ def size_diagnostic(document: SourceDocument, *, detail: str | None = None) -> D
 
     info = CATALOG["INP003"]
     return Diagnostic(
-        code=info.code,
+        code="INP003",
         severity=info.severity,
         message=info.message,
         span=_file_start_span(document),
@@ -885,7 +885,7 @@ def schema_diagnostic(
 ) -> Diagnostic:
     info = CATALOG["INP002"]
     return Diagnostic(
-        code=info.code,
+        code="INP002",
         severity=info.severity,
         message=info.message,
         span=_file_start_span(document, cell=cell),

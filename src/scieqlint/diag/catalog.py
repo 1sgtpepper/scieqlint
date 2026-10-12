@@ -9,7 +9,6 @@ from scieqlint.diag.model import Severity
 
 @dataclass(frozen=True, slots=True)
 class DiagnosticInfo:
-    code: str
     severity: Severity
     message: str
     release: str
@@ -18,140 +17,120 @@ class DiagnosticInfo:
 
 CATALOG: dict[str, DiagnosticInfo] = {
     "ALG001": DiagnosticInfo(
-        "ALG001",
         Severity.ERROR,
         "algebraic identity does not hold",
         "v0.1.0",
         "Adjacent equality sides are proven unequal within the supported scalar algebra subset.",
     ),
     "ALG010": DiagnosticInfo(
-        "ALG010",
         Severity.WARNING,
         "identity assumes nonzero denominator",
         "v0.1.0",
         "The identity may require denominator assumptions.",
     ),
     "ALG020": DiagnosticInfo(
-        "ALG020",
         Severity.INFO,
         "algebra check skipped",
         "v0.1.0",
         "The expression was not checked by algebra.",
     ),
     "ALG030": DiagnosticInfo(
-        "ALG030",
         Severity.WARNING,
         "algebra check exceeded configured limit",
         "v0.1.0",
         "The algebra check stopped because a configured limit was reached.",
     ),
     "PARSE001": DiagnosticInfo(
-        "PARSE001",
         Severity.WARNING,
         "could not parse supported-looking math",
         "v0.1.0",
         "The parser could not parse math that looked like it might be in scope.",
     ),
     "PARSE020": DiagnosticInfo(
-        "PARSE020",
         Severity.INFO,
         "unsupported syntax; check skipped",
         "v0.1.0",
         "The expression uses syntax outside the supported subset.",
     ),
     "PARSE021": DiagnosticInfo(
-        "PARSE021",
         Severity.INFO,
         "unsupported function; check skipped",
         "v0.1.0",
         "The expression uses a function outside the supported subset.",
     ),
     "PARSE022": DiagnosticInfo(
-        "PARSE022",
         Severity.INFO,
         "unsupported operator; check skipped",
         "v0.1.0",
         "The expression uses an operator outside the supported subset.",
     ),
     "SCAN001": DiagnosticInfo(
-        "SCAN001",
         Severity.WARNING,
         "unterminated math container",
         "v0.1.0",
         "A display math container appears to be missing its closing delimiter.",
     ),
     "SCAN002": DiagnosticInfo(
-        "SCAN002",
         Severity.INFO,
         "inline math skipped by config",
         "v0.1.0",
         "Inline math was found but inline scanning is disabled.",
     ),
     "SCAN010": DiagnosticInfo(
-        "SCAN010",
         Severity.WARNING,
         "malformed symbol directive",
         "v1.0.0",
         "An explicit scieqlint-symbol directive could not be parsed.",
     ),
     "STR001": DiagnosticInfo(
-        "STR001",
         Severity.WARNING,
         "ATX heading marker must be followed by a space",
         "v1.1.0",
         "A Markdown/MyST heading marker is missing the required separating space.",
     ),
     "STR002": DiagnosticInfo(
-        "STR002",
         Severity.WARNING,
         "fenced block is missing its closing delimiter",
         "v1.1.0",
         "A Markdown/MyST fenced block has no matching closing fence.",
     ),
     "STR003": DiagnosticInfo(
-        "STR003",
         Severity.INFO,
         "fenced code block has no language/info string",
         "v1.1.0",
         "A generic fenced code block omits its language or info string.",
     ),
     "STR004": DiagnosticInfo(
-        "STR004",
         Severity.WARNING,
         "heading level skips an intermediate parent",
         "v1.1.0",
         "A Markdown/MyST heading jumps over the next parent heading level.",
     ),
     "STR005": DiagnosticInfo(
-        "STR005",
         Severity.WARNING,
         "document has more than one top-level heading",
         "v1.1.0",
         "A Markdown/MyST document contains multiple level-1 headings.",
     ),
     "DIR001": DiagnosticInfo(
-        "DIR001",
         Severity.WARNING,
         "malformed MyST directive fence",
         "v1.1.0",
         "A fenced MyST directive opener is not valid directive syntax.",
     ),
     "DIR002": DiagnosticInfo(
-        "DIR002",
         Severity.WARNING,
         "malformed MyST directive option",
         "v1.1.0",
         "A MyST directive option line is not written as ':name: value'.",
     ),
     "DIR010": DiagnosticInfo(
-        "DIR010",
         Severity.WARNING,
         "code cell is missing an executable language",
         "v1.1.0",
         "A Markdown/MyST or notebook code cell has no executable language metadata.",
     ),
     "DIR013": DiagnosticInfo(
-        "DIR013",
         Severity.WARNING,
         "code-cell language metadata is unknown or malformed",
         "Unreleased",
@@ -159,91 +138,78 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "project-authoritative language catalog.",
     ),
     "DIR011": DiagnosticInfo(
-        "DIR011",
         Severity.WARNING,
         "malformed MyST role",
         "v1.1.0",
         "A MyST role marker is not followed by a backtick-delimited target.",
     ),
     "DIR012": DiagnosticInfo(
-        "DIR012",
         Severity.WARNING,
         "malformed code-cell tags",
         "v1.1.0",
         "A MyST code-cell tags option is not a valid comma-separated or bracketed list.",
     ),
     "INP001": DiagnosticInfo(
-        "INP001",
         Severity.ERROR,
         "file could not be read or decoded",
         "v0.1.0",
         "The file could not be read as configured.",
     ),
     "INP002": DiagnosticInfo(
-        "INP002",
         Severity.WARNING,
         "notebook schema issue",
         "v0.1.4",
         "A notebook shape is invalid or incomplete, but readable cells may still be scanned.",
     ),
     "INP003": DiagnosticInfo(
-        "INP003",
         Severity.WARNING,
         "input exceeds fixed safety limit",
         "v0.1.0",
         "The input was skipped because it exceeded a fixed safety limit.",
     ),
     "CFG001": DiagnosticInfo(
-        "CFG001",
         Severity.ERROR,
         "invalid config file",
         "v0.1.0",
         "The config file is invalid.",
     ),
     "CFG010": DiagnosticInfo(
-        "CFG010",
         Severity.ERROR,
         "invalid dimension expression",
         "v0.1.2",
         "A configured dimension expression is invalid.",
     ),
     "DIM001": DiagnosticInfo(
-        "DIM001",
         Severity.ERROR,
         "equation sides have different dimensions",
         "v0.1.2",
         "Adjacent equality sides have incompatible configured dimensions.",
     ),
     "DIM002": DiagnosticInfo(
-        "DIM002",
         Severity.ERROR,
         "addition or subtraction combines incompatible dimensions",
         "v0.1.2",
         "Addition or subtraction combines terms with incompatible configured dimensions.",
     ),
     "DIM010": DiagnosticInfo(
-        "DIM010",
         Severity.WARNING,
         "unknown variable dimension",
         "v0.1.2",
         "A symbol has no configured dimension while dimension checking is active.",
     ),
     "DIM020": DiagnosticInfo(
-        "DIM020",
         Severity.INFO,
         "dimension check skipped",
         "v0.1.2",
         "Dimension checking skipped an expression outside the supported subset or parser budget.",
     ),
     "SYM001": DiagnosticInfo(
-        "SYM001",
         Severity.WARNING,
         "undefined symbol",
         "v1.0.0",
         "A symbol is used before an explicit scieqlint-symbol directive defines it.",
     ),
     "GEN001": DiagnosticInfo(
-        "GEN001",
         Severity.WARNING,
         "generated output is missing preserved source anchor",
         "v1.1.0",
@@ -251,7 +217,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "from the generated document.",
     ),
     "GEN002": DiagnosticInfo(
-        "GEN002",
         Severity.WARNING,
         "generated math contains suspicious formula text",
         "Unreleased",
@@ -259,7 +224,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "or garbled-marker artifact in its formula content, excluding directive options.",
     ),
     "GEN003": DiagnosticInfo(
-        "GEN003",
         Severity.WARNING,
         "nonstandard bracketed LaTeX display block",
         "Unreleased",
@@ -267,7 +231,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "a supported math container.",
     ),
     "GEN004": DiagnosticInfo(
-        "GEN004",
         Severity.WARNING,
         "generated output contains a formula placeholder",
         "Unreleased",
@@ -275,7 +238,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "or a standalone formula image placeholder.",
     ),
     "GEN005": DiagnosticInfo(
-        "GEN005",
         Severity.WARNING,
         "standalone text block looks like an equation",
         "Unreleased",
@@ -283,14 +245,12 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "but is not inside a math container.",
     ),
     "REF001": DiagnosticInfo(
-        "REF001",
         Severity.ERROR,
         "duplicate equation label",
         "v0.1.0",
         "The same equation label appears more than once.",
     ),
     "REF002": DiagnosticInfo(
-        "REF002",
         Severity.WARNING,
         "equation reference target not found",
         "v0.1.0",
@@ -298,35 +258,30 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "Math directive option values are not TeX references.",
     ),
     "REF003": DiagnosticInfo(
-        "REF003",
         Severity.INFO,
         "missing equation label in strict mode",
         "v0.1.0",
         "An equation block has no label while strict label mode is enabled.",
     ),
     "REF004": DiagnosticInfo(
-        "REF004",
         Severity.WARNING,
         "missing generic reference target",
         "v1.1.0",
         "A supported MyST generic reference points to a missing target.",
     ),
     "REF005": DiagnosticInfo(
-        "REF005",
         Severity.WARNING,
         "ambiguous generic reference target",
         "v1.1.0",
         "A supported generic reference points to more than one target.",
     ),
     "REF011": DiagnosticInfo(
-        "REF011",
         Severity.WARNING,
         "ambiguous equation reference",
         "Unreleased",
         "A supported equation reference points to more than one equation target.",
     ),
     "REF006": DiagnosticInfo(
-        "REF006",
         Severity.WARNING,
         "cross-reference path resolves differently after project normalization",
         "Unreleased",
@@ -334,7 +289,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "normalization, such as removal of a './' component.",
     ),
     "REF007": DiagnosticInfo(
-        "REF007",
         Severity.WARNING,
         "conflicting cross-reference metadata",
         "Unreleased",
@@ -342,7 +296,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "with different reference kind or display metadata.",
     ),
     "REF008": DiagnosticInfo(
-        "REF008",
         Severity.WARNING,
         "equation reference matches a hidden or excluded target",
         "Unreleased",
@@ -350,14 +303,12 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "excluded source, which can change project-level resolution.",
     ),
     "REF010": DiagnosticInfo(
-        "REF010",
         Severity.WARNING,
         "duplicate code-cell target label",
         "Unreleased",
         "A code-cell label collides with another visible reference target.",
     ),
     "REF009": DiagnosticInfo(
-        "REF009",
         Severity.WARNING,
         "non-heading reference has missing or generic display text",
         "Unreleased",
@@ -365,7 +316,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "the opt-in reference-display profile.",
     ),
     "PORT001": DiagnosticInfo(
-        "PORT001",
         Severity.WARNING,
         "equation reference syntax may not survive configured output profile",
         "Unreleased",
@@ -373,7 +323,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "profile's conservative portability baseline.",
     ),
     "PORT002": DiagnosticInfo(
-        "PORT002",
         Severity.WARNING,
         "inline math lacks accessible text metadata",
         "Unreleased",
@@ -381,7 +330,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "source facts for the selected accessibility profile.",
     ),
     "PORT003": DiagnosticInfo(
-        "PORT003",
         Severity.WARNING,
         "equation syntax may not survive Typst export",
         "Unreleased",
@@ -389,7 +337,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "in current Typst publishing paths.",
     ),
     "PORT004": DiagnosticInfo(
-        "PORT004",
         Severity.WARNING,
         "cell renderings are incompatible with cross-reference options",
         "Unreleased",
@@ -397,7 +344,6 @@ CATALOG: dict[str, DiagnosticInfo] = {
         "caption option that creates a cross-reference.",
     ),
     "SUP001": DiagnosticInfo(
-        "SUP001",
         Severity.WARNING,
         "unknown suppression code",
         "v0.2.0",
@@ -412,7 +358,7 @@ def explain_code(code: str) -> str | None:
     if info is None:
         return None
     return (
-        f"{info.code} ({info.severity.value}, {info.release})\n"
+        f"{code} ({info.severity.value}, {info.release})\n"
         f"Message: {info.message}\n"
         f"Meaning: {info.meaning}"
     )

@@ -36,7 +36,7 @@ def check_references(
             info = CATALOG["REF001"]
             diagnostics.append(
                 Diagnostic(
-                    code=info.code,
+                    code="REF001",
                     severity=info.severity,
                     message=f"{info.message}: {duplicate.label}",
                     span=duplicate.span,
@@ -62,7 +62,7 @@ def check_references(
         info = CATALOG["REF002"]
         diagnostics.append(
             Diagnostic(
-                code=info.code,
+                code="REF002",
                 severity=info.severity,
                 message=f"{info.message}: {reference.target}",
                 span=reference.span,
@@ -88,7 +88,7 @@ def check_missing_labels(
     info = CATALOG["REF003"]
     return tuple(
         Diagnostic(
-            code=info.code,
+            code="REF003",
             severity=info.severity,
             message=info.message,
             span=block.span,
