@@ -4,9 +4,14 @@ from pathlib import Path
 
 
 def test_agent_instruction_files_point_to_repo_contracts() -> None:
-    for path in ["AGENTS.md", "CLAUDE.md"]:
-        instructions = Path(path).read_text(encoding="utf-8")
-        _assert_repo_contracts(instructions)
+    agents_path = Path("AGENTS.md")
+    agents = agents_path.read_text(encoding="utf-8")
+    _assert_repo_contracts(agents)
+
+    instructions_path = Path("CLAUDE.md")
+    instructions = instructions_path.read_text(encoding="utf-8")
+    assert "[`AGENTS.md`](AGENTS.md)" in instructions
+    assert (instructions_path.parent / "AGENTS.md").read_text(encoding="utf-8") == agents
 
 
 def _assert_repo_contracts(instructions: str) -> None:

@@ -1,6 +1,6 @@
 # SARIF
 
-SARIF starts in v0.1.5. It is a reporter and must not change analysis behavior.
+SARIF is a reporter and must not change analysis behavior.
 
 ```bash
 scieqlint check "docs/**/*.md" --format sarif --output scieqlint.sarif
