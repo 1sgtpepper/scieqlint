@@ -63,11 +63,10 @@ class PolicyHost:
     def cross_format_reference_risks(
         self,
         snapshot: FactSnapshot,
-        output_profile: str | None = None,
     ) -> tuple[OutputPortabilityFact, ...]:
         """Project equation-reference facts into output-profile risks."""
 
-        profile_value = self.output_profile if output_profile is None else output_profile
+        profile_value = self.output_profile
         if profile_value is None:
             raise ValueError("cross-format reference policy requires an output profile")
         profile = _validated_output_profile(profile_value)

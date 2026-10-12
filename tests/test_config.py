@@ -298,6 +298,20 @@ def test_load_config_rejects_empty_profile_metadata(tmp_path) -> None:
         load_config(config_path)
 
 
+def test_load_config_normalizes_profile_metadata(tmp_path) -> None:
+    config_path = tmp_path / "scieqlint.toml"
+    config_path.write_text(
+        '[profile]\nname = "generated-myst"\nsource_kind = "  jats-xml  "\n'
+        'conversion_stage = "  translation  "\n',
+        encoding="utf-8",
+    )
+
+    profile = load_config(config_path).profile
+
+    assert profile.source_kind == "jats-xml"
+    assert profile.conversion_stage == "translation"
+
+
 def test_load_config_rejects_profile_metadata_without_generated_profile(tmp_path) -> None:
     config_path = tmp_path / "scieqlint.toml"
     config_path.write_text('[profile]\nsource_kind = "jats-xml"\n', encoding="utf-8")
