@@ -219,8 +219,6 @@ def _directive_code_cell_fact(
         fact_id=f"{fence.fact_id}::cell",
         document_id=fence.document_id,
         span=fence.span,
-
-
         language=language,
         options=options,
         label=label,

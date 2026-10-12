@@ -1454,10 +1454,8 @@ def test_query_host_views_expose_snapshot_contracts():
         fact_id="cell-1",
         document_id="a.md",
         span=span(),
-
         language="python",
-        options=directive.options,
-
+        options=(("renderings", "html"), ("fig-cap", "Plot")),
         label="plot",
         normalized_label="plot",
     )
@@ -1581,14 +1579,11 @@ def test_query_host_views_expose_snapshot_contracts():
     )
     provenance = GeneratedProvenanceFact(
         fact_id="generated-1",
-        document_id="a.html",
-        span=None,
         generated_document_id="a.html",
         source_document_id="a.md",
     )
     portability = OutputPortabilityFact(
         fact_id="portability-1",
-        document_id="a.md",
         span=span(),
         subject_fact_id=cell.fact_id,
         output_profile="quarto-html",
@@ -1648,6 +1643,7 @@ def test_query_host_views_expose_snapshot_contracts():
     )
 
     assert query.portability.inline_math_missing_alt() == (inline,)
+
     assert snapshot.portability == (portability,)
 
 

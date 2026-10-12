@@ -121,10 +121,10 @@ def test_typst_math_risks_skips_source_maps_without_displays(
 ) -> None:
     snapshot = MySTFrontend().lower((doc("ordinary source text"),))
 
-    def unexpected_source_map(cls, document: SourceDocument) -> SourceMap:
+    def unexpected_source_map(self: SourceMap, document: SourceDocument) -> None:
         raise AssertionError(f"unexpected SourceMap for {document.path}")
 
-    monkeypatch.setattr(SourceMap, "for_document", classmethod(unexpected_source_map))
+    monkeypatch.setattr(SourceMap, "__init__", unexpected_source_map)
 
     assert MathHost().typst_portability(snapshot) == ()
 
@@ -853,7 +853,6 @@ def test_frontend_without_profile_keeps_typst_policy_unmaterialized() -> None:
 def test_typst_engine_rejects_foreign_risk_kind() -> None:
     foreign = OutputPortabilityFact(
         fact_id="foreign-risk",
-        document_id="typst-equations.md",
         span=None,
         subject_fact_id="subject",
         output_profile="typst",
@@ -873,7 +872,6 @@ def test_typst_engine_rejects_foreign_risk_kind() -> None:
 def test_typst_engine_rejects_unknown_syntax_kind() -> None:
     unknown = OutputPortabilityFact(
         fact_id="unknown-syntax",
-        document_id="typst-equations.md",
         span=None,
         subject_fact_id="subject",
         output_profile="typst",

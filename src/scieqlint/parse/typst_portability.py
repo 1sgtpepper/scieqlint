@@ -93,7 +93,6 @@ def _typst_command_risks(
         risks.append(
             OutputPortabilityFact(
                 fact_id=f"{display.fact_id}::typst-command::{start}",
-                document_id=display.document_id,
                 span=smap.span(start, end),
                 subject_fact_id=display.fact_id,
                 output_profile="typst",
@@ -162,7 +161,6 @@ def _typst_environment_risks(
         risks.append(
             OutputPortabilityFact(
                 fact_id=f"{display.fact_id}::typst-environment::{start}",
-                document_id=display.document_id,
                 span=smap.span(start, token_end),
                 subject_fact_id=display.fact_id,
                 output_profile="typst",

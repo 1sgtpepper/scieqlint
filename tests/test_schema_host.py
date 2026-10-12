@@ -43,8 +43,6 @@ def test_schema_host_rejects_unregistered_projection_versions() -> None:
 def test_schema_host_owns_generated_provenance_property_names() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="out/generated.md::generated-provenance",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/paper.tex",
         source_kind="latex",
@@ -76,8 +74,6 @@ def test_diagnostic_ir_preserves_profile_and_rule_properties() -> None:
 def test_schema_host_appends_origin_properties_without_dropping_rule_metadata() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )
@@ -108,14 +104,10 @@ def test_schema_host_appends_origin_properties_without_dropping_rule_metadata() 
 def test_schema_host_preserves_order_when_generated_origin_overlaps_input_id() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="shared",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
     )
     generated = GeneratedProvenanceFact(
         fact_id="origin",
-        document_id="out/other.md",
-        span=None,
         generated_document_id="out/other.md",
     )
     diagnostic = Diagnostic(
@@ -137,8 +129,6 @@ def test_schema_host_preserves_order_when_generated_origin_overlaps_input_id() -
 def test_schema_host_normalizes_rule_properties_before_schema_precedence() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
     )
     diagnostic = Diagnostic(
@@ -172,15 +162,11 @@ def test_schema_host_normalizes_rule_properties_before_schema_precedence() -> No
 def test_schema_host_names_multiple_origins_deterministically() -> None:
     first = GeneratedProvenanceFact(
         fact_id="first-origin",
-        document_id="out/first.md",
-        span=None,
         generated_document_id="out/first.md",
         source_document_id="source/first.md",
     )
     second = GeneratedProvenanceFact(
         fact_id="second-origin",
-        document_id="out/second.md",
-        span=None,
         generated_document_id="out/second.md",
         source_document_id="source/second.md",
     )

@@ -88,7 +88,6 @@ def _reference_risk(
 ) -> OutputPortabilityFact:
     return OutputPortabilityFact(
         fact_id=f"{reference.fact_id}::portability::{output_profile}",
-        document_id=reference.document_id,
         span=reference.role_span or reference.span,
         subject_fact_id=reference.fact_id,
         output_profile=output_profile,

@@ -109,8 +109,8 @@ Release notes must use these sections:
   SARIF, and GitHub reporters through one provenance and profile projection
   instead of being reconstructed independently. JSON output
   retains schema 0.1 when no projection metadata is emitted and uses the new 0.2
-  schemas when metadata is present. The complete AnalysisResult registry and
-  serializer migration remain tracked by #190/#191.
+  schemas when metadata is present. The remaining schema registry and serializer
+  migration remain tracked by #190/#191.
 - Programmatic provenance identifiers, source kinds, and conversion stages are
   normalized at construction and reject blank values consistently with TOML input.
 - Unresolved graph targets retain the schema 0.3 `label:<fragment>` identity while

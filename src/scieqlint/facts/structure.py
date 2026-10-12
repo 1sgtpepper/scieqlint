@@ -39,8 +39,6 @@ class FenceFact(FactBase):
     body_span: SourceSpan | None
 
 
-
-
 def _canonical_code_cell_label(value: str) -> str:
     """Normalize the label used by code-cell target identity."""
 

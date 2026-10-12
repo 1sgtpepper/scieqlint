@@ -55,6 +55,7 @@ identifies the owning boundary.
 | `scieqlint.policy` | output-profile support, code-cell language-catalog policy, and diagnostic severity selection | PolicyHost preview | `facts`, `diag.catalog`, `diag.model` | `frontend`, `scan`, `parse`, `check`, `report`, `cli`, `app`, `api` | Not CompatibilityShell | Preview scope only; suppression and baseline migration remain owned by R1-021A/R1-021B/R1-022/R1-023/R1-024. |
 | `scieqlint.presets` | packaged preset data | PackHost planned data | package data only | runtime imports from CLI, analysis, or reporting layers | Not CompatibilityShell | Owner: PackHost; retire package-data-only placeholder under R3-146A/R3-149A |
 
+
 | `scieqlint.query` | read-only views over FactSnapshot | QueryHost | `facts`, immutable query helpers, pure `io.workspace` path normalization, standard library | scanners, parsers, checkers, reporters, CLI | Not CompatibilityShell | `ReferenceQueryView.results()` builds reference-resolution indexes and outcomes once per run; non-visible diagnostics retain exact counts and one ordered example per category. The unused project graph view was retired. Query code may normalize stored paths but does not discover or read files. |
 | `scieqlint.report` | text, JSON, GitHub, SARIF renderers | SchemaHost projections | `diag.model`, versioned `schema` projection values, packaged schema metadata | `io` source loading, `source`, `scan`, `frontend`, `parse`, `check`, `engine` | Not CompatibilityShell | No temporary exception; R1-002B contract `Owner: architecture boundary map - Reporters render only diagnostics` |
 | `scieqlint.scan` | current Markdown, LaTeX, notebook, and symbol scanners | FrontendHost | `io.source`, injected `io.workspace` path identity, `diag.model`, `scan.base`, source-map/value helpers, frontend-owned notebook JSON mapping | `parse`, `check`, `report` | Transitional scanner facade consumed by the frontends | `WorkspaceHost` is injected by orchestration; scanners do not discover or read files. Notebook JSON mapping remains in the frontend owner. |
@@ -63,6 +64,7 @@ identifies the owning boundary.
 | `scieqlint.schemas` | packaged JSON Schema files | SchemaHost | package data only | runtime imports from analysis, CLI, or reporting layers | Not CompatibilityShell | None |
 | `scieqlint.source` | direct source-document offset-to-span mapping | ImmutableSource | `io.source`, diagnostic span values | workspace discovery, scanners, parsers, checkers, reporters, CLI | Not CompatibilityShell | `SourceMap` holds its `SourceDocument` directly; the document path supplies span identity. Owner: ImmutableSource; retire incomplete canonical URI coverage under R1-005A/R1-005B |
 | `scieqlint.check` | current algebra, references, dimensions, symbols, suppressions | EngineHost | `diag`, `config.model`, `facts`, `query`, `graph` when graph exists, pure `io.workspace` path normalization | `scan`, `io.discover`, `report`, `cli` | Transitional checker facade for durable engines | Compatibility reference checks normalize caller-provided paths but do not discover or read files. |
+
 
 ## Architecture-Owned Tool And Test Categories
 

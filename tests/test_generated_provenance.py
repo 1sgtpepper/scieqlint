@@ -125,8 +125,6 @@ def test_generated_provenance_fact_rejects_retired_producer_metadata(
     with pytest.raises(TypeError):
         GeneratedProvenanceFact(
             fact_id="origin",
-            document_id="out/generated.md",
-            span=None,
             generated_document_id="out/generated.md",
             **{retired_field: "value"},
         )
@@ -173,8 +171,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
     assert supplied == (
         GeneratedProvenanceFact(
             fact_id="out/generated.md::generated-provenance",
-            document_id="out/generated.md",
-            span=None,
             generated_document_id="out/generated.md",
             source_document_id="source/original.xml",
             source_kind="jats-xml",
@@ -183,8 +179,6 @@ def test_generated_provenance_facts_preserve_per_document_origin_metadata() -> N
         ),
         GeneratedProvenanceFact(
             fact_id="out/other.md::generated-provenance",
-            document_id="out/other.md",
-            span=None,
             generated_document_id="out/other.md",
             source_document_id="source/other.tex",
             source_kind="latex",
@@ -369,8 +363,6 @@ def test_generated_diagnostic_ir_references_provenance_and_schema_metadata() -> 
 def test_generated_query_ignores_provenance_without_a_source_document() -> None:
     provenance = GeneratedProvenanceFact(
         fact_id="out/generated.md::generated-provenance",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
     )
 
@@ -399,8 +391,6 @@ def test_generated_profile_leaves_unmapped_diagnostics_unannotated() -> None:
 def test_projection_keeps_ordinary_fact_ids_out_of_generated_provenance_lookup() -> None:
     origin = GeneratedProvenanceFact(
         fact_id="out/generated.md::generated-provenance",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )
@@ -443,16 +433,12 @@ def test_projection_keeps_ordinary_fact_ids_out_of_generated_provenance_lookup()
 def test_json_reporter_uses_schema_host_names_for_multiple_origins() -> None:
     first = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/a.xml",
         source_kind="jats-xml",
     )
     second = GeneratedProvenanceFact(
         fact_id="origin-b",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/b.tex",
         source_kind="latex",
@@ -499,8 +485,6 @@ def test_json_reporter_uses_schema_host_names_for_multiple_origins() -> None:
 def test_projection_deduplicates_origins_and_owns_colliding_reporter_fields() -> None:
     origin = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/paper.md",
     )

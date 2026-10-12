@@ -76,7 +76,7 @@ def test_bare_atx_heading_accepts_an_attached_target() -> None:
     assert ReferenceEngine().run(QueryHost(snapshot)) == ()
 
 
-def test_closing_only_atx_heading_is_empty_without_a_text_span() -> None:
+def test_closing_only_atx_heading_is_empty() -> None:
     snapshot = MySTFrontend().lower((doc("# #\n## ##\n### ###\n"),))
 
     assert [(heading.raw, heading.text) for heading in snapshot.headings] == [

@@ -107,7 +107,6 @@ def test_math_host_classifies_malformed_and_unsupported_inline_math() -> None:
     ] == [fact.body for fact in snapshot.inline_math]
 
 
-
 def test_math_host_returns_the_snapshot_when_no_math_candidates_remain() -> None:
     classified = _classify(
         MySTFrontend().lower(
@@ -679,8 +678,6 @@ def test_math_host_rejects_only_incomplete_relation_tails(
     ]
 
 
-
-
 def test_math_host_keeps_underscore_version_prose_quiet() -> None:
     snapshot = _classify(MySTFrontend().lower((doc("Version_2 = complete"),)))
 
@@ -737,8 +734,6 @@ def test_nested_latex_paren_delimiters_are_ambiguous_after_bounded_sweep() -> No
     assert fact.parse_status == "unsupported"
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == r"\(" * 32 + "x"
-
-
 
 
 def test_latex_paren_delimiter_ambiguity_respects_escape_parity() -> None:

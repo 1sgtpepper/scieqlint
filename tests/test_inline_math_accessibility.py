@@ -479,7 +479,6 @@ def test_portability_engine_rejects_unknown_profile() -> None:
 def test_portability_engine_rejects_unowned_risk_kinds() -> None:
     unknown = OutputPortabilityFact(
         fact_id="unknown-risk",
-        document_id="accessible-math.md",
         span=None,
         subject_fact_id="subject",
         output_profile="unknown",

@@ -265,8 +265,6 @@ def test_generated_formula_engine_keeps_provenance_as_ids_and_rule_properties() 
     )
     first = GeneratedProvenanceFact(
         fact_id="origin-a",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/a.xml",
         source_kind="jats-xml",
@@ -274,8 +272,6 @@ def test_generated_formula_engine_keeps_provenance_as_ids_and_rule_properties() 
     )
     second = GeneratedProvenanceFact(
         fact_id="origin-b",
-        document_id="out/generated.md",
-        span=None,
         generated_document_id="out/generated.md",
         source_document_id="source/b.tex",
         source_kind="latex",

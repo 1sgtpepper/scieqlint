@@ -135,8 +135,6 @@ def test_notebook_frontend_lowers_cell_renderings_outputs_and_boundaries() -> No
     }
     assert [output.output_index for output in snapshot.notebook_outputs] == [0, 1]
 
-    assert snapshot.notebook_outputs[0].mime_types == ("image/png", "text/plain")
-
     assert snapshot.notebook_outputs[0].metadata == (("needs_background", "light"),)
     assert all(output.span is not None for output in snapshot.notebook_outputs)
     assert [output.span.cell for output in snapshot.notebook_outputs if output.span] == [0, 0]
@@ -697,9 +695,11 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert anchor.span == output.span
     assert anchor.label_span is not None
     assert document.text[anchor.label_span.start : anchor.label_span.end] == "fig-output"
+
     identity = (PurePosixPath("theme.ipynb"), "fig-output")
     reference_results = QueryHost(snapshot).references.results()
     assert reference_results.target_identity_index[identity] == (anchor,)
+
     assert metadata.normalized_target == "fig-output"
     assert metadata.resolved_target_kind == "figure"
     assert metadata.metadata_kind == "target-definition"
@@ -708,6 +708,7 @@ def test_notebook_output_label_produces_target_metadata_without_cell_label() -> 
     assert metadata.span == output.span
     assert metadata.target_span == anchor.label_span
     assert metadata.span is not None
+
     assert document.text[metadata.span.start : metadata.span.end] == output.raw
 
 

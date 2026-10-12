@@ -151,8 +151,6 @@ def _attached_target_kind(fact: HeadingFact | FenceFact) -> str:
     }.get(directive, "block")
 
 
-
-
 def _heading_text(body: str) -> str:
     stripped = body.strip()
     if re.fullmatch(r"#+", stripped):

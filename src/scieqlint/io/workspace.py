@@ -150,7 +150,6 @@ class WorkspaceHost:
 
         return tuple(members)
 
-
     def project_visibility(
         self,
         documents: Sequence[SourceDocument],

@@ -29,8 +29,6 @@ def snapshot_for_translation(generated_text: str) -> FactSnapshot:
     snapshot = MySTFrontend().lower((source, generated))
     provenance = GeneratedProvenanceFact(
         fact_id="translation-1",
-        document_id=generated.path.as_posix(),
-        span=None,
         source_document_id=source.path.as_posix(),
         generated_document_id=generated.path.as_posix(),
         preserved_anchor_inventory=("jax_at_workaround",),
