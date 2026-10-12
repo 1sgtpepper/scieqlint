@@ -1,7 +1,5 @@
 # GitHub annotations
 
-GitHub annotations start in v0.1.1 with `--format github`.
-
 Example:
 
 ```bash
@@ -15,9 +13,11 @@ In GitHub Actions:
   run: scieqlint check "docs/**/*.md" --format github
 ```
 
+## Generated MyST job step
+
 For generated Markdown/MyST output from translation, conversion, or document
-generation pipelines, materialize the generated-document preset before using
-GitHub annotations:
+generation pipelines, add this step after checkout and installation. Create and
+commit the named preset file first, as described below:
 
 ```yaml
 - name: Check generated scientific docs
@@ -37,5 +37,3 @@ or prose quality. Formula placeholders are reported as `GEN004`; they remain out
 `GEN002`.
 
 The reporter must escape workflow command payloads correctly and must not change analysis behavior.
-
-v0.1.1 does not add scanner, parser, dimension, or algebra features.

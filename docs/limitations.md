@@ -40,13 +40,14 @@ E = mc^2
 ```
 ````
 
-Dollar math follows a conservative SciEqLint profile derived from the referenced
-`mdit-py-plugins` behavior: escaped dollars and borrowed `$$$` delimiters remain
-prose; display `$$` starts after zero to three leading ASCII spaces at the start
-of a line and closes only at the end of a source line (optionally followed by one
-complete label suffix); single-dollar inline math may be adjacent to ordinary
-text but stays on one source line. Empty bodies and unmatched delimiters are not
-core math facts. The generated-MyST profile additionally emits explicit GEN004
+SciEqLint implements a conservative dollar-math profile, with delimiter rules
+informed by the historical behavior of `mdit-py-plugins`: escaped dollars and
+borrowed `$$$` delimiters remain prose; display `$$` starts after zero to three
+leading ASCII spaces at the start of a line and closes only at the end of a
+source line (optionally followed by one complete label suffix); single-dollar
+inline math may be adjacent to ordinary text but stays on one source line. Empty
+bodies and unmatched delimiters are not core math facts. The generated-MyST
+profile additionally emits explicit GEN004
 placeholder facts for standalone formula-not-decoded markers and complete empty
 fenced, directive, and dollar-display containers, including accepted complete raw
 LaTeX displays. Markers inside unsupported or incomplete raw environments do not

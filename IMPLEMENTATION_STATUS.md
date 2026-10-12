@@ -22,7 +22,7 @@ The analyzer can:
   contract, including built-in recorded notebook-output boundaries,
 - apply suppressions and diagnostic baselines,
 - export a deterministic equation label/reference graph,
-- provide package resources, docs, schemas, examples, and CI templates.
+- provide packaged schemas and presets alongside repository examples, docs, and CI templates.
 
 It does not claim broad algebra, macro expansion, code-cell execution, theorem
 proving, or Sphinx/Jupyter Book build validation. Generated-output anchor auditing

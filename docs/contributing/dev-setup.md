@@ -14,6 +14,6 @@ pyright
 Using `uv` is encouraged after the repository has a lockfile.
 
 ```bash
-uv sync --group dev --extra docs
+uv sync --extra dev --extra docs
 uv run pytest
 ```

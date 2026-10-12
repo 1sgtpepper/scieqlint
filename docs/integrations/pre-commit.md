@@ -1,7 +1,5 @@
 # pre-commit
 
-v0.1.1 adds pre-commit metadata.
-
 ```yaml
 repos:
   - repo: https://github.com/1sgtpepper/scieqlint

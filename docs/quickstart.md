@@ -27,20 +27,16 @@ SciEqLint checks supported scientific document sources:
 
 ## Output formats
 
-v0.1.0 ships:
+Supported reporter formats:
 
 ```bash
 scieqlint check . --format text
 scieqlint check . --format json
 ```
 
-v0.1.1 adds GitHub annotations:
-
 ```bash
 scieqlint check . --format github
 ```
-
-v0.1.5 adds SARIF:
 
 ```bash
 scieqlint check . --format sarif --output scieqlint.sarif
@@ -54,17 +50,11 @@ scieqlint graph . --output scieqlint-graph.json
 
 ## Generated MyST docs
 
-For generated Markdown/MyST output, materialize the generated-document preset and
-run the normal checker with that config:
-
-```bash
-scieqlint init --preset generated-myst --path scieqlint.generated-myst.toml
-scieqlint check "docs/**/*.md" --config scieqlint.generated-myst.toml --format github
-```
-
-The preset selects the generated-document profile and supplies its scanner/parser
-defaults, including source-only suspicious-formula checks. Provenance-backed
-comparisons are available to Python callers that attach an explicit `SourceOrigin`.
+For generated Markdown/MyST pipelines, see the GitHub Actions check step and
+preset setup instructions in the
+[integration guide](integrations/github-annotations.md#generated-myst-job-step).
+The preset includes source-only suspicious-formula checks. Python callers can enable
+provenance-backed comparisons by attaching an explicit `SourceOrigin`.
 
 ## Demo
 

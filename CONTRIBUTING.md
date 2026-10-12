@@ -26,7 +26,7 @@ pyright
 Using `uv` is encouraged once the repository has a lockfile:
 
 ```bash
-uv sync --group dev
+uv sync --extra dev
 uv run pytest
 uv run ruff format --check .
 uv run ruff check .
