@@ -19,12 +19,14 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.frontend.myst import MySTFrontend
 from scieqlint.io.source import DocumentKind, SourceDocument
 from scieqlint.parse.math import MathHost
+from scieqlint.parse.typst_portability import _mask_non_math_tex_ranges
 from scieqlint.policy import PolicyHost
 from scieqlint.query.host import QueryHost
 from scieqlint.report.github import GitHubReporter
 from scieqlint.report.json import JsonReporter
 from scieqlint.report.sarif import SarifReporter
 from scieqlint.report.text import TextReporter
+from scieqlint.source.maps import SourceMap
 
 
 def doc(text: str) -> SourceDocument:
@@ -112,6 +114,47 @@ def test_typst_checks_math_body_after_myst_option_prefix(
         assert risk.span.start == source.index(
             source_text(source, risk), len("```{math}\n") + len(prefix)
         )
+
+
+def test_typst_math_risks_skips_source_maps_without_displays(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = MySTFrontend().lower((doc("ordinary source text"),))
+
+    def unexpected_source_map(document: SourceDocument) -> SourceMap:
+        raise AssertionError(f"unexpected SourceMap for {document.path}")
+
+    monkeypatch.setattr(
+        "scieqlint.parse.typst_portability.SourceMap",
+        unexpected_source_map,
+    )
+
+    assert MathHost().typst_portability(snapshot) == ()
+
+
+def test_typst_nonmath_mask_keeps_identity_without_ranges() -> None:
+    text = "math source without opaque environments"
+
+    assert _mask_non_math_tex_ranges(text, ()) is text
+    assert _mask_non_math_tex_ranges("x\ny", ((0, 1),)) == " \ny"
+
+
+def test_typst_nonmath_mask_preserves_subclass_hooks_without_ranges() -> None:
+    class IteratingText(str):
+        def __iter__(self):
+            yield from "normalized text"
+
+    class TruthTestingRanges(tuple):
+        def __bool__(self) -> bool:
+            raise AssertionError("custom ranges truthiness must not be evaluated")
+
+    text = IteratingText("original text")
+
+    result = _mask_non_math_tex_ranges(text, ())
+    assert result == "normalized text"
+    assert type(result) is str
+
+    assert _mask_non_math_tex_ranges("plain text", TruthTestingRanges()) == "plain text"
 
 
 def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:

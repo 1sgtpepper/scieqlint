@@ -684,14 +684,17 @@ $$
     ]
 
 
-def test_properly_nested_ams_environment_remains_classified() -> None:
-    source = r"""$$
-\begin{align}
+@pytest.mark.parametrize("inner_environment", ["aligned", "align"])
+def test_properly_nested_ams_environment_remains_classified(
+    inner_environment: str,
+) -> None:
+    source = rf"""$$
+\begin{{align}}
 a &= b
-\begin{aligned}
+\begin{{{inner_environment}}}
 c &= d
-\end{aligned}
-\end{align}
+\end{{{inner_environment}}}
+\end{{align}}
 $$
 """
 

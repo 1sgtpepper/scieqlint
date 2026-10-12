@@ -17,13 +17,19 @@ from .typst_portability import typst_math_risks as _typst_math_risks
 
 _classify_display = _classification.classify_display
 _classify_inline = _classification.classify_inline
-_has_missing_required_argument = _classification.has_missing_required_argument
 
 
 class MathHost:
     """Classify inline math after the frontend has preserved source identity."""
 
     def classify(self, snapshot: FactSnapshot) -> FactSnapshot:
+        if (
+            not snapshot.inline_math
+            and not snapshot.display_math
+            and not snapshot.generated_formulas
+        ):
+            return snapshot
+
         inline_math: list[InlineMathFact] = []
         for fact in snapshot.inline_math:
             status = _classify_inline(fact)
@@ -36,8 +42,17 @@ class MathHost:
         raw_display_ids = {
             fact.fact_id for fact in snapshot.display_math if fact.container == "raw-latex"
         }
+        source_map_document_ids = {
+            fact.document_id
+            for fact in snapshot.display_math
+            if fact.container == "raw-latex"
+            and fact.complete
+            and not is_non_math_tex_environment(fact.environment)
+        }
         source_maps = {
-            document.path.as_posix(): SourceMap(document) for document in snapshot.documents
+            document.path.as_posix(): SourceMap(document)
+            for document in snapshot.documents
+            if document.path.as_posix() in source_map_document_ids
         }
         for fact in snapshot.display_math:
             if fact.container == "raw-latex" and is_non_math_tex_environment(fact.environment):
