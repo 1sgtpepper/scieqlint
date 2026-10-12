@@ -22,8 +22,8 @@ def build_graph(
     project_root: PurePosixPath = _DEFAULT_PROJECT_ROOT,
 ) -> Graph:
     """Build a stable graph model from scanner outputs."""
-    equation_nodes = [_equation_node(label) for label in labels]
-    reference_nodes = [_reference_node(reference) for reference in references]
+    nodes = [_equation_node(label) for label in labels]
+    nodes.extend(_reference_node(reference) for reference in references)
     labels_by_name: dict[str, list[EquationLabel]] = defaultdict(list)
     labels_by_identity: dict[tuple[PurePosixPath, str], list[EquationLabel]] = defaultdict(list)
     for label in labels:
@@ -36,9 +36,10 @@ def build_graph(
         )
         for reference in references
     ]
+    nodes.sort(key=_node_key)
     return Graph(
         schema_version=GRAPH_SCHEMA_VERSION,
-        nodes=tuple(sorted((*equation_nodes, *reference_nodes), key=_node_key)),
+        nodes=tuple(nodes),
         edges=tuple(edge for _key, edge in sorted(edges, key=lambda item: item[0])),
     )
 
