@@ -51,6 +51,22 @@ def test_symbol_check_accepts_symbols_defined_before_use_across_ordered_files() 
     assert result.diagnostics == ()
 
 
+def test_symbol_check_accepts_latex_macro_defined_before_use() -> None:
+    document = SourceDocument.from_text(
+        PurePosixPath("paper.tex"),
+        '% scieqlint-symbol: \\alpha = angle, dim="1"\n\\[\n\\alpha = \\alpha\n\\]\n',
+        DocumentKind.LATEX,
+    )
+
+    result = check_documents((document,), config=_symbols_config(enabled=True))
+
+    assert result.files_checked == 1
+    assert result.math_blocks_checked == 1
+    assert [
+        diagnostic.detail for diagnostic in result.diagnostics if diagnostic.code == "SYM001"
+    ] == []
+
+
 def test_symbol_check_is_disabled_by_default() -> None:
     result = check_documents(
         [_document("paper.md", "$$\nE = E\n$$\n")],

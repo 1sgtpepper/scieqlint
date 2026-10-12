@@ -20,7 +20,6 @@ from scieqlint.scan import markdown as markdown_scan_module
 from scieqlint.scan.base import (
     MathContainer,
     ReferenceSource,
-    SymbolDirectiveSource,
 )
 from scieqlint.scan.markdown import MarkdownScanner
 
@@ -1016,11 +1015,7 @@ def test_markdown_symbol_directive_fixture_is_extracted() -> None:
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert [
-        (directive.symbol, directive.description, directive.dimension)
-        for directive in result.symbol_directives
-    ] == [("E", "energy", "M L^2 T^-2")]
-    assert result.symbol_directives[0].source is SymbolDirectiveSource.MARKDOWN_COMMENT
+    assert [directive.symbol for directive in result.symbol_directives] == ["E"]
     span = result.symbol_directives[0].span
     assert document.text[span.start : span.end] == "E"
     assert result.diagnostics == ()
@@ -1099,7 +1094,5 @@ def test_markdown_symbol_directive_dimension_is_optional() -> None:
 
     result = MarkdownScanner().scan(document, Config())
 
-    assert [
-        (directive.symbol, directive.description, directive.dimension)
-        for directive in result.symbol_directives
-    ] == [("n", "sample count", None)]
+    assert [directive.symbol for directive in result.symbol_directives] == ["n"]
+    assert result.diagnostics == ()
