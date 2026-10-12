@@ -68,7 +68,7 @@ The checker runtime does not:
 - import user project modules,
 - evaluate Python code from documents,
 - run shell commands from analysis core,
-- parse user-controlled math text through SymPy text parsers,
+- pass user-controlled math text to general-purpose parsers or evaluators,
 - silently infer unsupported math,
 - emit timestamps or machine-specific paths in JSON by default.
 
@@ -357,16 +357,12 @@ Algebra check supports:
 - integer powers,
 - `\sqrt{n}` only for numeric perfect-square rational operands.
 
-Algorithm:
-
-1. Convert SciEqLint AST to SymPy objects.
-2. Never pass document text to SymPy parsers.
-3. Compute `left - right` for adjacent equality sides.
-4. Apply constrained rational/polynomial simplification using `together` and `cancel`.
-5. Emit `ALG001` only when nonzero residual is proven.
-6. Emit unknown/skipped diagnostics for everything else.
-
-Avoid `sympy.simplify` in v0.1.0.
+The current checker tokenizes each equation side and parses the supported subset
+directly into sparse polynomials with exact `Fraction` coefficients. It compares
+adjacent equality sides by computing their exact residual and emits `ALG001` only
+when that residual is nonzero. Division is supported only by a single monomial;
+square roots are supported only for numeric perfect-square rational operands.
+Unsupported expressions retain the documented skipped-diagnostic behavior.
 
 #### v0.1.0 references scope
 
@@ -1052,6 +1048,8 @@ Use maintained dependencies for generic plumbing. Own equation semantics and sou
 | Concern | Use | Earliest release | Boundary |
 |---|---|---:|---|
 | CLI | `click` | v0.0.1 | command parsing only |
+
+
 | JSON Schema validation | `jsonschema` dev dependency | v0.1.0 | golden-output/schema tests only |
 | Package resources | `importlib.resources` | v0.0.1 | schemas and presets |
 | Type checking | `pyright` | v0.0.1 | CI gate |
@@ -1148,7 +1146,9 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 
 `scan` may import `io.source`, `diag.model`, and `scan.base`. It must not import `parse`, `check`, or `report`.
 
+
 `parse` may import `diag.model` and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
+
 
 `check` may import `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
 
@@ -1346,7 +1346,9 @@ Scanners must not emit algebra, dimension, duplicate-label, or missing-reference
 
 ---
 
+
 ## 10. Unsupported math diagnostics
+
 
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
@@ -1365,21 +1367,10 @@ Algebra check proves or rejects scalar equalities for supported expressions.
 
 The check must be exact. It must not use random sampling or floating-point testing.
 
-v0.1.0 uses SymPy through a constrained adapter.
-
-### Boundary
-
-`check.algebra` owns:
-
-- AST to SymPy conversion,
-- symbol creation,
-- equality normalization,
-- residual computation,
-- diagnostic detail formatting.
-
-It must not expose SymPy objects outside `check.algebra`.
-
-It must construct SymPy expressions from SciEqLint AST nodes only. It must not pass document text, normalized TeX strings, or user-controlled expressions to `sympy.parsing.sympy_parser.parse_expr`, `sympy.parsing.latex.parse_latex`, or equivalent text parsers.
+The current implementation is private to `check.algebra`: it tokenizes math text,
+parses each equation side into sparse polynomials with exact `Fraction` coefficients,
+and compares adjacent sides by their exact residual. It does not build a public AST
+or pass document text to a general-purpose math parser.
 
 ### Diagnostics
 
@@ -2044,7 +2035,7 @@ The checker runtime must not:
 - write files except explicit `--output` or `init`,
 - follow symlinks outside project root by default,
 - read ignored files unless explicitly passed,
-- call SymPy text parsers on document content,
+- pass document math text to general-purpose parsers or evaluators,
 - execute Sphinx, Jupyter Book, Pandoc, LaTeXML, ChkTeX, latexindent, or editor tooling from core analysis.
 
 ### Source limits

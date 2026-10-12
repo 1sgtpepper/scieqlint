@@ -13,9 +13,11 @@ In GitHub Actions:
   run: scieqlint check "docs/**/*.md" --format github
 ```
 
+## Generated MyST job step
+
 For generated Markdown/MyST output from translation, conversion, or document
-generation pipelines, materialize the generated-document preset before using
-GitHub annotations:
+generation pipelines, add this step after checkout and installation. Create and
+commit the named preset file first, as described below:
 
 ```yaml
 - name: Check generated scientific docs

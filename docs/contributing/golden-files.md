@@ -2,18 +2,15 @@
 
 Golden files lock user-visible output. They must be stable across operating systems.
 
-v0.1.0 golden outputs live under:
+Current golden outputs live under:
 
 ```text
-tests/golden/text/*.txt
-tests/golden/json/*.json
+tests/golden/text/
+tests/golden/json/
+tests/golden/github/
+tests/golden/sarif/
+tests/golden/graph/
 ```
 
-Later releases add:
-
-```text
-tests/golden/github/*.txt
-tests/golden/sarif/*.json
-```
-
-When golden output changes, the PR must explain why and update docs if users are affected.
+Graph goldens are JSON too. When expected output changes, explain the behavior change
+and update affected public examples or docs.
