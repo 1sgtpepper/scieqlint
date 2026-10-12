@@ -354,6 +354,8 @@ def test_equation_roles_are_opaque_in_code_math_comments_and_block_html() -> Non
     assert [
         diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
     ] == ["REF002"]
+    public_diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in public_diagnostics] == ["REF002"]
 
 
 def test_equation_roles_follow_equal_length_and_multiline_code_spans() -> None:
@@ -801,15 +803,23 @@ def test_unclosed_block_html_ends_at_a_blank_line() -> None:
 
 
 def test_duplicate_label_is_error() -> None:
-    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n")
+    text = "$$\nE = m c^2\n$$ {#energy}\n\n$$\nF = m a\n$$ {#energy}\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+    scan = MarkdownScanner().scan(document, Config())
     diagnostics = check_references(scan.labels, scan.references)
     assert [diagnostic.code for diagnostic in diagnostics] == ["REF001"]
     assert diagnostics[0].severity is Severity.ERROR
+    public_diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in public_diagnostics] == ["REF001"]
+    assert public_diagnostics[0].severity is Severity.ERROR
 
 
 def test_existing_reference_is_quiet() -> None:
-    scan = _scan("$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n")
+    text = "$$\nE = m c^2\n$$ {#energy}\n\nSee {eq}`energy`.\n"
+    document = SourceDocument.from_text(PurePosixPath("paper.md"), text, DocumentKind.MARKDOWN)
+    scan = MarkdownScanner().scan(document, Config())
     assert check_references(scan.labels, scan.references) == ()
+    assert check_documents([document], config=Config()).diagnostics == ()
 
 
 def test_legacy_reference_checker_defers_path_bearing_references() -> None:
@@ -832,16 +842,29 @@ def test_legacy_reference_checker_resolves_local_fragments_by_document() -> None
 
 
 def test_latex_missing_reference_warns() -> None:
+    source = "See \\eqref{missing}.\n"
     document = SourceDocument.from_text(
         PurePosixPath("paper.tex"),
-        "See \\eqref{missing}.\n",
+        source,
         DocumentKind.LATEX,
     )
 
     result = check_documents([document], config=Config())
 
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["REF002"]
-    assert result.diagnostics[0].detail == r"reference text: \eqref{missing}"
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.message == "equation reference target not found: missing"
+    assert diagnostic.detail == r"reference text: \eqref{missing}"
+    target_start = source.index("missing")
+    assert diagnostic.span == SourceSpan(
+        path=PurePosixPath("paper.tex"),
+        start=target_start,
+        end=target_start + len("missing"),
+        line=1,
+        col=target_start + 1,
+        end_line=1,
+        end_col=target_start + len("missing"),
+    )
 
 
 def test_cross_format_reference_is_quiet() -> None:
@@ -1191,6 +1214,14 @@ def test_fragment_resolution_uses_decoded_destination_and_raw_target_span() -> N
     assert [
         diagnostic.code for diagnostic in check_references(legacy.labels, legacy.references)
     ] == [
+        "REF002",
+        "REF002",
+        "REF002",
+        "REF002",
+        "REF002",
+    ]
+    diagnostics = check_documents([document], config=Config()).diagnostics
+    assert [diagnostic.code for diagnostic in diagnostics] == [
         "REF002",
         "REF002",
         "REF002",
