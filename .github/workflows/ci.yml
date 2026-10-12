@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, cleanup-review-validation]
 
 permissions:
   contents: read
@@ -25,6 +25,289 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
+      - name: Review regression negative controls
+        run: |
+          python - --reference-filter-control <<'PY'
+          """Hosted-CI-only negative controls for reviewed cleanup regressions.
+
+          Run from the repository root after installing the development environment.
+          This script deliberately edits source files temporarily and restores their exact
+          original bytes in finally blocks. Do not run it locally or commit it to the repo.
+          """
+
+          from __future__ import annotations
+
+          import argparse
+          import hashlib
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          ROOT = Path.cwd()
+          SOURCE_TEST = "tests/test_generated_provenance.py"
+          SOURCE_ORIGIN_NODE = (
+              f"{SOURCE_TEST}::test_source_origin_rejects_retired_producer_metadata"
+          )
+          FACT_NODE = (
+              f"{SOURCE_TEST}::test_generated_provenance_fact_rejects_retired_producer_metadata"
+          )
+          REFERENCE_NODE = (
+              "tests/test_references.py::"
+              "test_reference_resolution_follows_enabled_gate_once_with_exact_spans"
+          )
+
+          SOURCE_ORIGIN_PATH = Path("src/scieqlint/io/source.py")
+          GENERATED_FACT_PATH = Path("src/scieqlint/facts/generated.py")
+          APP_PATH = Path("src/scieqlint/app.py")
+          APP_CROSSREF_PATH = Path("src/scieqlint/app_profile_crossref.py")
+
+          OLD_PROFILE_OWNED_FILTER = '''def without_profile_owned_legacy_reference_diagnostics(
+              diagnostics: list[Diagnostic],
+              query: QueryHost,
+          ) -> list[Diagnostic]:
+              references = query.references
+              results = references.results()
+              profile_owned_spans = {
+                  span
+                  for fact in query.snapshot.equation_refs
+                  if (span := fact.target_span or fact.span) is not None
+              }
+              unresolved_generic_ids = {fact.fact_id for fact in results.unresolved_generic_refs}
+              profile_owned_spans.update(
+                  span
+                  for fact in query.snapshot.generic_refs
+                  if not (
+                      fact.fact_id in unresolved_generic_ids
+                      and fact.role_kind == "markdown-link"
+                      and fact.raw_target_path is None
+                  )
+                  if (span := fact.target_span or fact.span) is not None
+              )
+              owned_spans = tuple(profile_owned_spans)
+              return [
+                  diagnostic
+                  for diagnostic in diagnostics
+                  if not (
+                      diagnostic.code == "REF002"
+                      and diagnostic.span is not None
+                      and span_is_within_any(diagnostic.span, owned_spans)
+                  )
+              ]
+
+
+          def span_is_within_any(span: SourceSpan, containers: Sequence[SourceSpan]) -> bool:
+              """Return whether a fact span belongs to one of the source-owned ranges."""
+
+              return any(
+                  container.path == span.path
+                  and container.cell == span.cell
+                  and container.start <= span.start
+                  and span.end <= container.end
+                  for container in containers
+              )
+
+
+          '''
+
+
+          def digest(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+
+          def run_pytest(*nodes: str) -> subprocess.CompletedProcess[str]:
+              return subprocess.run(
+                  [sys.executable, "-m", "pytest", "-q", *nodes],
+                  cwd=ROOT,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT,
+                  check=False,
+              )
+
+
+          def require_pass(result: subprocess.CompletedProcess[str], label: str) -> None:
+              if result.returncode != 0:
+                  raise RuntimeError(f"{label} should pass (exit {result.returncode}):\n{result.stdout}")
+
+
+          def require_expected_mutant_failure(
+              result: subprocess.CompletedProcess[str], node: str, label: str
+          ) -> None:
+              output = result.stdout
+              if result.returncode != 1:
+                  raise RuntimeError(f"{label} should fail by assertion (exit 1):\n{output}")
+              if f"FAILED {node}[" not in output:
+                  raise RuntimeError(f"{label} did not report the targeted parameter node:\n{output}")
+              if "DID NOT RAISE <class 'TypeError'>" not in output:
+                  raise RuntimeError(f"{label} did not fail because the mutant was accepted:\n{output}")
+              if "ERROR" in output:
+                  raise RuntimeError(f"{label} produced a pytest error instead of a test failure:\n{output}")
+
+
+          def insert_dataclass_field(path: Path, marker: str, field_name: str, line: str) -> None:
+              original = ORIGINALS[path]
+              source = original.decode("utf-8")
+              if source.count(marker) != 1:
+                  raise RuntimeError(f"expected one field insertion anchor in {path}: {marker!r}")
+              path.write_bytes(source.replace(marker, f"    {line}\n{marker}", 1).encode("utf-8"))
+              if digest(path.read_bytes()) == ORIGINAL_HASHES[path]:
+                  raise RuntimeError(f"mutant did not change {path} for {field_name}")
+
+
+          def restore(path: Path) -> None:
+              path.write_bytes(ORIGINALS[path])
+              if digest(path.read_bytes()) != ORIGINAL_HASHES[path]:
+                  raise RuntimeError(f"failed to restore original bytes for {path}")
+
+
+          def run_constructor_controls() -> None:
+              controls = (SOURCE_ORIGIN_NODE, FACT_NODE)
+              baseline = run_pytest(*controls)
+              require_pass(baseline, "six retired-keyword baseline cases")
+              if "6 passed" not in baseline.stdout:
+                  raise RuntimeError(f"baseline did not run exactly six parameter cases:\n{baseline.stdout}")
+
+              print("Baseline: all six constructor rejection controls passed.", flush=True)
+
+              mutants = (
+                  (SOURCE_ORIGIN_PATH, "    preserved_anchor_inventory: tuple[str, ...] = field(default=(), kw_only=True)",
+                   "{field_name}: str | None = field(default=None, kw_only=True)", SOURCE_ORIGIN_NODE),
+                  (GENERATED_FACT_PATH, "    preserved_anchor_inventory: tuple[str, ...] = ()",
+                   "{field_name}: str | None = None", FACT_NODE),
+              )
+              try:
+                  for path, marker, declaration, node in mutants:
+                      for field_name in ("source_sha", "tool", "tool_version"):
+                          try:
+                              insert_dataclass_field(path, marker, field_name, declaration.format(field_name=field_name))
+                              case = f"{node}[{field_name}]"
+                              result = run_pytest(case)
+                              require_expected_mutant_failure(
+                                  result,
+                                  node,
+                                  f"accepting {field_name} in {path}",
+                              )
+                              print(f"Expected accepting-field failure: {case}", flush=True)
+                          finally:
+                              restore(path)
+              finally:
+                  restore(SOURCE_ORIGIN_PATH)
+                  restore(GENERATED_FACT_PATH)
+
+              restored = run_pytest(*controls)
+              require_pass(restored, "restored six retired-keyword cases in fresh pytest process")
+              if "6 passed" not in restored.stdout:
+                  raise RuntimeError(f"restored run did not pass all six cases:\n{restored.stdout}")
+
+
+          def restore_old_reference_filter() -> None:
+              app = ORIGINALS[APP_PATH].decode("utf-8")
+              crossref = ORIGINALS[APP_CROSSREF_PATH].decode("utf-8")
+
+              alias_anchor = "_source_role_fact_id = _app_profile_crossref.source_role_fact_id\n"
+              alias = (
+                  "_without_profile_owned_legacy_reference_diagnostics = (\n"
+                  "    _app_profile_crossref.without_profile_owned_legacy_reference_diagnostics\n"
+                  ")\n"
+              )
+              if app.count(alias_anchor) != 1 or "_without_profile_owned_legacy_reference_diagnostics = (" in app:
+                  raise RuntimeError("unexpected app.py alias shape for old-filter control")
+              app = app.replace(alias_anchor, alias_anchor + alias, 1)
+
+              query_anchor = "        query = QueryHost(snapshot)\n        if config.checks.references.enabled:\n"
+              old_filter_call = (
+                  "        query = QueryHost(snapshot)\n"
+                  "        diagnostics = _without_profile_owned_legacy_reference_diagnostics(\n"
+                  "            diagnostics,\n"
+                  "            query,\n"
+                  "        )\n"
+                  "        if config.checks.references.enabled:\n"
+              )
+              if app.count(query_anchor) != 1:
+                  raise RuntimeError("unexpected app.py dispatch anchor for old-filter control")
+              app = app.replace(query_anchor, old_filter_call, 1)
+
+              crossref_anchor = "def raw_missing_label_diagnostics(\n"
+              if crossref.count(crossref_anchor) != 1 or "def without_profile_owned_legacy_reference_diagnostics(" in crossref:
+                  raise RuntimeError("unexpected app_profile_crossref.py anchor for old-filter control")
+              crossref = crossref.replace(
+                  crossref_anchor,
+                  OLD_PROFILE_OWNED_FILTER + crossref_anchor,
+                  1,
+              )
+
+              APP_PATH.write_bytes(app.encode("utf-8"))
+              APP_CROSSREF_PATH.write_bytes(crossref.encode("utf-8"))
+
+
+          def run_optional_reference_filter_control() -> None:
+              baseline = run_pytest(REFERENCE_NODE)
+              require_pass(baseline, "reference dispatch baseline")
+              if "1 passed" not in baseline.stdout:
+                  raise RuntimeError(f"reference dispatch baseline did not run its test:\n{baseline.stdout}")
+
+              try:
+                  restore_old_reference_filter()
+                  mutant = run_pytest(REFERENCE_NODE)
+                  output = mutant.stdout
+                  if mutant.returncode != 1 or f"FAILED {REFERENCE_NODE}" not in output:
+                      raise RuntimeError(f"old-filter control should fail the named test:\n{output}")
+                  if "pre_dispatch_indexes" not in output or "'pre_dispatch_indexes': 1" not in output:
+                      raise RuntimeError(
+                          "old-filter control did not fail on the pre-dispatch target-index traversal:\n"
+                          f"{output}"
+                      )
+                  if "ERROR" in output:
+                      raise RuntimeError(f"old-filter control produced pytest ERROR instead of assertion failure:\n{output}")
+                  print("Expected obsolete-filter failure: one pre-dispatch reference index.", flush=True)
+              finally:
+                  restore(APP_PATH)
+                  restore(APP_CROSSREF_PATH)
+
+              restored = run_pytest(REFERENCE_NODE)
+              require_pass(restored, "restored reference dispatch test in fresh pytest process")
+              if "1 passed" not in restored.stdout:
+                  raise RuntimeError(f"restored reference test did not pass:\n{restored.stdout}")
+
+
+          def main() -> None:
+              parser = argparse.ArgumentParser()
+              parser.add_argument(
+                  "--reference-filter-control",
+                  action="store_true",
+                  help="also restore the ba331 old filter in app.py and app_profile_crossref.py",
+              )
+              args = parser.parse_args()
+
+              tracked_paths = [SOURCE_ORIGIN_PATH, GENERATED_FACT_PATH]
+              if args.reference_filter_control:
+                  tracked_paths.extend((APP_PATH, APP_CROSSREF_PATH))
+              for path in tracked_paths:
+                  if not path.is_file():
+                      raise RuntimeError(f"required source file missing: {path}")
+              global ORIGINALS, ORIGINAL_HASHES
+              ORIGINALS = {path: path.read_bytes() for path in tracked_paths}
+              ORIGINAL_HASHES = {path: digest(data) for path, data in ORIGINALS.items()}
+
+              try:
+                  run_constructor_controls()
+                  if args.reference_filter_control:
+                      run_optional_reference_filter_control()
+              finally:
+                  for path in tracked_paths:
+                      restore(path)
+
+              print("All negative controls failed only at their expected assertions; source bytes restored.")
+
+
+          ORIGINALS: dict[Path, bytes] = {}
+          ORIGINAL_HASHES: dict[Path, str] = {}
+
+
+          if __name__ == "__main__":
+              main()
+
+          PY
       - name: Ruff format
         run: ruff format --check .
       - name: Ruff lint
