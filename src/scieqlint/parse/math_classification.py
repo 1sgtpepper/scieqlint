@@ -9,8 +9,6 @@ from scieqlint.facts.math import (
     DisplayMathFact,
     InlineMathFact,
     InlineParseStatus,
-    UnknownMathFact,
-    UnknownReason,
 )
 from scieqlint.markdown import is_escaped, scan_tex_lexically, without_tex_comments
 
@@ -42,25 +40,25 @@ _SUPPORTED_RAW_ENVIRONMENTS = frozenset(
 
 def classify_display(
     fact: DisplayMathFact,
-) -> tuple[DisplayMathFact, UnknownMathFact | None]:
+) -> DisplayMathFact:
     """Resolve AMS semantics after the frontend has preserved display identity."""
 
     if fact.container == "latex-display":
-        return fact, None
+        return fact
     if fact.container == "raw-latex":
         environment = fact.environment
         if environment not in _SUPPORTED_RAW_ENVIRONMENTS:
-            return fact, _unknown(fact, "environment", environment or "<missing>")
+            return fact
         if not fact.complete:
-            return fact, _unknown(fact, "parse_limit", environment)
-        return replace(fact, container="ams"), None
+            return fact
+        return replace(fact, container="ams")
 
     if not fact.complete:
-        return fact, None
+        return fact
     environment = _complete_ams_environment(fact.body)
     if environment is None:
-        return fact, None
-    return replace(fact, container="ams", environment=environment), None
+        return fact
+    return replace(fact, container="ams", environment=environment)
 
 
 def _complete_ams_environment(body: str) -> str | None:
@@ -85,11 +83,11 @@ def _complete_ams_environment(body: str) -> str | None:
 
 def classify_inline(
     fact: InlineMathFact,
-) -> tuple[InlineParseStatus, UnknownMathFact | None]:
+) -> InlineParseStatus:
     if fact.delimiter_kind == "plain-text":
         if _looks_like_plain_text_math(fact.body):
-            return "text-leak", None
-        return "not-math", None
+            return "text-leak"
+        return "not-math"
 
     body = without_tex_comments(fact.body)
     if fact.delimiter_kind == "latex-paren":
@@ -102,11 +100,7 @@ def classify_inline(
             None,
         )
         if ambiguous_delimiter is not None:
-            return "unsupported", _unknown(
-                fact,
-                "ambiguous_delimiter",
-                ambiguous_delimiter.group(0),
-            )
+            return "unsupported"
     environment = next(
         (
             match
@@ -116,14 +110,14 @@ def classify_inline(
         None,
     )
     if environment is not None:
-        return "unsupported", _unknown(fact, "environment", environment.group("environment"))
+        return "unsupported"
     if (
         not _balanced_delimiters(body)
         or has_missing_required_argument(body)
         or _TRAILING_OPERATOR_RE.search(body)
     ):
-        return "unsupported", _unknown(fact, "unsupported_syntax", fact.body[:80])
-    return "preserved", None
+        return "unsupported"
+    return "preserved"
 
 
 def has_missing_required_argument(body: str) -> bool:
@@ -185,22 +179,6 @@ def _skip_tex_space(body: str, start: int) -> int:
     while index < len(body) and body[index].isspace():
         index += 1
     return index
-
-
-def _unknown(
-    fact: InlineMathFact | DisplayMathFact,
-    reason: UnknownReason,
-    excerpt: str,
-) -> UnknownMathFact:
-    return UnknownMathFact(
-        fact_id=f"{fact.fact_id}::unknown",
-        document_id=fact.document_id,
-        span=fact.span,
-        raw=fact.raw,
-        source_math_fact_id=fact.fact_id,
-        reason=reason,
-        excerpt=excerpt,
-    )
 
 
 def _looks_like_plain_text_math(body: str) -> bool:

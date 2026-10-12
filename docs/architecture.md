@@ -19,10 +19,12 @@ file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics
 
 - Frontends extract lexical math candidates, labels, references, and source spans. They do not
   assign final generated-formula kinds, classify AMS/unsupported math, or apply portability policy.
-- MathHost owns final math classification, parser recovery, macro scope facts, and Typst math
-  portability facts. It does not call SymPy. Inline-math macro declarations and use sites are
-  currently a facts-only snapshot slice: QueryHost, engines, diagnostics, and public APIs do not
-  expose or consume them, and full TeX expansion remains deferred.
+- MathHost classifies inline and display candidates and owns Typst math portability facts. It
+  does not call SymPy or expand TeX macros; full LaTeX macro expansion remains deferred.
+  Unsupported candidates retain their `parse_status`; they do not create separate
+  `UnknownMath` snapshot records. The architecture preview's unknown-math query is retired, and
+  its summary fact count excludes those former rows. Unsupported checker diagnostics are
+  unchanged.
 - PolicyHost owns output-profile support, code-cell language-catalog policy, and
   diagnostic severity selection.
 - Checkers own algebra, references, dimensions, symbols, and graph behavior.

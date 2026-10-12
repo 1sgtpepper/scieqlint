@@ -17,7 +17,7 @@ from scieqlint.diag.model import Diagnostic, Severity, SourceSpan
 from scieqlint.engine.reference import ReferenceEngine
 from scieqlint.engine.structure import StructureEngine
 from scieqlint.facts.generated import GeneratedProvenanceFact
-from scieqlint.facts.math import DisplayMathFact, InlineMathFact, UnknownMathFact
+from scieqlint.facts.math import DisplayMathFact, InlineMathFact
 from scieqlint.facts.portability import OutputPortabilityFact
 from scieqlint.facts.project import HiddenExcludedFact, ProjectMemberFact
 from scieqlint.facts.reference import (
@@ -1447,35 +1447,6 @@ def test_source_map_spans_use_document_offsets():
         source_map.span(5, 4)
 
 
-def test_snapshot_with_unknown_math_appends_without_mutating_original():
-    document = doc("a.md", "Text $x$.\n")
-    inline = InlineMathFact(
-        fact_id="a.md::inline-math::6",
-        document_id="a.md",
-        span=None,
-        raw="$x$",
-        body="x",
-        delimiter_kind="dollar",
-    )
-    unknown = UnknownMathFact(
-        fact_id="a.md::unknown-math::6",
-        document_id="a.md",
-        span=None,
-        raw="$x$",
-        source_math_fact_id=inline.fact_id,
-        reason="macro",
-        excerpt=r"\newcommand",
-    )
-
-    snapshot = FactSnapshot(documents=(document,), inline_math=(inline,))
-    updated = snapshot.with_unknown_math((unknown,))
-
-    assert snapshot.unknown_math == ()
-    assert updated.inline_math == (inline,)
-    assert updated.unknown_math == (unknown,)
-    assert updated.all_facts() == (inline, unknown)
-
-
 def test_query_host_views_expose_snapshot_contracts():
     document = doc("a.md", "Text\n")
     generated_document = doc("a.html", "<p>Text</p>\n")
@@ -1650,15 +1621,6 @@ def test_query_host_views_expose_snapshot_contracts():
         container="dollar-dollar",
         label_fact_ids=("eq-1", "eq-2"),
     )
-    unknown = UnknownMathFact(
-        fact_id="unknown-1",
-        document_id="a.md",
-        span=span(),
-        raw=r"\newcommand{\x}{x}",
-        source_math_fact_id=display.fact_id,
-        reason="macro",
-        excerpt=r"\newcommand",
-    )
     member = ProjectMemberFact(
         fact_id="member-1",
         document_id="a.md",
@@ -1731,7 +1693,6 @@ def test_query_host_views_expose_snapshot_contracts():
         equation_refs=(equation_ref,),
         inline_math=(inline,),
         display_math=(display,),
-        unknown_math=(unknown,),
         project_members=(member, duplicate_member),
         hidden_excluded=(hidden, excluded),
         generated_provenance=(provenance,),
@@ -1764,7 +1725,6 @@ def test_query_host_views_expose_snapshot_contracts():
 
     assert query.math.inline_math() == (inline,)
     assert query.math.display_math() == (display,)
-    assert query.math.unknown_math() == (unknown,)
     assert query.math.display_with_multiple_labels() == (display,)
 
     assert query.generated.provenance() == (provenance,)

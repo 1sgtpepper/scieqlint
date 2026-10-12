@@ -680,8 +680,6 @@ def test_unclosed_raw_environment_preserves_typst_risk_to_eof() -> None:
     [display] = snapshot.display_math
     assert display.span is not None
     assert display.span.end == len(source)
-    [unknown] = snapshot.unknown_math
-    assert (unknown.reason, unknown.excerpt) == ("environment", "matrix")
     [risk] = snapshot.portability
     assert risk.span is not None
     assert source[risk.span.start : risk.span.end] == r"\begin{matrix}"

@@ -146,7 +146,6 @@ def generated_profile_snapshot(
                 documents=tuple(documents),
                 inline_math=(*snapshot.inline_math, *notebook_snapshot.inline_math),
                 display_math=(*snapshot.display_math, *notebook_snapshot.display_math),
-                unknown_math=(*snapshot.unknown_math, *notebook_snapshot.unknown_math),
                 generated_formulas=(
                     *snapshot.generated_formulas,
                     *notebook_snapshot.generated_formulas,
