@@ -1206,15 +1206,8 @@ Rules:
 
 ### 8.1 SourceDocument
 
-```python
-@dataclass(frozen=True, slots=True)
-class SourceDocument:
-    path: PurePosixPath
-    text: str
-    kind: DocumentKind
-    line_index: LineIndex
-    display_path: str
-```
+The canonical [`SourceDocument` and `SourceOrigin`](src/scieqlint/io/source.py) definitions
+carry the loaded document and caller-supplied generated-source identity.
 
 Rules:
 
@@ -1242,35 +1235,13 @@ Requirements:
 - Offsets are Python string character offsets, not UTF-8 byte offsets.
 - Lines and columns in diagnostics are one-based.
 - `LineIndex.position(offset)` must be O(log n) or better.
-- `LineIndex.slice_span(start, end)` must preserve original line/column boundaries.
 - `SourceDocument.text` is normalized before scanning: CRLF and standalone CR
   line endings become LF.
 
 ### 8.3 SourceSpan
 
-```python
-@dataclass(frozen=True, slots=True)
-class SourceSegment:
-    ranges: tuple[tuple[int, int], ...]
-    line: int
-    col: int
-    end_line: int
-    end_col: int
-
-
-@dataclass(frozen=True, slots=True)
-class SourceSpan:
-    path: PurePosixPath
-    start: int
-    end: int
-    line: int
-    col: int
-    end_line: int
-    end_col: int
-    cell: int | None = None
-    cell_line: int | None = None
-    segments: tuple[SourceSegment, ...] = ()
-```
+The canonical [`SourceSpan` and `SourceSegment`](src/scieqlint/diag/model.py) definitions carry
+physical source coordinates and notebook mappings from decoded characters to raw JSON ranges.
 
 Rules:
 
@@ -1293,76 +1264,18 @@ Rules:
 
 ### 8.4 MathBlock
 
-```python
-@dataclass(frozen=True, slots=True)
-class MathBlock:
-    text: str
-    source_aligned_text: str
-    span: SourceSpan
-    container: MathContainer
-    block_id: str
-```
 
-`text` is the scanner-provided math content consumed by parsers and checkers.
-`source_aligned_text` is a same-length source projection for `span`; it preserves
-source positions and newlines for diagnostics and symbol-span mapping, and is not
-parser input.
+The canonical [`MathBlock` and `MathContainer`](src/scieqlint/scan/base.py) definitions describe
+the extracted scanner candidate. `source_aligned_text` preserves source positions when lexical
+content is masked; `span` carries its physical source coordinates. Checks consume candidate text
+without changing the scanner’s source mapping.
 
-```python
-class MathContainer(Enum):
-    MARKDOWN_DISPLAY = "markdown_display"
-    MARKDOWN_INLINE = "markdown_inline"
-    MARKDOWN_FENCE = "markdown_fence"
-    LATEX_EQUATION = "latex_equation"
-    LATEX_ALIGN_ROW = "latex_align_row"
-    LATEX_DISPLAY = "latex_display"
-    NOTEBOOK_MARKDOWN = "notebook_markdown"
-```
-
-`block_id` must be deterministic. Suggested format:
-
-```text
-{display_path}:{line}:{col}:{container}
-```
 
 ### 8.5 Labels and references
 
-```python
-class LabelSource(Enum):
-    LATEX_LABEL = "latex_label"
-    MARKDOWN_ANCHOR = "markdown_anchor"
-    MYST_DOLLAR_LABEL = "myst_dollar_label"
-    MYST_DIRECTIVE_LABEL = "myst_directive_label"
-    TEX_LABEL_IN_MARKDOWN_MATH = "tex_label_in_markdown_math"
-    UNKNOWN = "unknown"
-
-
-class ReferenceSource(Enum):
-    LATEX_REF = "latex_ref"
-    LATEX_EQREF = "latex_eqref"
-    MARKDOWN_ANCHOR = "markdown_anchor"
-    MYST_EQ_ROLE = "myst_eq_role"
-    MYST_NUMREF_ROLE = "myst_numref_role"
-    UNKNOWN = "unknown"
-```
-
-```python
-@dataclass(frozen=True, slots=True)
-class EquationLabel:
-    label: str
-    span: SourceSpan
-    block_id: str | None = None
-    source: LabelSource = LabelSource.UNKNOWN
-```
-
-```python
-@dataclass(frozen=True, slots=True)
-class EquationReference:
-    target: str
-    span: SourceSpan
-    raw: str
-    source: ReferenceSource
-```
+Scanners return [`EquationLabel`, `EquationReference`, and `SymbolDirective`](src/scieqlint/scan/base.py)
+values alongside math blocks. `EquationReference` retains raw token text and carries normalized
+project target identity when available.
 
 Rules:
 
@@ -1370,30 +1283,12 @@ Rules:
 - For Markdown links, `#eq-energy` normalizes to `eq-energy`.
 - For MyST roles such as ``{numref}`Eq. %s <energy>` ``, scanner must extract `energy` and preserve raw role text.
 - Duplicate labels and missing references are check-level diagnostics, not scanner diagnostics.
-- Notebook labels and references must preserve `cell` and `cell_line` once notebooks ship.
+- Notebook labels and references carry `cell` and `cell_line` coordinates in their source spans.
 
 ### 8.6 Diagnostic
 
-```python
-@dataclass(frozen=True, slots=True)
-class Diagnostic:
-    code: str
-    severity: Severity
-    message: str
-    span: SourceSpan | None
-    equation: str | None = None
-    detail: str | None = None
-    hint: str | None = None
-    rule: str | None = None
-    suppressed: bool = False
-```
-
-```python
-class Severity(Enum):
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
-```
+The canonical [`Diagnostic` and `Severity`](src/scieqlint/diag/model.py) definitions are the
+internal diagnostic values; the public JSON projection is specified in §14.
 
 Rules:
 
@@ -1405,24 +1300,9 @@ Rules:
 
 ### 8.7 CheckResult
 
-```python
-@dataclass(frozen=True, slots=True)
-class CheckResult:
-    diagnostics: tuple[Diagnostic, ...]
-    files_checked: int
-    math_blocks_checked: int
-    config_path: PurePosixPath | None
-    version: str
-```
-
-Exit code rule:
-
-```python
-def exit_code(self) -> int:
-    if any(d.severity == ERROR and not d.suppressed for d in diagnostics):
-        return 1
-    return 0
-```
+The canonical [`CheckResult`](src/scieqlint/diag/model.py) definition carries analysis results
+and reporting options. Its API exit code is 1 only when an unsuppressed error diagnostic exists;
+otherwise it is 0.
 
 CLI invalid usage, invalid config, internal error, unreadable explicit file, and reporter failure use exit code 2.
 
