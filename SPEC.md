@@ -1179,11 +1179,13 @@ def check_paths(
     config_path: Path | str | None = None,
 ) -> CheckResult: ...
 
+
 def check_documents(
     documents: Sequence[SourceDocument],
     *,
     config: Config,
 ) -> CheckResult: ...
+
 
 def load_config(path: Path | str | None = None) -> Config: ...
 ```

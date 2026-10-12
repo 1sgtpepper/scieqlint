@@ -1087,6 +1087,80 @@ def test_notebook_scanner_preserves_label_cell_metadata() -> None:
     assert "#cell-0" in scan.labels[0].block_id
 
 
+@pytest.mark.parametrize(
+    ("source", "references", "expected_codes"),
+    [
+        (
+            "$$\nx = 1\n$$\n",
+            ReferencesConfig(missing_label_strict=True),
+            ["REF003"],
+        ),
+        (
+            "$$\nx = 1\n$$ {#equation}\n",
+            ReferencesConfig(missing_label_strict=True),
+            [],
+        ),
+        (
+            "$$\nx = 1\n$$\n",
+            ReferencesConfig(enabled=False, missing_label_strict=True),
+            [],
+        ),
+    ],
+    ids=("unlabeled-strict", "labeled-strict", "references-disabled"),
+)
+def test_notebook_strict_missing_label_check_uses_scanner_labels_and_spans(
+    source: str,
+    references: ReferencesConfig,
+    expected_codes: list[str],
+) -> None:
+    document = _notebook([_markdown_cell(source)])
+    config = Config(checks=ChecksConfig(references=references))
+
+    result = check_documents((document,), config=config)
+
+    assert result.math_blocks_checked == 1
+    assert [diagnostic.code for diagnostic in result.diagnostics] == expected_codes
+    if expected_codes:
+        [diagnostic] = result.diagnostics
+        start = document.text.index("x = 1")
+        end = start + len("x = 1")
+        assert (
+            diagnostic.severity,
+            diagnostic.message,
+            diagnostic.equation,
+            diagnostic.rule,
+        ) == (
+            Severity.INFO,
+            "missing equation label in strict mode",
+            "x = 1",
+            "references",
+        )
+        span = diagnostic.span
+        assert span is not None
+        assert (
+            span.path,
+            span.start,
+            span.end,
+            span.line,
+            span.col,
+            span.end_line,
+            span.end_col,
+            span.cell,
+            span.cell_line,
+        ) == (
+            document.path,
+            start,
+            end,
+            1,
+            start + 1,
+            1,
+            end,
+            0,
+            2,
+        )
+        assert _raw_segments(document, span) == list("x = 1")
+
+
 def _notebook(cells: list[dict[str, object]]) -> SourceDocument:
     text = json.dumps(
         {
