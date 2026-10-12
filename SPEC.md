@@ -1043,7 +1043,7 @@ app service
 file discovery -> source loading -> scanning -> parsing -> checks -> diagnostics -> reporting
 ```
 
-The core owns data contracts, parser output, checks, diagnostics, config semantics, and report schemas. Adapters own I/O, command-line plumbing, and integration-specific formatting.
+The core owns data contracts, math classification, checks, diagnostics, config semantics, and report schemas. Adapters own I/O, command-line plumbing, and integration-specific formatting.
 
 ### Dependency policy
 
@@ -1094,12 +1094,7 @@ src/scieqlint/
 
   parse/
     __init__.py
-    ast.py
-    grammar.lark
-    parser.py
-    transform.py
     normalize.py
-    print.py
 
   check/
     __init__.py
@@ -1153,9 +1148,9 @@ Do not create `utils.py`, `helpers.py`, `core.py`, or `engine.py`. Split by doma
 
 `scan` may import `io.source`, `diag.model`, and `scan.base`. It must not import `parse`, `check`, or `report`.
 
-`parse` may import `parse.ast`, `diag.model`, and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
+`parse` may import `diag.model` and source-span types. It must not import scanners, checks, reporters, config loaders, or SymPy.
 
-`check` may import `parse.ast`, `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
+`check` may import `diag`, `config.model`, and `graph` when graph exists. It must not import `scan`, `io.discover`, `report`, or `cli`.
 
 `report` may import `diag.model`, result models, and packaged schema metadata. It must not import `scan`, `parse`, or `check`.
 
@@ -1471,108 +1466,7 @@ Scanners must not emit algebra, dimension, duplicate-label, or missing-reference
 
 ---
 
-## 10. Parser and AST
-
-Parser input is `MathBlock.text`.
-
-Parser output is either:
-
-```python
-ParseOk(ast: EquationGroup)
-```
-
-or:
-
-```python
-ParseUnknown(reason: UnsupportedReason, diagnostics: tuple[Diagnostic, ...])
-```
-
-Parser must not run algebra, dimension, or reference checks.
-
-Parser must not call SymPy directly. SymPy conversion belongs in `check.algebra`.
-
-### AST nodes
-
-All AST nodes must be frozen dataclasses with slots and spans.
-
-```python
-class Expr: ...
-
-
-@dataclass(frozen=True, slots=True)
-class EquationGroup:
-    equations: tuple[Equation, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class Equation:
-    sides: tuple[Expr, ...]
-    span: SourceSpan
-```
-
-`Equation.sides` supports chained equality. Checkers treat `a = b = c` as adjacent pairs: `a = b`, then `b = c`.
-
-Expression nodes:
-
-```python
-@dataclass(frozen=True, slots=True)
-class Number(Expr):
-    value: Fraction
-    raw: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class Symbol(Expr):
-    name: str
-    raw: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class UnaryOp(Expr):
-    op: UnaryOperator
-    operand: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class BinaryOp(Expr):
-    op: BinaryOperator
-    left: Expr
-    right: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True, slots=True)
-class FunctionCall(Expr):
-    func: FunctionName
-    arg: Expr
-    span: SourceSpan
-```
-
-Operators:
-
-```python
-class BinaryOperator(Enum):
-    ADD = "add"
-    SUB = "sub"
-    MUL = "mul"
-    DIV = "div"
-    POW = "pow"
-
-
-class UnaryOperator(Enum):
-    POS = "pos"
-    NEG = "neg"
-
-
-class FunctionName(Enum):
-    SQRT = "sqrt"
-```
-
-### Parser diagnostics
+## 10. Unsupported math diagnostics
 
 | Code | Release | Default | Meaning |
 |---|---:|---:|---|
