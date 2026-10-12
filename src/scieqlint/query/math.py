@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scieqlint.facts.math import DisplayMathFact, UnknownMathFact
+from scieqlint.facts.math import DisplayMathFact
 from scieqlint.facts.snapshot import FactSnapshot
 
 
@@ -14,6 +14,3 @@ class MathContainerQueryView:
 
     def display_math(self) -> tuple[DisplayMathFact, ...]:
         return self.snapshot.display_math
-
-    def unknown_math(self) -> tuple[UnknownMathFact, ...]:
-        return self.snapshot.unknown_math

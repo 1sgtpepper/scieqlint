@@ -1641,7 +1641,6 @@ def test_query_host_views_expose_snapshot_contracts():
     assert reference_results.ambiguous_equation_refs == ()
 
     assert query.math.display_math() == (display,)
-    assert query.math.unknown_math() == (unknown,)
 
     assert query.generated.dropped_targets() == (
         (provenance, duplicate_anchor),

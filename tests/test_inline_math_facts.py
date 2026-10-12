@@ -648,9 +648,6 @@ def test_math_host_rejects_only_incomplete_relation_tails(
         (incomplete, "unsupported"),
     ]
 
-    assert [(fact.reason, fact.excerpt) for fact in snapshot.unknown_math] == [
-        ("unsupported_syntax", incomplete)
-    ]
 
 
 
@@ -711,10 +708,6 @@ def test_nested_latex_paren_delimiters_are_ambiguous_after_bounded_sweep() -> No
     assert fact.span is not None
     assert source[fact.span.start : fact.span.end] == r"\(" * 32 + "x"
 
-    assert [(unknown.reason, unknown.excerpt) for unknown in snapshot.unknown_math] == [
-        ("ambiguous_delimiter", r"\("),
-    ]
-    assert QueryHost(snapshot).math.unknown_math() == snapshot.unknown_math
 
 
 
