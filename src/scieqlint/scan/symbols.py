@@ -28,7 +28,7 @@ def parse_symbol_directive(
     if match is None:
         return None, _malformed_symbol_directive(span)
 
-    symbol = match.group("symbol").strip()
+    symbol = match.group("symbol")
     leading_space = len(body) - len(body.lstrip())
     symbol_start = body_start + leading_space + normalized_body.find(match.group("symbol"))
     return (
