@@ -342,6 +342,10 @@ Release notes must use these sections:
   CLI demo remain.
 - Remove the unused `QueryHost.math.inline_math()` projection; inline-math candidates
   and classification status remain available on `FactSnapshot.inline_math`.
+- Remove the duplicate path-filtered docs workflow, its badge, and the unused
+  terminal CI aggregate while retaining the required docs and project checks.
+- Remove the placeholder funding file and superseded `scripts/check_pack.py`
+  wrapper.
 
 ### Migration notes
 
