@@ -26,20 +26,3 @@ def test_coverage_runs_only_on_the_minimum_supported_python() -> None:
         "if: matrix.python-version == '3.11'\n        run: |\n          coverage report"
     ) in matrix
     assert "if: matrix.python-version == '3.11'\n        uses: codecov/codecov-action" in matrix
-
-
-def test_ci_aggregates_every_blocking_project_job_and_fails_closed() -> None:
-    aggregate = _job_block("ci")
-
-    assert "name: ci" in aggregate
-    assert "needs: [quality, test, package, docs, self-check]" in aggregate
-    assert "if: ${{ always() }}" in aggregate
-    for job, variable in (
-        ("quality", "QUALITY_RESULT"),
-        ("test", "TEST_RESULT"),
-        ("package", "PACKAGE_RESULT"),
-        ("docs", "DOCS_RESULT"),
-        ("self-check", "SELF_CHECK_RESULT"),
-    ):
-        assert f"{variable}: ${{{{ needs.{job}.result }}}}" in aggregate
-        assert f'test "${variable}" = "success"' in aggregate

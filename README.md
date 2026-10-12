@@ -4,7 +4,6 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/scieqlint.svg)](https://pypi.org/project/scieqlint/)
 [![CI](https://github.com/1sgtpepper/scieqlint/actions/workflows/ci.yml/badge.svg)](https://github.com/1sgtpepper/scieqlint/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/github/1sgtpepper/scieqlint/graph/badge.svg)](https://app.codecov.io/github/1sgtpepper/scieqlint)
-[![Docs](https://github.com/1sgtpepper/scieqlint/actions/workflows/docs.yml/badge.svg)](https://github.com/1sgtpepper/scieqlint/actions/workflows/docs.yml)
 [![CodeQL](https://github.com/1sgtpepper/scieqlint/actions/workflows/codeql.yml/badge.svg)](https://github.com/1sgtpepper/scieqlint/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/1sgtpepper/scieqlint/badge)](https://scorecard.dev/viewer/?uri=github.com/1sgtpepper/scieqlint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

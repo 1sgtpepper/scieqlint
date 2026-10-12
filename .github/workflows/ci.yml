@@ -182,23 +182,3 @@ jobs:
           python -m pip install -e .
       - name: Run SciEqLint smoke on examples
         run: scieqlint check "examples/good/**/*.md" --format text
-
-  ci:
-    name: ci
-    needs: [quality, test, package, docs, self-check]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require every blocking project job
-        env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-          TEST_RESULT: ${{ needs.test.result }}
-          PACKAGE_RESULT: ${{ needs.package.result }}
-          DOCS_RESULT: ${{ needs.docs.result }}
-          SELF_CHECK_RESULT: ${{ needs.self-check.result }}
-        run: |
-          test "$QUALITY_RESULT" = "success"
-          test "$TEST_RESULT" = "success"
-          test "$PACKAGE_RESULT" = "success"
-          test "$DOCS_RESULT" = "success"
-          test "$SELF_CHECK_RESULT" = "success"

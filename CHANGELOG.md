@@ -343,6 +343,10 @@ Release notes must use these sections:
   CLI demo remain.
 - Remove the scanner-side notebook input and JSON compatibility import modules;
   notebook input, mapping, and JSON decoding are owned by `scieqlint.frontend`.
+- Remove the duplicate path-filtered docs workflow, its badge, and the unused
+  terminal CI aggregate while retaining the required docs and project checks.
+- Remove the placeholder funding file and superseded `scripts/check_pack.py`
+  wrapper.
 
 ### Migration notes
 
