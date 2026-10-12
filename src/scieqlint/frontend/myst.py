@@ -16,6 +16,7 @@ from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.markdown import (
     _ordered_lexical_ranges,  # pyright: ignore[reportPrivateUsage]
     code_fence_ranges,
+    dollar_display_ranges,
     dollar_display_opener_positions,
     inline_code_ranges,
     markdown_reference_snapshot,
@@ -52,7 +53,7 @@ from .myst_math import (
     scan_raw_latex_math,
 )
 from .myst_refs import scan_refs
-from .myst_shared import dollar_display_ranges, in_ranges, line_ranges
+from .myst_shared import in_ranges, line_ranges
 from .reference_display import reference_display_text_facts
 
 _directive_option_prefix_lines = directive_option_prefix_lines
