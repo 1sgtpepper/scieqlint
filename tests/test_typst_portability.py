@@ -136,6 +136,24 @@ def test_typst_nonmath_mask_keeps_identity_without_ranges() -> None:
     assert _mask_non_math_tex_ranges("x\ny", ((0, 1),)) == " \ny"
 
 
+def test_typst_nonmath_mask_preserves_subclass_hooks_without_ranges() -> None:
+    class IteratingText(str):
+        def __iter__(self):
+            yield from "normalized text"
+
+    class TruthTestingRanges(tuple):
+        def __bool__(self) -> bool:
+            raise AssertionError("custom ranges truthiness must not be evaluated")
+
+    text = IteratingText("original text")
+
+    result = _mask_non_math_tex_ranges(text, ())
+    assert result == "normalized text"
+    assert type(result) is str
+
+    assert _mask_non_math_tex_ranges("plain text", TruthTestingRanges()) == "plain text"
+
+
 def test_typst_profile_materializes_exact_source_spanned_math_risks() -> None:
     snapshot = _profile_snapshot(
         (doc(_SOURCE),),

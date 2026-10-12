@@ -68,7 +68,7 @@ def _mask_non_math_tex_ranges(
 ) -> str:
     """Mask opaque TeX environments without changing source offsets."""
 
-    if not ranges:
+    if type(text) is str and type(ranges) is tuple and not ranges:
         return text
 
     masked = list(text)
