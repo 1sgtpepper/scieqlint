@@ -14,8 +14,10 @@ from scieqlint.facts.snapshot import FactSnapshot
 from scieqlint.io.source import SourceDocument
 from scieqlint.io.workspace import WorkspaceHost
 from scieqlint.markdown import (
+    _ordered_lexical_ranges,  # pyright: ignore[reportPrivateUsage]
     code_fence_ranges,
     dollar_display_opener_positions,
+    dollar_display_ranges,
     inline_code_ranges,
     markdown_reference_snapshot,
 )
@@ -51,7 +53,7 @@ from .myst_math import (
     scan_raw_latex_math,
 )
 from .myst_refs import scan_refs
-from .myst_shared import dollar_display_ranges, in_ranges, line_ranges
+from .myst_shared import in_ranges, line_ranges
 from .reference_display import reference_display_text_facts
 
 _directive_option_prefix_lines = directive_option_prefix_lines
@@ -127,21 +129,23 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     )
     link_occupied = tuple((token.start, token.end) for token in reference_snapshot.links)
     dollar_scan_occupied = (*reference_snapshot.link_metadata_ranges, *link_occupied)
-    dollar_displays = dollar_display_ranges(
-        document.text,
-        dollar_scan_occupied,
-    )
+    if type(document.text) is str:
+        dollar_lexical = _ordered_lexical_ranges(document.text, dollar_scan_occupied)
+        dollar_displays = dollar_lexical.display
+        dollar_openers = dollar_lexical.display_openers
+    else:
+        dollar_displays = dollar_display_ranges(document.text, dollar_scan_occupied)
+        dollar_openers = dollar_display_opener_positions(document.text, dollar_scan_occupied)
     closed_dollar_starts = {start for start, _body_start, _body_end, _close_end in dollar_displays}
     unmatched_dollar_occupied = tuple(
-        (start, len(document.text))
-        for start in dollar_display_opener_positions(document.text, dollar_scan_occupied)
-        if start not in closed_dollar_starts
+        (start, len(document.text)) for start in dollar_openers if start not in closed_dollar_starts
     )
+    inline_code_occupied = inline_code_ranges(document.text)
     math_ownership_occupied = (
         *reference_snapshot.non_math_opaque_ranges,
         *link_occupied,
         *live_fence_ranges,
-        *inline_code_ranges(document.text),
+        *inline_code_occupied,
     )
     dollar_occupied = tuple(
         (start, close_end) for start, _body_start, _body_end, close_end in dollar_displays
@@ -190,8 +194,11 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
             document.text, (*reference_snapshot.link_metadata_ranges, *raw_occupied)
         )
         link_occupied = tuple((token.start, token.end) for token in reference_snapshot.links)
-        dollar_displays = dollar_display_ranges(
-            document.text, (*reference_snapshot.link_metadata_ranges, *link_occupied, *raw_occupied)
+        rescan_occupied = (*reference_snapshot.link_metadata_ranges, *link_occupied, *raw_occupied)
+        dollar_displays = (
+            _ordered_lexical_ranges(document.text, rescan_occupied).display
+            if type(document.text) is str
+            else dollar_display_ranges(document.text, rescan_occupied)
         )
         dollar_occupied = tuple(
             (start, close_end) for start, _body_start, _body_end, close_end in dollar_displays
@@ -226,6 +233,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
     # Preserve the established fence-then-dollar fact ordering; raw-LaTeX facts
     # extend that contract without reordering pre-existing buckets.
     display_math = (*display_math, *raw_display_math)
+    display_math_occupied = math_occupied_ranges(display_math)
     equation_labels = (*equation_labels, *raw_labels)
     generic_refs, prose_equation_refs = scan_refs(
         document,
@@ -257,7 +265,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
             smap,
             (
                 *dollar_occupied,
-                *math_occupied_ranges(display_math),
+                *display_math_occupied,
                 *reference_snapshot.link_metadata_ranges,
             ),
             reference_snapshot,
@@ -276,7 +284,7 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
             # Link labels remain prose even when their body resembles TeX.
             *((token.start, token.end) for token in reference_snapshot.links),
             *dollar_occupied,
-            *math_occupied_ranges(display_math),
+            *display_math_occupied,
             *(
                 (fact.span.start, fact.span.end)
                 for fact in inline_math
@@ -292,7 +300,14 @@ def _lower_document(document: SourceDocument, *, workspace: WorkspaceHost) -> Fa
         dollar_displays,
         reference_snapshot.links,
         (*reference_snapshot.opaque_ranges, *link_occupied),
-        (*live_fence_ranges, *inline_code_ranges(document.text)),
+        (
+            *live_fence_ranges,
+            *(
+                inline_code_occupied
+                if type(document.text) is str
+                else inline_code_ranges(document.text)
+            ),
+        ),
     )
     equation_like_text = scan_equation_like_text_items(
         document,
