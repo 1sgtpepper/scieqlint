@@ -1,9 +1,8 @@
 # Implementation Status
 
-The development tree targets v1.2.1 with Beta package maturity and includes
-unreleased changes. [Product release criteria](RELEASE_CHECKLIST.md#v121-product-criteria)
-cover the current supported linter; the complete R1 host/session migration remains
-planned in the architecture ADR.
+v1.2.2 is the final planned release of the current Beta static linter. Its
+[release criteria](RELEASE_CHECKLIST.md#v122-product-criteria) cover the supported
+scope below. The unfinished R1 host/session migration is not scheduled.
 
 The analyzer can:
 

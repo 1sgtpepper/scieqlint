@@ -12,11 +12,11 @@ Release notes must use these sections:
 - Migration notes
 - Known limitations
 
-## Unreleased
+## v1.2.2 - 2026-10-20
 
 ### Added
 
-- Document the v1.2.1 product release criteria, current and planned owners, and
+- Document the v1.2.2 product release criteria, current owners, and
   exact safety, compatibility and installed-artifact acceptance checks.
 - Installed release-artifact checks now exercise generated-MyST preset initialization,
   clean and failing CLI analysis, and both packaged JSON result schema versions.
@@ -81,7 +81,11 @@ Release notes must use these sections:
 
 ### Changed
 
-- Prepare v1.2.1 with Beta package maturity and synchronized current integration
+- Make v1.2.2 the final planned release of the current static linter. Retire the
+  R1 roadmap and starter queue without claiming the unfinished migration is complete.
+- Assign v1.2.2 introduction metadata to the supported diagnostics previously
+  labeled `Unreleased`.
+- Prepare v1.2.2 with Beta package maturity and synchronized current integration
   pins and report version metadata. Release guidance requires coordinated
   publication and validates candidates with manual branch runs.
 - The generated-document workflow now uses the packaged `generated-myst` preset
@@ -106,8 +110,8 @@ Release notes must use these sections:
   SARIF, and GitHub reporters through one provenance and profile projection
   instead of being reconstructed independently. JSON output
   retains schema 0.1 when no projection metadata is emitted and uses the new 0.2
-  schemas when metadata is present. The remaining schema registry and serializer
-  migration remain tracked by #190/#191.
+  schemas when metadata is present. The unfinished schema registry and serializer
+  migration is outside this release; #190/#191 retain the historical plans.
 - Programmatic provenance identifiers, source kinds, and conversion stages are
   normalized at construction and reject blank values consistently with TOML input.
 - Unresolved graph targets retain the schema 0.3 `label:<fragment>` identity while
@@ -130,7 +134,7 @@ Release notes must use these sections:
   LaTeX, and notebook inputs, preserving Markdown-link `REF002` reports without
   duplicate legacy diagnostics and retaining notebook cell identity.
 - Accessibility metadata now rejects identifiers that resolve to multiple inline-math
-  facts, and `PORT002` remains marked `Unreleased` until its release line is established.
+  facts.
 - Accessibility metadata now rejects malformed key/value mappings at the loaded-document
   API boundary, and `PORT002` carries the stable source-owned accessibility ID used by
   those mappings. The `math-accessibility` profile covers Markdown documents and
@@ -355,7 +359,7 @@ Release notes must use these sections:
 
 - The accuracy corpus meets the 100-equation evidence threshold, but its source and
   domain coverage is limited. Real-world precision/recall, a family-disjoint holdout
-  and the other stable-release gates remain to be established.
+  and broader accuracy claims remain unestablished.
 
 ## v1.1.0 - 2026-06-15
 
