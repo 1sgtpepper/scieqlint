@@ -288,7 +288,7 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     assert '"build==1.3.0"' in build_run
     assert '"twine==6.1.0"' in build_run
     upload = _workflow_step(build, step_id="release-artifact")
-    assert upload["uses"] == ("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a")
+    assert upload["uses"] == ("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9")
     assert upload["with"] == {
         "name": "dist",
         "path": "dist/*",
@@ -304,7 +304,7 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     assert smoke_outputs["release_sha"] == "${{ needs.build.outputs.release_sha }}"
     smoke_download = _workflow_step(
         smoke,
-        uses="actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+        uses="actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
     )
     assert smoke_download["with"] == {
         "artifact-ids": smoke_artifact_id,
@@ -359,7 +359,7 @@ def test_release_workflow_publishes_the_exact_smoke_verified_artifact() -> None:
     publish_artifact_id = "${{ needs.smoke.outputs.distribution_id }}"
     publish_download = _workflow_step(
         publish,
-        uses="actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+        uses="actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
     )
     assert publish_download["with"] == {
         "artifact-ids": publish_artifact_id,
