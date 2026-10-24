@@ -12,7 +12,7 @@ Release notes must use these sections:
 - Migration notes
 - Known limitations
 
-## v1.2.2 - 2026-10-20
+## v1.2.2 - 2026-10-24
 
 ### Added
 
@@ -81,6 +81,7 @@ Release notes must use these sections:
 
 ### Changed
 
+- Refresh pinned CI and release Actions together with their workflow contract tests.
 - Make v1.2.2 the final planned release of the current static linter. Retire the
   R1 roadmap and starter queue without claiming the unfinished migration is complete.
 - Assign v1.2.2 introduction metadata to the supported diagnostics previously
