@@ -133,7 +133,7 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "DIR013": DiagnosticInfo(
         Severity.WARNING,
         "code-cell language metadata is unknown or malformed",
-        "Unreleased",
+        "v1.2.2",
         "A code-cell language value is malformed or is absent from the optional "
         "project-authoritative language catalog.",
     ),
@@ -219,28 +219,28 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "GEN002": DiagnosticInfo(
         Severity.WARNING,
         "generated math contains suspicious formula text",
-        "Unreleased",
+        "v1.2.2",
         "An explicit generated-math container contains a high-confidence spaced-token "
         "or garbled-marker artifact in its formula content, excluding directive options.",
     ),
     "GEN003": DiagnosticInfo(
         Severity.WARNING,
         "nonstandard bracketed LaTeX display block",
-        "Unreleased",
+        "v1.2.2",
         "Generated Markdown contains a standalone bracketed LaTeX display block outside "
         "a supported math container.",
     ),
     "GEN004": DiagnosticInfo(
         Severity.WARNING,
         "generated output contains a formula placeholder",
-        "Unreleased",
+        "v1.2.2",
         "Generated Markdown contains a formula-not-decoded marker, empty display math, "
         "or a standalone formula image placeholder.",
     ),
     "GEN005": DiagnosticInfo(
         Severity.WARNING,
         "standalone text block looks like an equation",
-        "Unreleased",
+        "v1.2.2",
         "An isolated generated Markdown text item has high-confidence equation signals "
         "but is not inside a math container.",
     ),
@@ -278,68 +278,68 @@ CATALOG: dict[str, DiagnosticInfo] = {
     "REF011": DiagnosticInfo(
         Severity.WARNING,
         "ambiguous equation reference",
-        "Unreleased",
+        "v1.2.2",
         "A supported equation reference points to more than one equation target.",
     ),
     "REF006": DiagnosticInfo(
         Severity.WARNING,
         "cross-reference path resolves differently after project normalization",
-        "Unreleased",
+        "v1.2.2",
         "A local cross-document target resolves only after lexical project-path "
         "normalization, such as removal of a './' component.",
     ),
     "REF007": DiagnosticInfo(
         Severity.WARNING,
         "conflicting cross-reference metadata",
-        "Unreleased",
+        "v1.2.2",
         "Two source or engine-output boundaries describe the same logical target "
         "with different reference kind or display metadata.",
     ),
     "REF008": DiagnosticInfo(
         Severity.WARNING,
         "equation reference matches a hidden or excluded target",
-        "Unreleased",
+        "v1.2.2",
         "A rendered equation reference has matching target identity in a hidden or "
         "excluded source, which can change project-level resolution.",
     ),
     "REF010": DiagnosticInfo(
         Severity.WARNING,
         "duplicate code-cell target label",
-        "Unreleased",
+        "v1.2.2",
         "A code-cell label collides with another visible reference target.",
     ),
     "REF009": DiagnosticInfo(
         Severity.WARNING,
         "non-heading reference has missing or generic display text",
-        "Unreleased",
+        "v1.2.2",
         "A resolved non-heading target relies on missing or generic display text under "
         "the opt-in reference-display profile.",
     ),
     "PORT001": DiagnosticInfo(
         Severity.WARNING,
         "equation reference syntax may not survive configured output profile",
-        "Unreleased",
+        "v1.2.2",
         "An equation reference uses source syntax outside the configured output "
         "profile's conservative portability baseline.",
     ),
     "PORT002": DiagnosticInfo(
         Severity.WARNING,
         "inline math lacks accessible text metadata",
-        "Unreleased",
+        "v1.2.2",
         "An explicit inline-math span has no accessible text in the lowered "
         "source facts for the selected accessibility profile.",
     ),
     "PORT003": DiagnosticInfo(
         Severity.WARNING,
         "equation syntax may not survive Typst export",
-        "Unreleased",
+        "v1.2.2",
         "A focused TeX display-math form is known to be unsupported or fragile "
         "in current Typst publishing paths.",
     ),
     "PORT004": DiagnosticInfo(
         Severity.WARNING,
         "cell renderings are incompatible with cross-reference options",
-        "Unreleased",
+        "v1.2.2",
         "A notebook or executable Markdown cell combines renderings with a label or "
         "caption option that creates a cross-reference.",
     ),

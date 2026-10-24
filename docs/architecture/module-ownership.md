@@ -1,5 +1,9 @@
 # Module Ownership
 
+The current ownership boundaries remain applicable. The unfinished R1 migrations
+recorded below are historical plans and are not scheduled for the final v1.2.2
+release.
+
 This R1-002A map is the reviewed package boundary artifact for the current
 repository tree. Its input boundary is limited to the checked-in
 `src/scieqlint` tree, architecture-owned tool and test categories, the

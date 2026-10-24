@@ -14,9 +14,10 @@ SciEqLint is a deterministic quality linter for scientific documents. It scans s
 Initial releases implement Markdown/MyST equation diagnostics, reference validation, deterministic output, and documented scanner boundaries.
 
 Complete pack note: this repository tracks the core release ladder through v1.0.0;
-the current implementation targets v1.2.1 with Beta package maturity, including
-generated-MyST validation and the product criteria in `RELEASE_CHECKLIST.md`.
-The complete R1 architecture migration remains planned.
+the current implementation targets v1.2.2, the final planned release of the Beta
+static linter, including generated-MyST validation and the product criteria in
+`RELEASE_CHECKLIST.md`. The unfinished R1 migration is not scheduled. Later designs
+in this specification are historical plans, not implementation commitments.
 
 ---
 
@@ -733,7 +734,7 @@ Required baseline:
 - markdown-cell scanning,
 - cell index in JSON.
 
-#### Unreleased notebook cross-reference checks
+#### Notebook cross-reference checks (v1.2.2)
 
 The opt-in `notebook-crossrefs` profile reports `PORT004` when declarative
 renderings combine with typed labels or caption options on code cells and recorded
@@ -742,11 +743,11 @@ each affected output retains its identity and exact JSON source span. Equivalent
 metadata and renderings without cross-reference options remain quiet. Full facts
 remain available while diagnostic rendering values use a 256-character preview.
 
-The unreleased `reference-display` profile resolves Markdown references against
+The opt-in `reference-display` profile resolves Markdown references against
 visible notebook headings, equations, code-cell labels and recorded-output labels.
 It preserves source spans and visibility and never executes or re-renders cells.
 
-The unreleased `code-cell-metadata` profile admits notebook code cells and checks
+The opt-in `code-cell-metadata` profile admits notebook code cells and checks
 their language metadata. Labeled Markdown code cells already participate in ordinary
 reference resolution.
 
@@ -1482,8 +1483,8 @@ References are core v0.1.0. Graph and symbols come later.
 | `REF001` | v0.1.0 | error | Duplicate equation label |
 | `REF002` | v0.1.0 | warning | Equation reference target not found |
 | `REF003` | v0.1.0 | info | Equation block has no label in strict mode |
-| `REF006` | Unreleased | warning | Local reference resolves only after project-path normalization |
-| `REF011` | Unreleased | warning | Ambiguous equation reference |
+| `REF006` | v1.2.2 | warning | Local reference resolves only after project-path normalization |
+| `REF011` | v1.2.2 | warning | Ambiguous equation reference |
 
 Rules:
 
@@ -2608,6 +2609,6 @@ diagnostic instead of an inferred result.
 
 The companion ZIP includes `PACK_MANIFEST.md`, which lists every repository scaffold file. The pack is intentionally split into specification, governance, docs, CI, package scaffold, tests, schemas, examples, and release checklists.
 
-The included code is the current v1.2.1 analyzer. It exists so contributors can
+The included code is the current v1.2.2 analyzer. It exists so contributors can
 install, run, test, and extend real equation, reference, and MyST structure checks
 while preserving the documented release boundaries.

@@ -1,6 +1,8 @@
 # Release ladder
 
-SciEqLint grows by scoped release slices. Release order changes only for correctness, security, packaging, or compatibility defects.
+v1.2.2 is the final planned release of the current static linter. The ladder and
+scope rules below are retained as history; no later feature release or R1 migration
+is scheduled.
 
 ## Release ladder
 
@@ -20,7 +22,7 @@ SciEqLint grows by scoped release slices. Release order changes only for correct
 | v0.9.0 | stabilize contracts | performance, compatibility, contract candidates |
 | v1.0.0 | stable scientific CI core | frozen CLI/JSON/SARIF/config/API |
 | v1.1.0 | validate generated MyST/scientific docs | MyST structure and generic-reference diagnostics, generated-output anchor audit, generated-MyST preset |
-| v1.2.1 | complete the current supported product release | Beta maturity, generated-document profiles, source/path compatibility and [executable product acceptance](https://github.com/1sgtpepper/scieqlint/blob/main/RELEASE_CHECKLIST.md#v121-product-criteria) |
+| v1.2.2 | final planned release of the current static linter | Beta maturity, generated-document profiles, source/path compatibility and [executable product acceptance](https://github.com/1sgtpepper/scieqlint/blob/main/RELEASE_CHECKLIST.md#v122-product-criteria) |
 
 ## Scope rule
 

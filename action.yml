@@ -9,7 +9,7 @@ inputs:
   package-version:
     description: SciEqLint package version to install from PyPI.
     required: false
-    default: "1.2.1"
+    default: "1.2.2"
   args:
     description: Arguments passed to the scieqlint CLI.
     required: false

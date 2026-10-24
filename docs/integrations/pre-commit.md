@@ -3,7 +3,7 @@
 ```yaml
 repos:
   - repo: https://github.com/1sgtpepper/scieqlint
-    rev: v1.2.1
+    rev: v1.2.2
     hooks:
       - id: scieqlint
 ```

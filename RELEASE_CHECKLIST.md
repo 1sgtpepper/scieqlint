@@ -26,7 +26,11 @@ Every release must include:
 - the 100-document/500-equation/500-reference representative workload completing within three seconds,
 - release notes with migration notes.
 
-## v1.2.1 product criteria
+## v1.2.2 product criteria
+
+This is the final planned release of the current static linter. R1 issue links
+below record historical, unimplemented plans outside this release. Their closure
+does not mark the migration complete or commit to future work.
 
 This release targets Beta maturity for the current static linter: documented
 Markdown/MyST, LaTeX and notebook source support; supported scalar algebra and
@@ -36,16 +40,16 @@ Generated-source provenance remains caller-supplied.
 
 The [module ownership map](docs/architecture/module-ownership.md) and
 [Deterministic Snapshot Kernel ADR](docs/architecture/deterministic-snapshot-kernel-adr.md)
-define current, legacy and planned ownership. These product criteria consume
+record current and legacy ownership alongside historical migration plans. These product criteria consume
 those documents and the existing module/CI boundaries; they introduce no runtime
 semantics or new architecture owner.
 
-| Current owner and status | Forbidden behavior or required evidence | Executable gate or deferred follow-up |
+| Current owner and status | Forbidden behavior or required evidence | Executable gate or historical R1 reference |
 |---|---|---|
-| `cli`, `api` and `app`: current public entry points and CompatibilityShell role (legacy adapters/orchestration) | Direct CLI imports of scanner/parser/checker internals | `lint-imports --config pyproject.toml`; planned AnalysisSession contracts and cutover: [#194](https://github.com/1sgtpepper/scieqlint/issues/194), [#195](https://github.com/1sgtpepper/scieqlint/issues/195), [#196](https://github.com/1sgtpepper/scieqlint/issues/196) |
-| `scan`, `frontend`, current `check.algebra` and `check.dimensions`: static source analysis; durable FrontendHost/MathHost cutover remains planned | Notebook/code execution, process/shell calls and user project imports; unsupported math disappearing or losing source/exit semantics | [Security contracts](tests/test_security_contracts.py) and [public unsupported-math contract](tests/test_algebra.py), and [configured dimensions](tests/test_dimensions.py); R1 gates remain [#202](https://github.com/1sgtpepper/scieqlint/issues/202), [#204](https://github.com/1sgtpepper/scieqlint/issues/204), [#201](https://github.com/1sgtpepper/scieqlint/issues/201); parser model/recovery: [#174](https://github.com/1sgtpepper/scieqlint/issues/174), [#175](https://github.com/1sgtpepper/scieqlint/issues/175) |
-| `app`/`io`: caller-selected loading; current `WorkspaceHost` normalizes reference paths lexically | A document reference must not authorize another filesystem read. Explicit caller-selected outside-CWD and symlink inputs retain their contracts | Source audit: [reference normalization](src/scieqlint/io/workspace.py), [loading boundary](src/scieqlint/app.py); [path/API tests](tests/test_crossref_path_normalization.py), [caller input tests](tests/test_api.py). Expanded resource policy and negative-fixture gates remain planned in [#152](https://github.com/1sgtpepper/scieqlint/issues/152), [#205](https://github.com/1sgtpepper/scieqlint/issues/205) |
-| `facts`, `query`, `engine`, `schema` and `report`: current fact/profile analysis and projections; durable owners are FactHost, QueryHost, EngineHost and SchemaHost, with full host/registry contracts still planned | Diagnostics, schemas, baseline identity or serialized ordering drifting for equivalent inputs | [Golden reports](tests/test_golden_outputs.py), [JSON schemas](tests/test_json_schema.py), [baselines](tests/test_baseline.py), [serialized determinism](tests/test_architecture_contracts.py). Caller/configured symbol order is semantic. Durable manifested gates and registry/serialization work remain [#197](https://github.com/1sgtpepper/scieqlint/issues/197), [#200](https://github.com/1sgtpepper/scieqlint/issues/200), [#190](https://github.com/1sgtpepper/scieqlint/issues/190), [#193](https://github.com/1sgtpepper/scieqlint/issues/193) |
+| `cli`, `api` and `app`: current public entry points and CompatibilityShell role (legacy adapters/orchestration) | Direct CLI imports of scanner/parser/checker internals | `lint-imports --config pyproject.toml`; unimplemented AnalysisSession contracts and cutover: [#194](https://github.com/1sgtpepper/scieqlint/issues/194), [#195](https://github.com/1sgtpepper/scieqlint/issues/195), [#196](https://github.com/1sgtpepper/scieqlint/issues/196) |
+| `scan`, `frontend`, current `check.algebra` and `check.dimensions`: static source analysis; durable FrontendHost/MathHost cutover is outside this release | Notebook/code execution, process/shell calls and user project imports; unsupported math disappearing or losing source/exit semantics | [Security contracts](tests/test_security_contracts.py) and [public unsupported-math contract](tests/test_algebra.py), and [configured dimensions](tests/test_dimensions.py); historical R1 gates: [#202](https://github.com/1sgtpepper/scieqlint/issues/202), [#204](https://github.com/1sgtpepper/scieqlint/issues/204), [#201](https://github.com/1sgtpepper/scieqlint/issues/201); parser model/recovery: [#174](https://github.com/1sgtpepper/scieqlint/issues/174), [#175](https://github.com/1sgtpepper/scieqlint/issues/175) |
+| `app`/`io`: caller-selected loading; current `WorkspaceHost` normalizes reference paths lexically | A document reference must not authorize another filesystem read. Explicit caller-selected outside-CWD and symlink inputs retain their contracts | Source audit: [reference normalization](src/scieqlint/io/workspace.py), [loading boundary](src/scieqlint/app.py); [path/API tests](tests/test_crossref_path_normalization.py), [caller input tests](tests/test_api.py). Historical resource-policy and negative-fixture proposals: [#152](https://github.com/1sgtpepper/scieqlint/issues/152), [#205](https://github.com/1sgtpepper/scieqlint/issues/205) |
+| `facts`, `query`, `engine`, `schema` and `report`: current fact/profile analysis and projections; durable owners are FactHost, QueryHost, EngineHost and SchemaHost, with full host/registry contracts unimplemented | Diagnostics, schemas, baseline identity or serialized ordering drifting for equivalent inputs | [Golden reports](tests/test_golden_outputs.py), [JSON schemas](tests/test_json_schema.py), [baselines](tests/test_baseline.py), [serialized determinism](tests/test_architecture_contracts.py). Caller/configured symbol order is semantic. Historical manifested-gate and registry/serialization proposals: [#197](https://github.com/1sgtpepper/scieqlint/issues/197), [#200](https://github.com/1sgtpepper/scieqlint/issues/200), [#190](https://github.com/1sgtpepper/scieqlint/issues/190), [#193](https://github.com/1sgtpepper/scieqlint/issues/193) |
 | Existing [CI](.github/workflows/ci.yml) and [Release](.github/workflows/release.yml) workflows | Missing packaged presets/schemas, inactive clean/failing checks, insufficient independent accuracy evidence or exceeded performance budget | [Installed generated-MyST workflow](tests/test_generated_formula_quality_golden.py), [accuracy corpus](tests/test_accuracy_benchmarks.py), [representative workload](tests/test_stabilization.py); both installed artifacts run the existing release command |
 
 The following focused targets are covered by the ordinary CI matrix:
@@ -71,12 +75,12 @@ SCIEQLINT_RELEASE_GATE=1 python -m pytest -o pythonpath= -q \
 After merging the scope to protected `main`, require fresh normal CI and manual
 Release validation on that same revision, then apply the publication sequence
 below. The architecture conformance report, selected-kernel validation command,
-combined kernel fixture and R1 closeout remain in [#210](https://github.com/1sgtpepper/scieqlint/issues/210),
+combined kernel fixture and R1 closeout were proposed in [#210](https://github.com/1sgtpepper/scieqlint/issues/210),
 [#211](https://github.com/1sgtpepper/scieqlint/issues/211),
 [#212](https://github.com/1sgtpepper/scieqlint/issues/212) and
-[#213](https://github.com/1sgtpepper/scieqlint/issues/213). The full release-exit
-conformance work in [#209](https://github.com/1sgtpepper/scieqlint/issues/209) remains
-part of the [R1 tracker](https://github.com/1sgtpepper/scieqlint/issues/132).
+[#213](https://github.com/1sgtpepper/scieqlint/issues/213). The historical release-exit
+conformance proposal in [#209](https://github.com/1sgtpepper/scieqlint/issues/209) is recorded in
+the closed [R1 tracker](https://github.com/1sgtpepper/scieqlint/issues/132).
 
 ## Release sequence
 

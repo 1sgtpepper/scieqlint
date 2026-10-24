@@ -1,5 +1,9 @@
 # ADR R1-001: Deterministic Snapshot Kernel
 
+The unfinished R1 migration is not scheduled for the final v1.2.2 release. This
+record preserves the design and its historical decisions; planned work below is
+not a current implementation or a future release commitment.
+
 Status: Ratified for R1 architecture governance
 Decision date: 2026-06-26
 Owner: Architecture governance

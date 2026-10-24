@@ -1,6 +1,10 @@
 # Support
 
-Use GitHub Issues for reproducible bugs, docs gaps, and scoped feature requests.
+v1.2.2 is the final planned release. Further features and releases are not
+scheduled, and fixes or response times are not guaranteed.
+
+Use GitHub Issues for reproducible bugs and documentation gaps. Feature work is
+out of scope.
 
 Before opening an issue:
 

@@ -6,7 +6,7 @@ SciEqLint changes are scoped by release, layer, and test surface.
 
 1. Read `README.md` for the project summary.
 2. Read the first sections of `SPEC.md`: product contract, release ladder, v0.1.0 scope, data contracts, parser/algebra boundaries, reporters, testing, and release checklist.
-3. Use `GOOD_FIRST_ISSUES.md` to browse live GitHub issues labeled `good first issue`, `good second issue`, or `help wanted`, then follow the [issue guide](docs/contributing/issue-guide.md).
+3. Check `GOOD_FIRST_ISSUES.md` for development status and `SUPPORT.md` before proposing a change.
 4. Run the local quality loop before opening a PR.
 
 ## Local setup

@@ -57,11 +57,11 @@ def test_explanations_preserve_every_catalog_key_and_metadata() -> None:
     assert explain_code("NOPE999") is None
 
 
-def test_new_accessibility_diagnostic_does_not_claim_a_published_release() -> None:
-    assert CATALOG["PORT002"].release == "Unreleased"
-    assert "(warning, Unreleased)" in (explain_code("PORT002") or "")
+def test_accessibility_diagnostic_names_the_release() -> None:
+    assert CATALOG["PORT002"].release == "v1.2.2"
+    assert "(warning, v1.2.2)" in (explain_code("PORT002") or "")
 
 
-def test_typst_portability_diagnostic_is_cataloged_as_unreleased() -> None:
-    assert CATALOG["PORT003"].release == "Unreleased"
-    assert "(warning, Unreleased)" in (explain_code("PORT003") or "")
+def test_typst_portability_diagnostic_names_the_release() -> None:
+    assert CATALOG["PORT003"].release == "v1.2.2"
+    assert "(warning, v1.2.2)" in (explain_code("PORT003") or "")
