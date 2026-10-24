@@ -81,6 +81,7 @@ Release notes must use these sections:
 
 ### Changed
 
+- Refresh pinned CI and release Actions together with their workflow contract tests.
 - Prepare v1.2.1 with Beta package maturity and synchronized current integration
   pins and report version metadata. Release guidance requires coordinated
   publication and validates candidates with manual branch runs.
